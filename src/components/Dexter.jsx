@@ -208,8 +208,8 @@ export default function Dexter({ settings, onUpdateSettings, onCreateNote, onUpd
                         ) : (
                             // Standard Text
                             <div className={`max-w-[90%] text-sm leading-relaxed ${msg.role === 'user'
-                                    ? 'text-gray-300'
-                                    : 'text-gray-300'
+                                ? 'text-gray-300'
+                                : 'text-gray-300'
                                 }`}>
                                 {msg.content}
                             </div>
@@ -252,7 +252,10 @@ export default function Dexter({ settings, onUpdateSettings, onCreateNote, onUpd
                             >
                                 <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
                                 <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
-                                <option value={settings?.aiModel || 'custom'}>Custom Model</option>
+                                <option value="google/gemini-flash-1.5">Gemini Flash 1.5</option>
+                                {(settings?.customModels || []).map(model => (
+                                    <option key={model} value={model}>{model.split('/').pop()}</option>
+                                ))}
                             </select>
                             <ChevronDown className="w-2.5 h-2.5 text-gray-500 absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>

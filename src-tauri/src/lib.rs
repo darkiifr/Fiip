@@ -43,6 +43,7 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![greet, set_window_effect])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

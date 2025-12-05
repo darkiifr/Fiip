@@ -53,6 +53,9 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
     return (
         <div className="flex-1 h-full flex flex-col bg-white dark:bg-[#1e1e1e] relative transition-colors duration-300">
+            {/* Invisible Drag Region at top - 30px height */}
+            <div className="absolute top-0 left-0 right-0 h-8 z-10" data-tauri-drag-region />
+
             <div className="pt-12 px-8 pb-4 animate-in fade-in slide-in-from-bottom-2 duration-500 group relative">
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mx-auto block text-center mb-4 transition-colors">
                     {new Date(note.updatedAt).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}

@@ -24,6 +24,13 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://example.com/update.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
