@@ -1,0 +1,11 @@
+{
+    "version": "0.9.8",
+    "notes": "Mise à jour v0.9.8 : Correctifs majeurs (Fenêtre, Drag & Drop), Dexter AI amélioré, Stabilité.",
+    "pub_date": "2025-12-06T00:00:00Z",
+    "platforms": {
+        "windows-x86_64": {
+            "signature": "CONTENT_OF_THE_SIGNATURE_FILE_SIG",
+            "url": "https://github.com/darkiifr/Fiip/releases/latest/download/fiip_0.6.0_x64-setup.nsis.zip"
+        }
+    }
+}

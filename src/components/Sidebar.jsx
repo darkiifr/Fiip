@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Plus, Trash2, Settings } from 'lucide-react';
+import { Search, Plus, Trash2, Settings, Bot } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings }) {
+export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings, onToggleDexter }) {
     const [searchTerm, setSearchTerm] = useState('');
     const appWindow = getCurrentWindow();
 
@@ -14,15 +14,28 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
     return (
         <div className="w-80 h-full bg-sidebar/80 dark:bg-sidebar-dark/80 backdrop-blur-2xl border-r border-gray-200 dark:border-white/10 flex flex-col transition-colors duration-300">
             {/* Header : Window Controls & Search */}
-            <div className="relative p-4 pt-4 flex flex-col gap-4">
-                {/* Background Drag Region */}
-                <div className="absolute inset-0 z-0" data-tauri-drag-region />
+            {/* Header : Window Controls & Search */}
+            <div className="flex flex-col gap-4 p-4 pt-4 select-none">
+                {/* Top Row: Traffic Lights + Drag Handle Spacer */}
+                <div className="flex items-center">
+                    {/* Traffic Lights - No absolute positioning needed anymore */}
+                    <div className="flex gap-2.5 group pl-1.5 pt-1 pr-4 z-50">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); appWindow.close(); }}
+                            className="w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:bg-[#FF4A42] border border-black/10 flex items-center justify-center text-[8px] transition-all active:scale-95 shadow-sm cursor-pointer"
+                        ></button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); appWindow.minimize(); }}
+                            className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E] hover:bg-[#FEAE1C] border border-black/10 flex items-center justify-center text-[8px] transition-all active:scale-95 shadow-sm cursor-pointer"
+                        ></button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); appWindow.toggleMaximize(); }}
+                            className="w-3.5 h-3.5 rounded-full bg-[#28C840] hover:bg-[#1EB332] border border-black/10 flex items-center justify-center text-[8px] transition-all active:scale-95 shadow-sm cursor-pointer"
+                        ></button>
+                    </div>
 
-                {/* Traffic Lights - Z-Index Higher so clickable */}
-                <div className="relative z-10 flex gap-2 group mb-1 pl-1">
-                    <button onClick={() => appWindow.close()} className="w-3 h-3 rounded-full bg-[#FF5F57] hover:bg-[#FF4A42] border border-black/10 flex items-center justify-center text-[8px] transition-all active:scale-95 shadow-sm"></button>
-                    <button onClick={() => appWindow.minimize()} className="w-3 h-3 rounded-full bg-[#FEBC2E] hover:bg-[#FEAE1C] border border-black/10 flex items-center justify-center text-[8px] transition-all active:scale-95 shadow-sm"></button>
-                    <button onClick={() => appWindow.toggleMaximize()} className="w-3 h-3 rounded-full bg-[#28C840] hover:bg-[#1EB332] border border-black/10 flex items-center justify-center text-[8px] transition-all active:scale-95 shadow-sm"></button>
+                    {/* Drag Region: Takes remaining space in this row */}
+                    <div className="flex-1 h-6" data-tauri-drag-region></div>
                 </div>
 
                 <div className="relative z-10 flex-1 group">
@@ -32,7 +45,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                         placeholder="Search"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-white dark:bg-[#2C2C2E] border border-transparent focus:border-blue-500/50 pl-9 pr-3 py-1.5 rounded-md text-sm outline-none shadow-sm transition-all duration-200 font-medium placeholder-gray-500 text-gray-900 dark:text-gray-100"
+                        className="w-full bg-white dark:bg-[#2C2C2E] border border-transparent focus:border-blue-500/50 pl-9 pr-3 py-2 rounded-md text-sm outline-none shadow-sm transition-all duration-200 font-medium placeholder-gray-500 text-gray-900 dark:text-gray-100"
                     />
                 </div>
             </div>
@@ -47,8 +60,8 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                             key={note.id}
                             onClick={() => onSelectNote(note.id)}
                             className={`
-                group p-3 rounded-lg cursor-pointer transition-all duration-200 ease-out
-                flex flex-col gap-1 border border-transparent
+                group p-4 rounded-xl cursor-pointer transition-all duration-200 ease-out
+                flex flex-col gap-1.5 border border-transparent
                 ${selectedNoteId === note.id
                                     ? 'bg-blue-600 text-white shadow-md'
                                     : 'hover:bg-white dark:hover:bg-white/10 text-gray-900 dark:text-white dark:border-white/5 bg-transparent'}
@@ -71,29 +84,39 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
             </div>
 
             {/* Footer Actions */}
-            <div className="p-3 border-t border-gray-200 dark:border-white/10 flex justify-between items-center bg-gray-50/80 dark:bg-black/40 backdrop-blur-md">
+            <div className="p-4 border-t border-gray-200 dark:border-white/10 flex justify-between items-center bg-gray-50/80 dark:bg-black/40 backdrop-blur-md gap-2">
                 <button
                     onClick={onOpenSettings}
-                    className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 rounded-md hover:bg-gray-200/50 dark:hover:bg-white/10 active:scale-95"
+                    className="p-2.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/10 active:scale-95"
                     title="Settings"
                 >
-                    <Settings className="w-4 h-4" />
+                    <Settings className="w-5 h-5" />
                 </button>
 
                 <button
+                    onClick={onToggleDexter}
+                    className="p-2.5 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-all duration-200 rounded-lg hover:bg-purple-100/50 dark:hover:bg-purple-900/30 active:scale-95"
+                    title="Dexter AI"
+                >
+                    <Bot className="w-5 h-5" />
+                </button>
+
+                <div className="flex-1"></div>
+
+                <button
                     onClick={onDeleteNote}
-                    className="p-2 text-gray-500 hover:text-red-600 transition-all duration-200 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 group"
+                    className="p-2.5 text-gray-500 hover:text-red-600 transition-all duration-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 group"
                     title="Delete Note"
                 >
-                    <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </button>
 
                 <button
                     onClick={onCreateNote}
-                    className="p-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-all duration-200 rounded-md hover:bg-blue-100/50 dark:hover:bg-blue-900/30 active:scale-95"
+                    className="p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-all duration-200 rounded-lg hover:bg-blue-100/50 dark:hover:bg-blue-900/30 active:scale-95"
                     title="New note"
                 >
-                    <Plus className="w-5 h-5" />
+                    <Plus className="w-6 h-6" />
                 </button>
             </div>
         </div>

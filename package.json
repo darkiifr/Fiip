@@ -1,13 +1,14 @@
 {
   "name": "fiip",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.9.8",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:update": "npx dotenv -e .env -- npx tauri build && node scripts/generate-latest.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -25,6 +26,7 @@
     "@tauri-apps/cli": "^2",
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.22",
+    "dotenv-cli": "^11.0.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
     "vite": "^7.0.4"

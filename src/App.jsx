@@ -28,6 +28,7 @@ function App() {
 
   const [selectedNoteId, setSelectedNoteId] = useState(notes[0]?.id || null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDexterOpen, setIsDexterOpen] = useState(false);
 
   // Settings State with Persistence
   const [settings, setSettings] = useState(() => {
@@ -105,6 +106,7 @@ function App() {
         onCreateNote={handleCreateNote}
         onDeleteNote={handleDeleteNote}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onToggleDexter={() => setIsDexterOpen(!isDexterOpen)}
       />
       <Editor
         note={selectedNote}
@@ -118,10 +120,13 @@ function App() {
         onUpdateSettings={setSettings}
       />
       <Dexter
+        isOpen={isDexterOpen}
+        onClose={() => setIsDexterOpen(false)}
         settings={settings}
         onUpdateSettings={setSettings}
         onCreateNote={handleCreateNote}
         onUpdateNote={handleUpdateNote}
+        onDeleteNote={handleDeleteNote}
         currentNote={selectedNote}
       />
     </div>
