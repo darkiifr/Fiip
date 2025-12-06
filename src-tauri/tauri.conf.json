@@ -48,7 +48,7 @@
       },
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["fr-FR"]
+        "languages": ["French"]
       }
     }
   }
