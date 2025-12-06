@@ -1,34 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Moon, Sun, Type, Check, RefreshCw } from 'lucide-react';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { open } from '@tauri-apps/plugin-shell';
+import { getPlatformDisplayName } from '../services/platform';
 
 export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdateSettings }) {
     const [localSettings, setLocalSettings] = useState(settings);
     const [hasChanges, setHasChanges] = useState(false);
     const [audioDevices, setAudioDevices] = useState({ inputs: [], outputs: [] });
+    const originalSettingsRef = useRef(settings);
+    const [platformName, setPlatformName] = useState('');
 
     useEffect(() => {
-        setLocalSettings(settings); // Sync on open
-        setHasChanges(false);
-
-        // Load Audio Devices
         if (isOpen) {
+            // Store original settings when modal opens
+            originalSettingsRef.current = settings;
+            setLocalSettings(settings);
+            setHasChanges(false);
+
+            // Load Audio Devices
             navigator.mediaDevices.enumerateDevices().then(devices => {
                 const inputs = devices.filter(d => d.kind === 'audioinput');
                 const outputs = devices.filter(d => d.kind === 'audiooutput');
                 setAudioDevices({ inputs, outputs });
             });
+
+            // Get platform info
+            getPlatformDisplayName().then(name => setPlatformName(name));
         }
     }, [isOpen, settings]);
 
     const handleUpdate = (newSettings) => {
         setLocalSettings(newSettings);
         setHasChanges(true);
+        // Apply changes in real-time
+        onUpdateSettings(newSettings);
     };
 
     const handleApply = () => {
-        onUpdateSettings(localSettings);
+        // Save the current settings as the new baseline
+        originalSettingsRef.current = localSettings;
         setHasChanges(false);
+        onClose();
+    };
+
+    const handleClose = () => {
+        if (hasChanges) {
+            // Revert to original settings if there are unsaved changes
+            onUpdateSettings(originalSettingsRef.current);
+        }
+        onClose();
     };
 
     const handleRestart = async () => {
@@ -47,7 +68,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
             <div className="w-96 bg-white dark:bg-[#2c2c2c] rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden transform transition-all scale-100 p-6 flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-center mb-6 shrink-0">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Paramètres</h2>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                    <button onClick={handleClose} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5 text-gray-500" />
                     </button>
                 </div>
@@ -91,6 +112,28 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
+                    </div>
+
+                    {/* Titlebar Style */}
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Style de Barre de Titre</h3>
+                        <div className="bg-gray-50 dark:bg-black/20 rounded-lg p-1 flex gap-1">
+                            {['none', 'windows', 'macos'].map((style) => (
+                                <button
+                                    key={style}
+                                    onClick={() => handleUpdate({ ...localSettings, titlebarStyle: style })}
+                                    className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all ${localSettings.titlebarStyle === style
+                                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-white/5'
+                                        }`}
+                                >
+                                    {style === 'none' ? 'Aucun' : style.charAt(0).toUpperCase() + style.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[10px] text-gray-400 px-1">
+                            "Aucun" utilise les boutons dans la barre latérale.
+                        </p>
                     </div>
 
                     {/* Window Effects */}
@@ -167,6 +210,36 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     placeholder="sk-or-..."
                                     className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-md px-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                 />
+                                <button
+                                    onClick={() => open('https://openrouter.ai/keys')}
+                                    className="text-[10px] text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 mt-1.5 font-medium hover:underline transition-colors"
+                                >
+                                    Obtenir une clé API OpenRouter
+                                </button>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Modèle AI par défaut</label>
+                                <select
+                                    value={localSettings.aiModel || 'openai/gpt-4o-mini'}
+                                    onChange={(e) => handleUpdate({ ...localSettings, aiModel: e.target.value })}
+                                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-md px-2 py-2 text-sm text-gray-900 dark:text-gray-100 outline-none"
+                                >
+                                    <optgroup label="Populaires">
+                                        <option value="openai/gpt-4o-mini">GPT-4o Mini (Rapide & Économique)</option>
+                                        <option value="openai/gpt-4o">GPT-4o (Puissant)</option>
+                                        <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+                                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                                        <option value="mistralai/mistral-large-2411">Mistral Large</option>
+                                    </optgroup>
+                                    {(localSettings.customModels && localSettings.customModels.length > 0) && (
+                                        <optgroup label="Personnalisés">
+                                            {localSettings.customModels.map(m => (
+                                                <option key={m} value={m}>{m}</option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+                                </select>
                             </div>
 
                             {/* Custom Models List */}
@@ -235,11 +308,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                 <div className="pt-6 border-t border-gray-100 dark:border-white/5 flex flex-col gap-3 mt-4 shrink-0">
                     <button
                         onClick={handleApply}
-                        disabled={!hasChanges}
-                        className={`w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2
-                            ${hasChanges
-                                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md transform hover:-translate-y-0.5'
-                                : 'bg-gray-100 dark:bg-white/5 text-gray-400 cursor-not-allowed'}`}
+                        className="w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-md transform hover:-translate-y-0.5"
                     >
                         <Check className="w-4 h-4" />
                         Appliquer les changements
@@ -251,7 +320,17 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 try {
                                     const { check } = await import('@tauri-apps/plugin-updater');
                                     const update = await check();
+
                                     if (update?.available) {
+                                        // Additional check: compare versions to ensure it's actually newer
+                                        const currentVersion = update.currentVersion || '0.0.0';
+                                        const latestVersion = update.version || '0.0.0';
+
+                                        if (currentVersion === latestVersion) {
+                                            alert("Vous êtes à jour !");
+                                            return;
+                                        }
+
                                         if (confirm(`Mise à jour disponible : ${update.version}\n\nVoulez-vous la télécharger et l'installer maintenant ?`)) {
                                             await update.downloadAndInstall();
                                             await relaunch();
@@ -260,7 +339,13 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         alert("Vous êtes à jour !");
                                     }
                                 } catch (e) {
-                                    alert("Erreur lors de la vérification : " + e.message);
+                                    console.error("Update check error:", e);
+                                    const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
+                                    if (msg.includes("Could not fetch a valid release JSON")) {
+                                        alert("Impossible de récupérer les informations de mise à jour. Vérifiez votre connexion internet ou réessayez plus tard.");
+                                    } else {
+                                        alert("Erreur lors de la vérification : " + msg);
+                                    }
                                 }
                             }}
                             className="flex-1 py-2.5 px-5 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
@@ -275,7 +360,10 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                             Redémarrer
                         </button>
                     </div>
-                    <p className="text-[10px] text-gray-400 text-center">Fiip Notes v0.6.0</p>
+                    <p className="text-[10px] text-gray-400 text-center">Fiip Notes v0.9.8</p>
+                    {platformName && (
+                        <p className="text-[10px] text-gray-500 text-center">Running on {platformName}</p>
+                    )}
                 </div>
             </div>
         </div>

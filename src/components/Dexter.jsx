@@ -29,6 +29,9 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [selectedModel, setSelectedModel] = useState(settings?.aiModel || 'openai/gpt-4o-mini');
+    const [recentPrompts, setRecentPrompts] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [selectedSuggestion, setSelectedSuggestion] = useState(0);
 
     // Responsiveness: Keep anchored right on resize
     useEffect(() => {
@@ -121,13 +124,59 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
         ));
     };
 
+    // Suggestions logic
+    const baseSuggestions = [
+        "Create a note about...",
+        "Update the current note with...",
+        "Summarize the current note",
+        "Generate ideas for...",
+        "Write a detailed explanation of...",
+    ];
+
+    const getSuggestions = () => {
+        const suggestions = [...baseSuggestions];
+        // Add recent prompts
+        recentPrompts.slice(0, 3).forEach(prompt => {
+            if (!suggestions.includes(prompt)) {
+                suggestions.push(prompt);
+            }
+        });
+
+        // Filter based on input
+        if (input.trim()) {
+            return suggestions.filter(s =>
+                s.toLowerCase().includes(input.toLowerCase())
+            );
+        }
+        return suggestions;
+    };
+
+    const handleInputChange = (value) => {
+        setInput(value);
+        setShowSuggestions(value.length > 0);
+        setSelectedSuggestion(0);
+    };
+
+    const handleSelectSuggestion = (suggestion) => {
+        setInput(suggestion);
+        setShowSuggestions(false);
+    };
+
     // AI Logic
     const handleSend = async () => {
         if (!input.trim() || !settings?.aiApiKey) return;
 
         const userMsg = { role: 'user', content: input };
+
+        // Add to recent prompts
+        setRecentPrompts(prev => {
+            const updated = [input, ...prev.filter(p => p !== input)];
+            return updated.slice(0, 10); // Keep only last 10
+        });
+
         setMessages(prev => [...prev, userMsg]);
         setInput('');
+        setShowSuggestions(false);
         setIsThinking(true);
 
         try {
@@ -394,12 +443,49 @@ CONTEXT:
 
             {/* Input Footer */}
             <div className="p-4 bg-[#18181b] border-t border-[#27272a]">
-                <div className="bg-[#27272a] border border-[#3f3f46] rounded-lg p-2 focus-within:ring-1 focus-within:ring-purple-500/50 transition-all flex flex-col gap-2">
+                <div className="bg-[#27272a] border border-[#3f3f46] rounded-lg p-2 focus-within:ring-1 focus-within:ring-purple-500/50 transition-all flex flex-col gap-2 relative">
+                    {/* Autocomplete Suggestions */}
+                    {showSuggestions && getSuggestions().length > 0 && (
+                        <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#27272a] border border-[#3f3f46] rounded-lg overflow-hidden shadow-2xl max-h-48 overflow-y-auto">
+                            {getSuggestions().map((suggestion, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => handleSelectSuggestion(suggestion)}
+                                    className={`w-full px-3 py-2 text-left text-sm transition-colors ${index === selectedSuggestion
+                                            ? 'bg-purple-900/30 text-purple-300'
+                                            : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                                        }`}
+                                >
+                                    {suggestion}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     <textarea
                         value={input}
-                        onChange={(e) => setInput(e.target.value)}
+                        onChange={(e) => handleInputChange(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
+                            if (showSuggestions && getSuggestions().length > 0) {
+                                if (e.key === 'ArrowDown') {
+                                    e.preventDefault();
+                                    setSelectedSuggestion(prev =>
+                                        Math.min(prev + 1, getSuggestions().length - 1)
+                                    );
+                                } else if (e.key === 'ArrowUp') {
+                                    e.preventDefault();
+                                    setSelectedSuggestion(prev => Math.max(prev - 1, 0));
+                                } else if (e.key === 'Tab' || (e.key === 'Enter' && e.ctrlKey)) {
+                                    e.preventDefault();
+                                    handleSelectSuggestion(getSuggestions()[selectedSuggestion]);
+                                    return;
+                                } else if (e.key === 'Escape') {
+                                    setShowSuggestions(false);
+                                    return;
+                                }
+                            }
+
+                            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
                                 e.preventDefault();
                                 handleSend();
                             }
