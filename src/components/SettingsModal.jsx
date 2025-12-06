@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Type, Check, RefreshCw } from 'lucide-react';
+import { relaunch } from '@tauri-apps/plugin-process';
+import { open } from '@tauri-apps/plugin-shell';
+import { getPlatformDisplayName } from '../services/platform';
 import { generateText } from '../services/ai';
 
 export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdateSettings }) {
@@ -348,7 +351,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                             Redémarrer
                         </button>
                     </div>
-                    <p className="text-[10px] text-gray-400 text-center">Fiip Notes v1.5.2</p>
+                    <p className="text-[10px] text-gray-400 text-center">Fiip Notes v1.5.3</p>
                     {platformName && (
                         <p className="text-[10px] text-gray-500 text-center">Running on {platformName}</p>
                     )}

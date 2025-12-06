@@ -191,15 +191,13 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                     <Settings className="w-5 h-5" />
                 </button>
 
-                {settings?.aiApiKey && (
-                    <button
-                        onClick={onToggleDexter}
-                        className="p-2.5 text-purple-400 hover:text-purple-300 transition-all duration-200 rounded-lg hover:bg-purple-900/30 active:scale-95"
-                        title="Dexter AI"
-                    >
-                        <Bot className="w-5 h-5" />
-                    </button>
-                )}
+                <button
+                    onClick={onToggleDexter}
+                    className="p-2.5 text-purple-400 hover:text-purple-300 transition-all duration-200 rounded-lg hover:bg-purple-900/30 active:scale-95"
+                    title="Dexter AI"
+                >
+                    <Bot className="w-5 h-5" />
+                </button>
 
                 <div className="flex-1"></div>
 
