@@ -95,8 +95,9 @@ jobs:
             const tagName = process.env.TAG_NAME;
             const { owner, repo } = context.repo;
 
-            // Clean version string (remove 'v' prefix)
-            const version = tagName.replace(/^v/, '');
+            // Clean version string (remove 'v' prefix and potential leading dot)
+            const version = tagName.replace(/^v/, '').replace(/^\./, '');
+            console.log(`TagName: ${tagName} -> Cleaned Version: ${version}`);
             
             // Validate SemVer
             if (!/^\d+\.\d+\.\d+$/.test(version)) {
