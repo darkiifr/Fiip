@@ -13,6 +13,12 @@ const targetDir = path.join(tauriDir, 'target/release/bundle/nsis');
 const tauriConfig = JSON.parse(fs.readFileSync(path.join(tauriDir, 'tauri.conf.json'), 'utf-8'));
 const version = tauriConfig.version;
 
+// Validate version format (SemVer)
+if (!/^\d+\.\d+\.\d+$/.test(version)) {
+    console.error(`Error: Version "${version}" is not a valid SemVer (expected X.Y.Z)`);
+    process.exit(1);
+}
+
 console.log(`Generating latest.json for version ${version}...`);
 
 try {

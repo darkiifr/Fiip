@@ -7,6 +7,8 @@ import Dexter from "./components/Dexter";
 import Titlebar from "./components/Titlebar";
 import "./App.css";
 
+import { type } from '@tauri-apps/plugin-os';
+
 function App() {
   const [notes, setNotes] = useState(() => {
     const saved = localStorage.getItem("fiip-notes");
@@ -34,7 +36,22 @@ function App() {
   // Settings State with Persistence
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem("fiip-settings");
-    return saved ? JSON.parse(saved) : { darkMode: false, largeText: false, windowEffect: 'mica', titlebarStyle: 'none' };
+    if (saved) {
+        return JSON.parse(saved);
+    }
+    
+    // Default logic based on OS
+    let defaultStyle = 'macos';
+    try {
+        const osType = type();
+        if (osType === 'windows' || osType === 'linux') {
+            defaultStyle = 'windows';
+        }
+    } catch (e) {
+        console.error("Failed to detect OS", e);
+    }
+
+    return { darkMode: false, largeText: false, windowEffect: 'mica', titlebarStyle: defaultStyle };
   });
 
   // Persist Notes

@@ -85,87 +85,123 @@ jobs:
             const tagName = process.env.TAG_NAME;
             const { owner, repo } = context.repo;
 
-            console.log(`Fetching release for tag ${tagName}...`);
-            const release = await github.rest.repos.getReleaseByTag({ owner, repo, tag: tagName });
-            const assets = release.data.assets;
+            // Clean version string (remove 'v' prefix)
+            const version = tagName.replace(/^v/, '');
             
-            const platforms = {};
-            
-            async function getSignature(assetName) {
-              const sigAsset = assets.find(a => a.name === assetName);
-              if (!sigAsset) {
-                console.log(`Signature file not found for ${assetName}`);
-                return null;
-              }
-              
-              try {
-                const download = await github.rest.repos.getReleaseAsset({
-                  owner,
-                  repo,
-                  asset_id: sigAsset.id,
-                  headers: { accept: 'application/octet-stream' }
-                });
-                return new TextDecoder().decode(download.data);
-              } catch (e) {
-                console.error(`Failed to download signature for ${assetName}:`, e);
-                return null;
-              }
+            // Validate SemVer
+            if (!/^\d+\.\d+\.\d+$/.test(version)) {
+                core.setFailed(`Version ${version} is not valid SemVer (X.Y.Z)`);
+                return;
             }
 
-            for (const asset of assets) {
-              if (asset.name.endsWith('.sig')) continue;
-              
-              let platformKey = null;
-              if (asset.name.endsWith('.exe')) {
-                if (asset.name.includes('aarch64')) platformKey = 'windows-aarch64';
-                else platformKey = 'windows-x86_64';
-              } else if (asset.name.endsWith('.AppImage')) {
-                platformKey = 'linux-x86_64';
-              } else if (asset.name.endsWith('.app.tar.gz')) {
-                 if (asset.name.includes('aarch64')) platformKey = 'darwin-aarch64';
-                 else if (asset.name.includes('x64')) platformKey = 'darwin-x86_64';
-                 else if (asset.name.includes('universal')) platformKey = 'darwin-universal'; 
-              }
-              
-              if (platformKey) {
-                 const sigName = asset.name + '.sig';
-                 const signature = await getSignature(sigName);
-                 if (signature) {
-                    const entry = {
-                       signature: signature.trim(),
-                       url: asset.browser_download_url
-                    };
-                    
-                    if (platformKey === 'darwin-universal') {
-                        platforms['darwin-aarch64'] = entry;
-                        platforms['darwin-x86_64'] = entry;
-                    } else {
-                        platforms[platformKey] = entry;
-                    }
-                 }
-              }
+            console.log(`Fetching release for tag ${tagName} (Version: ${version})...`);
+            
+            try {
+                const release = await github.rest.repos.getReleaseByTag({ owner, repo, tag: tagName });
+                const assets = release.data.assets;
+                
+                console.log('📦 Assets found:', assets.map(a => a.name).join(', '));
+                
+                const platforms = {};
+                let signatureCount = 0;
+                
+                async function getSignature(assetName) {
+                  const sigAsset = assets.find(a => a.name === assetName);
+                  if (!sigAsset) {
+                    console.log(`⚠️ Signature file not found for ${assetName}. Did the build sign the artifacts?`);
+                    return null;
+                  }
+                  
+                  try {
+                    const download = await github.rest.repos.getReleaseAsset({
+                      owner,
+                      repo,
+                      asset_id: sigAsset.id,
+                      headers: { accept: 'application/octet-stream' }
+                    });
+                    return new TextDecoder().decode(download.data);
+                  } catch (e) {
+                    console.error(`Failed to download signature for ${assetName}:`, e);
+                    return null;
+                  }
+                }
+
+                for (const asset of assets) {
+                  if (asset.name.endsWith('.sig') || asset.name === 'latest.json') continue;
+                  
+                  let platformKey = null;
+                  // Windows
+                  if (asset.name.endsWith('.exe') || asset.name.endsWith('.msi')) {
+                    if (asset.name.includes('aarch64')) platformKey = 'windows-aarch64';
+                    else platformKey = 'windows-x86_64';
+                  } 
+                  // Linux
+                  else if (asset.name.endsWith('.AppImage') || asset.name.endsWith('.deb')) {
+                    platformKey = 'linux-x86_64';
+                  } 
+                  // macOS
+                  else if (asset.name.endsWith('.app.tar.gz')) {
+                     if (asset.name.includes('aarch64')) platformKey = 'darwin-aarch64';
+                     else if (asset.name.includes('x64')) platformKey = 'darwin-x86_64';
+                     else if (asset.name.includes('universal')) platformKey = 'darwin-universal'; 
+                  }
+                  
+                  if (platformKey) {
+                     console.log(`Processing asset ${asset.name} for platform ${platformKey}...`);
+                     const sigName = asset.name + '.sig';
+                     const signature = await getSignature(sigName);
+                     
+                     if (signature) {
+                        const entry = {
+                           signature: signature.trim(),
+                           url: asset.browser_download_url
+                        };
+                        
+                        if (platformKey === 'darwin-universal') {
+                            platforms['darwin-aarch64'] = entry;
+                            platforms['darwin-x86_64'] = entry;
+                        } else {
+                            platforms[platformKey] = entry;
+                        }
+                        signatureCount++;
+                     } else {
+                        console.warn(`❌ Skipping ${platformKey} because signature is missing.`);
+                     }
+                  }
+                }
+                
+                if (signatureCount === 0) {
+                    console.warn("⚠️ No signatures found for any platform. The updater will not work.");
+                    // We don't fail the build, but we warn loudly.
+                }
+
+                const latestJson = {
+                  version: version,
+                  notes: release.data.body || `Update to version ${version}`,
+                  pub_date: release.data.published_at,
+                  platforms
+                };
+                
+                console.log('Generated latest.json content:', JSON.stringify(latestJson, null, 2));
+                fs.writeFileSync('latest.json', JSON.stringify(latestJson, null, 2));
+                
+                // Delete existing latest.json if it exists (to allow re-runs)
+                const existingLatest = assets.find(a => a.name === 'latest.json');
+                if (existingLatest) {
+                   console.log('Deleting existing latest.json...');
+                   await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: existingLatest.id });
+                }
+                
+                console.log('Uploading new latest.json...');
+                await github.rest.repos.uploadReleaseAsset({
+                  owner,
+                  repo,
+                  release_id: release.data.id,
+                  name: 'latest.json',
+                  data: fs.readFileSync('latest.json')
+                });
+                console.log('✅ latest.json successfully uploaded!');
+
+            } catch (error) {
+                core.setFailed(`Action failed with error: ${error.message}`);
             }
-            
-            const latestJson = {
-              version: tagName.replace(/^v/, ''),
-              notes: release.data.body,
-              pub_date: release.data.published_at,
-              platforms
-            };
-            
-            console.log('Generated latest.json:', JSON.stringify(latestJson, null, 2));
-            fs.writeFileSync('latest.json', JSON.stringify(latestJson, null, 2));
-            
-            // Check if latest.json already exists (re-run scenario)
-            const existingLatest = assets.find(a => a.name === 'latest.json');
-            if (existingLatest) {
-               await github.rest.repos.deleteReleaseAsset({ owner, repo, asset_id: existingLatest.id });
-            }
-            
-            await github.rest.repos.uploadReleaseAsset({
-              owner,
-              repo,
-              release_id: release.data.id,
-              name: 'latest.json',
-              data: fs.readFileSync('latest.json')
-            });
