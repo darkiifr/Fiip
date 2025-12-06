@@ -348,7 +348,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                             Redémarrer
                         </button>
                     </div>
-                    <p className="text-[10px] text-gray-400 text-center">Fiip Notes v1.4.6</p>
+                    <p className="text-[10px] text-gray-400 text-center">Fiip Notes v1.5.2</p>
                     {platformName && (
                         <p className="text-[10px] text-gray-500 text-center">Running on {platformName}</p>
                     )}

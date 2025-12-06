@@ -1,11 +1,11 @@
 {
-  "version": "1.4.6",
-  "notes": "Update to version 1.4.6",
-  "pub_date": "2025-12-06T20:23:24.400Z",
+  "version": "1.5.2",
+  "notes": "Update to version 1.5.2",
+  "pub_date": "2025-12-06T14:48:00.000Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "fa27894515d4aee9b13d02d76706e9dd431da1b88297b7085627caf27a7e2337",
-      "url": "https://github.com/darkiifr/Fiip/releases/latest/download/fiip_1.4.6_x64-setup.exe"
+      "signature": "CONTENT_OF_THE_SIGNATURE_FILE_SIG",
+      "url": "https://github.com/darkiifr/Fiip/releases/latest/download/fiip_1.5.2_x64-setup.exe"
     }
   }
 }
