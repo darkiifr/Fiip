@@ -19,13 +19,13 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
 
         match effect {
             "mica" => {
-                let _ = apply_mica(&window, None);
+                let _ = apply_mica(&window, Some(true));
             }
             "acrylic" => {
-                let _ = apply_acrylic(&window, Some((0, 0, 0, 10)));
+                let _ = apply_acrylic(&window, Some((18, 18, 18, 125)));
             }
             "blur" => {
-                let _ = apply_blur(&window, Some((0, 0, 0, 10)));
+                let _ = apply_blur(&window, Some((18, 18, 18, 125)));
             }
             _ => {} // "none" or default
         }

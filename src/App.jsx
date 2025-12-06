@@ -51,8 +51,23 @@ function App() {
         console.error("Failed to detect OS", e);
     }
 
-    return { darkMode: false, largeText: false, windowEffect: 'mica', titlebarStyle: defaultStyle };
+    return { darkMode: true, largeText: false, windowEffect: 'mica', titlebarStyle: defaultStyle };
   });
+
+  // Disable default context menu (Inspect Element)
+  useEffect(() => {
+    const handleContextMenu = (e) => {
+      // Allow context menu only on inputs and textareas if needed, 
+      // but user asked to remove "Inspect", so we block it globally 
+      // unless we implement custom menus everywhere.
+      // For now, we block it globally to satisfy "enlève le inspecter".
+      // We will implement custom context menu for notes in Sidebar.
+      e.preventDefault();
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    return () => document.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
 
   // Persist Notes
   useEffect(() => {
@@ -63,12 +78,8 @@ function App() {
   useEffect(() => {
     localStorage.setItem("fiip-settings", JSON.stringify(settings));
 
-    // Apply Dark Mode
-    if (settings.darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    // Force Dark Mode
+    document.documentElement.classList.add('dark');
 
     // Apply Font Size
     if (settings.largeText) {
@@ -78,7 +89,11 @@ function App() {
     }
 
     // Apply Window Effect
-    invoke('set_window_effect', { effect: settings.windowEffect || 'none' })
+    const effect = settings.windowEffect || 'none';
+    document.documentElement.classList.remove('effect-none', 'effect-mica', 'effect-acrylic', 'effect-blur');
+    document.documentElement.classList.add(`effect-${effect}`);
+
+    invoke('set_window_effect', { effect })
       .catch(err => console.error("Failed to set window effect:", err));
 
   }, [settings]);
@@ -115,16 +130,8 @@ function App() {
 
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
 
-  // Determine background class based on settings
-  const getBackgroundClass = () => {
-    if (settings.windowEffect && settings.windowEffect !== 'none') {
-      return 'bg-transparent'; // Let Mica/Acrylic show through
-    }
-    return 'bg-white dark:bg-[#1e1e1e]'; // Opaque background
-  };
-
   return (
-    <div className={`flex flex-col h-screen w-screen overflow-hidden text-gray-900 font-sans transition-colors duration-300 ${settings.largeText ? 'text-lg' : ''} ${getBackgroundClass()}`}>
+    <div className={`flex flex-col h-screen w-screen overflow-hidden text-gray-100 font-sans transition-colors duration-300 ${settings.largeText ? 'text-lg' : ''}`}>
       <Titlebar style={settings.titlebarStyle} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar

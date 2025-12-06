@@ -57,6 +57,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'App v__VERSION__'
@@ -71,17 +73,26 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      
+          
+      - name: Install dependencies
+        run: npm install
+
       - name: Generate latest.json
         uses: actions/github-script@v7
         env:
           TAG_NAME: ${{ github.ref_name }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           script: |
             const fs = require('fs');
+            const path = require('path');
+            const exec = require('@actions/exec');
             const tagName = process.env.TAG_NAME;
             const { owner, repo } = context.repo;
 
@@ -105,24 +116,77 @@ jobs:
                 const platforms = {};
                 let signatureCount = 0;
                 
-                async function getSignature(assetName) {
-                  const sigAsset = assets.find(a => a.name === assetName);
-                  if (!sigAsset) {
-                    console.log(`⚠️ Signature file not found for ${assetName}. Did the build sign the artifacts?`);
-                    return null;
+                async function getSignature(assetName, assetUrl) {
+                  const sigName = assetName + '.sig';
+                  const sigAsset = assets.find(a => a.name === sigName);
+                  
+                  if (sigAsset) {
+                    console.log(`✅ Found existing signature for ${assetName}`);
+                    try {
+                        const download = await github.rest.repos.getReleaseAsset({
+                          owner,
+                          repo,
+                          asset_id: sigAsset.id,
+                          headers: { accept: 'application/octet-stream' }
+                        });
+                        return new TextDecoder().decode(download.data);
+                    } catch (e) {
+                        console.error(`Failed to download signature for ${assetName}:`, e);
+                        return null;
+                    }
                   }
                   
+                  console.log(`⚠️ Signature file not found for ${assetName}. Attempting to generate it...`);
+                  
+                  if (!process.env.TAURI_SIGNING_PRIVATE_KEY) {
+                      console.warn("❌ No private key available to sign.");
+                      return null;
+                  }
+
                   try {
-                    const download = await github.rest.repos.getReleaseAsset({
-                      owner,
-                      repo,
-                      asset_id: sigAsset.id,
-                      headers: { accept: 'application/octet-stream' }
-                    });
-                    return new TextDecoder().decode(download.data);
+                      // Download the asset
+                      console.log(`Downloading ${assetName}...`);
+                      const download = await github.rest.repos.getReleaseAsset({
+                          owner,
+                          repo,
+                          asset_id: assets.find(a => a.name === assetName).id,
+                          headers: { accept: 'application/octet-stream' }
+                      });
+                      fs.writeFileSync(assetName, Buffer.from(download.data));
+                      
+                      // Sign it
+                      console.log(`Signing ${assetName}...`);
+                      // We use npx tauri signer sign
+                      // Pass keys via env vars
+                      const env = {
+                          ...process.env,
+                          TAURI_PRIVATE_KEY: process.env.TAURI_SIGNING_PRIVATE_KEY,
+                          TAURI_PRIVATE_KEY_PASSWORD: process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+                      };
+                      
+                      await exec.exec('npx', ['tauri', 'signer', 'sign', assetName], { env });
+                      
+                      if (fs.existsSync(sigName)) {
+                          const sigContent = fs.readFileSync(sigName, 'utf-8');
+                          
+                          // Upload the new signature
+                          console.log(`Uploading ${sigName}...`);
+                          await github.rest.repos.uploadReleaseAsset({
+                              owner,
+                              repo,
+                              release_id: release.data.id,
+                              name: sigName,
+                              data: fs.readFileSync(sigName)
+                          });
+                          
+                          return sigContent;
+                      } else {
+                          console.error("Signer command finished but .sig file is missing.");
+                          return null;
+                      }
                   } catch (e) {
-                    console.error(`Failed to download signature for ${assetName}:`, e);
-                    return null;
+                      console.error(`Failed to generate signature for ${assetName}:`, e);
+                      return null;
                   }
                 }
 
@@ -148,8 +212,7 @@ jobs:
                   
                   if (platformKey) {
                      console.log(`Processing asset ${asset.name} for platform ${platformKey}...`);
-                     const sigName = asset.name + '.sig';
-                     const signature = await getSignature(sigName);
+                     const signature = await getSignature(asset.name, asset.browser_download_url);
                      
                      if (signature) {
                         const entry = {
@@ -172,7 +235,6 @@ jobs:
                 
                 if (signatureCount === 0) {
                     console.warn("⚠️ No signatures found for any platform. The updater will not work.");
-                    // We don't fail the build, but we warn loudly.
                 }
 
                 const latestJson = {

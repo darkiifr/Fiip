@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
@@ -38,11 +39,53 @@ try {
     if (sigFile) {
         signature = fs.readFileSync(path.join(targetDir, sigFile), 'utf-8');
     } else {
-        console.log('ℹ️  No .sig file found. Generating SHA256 hash as fallback signature.');
-        const fileBuffer = fs.readFileSync(path.join(targetDir, exeFile));
-        const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-        signature = hash;
-        console.log(`   Hash: ${hash}`);
+        console.log('ℹ️  No .sig file found. Attempting to sign manually...');
+        
+        // Try to find keys in environment variables (support both v1 and v2 naming)
+        const privateKey = process.env.TAURI_SIGNING_PRIVATE_KEY || process.env.TAURI_PRIVATE_KEY;
+        const password = process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || process.env.TAURI_PRIVATE_KEY_PASSWORD;
+
+        if (privateKey && password) {
+            try {
+                const exePath = path.join(targetDir, exeFile);
+                console.log(`   Signing ${exeFile}...`);
+                
+                // Run tauri signer sign
+                // We pass keys via env vars TAURI_PRIVATE_KEY/PASSWORD which the CLI expects
+                execSync(`npx tauri signer sign "${exePath}"`, {
+                    env: {
+                        ...process.env,
+                        TAURI_PRIVATE_KEY: privateKey,
+                        TAURI_PRIVATE_KEY_PASSWORD: password
+                    },
+                    stdio: 'inherit'
+                });
+
+                // Check if .sig file was created
+                const newSigFile = `${exeFile}.sig`;
+                const newSigPath = path.join(targetDir, newSigFile);
+                
+                if (fs.existsSync(newSigPath)) {
+                    signature = fs.readFileSync(newSigPath, 'utf-8');
+                    console.log('✅ Successfully signed the binary manually.');
+                } else {
+                    throw new Error('Signer command finished but .sig file is missing.');
+                }
+            } catch (err) {
+                console.error('⚠️  Manual signing failed:', err.message);
+                console.log('   Falling back to SHA256 hash.');
+                const fileBuffer = fs.readFileSync(path.join(targetDir, exeFile));
+                const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+                signature = hash;
+                console.log(`   Hash: ${hash}`);
+            }
+        } else {
+            console.log('ℹ️  Private key not found in environment. Generating SHA256 hash as fallback signature.');
+            const fileBuffer = fs.readFileSync(path.join(targetDir, exeFile));
+            const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+            signature = hash;
+            console.log(`   Hash: ${hash}`);
+        }
     }
 
     const pubDate = new Date().toISOString();

@@ -26,7 +26,7 @@ export default function Titlebar({ style = 'macos' }) {
     if (style === 'macos') {
         return (
             <div
-                className="h-8 w-full bg-white/80 dark:bg-[#1e1e1e]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 flex items-center select-none transition-colors duration-300"
+                className="h-8 w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
             >
                 {/* Left Drag Region (Padding) */}
                 <div className="w-4 h-full" data-tauri-drag-region />
@@ -53,7 +53,7 @@ export default function Titlebar({ style = 'macos' }) {
                 <div className="flex-1 h-full" data-tauri-drag-region />
                 
                 {/* Title Drag Region (with Right Padding) */}
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 pr-4 h-full flex items-center" data-tauri-drag-region>Fiip</div>
+                <div className="text-sm font-medium text-gray-300 pr-4 h-full flex items-center" data-tauri-drag-region>Fiip</div>
             </div>
         );
     }
@@ -62,32 +62,32 @@ export default function Titlebar({ style = 'macos' }) {
     if (style === 'windows') {
         return (
             <div
-                className="h-8 w-full bg-white/80 dark:bg-[#1e1e1e]/80 backdrop-blur-md border-b border-gray-200 dark:border-white/10 flex items-center select-none transition-colors duration-300"
+                className="h-8 w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
             >
                 <div className="flex-1 px-4" data-tauri-drag-region>
-                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Fiip</div>
+                    <div className="text-sm font-medium text-gray-300">Fiip</div>
                 </div>
                 <div className="flex h-full">
                     <button
                         onClick={handleMinimize}
-                        className="w-12 h-full hover:bg-gray-200 dark:hover:bg-white/10 flex items-center justify-center transition-colors"
+                        className="w-12 h-full hover:bg-white/10 flex items-center justify-center transition-colors"
                         title="Minimize"
                     >
-                        <Minus className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                        <Minus className="w-4 h-4 text-gray-300" />
                     </button>
                     <button
                         onClick={handleMaximize}
-                        className="w-12 h-full hover:bg-gray-200 dark:hover:bg-white/10 flex items-center justify-center transition-colors"
+                        className="w-12 h-full hover:bg-white/10 flex items-center justify-center transition-colors"
                         title="Maximize"
                     >
-                        <Square className="w-3.5 h-3.5 text-gray-700 dark:text-gray-300" />
+                        <Square className="w-3.5 h-3.5 text-gray-300" />
                     </button>
                     <button
                         onClick={handleClose}
                         className="w-12 h-full hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors"
                         title="Close"
                     >
-                        <X className="w-4 h-4 text-gray-700 dark:text-gray-300 group-hover:text-white" />
+                        <X className="w-4 h-4 text-gray-300 group-hover:text-white" />
                     </button>
                 </div>
             </div>

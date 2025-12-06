@@ -7,6 +7,7 @@ import { open } from '@tauri-apps/plugin-shell';
 
 export default function Editor({ note, onUpdateNote, settings }) {
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isWaiting, setIsWaiting] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [suggestion, setSuggestion] = useState(null);
     const [isSuggesting, setIsSuggesting] = useState(false);
@@ -40,7 +41,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
     if (!note) {
         return (
-            <div className="flex-1 h-full flex items-center justify-center text-gray-400 bg-white/50 dark:bg-[#1e1e1e]/90 backdrop-blur-sm transition-all duration-300">
+            <div className="flex-1 h-full flex items-center justify-center text-gray-400 bg-[#1e1e1e]/90 backdrop-blur-sm transition-all duration-300">
                 <p className="animate-pulse font-medium">Sélectionnez ou créez une note</p>
                 <div className="absolute top-0 left-0 right-0 h-8 z-10" data-tauri-drag-region />
             </div>
@@ -94,7 +95,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     <span
                         key={index}
                         onClick={() => handleOpenLink(part)}
-                        className="text-blue-600 dark:text-blue-400 underline cursor-pointer hover:text-blue-700 dark:hover:text-blue-300"
+                        className="text-blue-400 underline cursor-pointer hover:text-blue-300"
                         title="Cliquer pour ouvrir"
                     >
                         {part}
@@ -273,6 +274,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
         }
 
         setIsGenerating(true);
+        setIsWaiting(true);
         try {
             // Prompt : Amélioration globale (Modification/Suppression/Ajout)
             const prompt = note.content
@@ -285,6 +287,8 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 prompt: prompt,
                 context: note.title
             });
+
+            setIsWaiting(false);
 
             // Typewriter effect (Rewrite mode)
             let currentText = "";
@@ -306,6 +310,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
             alert("Erreur AI : " + error.message);
         } finally {
             setIsGenerating(false);
+            setIsWaiting(false);
         }
     };
 
@@ -340,14 +345,14 @@ export default function Editor({ note, onUpdateNote, settings }) {
     };
 
     return (
-        <div className="flex-1 h-full flex flex-col bg-white dark:bg-[#1e1e1e] relative transition-colors duration-300">
+        <div className="flex-1 h-full flex flex-col bg-transparent relative transition-colors duration-300">
             {/* Invisible Drag Region at top - Only when titlebar is 'none' */}
             {(!settings?.titlebarStyle || settings.titlebarStyle === 'none') && (
                 <div className="absolute top-0 left-0 right-0 h-8 z-10" data-tauri-drag-region />
             )}
 
             <div className="pt-12 px-8 pb-4 animate-in fade-in slide-in-from-bottom-2 duration-500 group relative">
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 mx-auto block text-center mb-4 transition-colors">
+                <span className="text-xs font-medium text-gray-400 mx-auto block text-center mb-4 transition-colors">
                     {new Date(note.updatedAt).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}
                 </span>
 
@@ -356,7 +361,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     <button
                         onClick={handleAiGenerate}
                         disabled={isGenerating}
-                        className={`absolute right-8 top-12 p-2 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-all duration-300 ${isGenerating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                        className={`absolute right-8 top-12 p-2 rounded-full bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 transition-all duration-300 ${isGenerating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                         title="Assistant AI (Compléter/Améliorer)"
                     >
                         {isGenerating ? <Sparkles className="w-5 h-5 animate-pulse" /> : <Sparkles className="w-5 h-5" />}
@@ -368,12 +373,12 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     value={note.title}
                     onChange={handleTitleChange}
                     placeholder="Titre de la note"
-                    className="w-full text-3xl font-bold bg-transparent outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 transition-colors duration-200"
+                    className="w-full text-3xl font-bold bg-transparent outline-none text-white placeholder-gray-500 transition-colors duration-200"
                 />
             </div>
 
             {/* EDITOR AREA */}
-            <div className="flex-1 px-8 pb-4 overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-700 delay-75 scroll-pt-4 relative">
+            <div key={note.id} className="flex-1 px-8 pb-4 overflow-y-auto animate-fade-in scroll-pt-4 relative">
                 <div className="relative w-full mb-8 min-h-[400px]">
                     <textarea
                         ref={textareaRef}
@@ -381,27 +386,38 @@ export default function Editor({ note, onUpdateNote, settings }) {
                         onChange={handleContentChange}
                         onKeyDown={handleKeyDown}
                         placeholder="Commencez à écrire..."
-                        className="w-full h-auto overflow-hidden resize-none bg-transparent outline-none text-lg leading-relaxed text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600 font-sans transition-colors duration-200 selection:bg-blue-200 dark:selection:bg-blue-900 relative z-10"
+                        className="w-full h-auto overflow-hidden resize-none bg-transparent outline-none text-lg leading-relaxed text-gray-100 placeholder-gray-600 font-sans transition-colors duration-200 selection:bg-blue-900 relative z-10"
                         style={{ minHeight: '400px' }}
                     />
                     {/* Suggestion Overlay */}
                     {suggestion && (
                         <div className="absolute top-0 left-0 pointer-events-none z-0 whitespace-pre-wrap text-lg leading-relaxed font-sans text-transparent w-full">
                             {note.content}
-                            <span className="text-gray-400 dark:text-gray-500 opacity-60">{suggestion}</span>
+                            <span className="text-gray-500 opacity-60">{suggestion}</span>
+                        </div>
+                    )}
+
+                    {/* Shimmer Loading Overlay */}
+                    {isWaiting && (
+                        <div className="absolute inset-0 z-20 bg-[#1e1e1e]/80 backdrop-blur-[2px] flex flex-col gap-4 pt-2 animate-in fade-in duration-300 pointer-events-none">
+                            <div className="h-4 w-3/4 bg-gray-700 rounded animate-shimmer"></div>
+                            <div className="h-4 w-full bg-gray-700 rounded animate-shimmer"></div>
+                            <div className="h-4 w-5/6 bg-gray-700 rounded animate-shimmer"></div>
+                            <div className="h-4 w-4/5 bg-gray-700 rounded animate-shimmer"></div>
+                            <div className="h-4 w-2/3 bg-gray-700 rounded animate-shimmer"></div>
                         </div>
                     )}
                 </div>
 
                 {/* Attachments Section */}
                 {(note.attachments && note.attachments.length > 0) && (
-                    <div className="border-t border-gray-100 dark:border-white/5 pt-6 pb-20 mt-4">
+                    <div className="border-t border-white/5 pt-6 pb-20 mt-4">
                         <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">Pièces Jointes ({note.attachments.length})</h3>
                         <div className="flex flex-wrap items-start gap-6">
                             {note.attachments.map((att, index) => (
                                 <div
                                     key={att.id}
-                                    className={`relative group rounded-xl transition-all duration-300 ${att.type === 'image' ? '' : 'w-72'}`}
+                                    className={`relative group rounded-xl transition-all duration-300 animate-scale-in ${att.type === 'image' ? '' : 'w-72'}`}
                                     style={{
                                         width: att.type === 'image' ? (att.width || 100) + '%' : undefined,
                                         maxWidth: att.type === 'image' ? '100%' : '320px',
@@ -445,7 +461,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
 
                                     {att.type === 'image' ? (
-                                        <div className="relative rounded-2xl overflow-hidden shadow-sm border border-gray-200 dark:border-white/10">
+                                        <div className="relative rounded-2xl overflow-hidden shadow-sm border border-white/10">
                                             <img src={att.data} alt="Attachment" className="w-full object-cover" style={{ maxHeight: '600px' }} />
 
                                             {/* Beautiful Resize Slider */}
@@ -480,12 +496,12 @@ export default function Editor({ note, onUpdateNote, settings }) {
             </div>
 
             {/* Bottom Toolbar */}
-            <div className="h-14 border-t border-gray-100 dark:border-white/5 bg-white/80 dark:bg-[#1e1e1e]/80 backdrop-blur-md px-6 flex items-center gap-4">
+            <div className="h-12 border-t border-white/5 bg-[#1e1e1e]/80 backdrop-blur-md px-6 flex items-center gap-4">
                 <button
                     onClick={toggleRecording}
                     className={`p-2 rounded-full transition-all ${isRecording
-                        ? 'bg-red-100 text-red-600 animate-pulse'
-                        : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'}`}
+                        ? 'bg-red-500/20 text-red-400 animate-pulse'
+                        : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
                     title={isRecording ? "Arrêter l'enregistrement" : "Enregistrer un mémo vocal"}
                 >
                     {isRecording ? <StopCircle className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
@@ -499,14 +515,14 @@ export default function Editor({ note, onUpdateNote, settings }) {
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         title="Insérer une image"
                     />
-                    <div className="p-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors pointer-events-none">
+                    <div className="p-2 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 transition-colors pointer-events-none">
                         <ImageIcon className="w-5 h-5" />
                     </div>
                 </div>
 
                 <button
                     onClick={handlePaste}
-                    className="p-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                    className="p-2 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 transition-colors"
                     title="Coller (Texte ou Image)"
                 >
                     <ClipboardPaste className="w-5 h-5" />
@@ -516,7 +532,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
                 <button
                     onClick={handleCopyNote}
-                    className="p-2 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                    className="p-2 rounded-full bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 transition-colors"
                     title="Copier la note"
                 >
                     <Copy className="w-5 h-5" />

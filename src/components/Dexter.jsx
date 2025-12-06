@@ -180,8 +180,9 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
         setIsThinking(true);
 
         try {
-            const systemPrompt = `You are Dexter, an advanced AI assistant in a note - taking app.
-
+            const systemPrompt = `You are Dexter, an advanced AI assistant in a note-taking app.
+            You have a slightly humorous, witty, and casual personality. You understand and use idioms fluently.
+            
     TOOLS:
 - If user wants to CREATE a note: Respond ONLY with JSON: { "action": "create_note", "title": "...", "content": "..." }
 - If user wants to UPDATE / APPEND to current note: Respond ONLY with JSON: { "action": "update_note", "content": "..." }
@@ -191,7 +192,7 @@ CONTEXT:
             Current Note Title: "${currentNote?.title || 'None'}"
             Current Note Content Preview: "${currentNote?.content?.slice(0, 200) || ''}..."
 
-            Be concise, helpful, and professional.
+            Be concise, helpful, but keep your witty personality.
             `;
 
             const fullPrompt = `${systemPrompt} \n\nUser: ${userMsg.content} `;
@@ -304,7 +305,7 @@ CONTEXT:
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-transparent">
                 {messages.map((msg, i) => (
-                    <div key={i} className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div key={i} className={`flex flex-col gap-1 animate-fade-in-up ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
                         {/* Avatar / Name */}
                         {msg.role !== 'system' && (
