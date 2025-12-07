@@ -4,9 +4,62 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Type of version bump'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
 
 jobs:
+  bump-version:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      new_tag: ${{ steps.get_version.outputs.new_tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump Version
+        run: node scripts/bump-version.mjs --type=${{ github.event.inputs.bump_type }}
+
+      - name: Get New Version
+        id: get_version
+        run: |
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "new_tag=v.$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Commit and Push
+        run: |
+          git add package.json src-tauri/tauri.conf.json
+          git commit -m "chore(release): $NEW_VERSION"
+          git push origin main
+          git tag v.$NEW_VERSION
+          git push origin v.$NEW_VERSION
+
   release:
+    needs: bump-version
+    if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
     permissions:
       contents: write
     strategy:
@@ -31,6 +84,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -60,7 +115,7 @@ jobs:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
+          tagName: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           releaseName: 'App v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
@@ -68,7 +123,8 @@ jobs:
           args: ${{ matrix.args }}
 
   generate-updater-json:
-    needs: release
+    needs: [release, bump-version]
+    if: always() && (needs.release.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -85,7 +141,7 @@ jobs:
       - name: Generate latest.json
         uses: actions/github-script@v7
         env:
-          TAG_NAME: ${{ github.ref_name }}
+          TAG_NAME: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:

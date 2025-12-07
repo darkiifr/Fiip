@@ -1,3 +1,4 @@
+#[cfg(target_os = "windows")]
 use window_vibrancy::{
     apply_acrylic, apply_blur, apply_mica, clear_acrylic, clear_blur, clear_mica,
 };

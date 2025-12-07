@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     Bot, Send, X, Plus, Sparkles, History,
     FileText, Check, ChevronDown, Reply, Copy, RotateCcw,
-    Trash2
+    Trash2, Square, Volume2
 } from 'lucide-react';
 import { generateText } from '../services/ai';
 
@@ -22,13 +22,15 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
     const [isDragging, setIsDragging] = useState(false);
     const dragOffset = useRef({ x: 0, y: 0 });
     const dexterRef = useRef(null);
+    const abortController = useRef(null);
 
     const [messages, setMessages] = useState([
         { role: 'system', content: "Hello. I'm Dexter. Ready to code or write notes." }
     ]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
-    const [selectedModel, setSelectedModel] = useState(settings?.aiModel || 'openai/gpt-4o-mini');
+    const [selectedModel, setSelectedModel] = useState('default');
+    const [showModelSelector, setShowModelSelector] = useState(false);
     const [recentPrompts, setRecentPrompts] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedSuggestion, setSelectedSuggestion] = useState(0);
@@ -85,6 +87,17 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
     const handlePointerUp = (e) => {
         setIsDragging(false);
         e.currentTarget.releasePointerCapture(e.pointerId);
+    };
+
+    const speak = (text) => {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        if (settings?.voiceName) {
+            const voices = window.speechSynthesis.getVoices();
+            const voice = voices.find(v => v.name === settings.voiceName);
+            if (voice) utterance.voice = voice;
+        }
+        window.speechSynthesis.speak(utterance);
     };
 
     const handleRegenerate = () => {
@@ -162,6 +175,14 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
         setShowSuggestions(false);
     };
 
+    const handleStop = () => {
+        if (abortController.current) {
+            abortController.current.abort();
+            abortController.current = null;
+        }
+        setIsThinking(false);
+    };
+
     // AI Logic
     const handleSend = async () => {
         if (!input.trim() || !settings?.aiApiKey) return;
@@ -174,15 +195,24 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
             return updated.slice(0, 10); // Keep only last 10
         });
 
-        setMessages(prev => [...prev, userMsg]);
+        const newMessages = [...messages, userMsg];
+        setMessages(newMessages);
         setInput('');
         setShowSuggestions(false);
         setIsThinking(true);
+
+        // Create new AbortController
+        abortController.current = new AbortController();
 
         try {
             const systemPrompt = `You are Dexter, an advanced AI assistant in a note-taking app.
             You have a slightly humorous, witty, and casual personality. You understand and use idioms fluently.
             
+            IMPORTANT:
+            - If you are unsure about what the user wants, ASK QUESTIONS to clarify.
+            - Maintain a natural dialogue flow.
+            - You can remember previous parts of the conversation.
+
     TOOLS:
 - If user wants to CREATE a note: Respond ONLY with JSON: { "action": "create_note", "title": "...", "content": "..." }
 - If user wants to UPDATE / APPEND to current note: Respond ONLY with JSON: { "action": "update_note", "content": "..." }
@@ -195,23 +225,36 @@ CONTEXT:
             Be concise, helpful, but keep your witty personality.
             `;
 
-            const fullPrompt = `${systemPrompt} \n\nUser: ${userMsg.content} `;
+            // Filter out internal UI types from history before sending to AI
+            const apiMessages = [
+                { role: 'system', content: systemPrompt },
+                ...newMessages.filter(m => m.role !== 'system')
+                    .map(m => ({ role: m.role, content: m.content }))
+            ];
+
+            const modelToSend = selectedModel === 'default' 
+                ? (settings?.aiModel || 'openai/gpt-4o-mini') 
+                : selectedModel;
 
             const responseText = await generateText({
                 apiKey: settings.aiApiKey,
-                model: selectedModel,
-                prompt: fullPrompt
+                model: modelToSend,
+                messages: apiMessages,
+                signal: abortController.current.signal
             });
 
             let aiMsg = { role: 'assistant', content: responseText, type: 'text' };
 
             try {
-                if (responseText.trim().startsWith('{') && responseText.trim().endsWith('}')) {
-                    const actionData = JSON.parse(responseText);
+                // Attempt to find JSON in the response (handling potential wrapper text or tokens)
+                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const actionData = JSON.parse(jsonMatch[0]);
 
                     if (actionData.action === 'create_note') {
                         aiMsg = {
                             role: 'assistant',
+                            content: responseText,
                             type: 'action_pending',
                             data: {
                                 action: 'create',
@@ -223,6 +266,7 @@ CONTEXT:
                     } else if (actionData.action === 'update_note' && currentNote) {
                         aiMsg = {
                             role: 'assistant',
+                            content: responseText,
                             type: 'action_pending',
                             data: {
                                 action: 'update',
@@ -234,6 +278,7 @@ CONTEXT:
                     } else if (actionData.action === 'delete_note' && currentNote) {
                         aiMsg = {
                             role: 'assistant',
+                            content: responseText,
                             type: 'action_pending',
                             data: {
                                 action: 'delete',
@@ -244,15 +289,21 @@ CONTEXT:
                     }
                 }
             } catch (e) {
-                // Not JSON, stay text
+                // Not JSON or invalid JSON, stay text
+                console.log("Failed to parse potential JSON action:", e);
             }
 
             setMessages(prev => [...prev, aiMsg]);
 
         } catch (error) {
-            setMessages(prev => [...prev, { role: 'error', content: "Error: " + error.message }]);
+            if (error.name === 'AbortError') {
+                setMessages(prev => [...prev, { role: 'assistant', content: "Stopped.", type: 'text' }]);
+            } else {
+                setMessages(prev => [...prev, { role: 'error', content: "Error: " + error.message }]);
+            }
         } finally {
             setIsThinking(false);
+            abortController.current = null;
         }
     };
 
@@ -263,7 +314,7 @@ CONTEXT:
         <div
             ref={dexterRef}
             style={{ left: position.x, top: position.y }}
-            className="fixed w-[450px] h-[700px] max-h-[85vh] flex flex-col bg-[#18181b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-2xl z-50 overflow-hidden font-sans text-sm text-gray-300 animate-in fade-in zoom-in-95 duration-200"
+            className="fixed w-[450px] h-[700px] max-h-[85vh] flex flex-col bg-[#18181b]/95 backdrop-blur-xl border border-[#27272a] rounded-xl shadow-2xl z-50 overflow-hidden font-dexter text-sm text-gray-300 animate-in fade-in zoom-in-95 duration-200"
         >
             {/* Header Minimaliste */}
             <div
@@ -273,7 +324,7 @@ CONTEXT:
                 className="h-10 bg-white/5 border-b border-[#27272a] flex items-center justify-between px-4 cursor-move select-none touch-none"
             >
                 <div className="flex items-center gap-2">
-                    <span className="text-white font-medium text-xs tracking-wide">Dexter Assistant</span>
+                    <span className="text-white font-medium text-xs tracking-wide font-dexter-mono">Dexter Assistant</span>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
@@ -337,9 +388,14 @@ CONTEXT:
                                         </span>
                                     </div>
                                     {msg.data.action !== 'delete' && (
-                                        <span className="text-[10px] font-mono bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">
-                                            +{msg.data.lines} lines
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-gray-400 hidden sm:inline-block">
+                                                Press <kbd className="font-sans bg-white/10 px-1 rounded text-white">Tab</kbd> to accept
+                                            </span>
+                                            <span className="text-[10px] font-mono bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">
+                                                {msg.data.lines} lines {msg.data.action === 'create' ? 'created' : 'added'}
+                                            </span>
+                                        </div>
                                     )}
                                 </div>
 
@@ -424,11 +480,20 @@ CONTEXT:
                             </div>
                         ) : (
                             // Standard Text
-                            <div className={`max-w-[90%] text-sm leading-relaxed ${msg.role === 'user'
+                            <div className={`max-w-[90%] text-sm leading-relaxed group relative ${msg.role === 'user'
                                 ? 'text-gray-300'
                                 : 'text-gray-300'
                                 }`}>
                                 {msg.content}
+                                {msg.role === 'assistant' && settings?.voiceEnabled !== false && (
+                                    <button
+                                        onClick={() => speak(msg.content)}
+                                        className="absolute -right-6 top-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-500 hover:text-white"
+                                        title="Lire"
+                                    >
+                                        <Volume2 className="w-3 h-3" />
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -467,15 +532,18 @@ CONTEXT:
                         value={input}
                         onChange={(e) => handleInputChange(e.target.value)}
                         onKeyDown={(e) => {
+                            // 1. Handle Suggestions Navigation
                             if (showSuggestions && getSuggestions().length > 0) {
                                 if (e.key === 'ArrowDown') {
                                     e.preventDefault();
                                     setSelectedSuggestion(prev =>
                                         Math.min(prev + 1, getSuggestions().length - 1)
                                     );
+                                    return;
                                 } else if (e.key === 'ArrowUp') {
                                     e.preventDefault();
                                     setSelectedSuggestion(prev => Math.max(prev - 1, 0));
+                                    return;
                                 } else if (e.key === 'Tab' || (e.key === 'Enter' && e.ctrlKey)) {
                                     e.preventDefault();
                                     handleSelectSuggestion(getSuggestions()[selectedSuggestion]);
@@ -486,41 +554,116 @@ CONTEXT:
                                 }
                             }
 
+                            // 2. Handle Tab to Accept Pending Action
+                            if (e.key === 'Tab' && !e.shiftKey) {
+                                const lastMsgIndex = messages.length - 1;
+                                const lastMsg = messages[lastMsgIndex];
+                                if (lastMsg && lastMsg.type === 'action_pending') {
+                                    e.preventDefault();
+                                    handleAccept(lastMsgIndex, lastMsg);
+                                    return;
+                                }
+                            }
+
+                            // 3. Handle Send
                             if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
                                 e.preventDefault();
                                 handleSend();
                             }
                         }}
                         placeholder="Ask anything (e.g., 'Create a note about React hooks')..."
-                        className="w-full bg-transparent border-none text-sm text-gray-200 placeholder-gray-600 outline-none resize-none font-sans"
+                        className="w-full bg-transparent border-none text-sm text-gray-200 placeholder-gray-600 outline-none resize-none font-dexter-mono"
                         rows="2"
                     />
 
                     <div className="flex items-center justify-between">
                         {/* Model Selector Badge */}
-                        <div className="relative group">
-                            <select
-                                value={selectedModel}
-                                onChange={(e) => setSelectedModel(e.target.value)}
-                                className="appearance-none bg-[#3f3f46]/50 hover:bg-[#3f3f46] text-[10px] text-gray-400 hover:text-gray-200 rounded px-2 py-0.5 outline-none cursor-pointer transition-colors pr-4 max-w-[150px] truncate"
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowModelSelector(!showModelSelector)}
+                                className="flex items-center gap-1.5 bg-[#3f3f46]/30 hover:bg-[#3f3f46]/50 text-[10px] text-gray-400 hover:text-gray-200 rounded px-2 py-1 transition-colors max-w-[200px] border border-transparent hover:border-[#3f3f46]"
                             >
-                                <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                                <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
-                                <option value="google/gemini-flash-1.5">Gemini Flash 1.5</option>
-                                {(settings?.customModels || []).map(model => (
-                                    <option key={model} value={model}>{model.split('/').pop()}</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="w-2.5 h-2.5 text-gray-500 absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                <span className="truncate max-w-[140px]">
+                                    {selectedModel === 'default'
+                                        ? `Default (${settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})`
+                                        : selectedModel.split('/').pop()
+                                    }
+                                </span>
+                                <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${showModelSelector ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Custom Dropdown */}
+                            {showModelSelector && (
+                                <>
+                                    <div
+                                        className="fixed inset-0 z-10"
+                                        onClick={() => setShowModelSelector(false)}
+                                    />
+                                    <div className="absolute bottom-full left-0 mb-2 w-56 bg-[#18181b] border border-[#3f3f46] rounded-lg shadow-2xl overflow-hidden z-20 flex flex-col max-h-64 animate-in fade-in zoom-in-95 duration-100">
+                                        <div className="overflow-y-auto custom-scrollbar py-1">
+                                            <div className="px-3 py-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">System</div>
+                                            <button
+                                                onClick={() => { setSelectedModel('default'); setShowModelSelector(false); }}
+                                                className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between group transition-colors ${selectedModel === 'default' ? 'bg-purple-500/10 text-purple-300' : 'text-gray-300 hover:bg-[#27272a]'}`}
+                                            >
+                                                <span className="truncate pr-2">Default ({settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})</span>
+                                                {selectedModel === 'default' && <Check className="w-3 h-3 shrink-0" />}
+                                            </button>
+
+                                            <div className="px-3 py-1.5 mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">Standard</div>
+                                            {[
+                                                { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
+                                                { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku' },
+                                                { id: 'google/gemini-flash-1.5', name: 'Gemini Flash 1.5' }
+                                            ].map(model => (
+                                                <button
+                                                    key={model.id}
+                                                    onClick={() => { setSelectedModel(model.id); setShowModelSelector(false); }}
+                                                    className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between group transition-colors ${selectedModel === model.id ? 'bg-purple-500/10 text-purple-300' : 'text-gray-300 hover:bg-[#27272a]'}`}
+                                                >
+                                                    <span>{model.name}</span>
+                                                    {selectedModel === model.id && <Check className="w-3 h-3 shrink-0" />}
+                                                </button>
+                                            ))}
+
+                                            {(settings?.customModels || []).length > 0 && (
+                                                <>
+                                                    <div className="px-3 py-1.5 mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">Custom</div>
+                                                    {settings.customModels.map(model => (
+                                                        <button
+                                                            key={model}
+                                                            onClick={() => { setSelectedModel(model); setShowModelSelector(false); }}
+                                                            className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between group transition-colors ${selectedModel === model ? 'bg-purple-500/10 text-purple-300' : 'text-gray-300 hover:bg-[#27272a]'}`}
+                                                        >
+                                                            <span className="truncate pr-2">{model.split('/').pop()}</span>
+                                                            {selectedModel === model && <Check className="w-3 h-3 shrink-0" />}
+                                                        </button>
+                                                    ))}
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
-                        <button
-                            onClick={handleSend}
-                            disabled={!input.trim() || isThinking}
-                            className="p-1.5 bg-white text-black rounded hover:opacity-90 disabled:opacity-50 transition-all"
-                        >
-                            <Send className="w-3.5 h-3.5" />
-                        </button>
+                        {isThinking ? (
+                            <button
+                                onClick={handleStop}
+                                className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-all animate-pulse"
+                                title="Stop generating"
+                            >
+                                <Square className="w-3.5 h-3.5 fill-current" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleSend}
+                                disabled={!input.trim()}
+                                className="p-1.5 bg-white text-black rounded hover:opacity-90 disabled:opacity-50 transition-all"
+                            >
+                                <Send className="w-3.5 h-3.5" />
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Mic, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste } from 'lucide-react';
+import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2 } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
@@ -12,6 +12,107 @@ export default function Editor({ note, onUpdateNote, settings }) {
     const [suggestion, setSuggestion] = useState(null);
     const [isSuggesting, setIsSuggesting] = useState(false);
     const textareaRef = useRef(null);
+
+    // TTS & STT State
+    const [isSpeaking, setIsSpeaking] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [interimTranscript, setInterimTranscript] = useState('');
+    const recognitionRef = useRef(null);
+    const noteRef = useRef(note);
+
+    // Keep note ref updated
+    useEffect(() => { noteRef.current = note; }, [note]);
+
+    // Initialize Speech Recognition
+    useEffect(() => {
+        if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = true;
+            recognitionRef.current.interimResults = true;
+            recognitionRef.current.lang = 'fr-FR';
+
+            recognitionRef.current.onresult = (event) => {
+                let finalTranscript = '';
+                let interim = '';
+
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    const currentNote = noteRef.current;
+                    const currentContent = currentNote.content || '';
+                    const separator = currentContent.length > 0 && !currentContent.endsWith(' ') && !currentContent.endsWith('\n') ? ' ' : '';
+                    const newContent = currentContent + separator + finalTranscript;
+                    
+                    onUpdateNote({ ...currentNote, content: newContent, updatedAt: Date.now() });
+                    setInterimTranscript('');
+                } else {
+                    setInterimTranscript(interim);
+                }
+            };
+
+            recognitionRef.current.onend = () => {
+                // Auto-restart if it stops but we didn't ask it to (unless error)
+                // We handle state in toggleListening
+            };
+            
+            recognitionRef.current.onerror = (event) => {
+                console.error("Speech recognition error", event.error);
+                if (event.error === 'not-allowed') {
+                    setIsListening(false);
+                    alert("Accès au micro refusé.");
+                }
+            };
+        }
+        
+        return () => {
+            if (recognitionRef.current) recognitionRef.current.stop();
+            window.speechSynthesis.cancel();
+        };
+    }, []);
+
+    const toggleListening = () => {
+        if (!recognitionRef.current) {
+            alert("La reconnaissance vocale n'est pas supportée.");
+            return;
+        }
+
+        if (isListening) {
+            setIsListening(false);
+            recognitionRef.current.stop();
+        } else {
+            setIsListening(true);
+            recognitionRef.current.start();
+        }
+    };
+
+    const toggleSpeaking = () => {
+        if (isSpeaking) {
+            window.speechSynthesis.cancel();
+            setIsSpeaking(false);
+        } else {
+            if (!note?.content) return;
+            
+            const utterance = new SpeechSynthesisUtterance(note.content);
+            if (settings?.voiceName) {
+                const voices = window.speechSynthesis.getVoices();
+                const voice = voices.find(v => v.name === settings.voiceName);
+                if (voice) utterance.voice = voice;
+            }
+            
+            utterance.onend = () => setIsSpeaking(false);
+            utterance.onerror = () => setIsSpeaking(false);
+            
+            window.speechSynthesis.speak(utterance);
+            setIsSpeaking(true);
+        }
+    };
 
     // Media Refs
     const mediaRecorderRef = useRef(null);
@@ -356,16 +457,43 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     {new Date(note.updatedAt).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}
                 </span>
 
-                {/* AI Button - Visible on Hover or when generating */}
-                {settings?.aiApiKey && (
-                    <button
-                        onClick={handleAiGenerate}
-                        disabled={isGenerating}
-                        className={`absolute right-8 top-12 p-2 rounded-full bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 transition-all duration-300 ${isGenerating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                        title="Assistant AI (Compléter/Améliorer)"
-                    >
-                        {isGenerating ? <Sparkles className="w-5 h-5 animate-pulse" /> : <Sparkles className="w-5 h-5" />}
-                    </button>
+                {/* AI & Accessibility Toolbar */}
+                {(settings?.aiEnabled !== false || settings?.voiceEnabled !== false || settings?.dictationEnabled !== false) && (
+                    <div className={`absolute right-8 top-12 flex gap-2 transition-all duration-300 ${isGenerating || isListening || isSpeaking ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                        {/* TTS */}
+                        {(settings?.voiceEnabled !== false) && (
+                            <button
+                                onClick={toggleSpeaking}
+                                className={`p-2 rounded-full transition-all duration-300 ${isSpeaking ? 'bg-green-500/20 text-green-400 animate-pulse' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`}
+                                title={isSpeaking ? "Arrêter la lecture" : "Lire la note"}
+                            >
+                                {isSpeaking ? <StopCircle className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                            </button>
+                        )}
+
+                        {/* STT */}
+                        {(settings?.dictationEnabled !== false) && (
+                            <button
+                                onClick={toggleListening}
+                                className={`p-2 rounded-full transition-all duration-300 ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`}
+                                title={isListening ? "Arrêter la dictée" : "Dicter"}
+                            >
+                                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                            </button>
+                        )}
+
+                        {/* AI Generation */}
+                        {(settings?.aiEnabled !== false && settings?.aiApiKey) && (
+                            <button
+                                onClick={handleAiGenerate}
+                                disabled={isGenerating}
+                                className={`p-2 rounded-full bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 transition-all duration-300`}
+                                title="Assistant AI (Compléter/Améliorer)"
+                            >
+                                {isGenerating ? <Sparkles className="w-5 h-5 animate-pulse" /> : <Sparkles className="w-5 h-5" />}
+                            </button>
+                        )}
+                    </div>
                 )}
 
                 <input
@@ -496,7 +624,19 @@ export default function Editor({ note, onUpdateNote, settings }) {
             </div>
 
             {/* Bottom Toolbar */}
-            <div className="h-12 border-t border-white/5 bg-[#1e1e1e]/80 backdrop-blur-md px-6 flex items-center gap-4">
+            <div className="h-12 border-t border-white/5 bg-[#1e1e1e]/80 backdrop-blur-md px-6 flex items-center gap-4 relative z-20">
+                {/* STT Interim Preview */}
+                {isListening && (
+                    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 pointer-events-none w-full max-w-2xl px-4 flex justify-center">
+                        <div className={`bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-3 text-sm text-gray-200 shadow-2xl transition-all duration-300 flex items-center gap-3 ${interimTranscript ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                            <span className="font-medium truncate">
+                                {interimTranscript || "Écoute en cours..."}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
                 <button
                     onClick={toggleRecording}
                     className={`p-2 rounded-full transition-all ${isRecording

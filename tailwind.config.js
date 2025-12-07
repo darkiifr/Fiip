@@ -17,6 +17,8 @@ export default {
                     'Arial',
                     'sans-serif',
                 ],
+                'dexter': ['"Inter"', 'sans-serif'],
+                'dexter-mono': ['"JetBrains Mono"', 'monospace'],
             },
             colors: {
                 // Couleurs plus opaques et contrastées

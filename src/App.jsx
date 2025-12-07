@@ -74,6 +74,13 @@ function App() {
     localStorage.setItem("fiip-notes", JSON.stringify(notes));
   }, [notes]);
 
+  // Close Dexter if AI is disabled
+  useEffect(() => {
+    if (settings.aiEnabled === false && isDexterOpen) {
+      setIsDexterOpen(false);
+    }
+  }, [settings.aiEnabled, isDexterOpen]);
+
   // Handle Theme & Settings Persistence
   useEffect(() => {
     localStorage.setItem("fiip-settings", JSON.stringify(settings));

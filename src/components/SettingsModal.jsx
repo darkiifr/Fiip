@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Type, Check, RefreshCw } from 'lucide-react';
+import { X, Type, Check, RefreshCw, Bot } from 'lucide-react';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { open } from '@tauri-apps/plugin-shell';
 import { getPlatformDisplayName } from '../services/platform';
@@ -12,6 +12,21 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
     const originalSettingsRef = useRef(settings);
     const [platformName, setPlatformName] = useState('');
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+    const [voices, setVoices] = useState([]);
+
+    useEffect(() => {
+        const loadVoices = () => {
+            if (typeof window !== 'undefined' && window.speechSynthesis) {
+                const availableVoices = window.speechSynthesis.getVoices();
+                setVoices(availableVoices);
+            }
+        };
+
+        loadVoices();
+        if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+    }, []);
 
     useEffect(() => {
         if (isOpen) {
@@ -21,14 +36,20 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
             setHasChanges(false);
 
             // Load Audio Devices
-            navigator.mediaDevices.enumerateDevices().then(devices => {
-                const inputs = devices.filter(d => d.kind === 'audioinput');
-                const outputs = devices.filter(d => d.kind === 'audiooutput');
-                setAudioDevices({ inputs, outputs });
-            });
+            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                navigator.mediaDevices.enumerateDevices()
+                    .then(devices => {
+                        const inputs = devices.filter(d => d.kind === 'audioinput');
+                        const outputs = devices.filter(d => d.kind === 'audiooutput');
+                        setAudioDevices({ inputs, outputs });
+                    })
+                    .catch(err => console.warn("Failed to enumerate devices:", err));
+            }
 
             // Get platform info
-            getPlatformDisplayName().then(name => setPlatformName(name));
+            getPlatformDisplayName()
+                .then(name => setPlatformName(name))
+                .catch(err => console.warn("Failed to get platform name:", err));
         }
     }, [isOpen, settings]);
 
@@ -92,7 +113,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     onChange={(e) => handleUpdate({ ...localSettings, largeText: e.target.checked })}
                                     className="sr-only peer"
                                 />
-                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
                     </div>
@@ -183,107 +204,183 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                     {/* AI Settings */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Intelligence Artificielle</h3>
-                        <div className="space-y-3">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-300 mb-1">Clé API OpenRouter</label>
+                        
+                        {/* Master Toggle */}
+                        <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <Bot className="w-5 h-5 text-gray-400" />
+                                <span className="text-sm font-medium text-gray-200">Activer l'Assistant AI</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
                                 <input
-                                    type="password"
-                                    value={localSettings.aiApiKey || ''}
-                                    onChange={(e) => handleUpdate({ ...localSettings, aiApiKey: e.target.value })}
-                                    placeholder="sk-or-..."
-                                    className="w-full bg-black/20 border border-white/10 rounded-md px-3.5 py-2.5 text-sm text-gray-100 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                                    type="checkbox"
+                                    checked={localSettings.aiEnabled !== false}
+                                    onChange={(e) => handleUpdate({ ...localSettings, aiEnabled: e.target.checked })}
+                                    className="sr-only peer"
                                 />
-                                <button
-                                    onClick={() => open('https://openrouter.ai/keys')}
-                                    className="text-[10px] text-blue-400 hover:text-blue-300 mt-1.5 font-medium hover:underline transition-colors"
-                                >
-                                    Obtenir une clé API OpenRouter
-                                </button>
-                            </div>
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
 
-                            <div>
-                                <label className="block text-xs font-medium text-gray-300 mb-1">Modèle AI par défaut</label>
-                                <select
-                                    value={localSettings.aiModel || 'openai/gpt-4o-mini'}
-                                    onChange={(e) => handleUpdate({ ...localSettings, aiModel: e.target.value })}
-                                    className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
-                                >
-                                    <optgroup label="Populaires">
-                                        <option value="openai/gpt-4o-mini">GPT-4o Mini (Rapide & Économique)</option>
-                                        <option value="openai/gpt-4o">GPT-4o (Puissant)</option>
-                                        <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-                                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                                        <option value="mistralai/mistral-large-2411">Mistral Large</option>
-                                    </optgroup>
-                                    {(localSettings.customModels && localSettings.customModels.length > 0) && (
-                                        <optgroup label="Personnalisés">
-                                            {localSettings.customModels.map(m => (
-                                                <option key={m} value={m}>{m}</option>
-                                            ))}
-                                        </optgroup>
-                                    )}
-                                </select>
-                            </div>
-
-                            {/* Custom Models List */}
-                            <div>
-                                <label className="block text-xs font-medium text-gray-300 mb-2">Modèles Personnalisés</label>
-
-                                {/* List */}
-                                <div className="space-y-2 mb-2">
-                                    {(localSettings.customModels || []).map((modelId) => (
-                                        <div key={modelId} className="flex items-center justify-between bg-black/20 px-3.5 py-2.5 rounded-md border border-white/5">
-                                            <span className="text-xs text-gray-300 font-mono">{modelId}</span>
-                                            <button
-                                                onClick={() => {
-                                                    const newModels = localSettings.customModels.filter(m => m !== modelId);
-                                                    handleUpdate({ ...localSettings, customModels: newModels });
-                                                }}
-                                                className="text-gray-400 hover:text-red-500 transition-colors"
-                                            >
-                                                <X className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {(localSettings.customModels || []).length === 0 && (
-                                        <div className="text-xs text-gray-400 italic text-center py-2">Aucun modèle personnalisé</div>
-                                    )}
+                        {localSettings.aiEnabled !== false && (
+                            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-300 mb-1">Clé API OpenRouter</label>
+                                    <input
+                                        type="password"
+                                        value={localSettings.aiApiKey || ''}
+                                        onChange={(e) => handleUpdate({ ...localSettings, aiApiKey: e.target.value })}
+                                        placeholder="sk-or-..."
+                                        className="w-full bg-black/20 border border-white/10 rounded-md px-3.5 py-2.5 text-sm text-gray-100 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                                    />
+                                    <button
+                                        onClick={() => open('https://openrouter.ai/keys')}
+                                        className="text-[10px] text-blue-400 hover:text-blue-300 mt-1.5 font-medium hover:underline transition-colors"
+                                    >
+                                        Obtenir une clé API OpenRouter
+                                    </button>
                                 </div>
 
-                                {/* Add Input */}
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="ID Modèle (ex: google/gemini-pro)"
-                                        className="flex-1 bg-black/20 border border-white/10 rounded-md px-3.5 py-2.5 text-xs text-gray-100 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
-                                        id="new-model-input"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                const val = e.target.value.trim();
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-300 mb-1">Modèle AI par défaut</label>
+                                    <select
+                                        value={localSettings.aiModel || 'openai/gpt-4o-mini'}
+                                        onChange={(e) => handleUpdate({ ...localSettings, aiModel: e.target.value })}
+                                        className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
+                                    >
+                                        <optgroup label="Populaires">
+                                            <option value="openai/gpt-4o-mini">GPT-4o Mini (Rapide & Économique)</option>
+                                            <option value="openai/gpt-4o">GPT-4o (Puissant)</option>
+                                            <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+                                            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                                            <option value="mistralai/mistral-large-2411">Mistral Large</option>
+                                        </optgroup>
+                                        {(localSettings.customModels && localSettings.customModels.length > 0) && (
+                                            <optgroup label="Personnalisés">
+                                                {localSettings.customModels.map(m => (
+                                                    <option key={m} value={m}>{m}</option>
+                                                ))}
+                                            </optgroup>
+                                        )}
+                                    </select>
+                                </div>
+
+                                {/* Custom Models List */}
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-300 mb-2">Modèles Personnalisés</label>
+
+                                    {/* List */}
+                                    <div className="space-y-2 mb-2">
+                                        {(localSettings.customModels || []).map((modelId) => (
+                                            <div key={modelId} className="flex items-center justify-between bg-black/20 px-3.5 py-2.5 rounded-md border border-white/5">
+                                                <span className="text-xs text-gray-300 font-mono">{modelId}</span>
+                                                <button
+                                                    onClick={() => {
+                                                        const newModels = localSettings.customModels.filter(m => m !== modelId);
+                                                        handleUpdate({ ...localSettings, customModels: newModels });
+                                                    }}
+                                                    className="text-gray-400 hover:text-red-500 transition-colors"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {(localSettings.customModels || []).length === 0 && (
+                                            <div className="text-xs text-gray-400 italic text-center py-2">Aucun modèle personnalisé</div>
+                                        )}
+                                    </div>
+
+                                    {/* Add Input */}
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="ID Modèle (ex: google/gemini-pro)"
+                                            className="flex-1 bg-black/20 border border-white/10 rounded-md px-3.5 py-2.5 text-xs text-gray-100 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
+                                            id="new-model-input"
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const val = e.target.value.trim();
+                                                    if (val && !(localSettings.customModels || []).includes(val)) {
+                                                        const newModels = [...(localSettings.customModels || []), val];
+                                                        handleUpdate({ ...localSettings, customModels: newModels });
+                                                        e.target.value = '';
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const input = document.getElementById('new-model-input');
+                                                const val = input.value.trim();
                                                 if (val && !(localSettings.customModels || []).includes(val)) {
                                                     const newModels = [...(localSettings.customModels || []), val];
                                                     handleUpdate({ ...localSettings, customModels: newModels });
-                                                    e.target.value = '';
+                                                    input.value = '';
                                                 }
-                                            }
-                                        }}
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            const input = document.getElementById('new-model-input');
-                                            const val = input.value.trim();
-                                            if (val && !(localSettings.customModels || []).includes(val)) {
-                                                const newModels = [...(localSettings.customModels || []), val];
-                                                handleUpdate({ ...localSettings, customModels: newModels });
-                                                input.value = '';
-                                            }
-                                        }}
-                                        className="px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
-                                    >
-                                        Ajouter
-                                    </button>
+                                            }}
+                                            className="px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
+                                        >
+                                            Ajouter
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+                        )}
+                    </div>
+
+                    {/* Audio & Accessibility */}
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Audio & Accessibilité</h3>
+                        
+                        {/* TTS Toggle */}
+                        <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-medium text-gray-200">Synthèse Vocale (TTS)</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={localSettings.voiceEnabled !== false}
+                                    onChange={(e) => handleUpdate({ ...localSettings, voiceEnabled: e.target.checked })}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+
+                        {/* Voice Selection */}
+                        {localSettings.voiceEnabled !== false && (
+                            <div>
+                                <label className="block text-xs font-medium text-gray-300 mb-1">Voix de l'Assistant</label>
+                                <select
+                                    value={localSettings.voiceName || ''}
+                                    onChange={(e) => handleUpdate({ ...localSettings, voiceName: e.target.value })}
+                                    className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
+                                >
+                                    <option value="">Par défaut</option>
+                                    {voices.map((voice) => (
+                                        <option key={voice.name} value={voice.name}>
+                                            {voice.name} ({voice.lang})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* STT Toggle */}
+                        <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm font-medium text-gray-200">Dictée Vocale (STT)</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={localSettings.dictationEnabled !== false}
+                                    onChange={(e) => handleUpdate({ ...localSettings, dictationEnabled: e.target.checked })}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                            </label>
                         </div>
                     </div>
                 </div>
