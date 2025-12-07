@@ -98,6 +98,8 @@ jobs:
           TAG_NAME=${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           if [[ "$TAG_NAME" == v* ]]; then
             VERSION=${TAG_NAME#v}
+            # Remove leading dot if present (e.g. v.1.9.4 -> .1.9.4 -> 1.9.4)
+            VERSION=${VERSION#.}
             echo "Syncing version to $VERSION from tag $TAG_NAME"
             node -e "
               const fs = require('fs');
