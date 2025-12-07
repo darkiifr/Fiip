@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X } from 'lucide-react';
+import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Video, Paperclip } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
@@ -12,12 +12,16 @@ export default function Editor({ note, onUpdateNote, settings }) {
     const [isRecording, setIsRecording] = useState(false);
     const [suggestion, setSuggestion] = useState(null);
     const [isSuggesting, setIsSuggesting] = useState(false);
+    const [isDragging, setIsDragging] = useState(false); // Drag & Drop state
     const textareaRef = useRef(null);
+    const editorContainerRef = useRef(null);
+    const dragCounter = useRef(0);
 
     // TTS & STT State
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const isListeningRef = useRef(false); // Track intent to listen
+    const lastSpeechStartRef = useRef(0);
     const [interimTranscript, setInterimTranscript] = useState('');
     const recognitionRef = useRef(null);
     const noteRef = useRef(note);
@@ -33,6 +37,10 @@ export default function Editor({ note, onUpdateNote, settings }) {
             recognitionRef.current.continuous = true;
             recognitionRef.current.interimResults = true;
             recognitionRef.current.lang = 'fr-FR';
+
+            recognitionRef.current.onstart = () => {
+                lastSpeechStartRef.current = Date.now();
+            };
 
             recognitionRef.current.onresult = (event) => {
                 let finalTranscript = '';
@@ -60,8 +68,16 @@ export default function Editor({ note, onUpdateNote, settings }) {
             };
 
             recognitionRef.current.onend = () => {
-                // Auto-restart if it stops but we didn't ask it to (unless error)
+                // Auto-restart logic with crash prevention
                 if (isListeningRef.current) {
+                    const timeSinceStart = Date.now() - lastSpeechStartRef.current;
+                    if (timeSinceStart < 1000) {
+                        console.warn("Speech recognition stopped too quickly. Preventing restart loop.");
+                        setIsListening(false);
+                        isListeningRef.current = false;
+                        return;
+                    }
+
                     try {
                         recognitionRef.current.start();
                     } catch (e) {
@@ -151,8 +167,16 @@ export default function Editor({ note, onUpdateNote, settings }) {
     // Auto-resize textarea
     useEffect(() => {
         if (textareaRef.current) {
+            // Preserve scroll position to prevent jumping to top
+            const scrollContainer = editorContainerRef.current;
+            const currentScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+
             textareaRef.current.style.height = 'auto';
             textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+
+            if (scrollContainer) {
+                scrollContainer.scrollTop = currentScrollTop;
+            }
         }
     }, [note?.content]);
 
@@ -240,11 +264,11 @@ export default function Editor({ note, onUpdateNote, settings }) {
     // Helper: Add attachment
     const addAttachment = (type, data) => {
         const newAttachment = {
-            id: Date.now().toString(),
-            type, // 'image' or 'audio'
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            type, // 'image', 'audio', 'video'
             data, // base64
-            name: type === 'audio' ? `Memo ${new Date().toLocaleTimeString()}` : 'Image',
-            width: type === 'image' ? 100 : undefined
+            name: type === 'audio' ? `Memo ${new Date().toLocaleTimeString()}` : (type === 'video' ? 'Video' : 'Image'),
+            width: (type === 'image' || type === 'video') ? 100 : undefined
         };
         const attachments = note.attachments || [];
         onUpdateNote({ ...note, attachments: [...attachments, newAttachment], updatedAt: Date.now() });
@@ -281,15 +305,65 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
     // --- Media Handlers ---
 
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
+    const processFile = (file) => {
         if (!file) return;
-
+        
         const reader = new FileReader();
         reader.onloadend = () => {
-            addAttachment('image', reader.result);
+            if (file.type.startsWith('image/')) {
+                addAttachment('image', reader.result);
+            } else if (file.type.startsWith('video/')) {
+                addAttachment('video', reader.result);
+            } else if (file.type.startsWith('audio/')) {
+                addAttachment('audio', reader.result);
+            }
         };
         reader.readAsDataURL(file);
+    };
+
+    const handleFileUpload = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            files.forEach(file => processFile(file));
+        }
+    };
+
+    // Drag & Drop Handlers
+    const handleDragEnter = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter.current++;
+        // Check if we are dragging files
+        if (e.dataTransfer.types && e.dataTransfer.types.length > 0) {
+            setIsDragging(true);
+        }
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter.current--;
+        if (dragCounter.current === 0) {
+            setIsDragging(false);
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'copy';
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        dragCounter.current = 0;
+        
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) {
+            files.forEach(file => processFile(file));
+        }
     };
 
     const toggleRecording = async () => {
@@ -409,11 +483,11 @@ export default function Editor({ note, onUpdateNote, settings }) {
         try {
             // Prompt : Amélioration globale (Modification/Suppression/Ajout)
             const prompt = note.content
-                ? "Voici le contenu de la note :\n\n" + note.content + "\n\nAgis comme un éditeur expert. Améliore ce contenu : tu peux le corriger, le reformuler, le compléter, ou supprimer les parties superflues. Renvoie uniquement la version finale complète du texte."
+                ? "Voici le contenu de la note :\n\n" + note.content + "\n\nAgis comme un éditeur professionnel et un expert en communication. Ta mission est de sublimer ce texte.\n\nObjectifs :\n1. Corrige toutes les fautes d'orthographe, de grammaire et de syntaxe.\n2. Améliore la fluidité, la clarté et le style (vocabulaire plus riche, tournures plus élégantes).\n3. Structure le texte avec des paragraphes clairs et des titres si nécessaire.\n4. Si le texte est brouillon, réorganise les idées de manière logique.\n5. Conserve le ton et l'intention originale, mais rends-le plus percutant.\n\nRenvoie UNIQUEMENT la version finale améliorée, sans commentaires ni explications avant ou après."
                 : "Écris une note détaillée, structurée et intéressante sur un sujet de culture générale ou technique, en incluant des liens vers des sources si pertinent.";
 
             const messages = [
-                { role: "system", content: "Tu es un assistant d'écriture expert." },
+                { role: "system", content: "Tu es un assistant d'écriture expert, capable de transformer des brouillons en textes de qualité professionnelle." },
                 { role: "user", content: prompt }
             ];
 
@@ -443,7 +517,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
         try {
             // Context: Last 500 chars for better relevance
             const context = note.content.slice(-500);
-            const prompt = `Tu es un moteur d'autocomplétion. Propose une suite logique, courte et naturelle (max 15 mots) au texte suivant. Ne répète pas le texte. Texte : "${context}"`;
+            const prompt = `Tu es un moteur d'autocomplétion. Propose une suite logique, courte et naturelle (max 15 mots) au texte suivant. Si le texte se termine par un mot complet, commence impérativement ta réponse par une espace. Texte : "${context}"`;
             
             const messages = [{ role: "user", content: prompt }];
 
@@ -457,9 +531,21 @@ export default function Editor({ note, onUpdateNote, settings }) {
             if (generated && generated.trim()) {
                 // Ensure we don't repeat the last word if it was partial (simple check)
                 let cleanSuggestion = generated;
-                if (cleanSuggestion.startsWith(context.split(' ').pop())) {
-                    cleanSuggestion = cleanSuggestion.replace(context.split(' ').pop(), '');
+                const lastWord = context.split(' ').pop();
+                
+                if (lastWord && cleanSuggestion.startsWith(lastWord)) {
+                    cleanSuggestion = cleanSuggestion.replace(lastWord, '');
                 }
+                
+                // Safety: If context ends with a letter and suggestion starts with a letter, ensure space
+                if (context.length > 0 && !/\s$/.test(context) && /^[a-zA-Z0-9À-ÿ]/.test(cleanSuggestion)) {
+                     // Check if it looks like a suffix (short and lowercase)
+                     // This is a heuristic. If it's > 3 chars or Capitalized, assume it's a new word.
+                     if (cleanSuggestion.length > 3 || /^[A-Z]/.test(cleanSuggestion)) {
+                         cleanSuggestion = ' ' + cleanSuggestion;
+                     }
+                }
+
                 setSuggestion(cleanSuggestion);
             }
         } catch (e) {
@@ -470,7 +556,23 @@ export default function Editor({ note, onUpdateNote, settings }) {
     };
 
     return (
-        <div className="flex-1 h-full flex flex-col bg-transparent relative transition-colors duration-300">
+        <div 
+            className={`flex-1 h-full flex flex-col bg-transparent relative transition-colors duration-300 ${isDragging ? 'bg-blue-500/10' : ''}`}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
+            {/* Drag Overlay */}
+            {isDragging && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-500/20 backdrop-blur-sm border-2 border-blue-500 border-dashed m-4 rounded-xl pointer-events-none">
+                    <div className="text-blue-200 font-bold text-xl flex flex-col items-center gap-2">
+                        <Paperclip className="w-12 h-12" />
+                        <span>Déposer ici</span>
+                    </div>
+                </div>
+            )}
+
             {/* Invisible Drag Region at top - Only when titlebar is 'none' */}
             {(!settings?.titlebarStyle || settings.titlebarStyle === 'none') && (
                 <div className="absolute top-0 left-0 right-0 h-8 z-10" data-tauri-drag-region />
@@ -530,7 +632,11 @@ export default function Editor({ note, onUpdateNote, settings }) {
             </div>
 
             {/* EDITOR AREA */}
-            <div key={note.id} className="flex-1 px-8 pb-4 overflow-y-auto animate-fade-in scroll-pt-4 relative">
+            <div 
+                key={note.id} 
+                ref={editorContainerRef}
+                className="flex-1 px-8 pb-4 overflow-y-auto animate-fade-in scroll-pt-4 relative"
+            >
                 <div className="relative w-full mb-8 min-h-[400px]">
                     <textarea
                         ref={textareaRef}
@@ -605,11 +711,11 @@ export default function Editor({ note, onUpdateNote, settings }) {
                             {note.attachments.map((att, index) => (
                                 <div
                                     key={att.id}
-                                    className={`relative group rounded-xl transition-all duration-300 animate-scale-in ${att.type === 'image' ? '' : 'w-72'}`}
+                                    className={`relative group rounded-xl transition-all duration-300 animate-scale-in ${att.type === 'image' || att.type === 'video' ? '' : 'w-72'}`}
                                     style={{
-                                        width: att.type === 'image' ? (att.width || 100) + '%' : undefined,
-                                        maxWidth: att.type === 'image' ? '100%' : '320px',
-                                        flexBasis: att.type === 'image' ? (att.width || 100) + '%' : 'auto'
+                                        width: (att.type === 'image' || att.type === 'video') ? (att.width || 100) + '%' : undefined,
+                                        maxWidth: (att.type === 'image' || att.type === 'video') ? '100%' : '320px',
+                                        flexBasis: (att.type === 'image' || att.type === 'video') ? (att.width || 100) + '%' : 'auto'
                                     }}
                                 >
                                     {/* --- Hover Controls (Glassmorphism) --- */}
@@ -648,12 +754,16 @@ export default function Editor({ note, onUpdateNote, settings }) {
                                     </div>
 
 
-                                    {att.type === 'image' ? (
+                                    {att.type === 'image' || att.type === 'video' ? (
                                         <div className="relative rounded-2xl overflow-hidden shadow-sm border border-white/10">
-                                            <img src={att.data} alt="Attachment" className="w-full object-cover" style={{ maxHeight: '600px' }} />
+                                            {att.type === 'image' ? (
+                                                <img src={att.data} alt="Attachment" className="w-full object-cover" style={{ maxHeight: '600px' }} />
+                                            ) : (
+                                                <video src={att.data} controls className="w-full object-cover" style={{ maxHeight: '600px' }} />
+                                            )}
 
                                             {/* Beautiful Resize Slider */}
-                                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+                                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-20">
                                                 <div className="bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-3">
                                                     <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Size</span>
                                                     <input
@@ -710,10 +820,11 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 <div className="relative">
                     <input
                         type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
+                        multiple
+                        accept="image/*,video/*,audio/*"
+                        onChange={handleFileUpload}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        title="Insérer une image"
+                        title="Insérer un fichier (Image, Vidéo, Audio)"
                     />
                     <div className="p-2 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 transition-colors pointer-events-none">
                         <ImageIcon className="w-5 h-5" />

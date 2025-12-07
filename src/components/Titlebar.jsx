@@ -1,25 +1,26 @@
 import React from 'react';
 import { X, Minus, Square } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { exit } from '@tauri-apps/plugin-process';
 
 export default function Titlebar({ style = 'macos' }) {
     const appWindow = getCurrentWindow();
 
     if (style === 'none') return null;
 
-    const handleClose = (e) => {
+    const handleClose = async (e) => {
         e.stopPropagation();
-        appWindow.close();
+        await exit(0);
     };
 
-    const handleMinimize = (e) => {
+    const handleMinimize = async (e) => {
         e.stopPropagation();
-        appWindow.minimize();
+        await appWindow.minimize();
     };
 
-    const handleMaximize = (e) => {
+    const handleMaximize = async (e) => {
         e.stopPropagation();
-        appWindow.toggleMaximize();
+        await appWindow.toggleMaximize();
     };
 
     // macOS style: rounded buttons on the left
