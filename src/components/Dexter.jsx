@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     Bot, Send, X, Plus, Sparkles, History,
     FileText, Check, ChevronDown, Reply, Copy, RotateCcw,
-    Trash2, Square, Volume2
+    Trash2, Square, Volume2, Calendar, MessageCircle, PenTool
 } from 'lucide-react';
 import { generateText } from '../services/ai';
 
@@ -34,6 +34,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
     const [recentPrompts, setRecentPrompts] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedSuggestion, setSelectedSuggestion] = useState(0);
+    const [mode, setMode] = useState('agent'); // 'plan', 'ask', 'agent', 'edit'
 
     // Responsiveness: Keep anchored right on resize
     useEffect(() => {
@@ -205,25 +206,58 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
         abortController.current = new AbortController();
 
         try {
-            const systemPrompt = `You are Dexter, an advanced AI assistant in a note-taking app.
-            You have a slightly humorous, witty, and casual personality. You understand and use idioms fluently.
+            let systemPrompt = "";
             
-            IMPORTANT:
-            - If you are unsure about what the user wants, ASK QUESTIONS to clarify.
-            - Maintain a natural dialogue flow.
-            - You can remember previous parts of the conversation.
-
-    TOOLS:
-- If user wants to CREATE a note: Respond ONLY with JSON: { "action": "create_note", "title": "...", "content": "..." }
-- If user wants to UPDATE / APPEND to current note: Respond ONLY with JSON: { "action": "update_note", "content": "..." }
-- If user wants to DELETE the current note: Respond ONLY with JSON: { "action": "delete_note" }
-
-CONTEXT:
-            Current Note Title: "${currentNote?.title || 'None'}"
-            Current Note Content Preview: "${currentNote?.content?.slice(0, 200) || ''}..."
-
-            Be concise, helpful, but keep your witty personality.
-            `;
+            if (mode === 'plan') {
+                systemPrompt = `You are Dexter, a strategic planning assistant.
+                Your goal is to help the user organize thoughts, create outlines, and structure projects.
+                Do not create or modify notes directly unless explicitly asked to "finalize" a plan.
+                Focus on asking clarifying questions to build a solid plan.
+                
+                CONTEXT:
+                Current Note Title: "${currentNote?.title || 'None'}"
+                Current Note Content Preview: "${currentNote?.content?.slice(0, 500) || ''}..."`;
+            } else if (mode === 'ask') {
+                systemPrompt = `You are Dexter, a helpful and knowledgeable assistant.
+                Answer questions, provide information, and explain concepts.
+                Do NOT attempt to create, update, or delete notes. Just chat.
+                
+                CONTEXT:
+                Current Note Title: "${currentNote?.title || 'None'}"
+                Current Note Content Preview: "${currentNote?.content?.slice(0, 500) || ''}..."`;
+            } else if (mode === 'edit') {
+                systemPrompt = `You are Dexter, an expert editor.
+                Your goal is to modify the current note based on the user's request.
+                
+                IMPORTANT:
+                - You MUST return a JSON action to update the note.
+                - In your text response, ONLY explain briefly what you changed (e.g., "Fixed typos", "Rewrote introduction").
+                - Do not chat unnecessarily.
+                
+                TOOLS:
+                - To UPDATE the note: Respond with JSON: { "action": "update_note", "content": "..." }
+                
+                CONTEXT:
+                Current Note Title: "${currentNote?.title || 'None'}"
+                Current Note Content: "${currentNote?.content || ''}"`;
+            } else {
+                // Default: 'agent'
+                systemPrompt = `You are Dexter, an advanced AI agent in a note-taking app.
+                You have a slightly humorous, witty, and casual personality.
+                
+                IMPORTANT:
+                - If you are unsure about what the user wants, ASK QUESTIONS to clarify.
+                - Maintain a natural dialogue flow.
+                
+                TOOLS:
+                - If user wants to CREATE a note: Respond ONLY with JSON: { "action": "create_note", "title": "...", "content": "..." }
+                - If user wants to UPDATE / APPEND to current note: Respond ONLY with JSON: { "action": "update_note", "content": "..." }
+                - If user wants to DELETE the current note: Respond ONLY with JSON: { "action": "delete_note" }
+                
+                CONTEXT:
+                Current Note Title: "${currentNote?.title || 'None'}"
+                Current Note Content Preview: "${currentNote?.content?.slice(0, 500) || ''}..."`;
+            }
 
             // Filter out internal UI types from history before sending to AI
             const apiMessages = [
@@ -321,35 +355,60 @@ CONTEXT:
                 onPointerDown={handlePointerDown}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
-                className="h-10 bg-white/5 border-b border-[#27272a] flex items-center justify-between px-4 cursor-move select-none touch-none"
+                className="bg-white/5 border-b border-[#27272a] flex flex-col px-4 py-2 cursor-move select-none touch-none gap-2"
             >
-                <div className="flex items-center gap-2">
-                    <span className="text-white font-medium text-xs tracking-wide font-dexter-mono">Dexter Assistant</span>
+                <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                        <span className="text-white font-medium text-xs tracking-wide font-dexter-mono">Dexter Assistant</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={handleRegenerate}
+                            className="text-gray-500 hover:text-white transition-colors"
+                            title="Reload Last Prompt"
+                        >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={() => setMessages([{ role: 'system', content: 'Ready.' }])}
+                            className="text-gray-500 hover:text-white transition-colors"
+                            title="Clear History"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={onClose}
+                            className="text-gray-500 hover:text-white transition-colors"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={handleRegenerate}
-                        className="text-gray-500 hover:text-white transition-colors"
-                        title="Reload Last Prompt"
-                    >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={() => setMessages([{ role: 'system', content: 'Ready.' }])}
-                        className="text-gray-500 hover:text-white transition-colors"
-                        title="Clear History"
-                    >
-                        <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={onClose}
-                        className="text-gray-500 hover:text-white transition-colors"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
+
+                {/* Mode Selector */}
+                <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5" onPointerDown={(e) => e.stopPropagation()}>
+                    {[
+                        { id: 'plan', icon: Calendar, label: 'Plan' },
+                        { id: 'ask', icon: MessageCircle, label: 'Ask' },
+                        { id: 'agent', icon: Bot, label: 'Agent' },
+                        { id: 'edit', icon: PenTool, label: 'Edit' }
+                    ].map((m) => (
+                        <button
+                            key={m.id}
+                            onClick={() => setMode(m.id)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-1 rounded-md text-[10px] font-medium transition-all ${
+                                mode === m.id 
+                                ? 'bg-[#27272a] text-white shadow-sm border border-white/10' 
+                                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                            }`}
+                        >
+                            <m.icon className="w-3 h-3" />
+                            {m.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 

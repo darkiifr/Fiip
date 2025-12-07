@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2 } from 'lucide-react';
+import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
@@ -8,6 +8,7 @@ import { open } from '@tauri-apps/plugin-shell';
 export default function Editor({ note, onUpdateNote, settings }) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
+    const [pendingAiContent, setPendingAiContent] = useState(null); // Store AI content for review
     const [isRecording, setIsRecording] = useState(false);
     const [suggestion, setSuggestion] = useState(null);
     const [isSuggesting, setIsSuggesting] = useState(false);
@@ -16,6 +17,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
     // TTS & STT State
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const isListeningRef = useRef(false); // Track intent to listen
     const [interimTranscript, setInterimTranscript] = useState('');
     const recognitionRef = useRef(null);
     const noteRef = useRef(note);
@@ -59,14 +61,34 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
             recognitionRef.current.onend = () => {
                 // Auto-restart if it stops but we didn't ask it to (unless error)
-                // We handle state in toggleListening
+                if (isListeningRef.current) {
+                    try {
+                        recognitionRef.current.start();
+                    } catch (e) {
+                        console.warn("Failed to restart speech recognition:", e);
+                        setIsListening(false);
+                        isListeningRef.current = false;
+                    }
+                } else {
+                    setIsListening(false);
+                }
             };
             
             recognitionRef.current.onerror = (event) => {
                 console.error("Speech recognition error", event.error);
                 if (event.error === 'not-allowed') {
                     setIsListening(false);
+                    isListeningRef.current = false;
                     alert("Accès au micro refusé.");
+                } else if (event.error === 'aborted') {
+                    // Ignore aborted errors (manual stop)
+                } else {
+                    // For other errors, we might want to stop or retry
+                    // If it's a network error, maybe stop
+                    if (event.error === 'network') {
+                         setIsListening(false);
+                         isListeningRef.current = false;
+                    }
                 }
             };
         }
@@ -84,11 +106,19 @@ export default function Editor({ note, onUpdateNote, settings }) {
         }
 
         if (isListening) {
+            isListeningRef.current = false;
             setIsListening(false);
             recognitionRef.current.stop();
         } else {
+            isListeningRef.current = true;
             setIsListening(true);
-            recognitionRef.current.start();
+            try {
+                recognitionRef.current.start();
+            } catch (e) {
+                console.error(e);
+                setIsListening(false);
+                isListeningRef.current = false;
+            }
         }
     };
 
@@ -382,30 +412,20 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 ? "Voici le contenu de la note :\n\n" + note.content + "\n\nAgis comme un éditeur expert. Améliore ce contenu : tu peux le corriger, le reformuler, le compléter, ou supprimer les parties superflues. Renvoie uniquement la version finale complète du texte."
                 : "Écris une note détaillée, structurée et intéressante sur un sujet de culture générale ou technique, en incluant des liens vers des sources si pertinent.";
 
+            const messages = [
+                { role: "system", content: "Tu es un assistant d'écriture expert." },
+                { role: "user", content: prompt }
+            ];
+
             const generated = await generateText({
                 apiKey: settings.aiApiKey,
                 model: settings.aiModel,
-                prompt: prompt,
+                messages: messages,
                 context: note.title
             });
 
             setIsWaiting(false);
-
-            // Typewriter effect (Rewrite mode)
-            let currentText = "";
-            const chars = generated.split("");
-            
-            // Speed depends on length to avoid waiting too long for long notes
-            const delay = chars.length > 500 ? 1 : 5;
-            const step = chars.length > 500 ? 5 : 2;
-
-            for (let i = 0; i < chars.length; i++) {
-                currentText += chars[i];
-                if (i % step === 0 || i === chars.length - 1) {
-                    onUpdateNote({ ...note, content: currentText, updatedAt: Date.now() });
-                    await new Promise(r => setTimeout(r, delay));
-                }
-            }
+            setPendingAiContent(generated);
             
         } catch (error) {
             alert("Erreur AI : " + error.message);
@@ -423,10 +443,14 @@ export default function Editor({ note, onUpdateNote, settings }) {
         try {
             // Context: Last 500 chars for better relevance
             const context = note.content.slice(-500);
+            const prompt = `Tu es un moteur d'autocomplétion. Propose une suite logique, courte et naturelle (max 15 mots) au texte suivant. Ne répète pas le texte. Texte : "${context}"`;
+            
+            const messages = [{ role: "user", content: prompt }];
+
             const generated = await generateText({
                 apiKey: settings.aiApiKey,
                 model: settings.aiModel,
-                prompt: `Tu es un moteur d'autocomplétion. Propose une suite logique, courte et naturelle (max 15 mots) au texte suivant. Ne répète pas le texte. Texte : "${context}"`,
+                messages: messages,
                 context: note.title
             });
             
@@ -527,12 +551,48 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
                     {/* Shimmer Loading Overlay */}
                     {isWaiting && (
-                        <div className="absolute inset-0 z-20 bg-[#1e1e1e]/80 backdrop-blur-[2px] flex flex-col gap-4 pt-2 animate-in fade-in duration-300 pointer-events-none">
-                            <div className="h-4 w-3/4 bg-gray-700 rounded animate-shimmer"></div>
-                            <div className="h-4 w-full bg-gray-700 rounded animate-shimmer"></div>
-                            <div className="h-4 w-5/6 bg-gray-700 rounded animate-shimmer"></div>
-                            <div className="h-4 w-4/5 bg-gray-700 rounded animate-shimmer"></div>
-                            <div className="h-4 w-2/3 bg-gray-700 rounded animate-shimmer"></div>
+                        <div className="absolute inset-0 z-20 bg-[#1e1e1e]/40 backdrop-blur-[1px] flex flex-col gap-4 pt-2 animate-in fade-in duration-300 pointer-events-none">
+                            <div className="h-4 w-3/4 bg-white/5 rounded animate-shimmer"></div>
+                            <div className="h-4 w-full bg-white/5 rounded animate-shimmer"></div>
+                            <div className="h-4 w-5/6 bg-white/5 rounded animate-shimmer"></div>
+                            <div className="h-4 w-4/5 bg-white/5 rounded animate-shimmer"></div>
+                            <div className="h-4 w-2/3 bg-white/5 rounded animate-shimmer"></div>
+                        </div>
+                    )}
+
+                    {/* AI Review Overlay */}
+                    {pendingAiContent && (
+                        <div className="absolute inset-0 z-30 bg-[#1e1e1e]/95 backdrop-blur-md flex flex-col animate-in fade-in slide-in-from-bottom-4 rounded-lg border border-blue-500/30 shadow-2xl overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-3 bg-blue-900/20 border-b border-blue-500/20 shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-blue-400" />
+                                    <span className="text-sm font-bold text-blue-100">Proposition AI</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setPendingAiContent(null)}
+                                        className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors flex items-center gap-1"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                        Annuler
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            onUpdateNote({ ...note, content: pendingAiContent, updatedAt: Date.now() });
+                                            setPendingAiContent(null);
+                                        }}
+                                        className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded shadow-lg transition-colors flex items-center gap-1"
+                                    >
+                                        <Check className="w-3.5 h-3.5" />
+                                        Accepter
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
+                                <div className="whitespace-pre-wrap text-lg leading-relaxed text-gray-100 font-sans">
+                                    {pendingAiContent}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -628,9 +688,9 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 {/* STT Interim Preview */}
                 {isListening && (
                     <div className="absolute bottom-16 left-1/2 -translate-x-1/2 pointer-events-none w-full max-w-2xl px-4 flex justify-center">
-                        <div className={`bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-3 text-sm text-gray-200 shadow-2xl transition-all duration-300 flex items-center gap-3 ${interimTranscript ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-                            <span className="font-medium truncate">
+                        <div className={`bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-3 text-sm text-gray-200 shadow-2xl transition-all duration-300 flex items-start gap-3 max-h-32 overflow-hidden ${interimTranscript ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0 mt-1.5" />
+                            <span className="font-medium whitespace-pre-wrap break-words text-left line-clamp-4">
                                 {interimTranscript || "Écoute en cours..."}
                             </span>
                         </div>
