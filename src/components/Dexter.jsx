@@ -7,6 +7,8 @@ import {
     Trash2, Square, Volume2, Calendar, MessageCircle, PenTool
 } from 'lucide-react';
 import { generateText } from '../services/ai';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, onCreateNote, onUpdateNote, onDeleteNote, currentNote }) {
     const WIDGET_WIDTH = 450;
@@ -543,7 +545,12 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 ? 'text-gray-300'
                                 : 'text-gray-300'
                                 }`}>
-                                {msg.content}
+                                <div 
+                                    className="markdown-content space-y-2"
+                                    dangerouslySetInnerHTML={{ 
+                                        __html: DOMPurify.sanitize(marked.parse(msg.content || '')) 
+                                    }}
+                                />
                                 {msg.role === 'assistant' && settings?.voiceEnabled !== false && (
                                     <button
                                         onClick={() => speak(msg.content)}
