@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Type, Check, RefreshCw, Bot } from 'lucide-react';
+import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight } from 'lucide-react';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { open } from '@tauri-apps/plugin-shell';
+import { open, Command } from '@tauri-apps/plugin-shell';
+import { type } from '@tauri-apps/plugin-os';
 import { getVersion } from '@tauri-apps/api/app';
 import { getPlatformDisplayName } from '../services/platform';
 import { generateText } from '../services/ai';
@@ -15,8 +16,15 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
     const [appVersion, setAppVersion] = useState('');
     const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
     const [voices, setVoices] = useState([]);
+    const [isLinux, setIsLinux] = useState(false);
+    const [updateInfo, setUpdateInfo] = useState(null);
 
     useEffect(() => {
+        // Check OS
+        try {
+            if (type() === 'linux') setIsLinux(true);
+        } catch (e) { console.warn(e); }
+
         const loadVoices = () => {
             if (typeof window !== 'undefined' && window.speechSynthesis) {
                 const availableVoices = window.speechSynthesis.getVoices();
@@ -100,7 +108,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-96 bg-[#2c2c2c] rounded-xl shadow-2xl border border-white/10 overflow-hidden transform transition-all scale-100 p-6 flex flex-col max-h-[90vh]">
+            <div className="relative w-96 bg-[#2c2c2c] rounded-xl shadow-2xl border border-white/10 overflow-hidden transform transition-all scale-100 p-6 flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-center mb-6 shrink-0">
                     <h2 className="text-lg font-semibold text-white">Paramètres</h2>
                     <button onClick={handleClose} className="p-1 rounded-full hover:bg-white/10 transition-colors">
@@ -376,6 +384,36 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         </option>
                                     ))}
                                 </select>
+
+                                {/* Linux TTS Warning */}
+                                {isLinux && voices.length === 0 && (
+                                    <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mt-3 animate-in fade-in slide-in-from-top-1">
+                                        <p className="text-xs text-yellow-200 mb-2 leading-relaxed">
+                                            Aucune voix détectée. Sur Linux, le paquet <code>speech-dispatcher</code> est souvent requis pour le TTS.
+                                        </p>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const cmd = Command.create('install_speech_dispatcher');
+                                                    const output = await cmd.execute();
+                                                    if (output.code === 0) {
+                                                        alert("Installation terminée avec succès. L'application va redémarrer.");
+                                                        await relaunch();
+                                                    } else {
+                                                        alert("L'installation a échoué (Code " + output.code + "). Vérifiez votre mot de passe ou installez 'speech-dispatcher' manuellement.");
+                                                    }
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    alert("Erreur : " + e.message);
+                                                }
+                                            }}
+                                            className="w-full text-xs bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-2 rounded transition-colors font-medium flex items-center justify-center gap-2"
+                                        >
+                                            <RefreshCw className="w-3 h-3" />
+                                            Installer speech-dispatcher & Redémarrer
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -425,10 +463,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                             return;
                                         }
 
-                                        if (confirm(`Mise à jour disponible : ${update.version}\n\nVoulez-vous la télécharger et l'installer maintenant ?`)) {
-                                            await update.downloadAndInstall();
-                                            await relaunch();
-                                        }
+                                        setUpdateInfo(update);
                                     } else {
                                         alert("Vous êtes à jour ! Aucune nouvelle version détectée.");
                                     }
@@ -465,6 +500,72 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         <p className="text-[10px] text-gray-500 text-center">Running on {platformName}</p>
                     )}
                 </div>
+
+                {/* Update Modal Overlay */}
+                {updateInfo && (
+                    <div className="absolute inset-0 z-50 bg-[#2c2c2c] flex flex-col p-6 animate-in fade-in slide-in-from-bottom-4">
+                        <div className="flex items-center justify-between mb-4 shrink-0">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-blue-400" />
+                                Mise à jour disponible
+                            </h3>
+                            <button onClick={() => setUpdateInfo(null)} className="p-1 hover:bg-white/10 rounded-full transition-colors">
+                                <X className="w-5 h-5 text-gray-400" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/20 rounded-lg p-4 mb-4 border border-white/5">
+                            <div className="flex justify-between items-baseline mb-3 pb-3 border-b border-white/5">
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-gray-500 uppercase tracking-wider">Actuelle</span>
+                                    <span className="text-sm font-mono text-gray-400">v{appVersion}</span>
+                                </div>
+                                <MoveRight className="w-4 h-4 text-gray-600 mx-2" />
+                                <div className="flex flex-col items-end">
+                                    <span className="text-xs text-blue-400 uppercase tracking-wider font-medium">Nouvelle</span>
+                                    <span className="text-lg font-bold text-green-400 font-mono">v{updateInfo.version}</span>
+                                </div>
+                            </div>
+                            
+                            <div className="prose prose-invert prose-sm max-w-none">
+                                {updateInfo.date && (
+                                    <p className="text-xs text-gray-500 mb-2">
+                                        Publié le {new Date(updateInfo.date).toLocaleDateString()}
+                                    </p>
+                                )}
+                                <div className="whitespace-pre-wrap text-sm text-gray-300 leading-relaxed">
+                                    {updateInfo.body || "Aucune note de version disponible."}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 shrink-0">
+                            <button
+                                onClick={() => setUpdateInfo(null)}
+                                className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                            >
+                                Ignorer
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        setIsCheckingUpdate(true);
+                                        await updateInfo.downloadAndInstall();
+                                        await relaunch();
+                                    } catch (e) {
+                                        console.error(e);
+                                        alert("Erreur MAJ: " + e.message);
+                                        setIsCheckingUpdate(false);
+                                    }
+                                }}
+                                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-lg flex items-center justify-center gap-2"
+                            >
+                                <Download className="w-4 h-4" />
+                                {isCheckingUpdate ? 'Installation...' : 'Installer'}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

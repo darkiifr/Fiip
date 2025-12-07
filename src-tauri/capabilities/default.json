@@ -18,6 +18,21 @@
     "fs:default",
     "dialog:default",
     "shell:allow-open",
+    {
+      "identifier": "shell:execute",
+      "allow": [
+        {
+          "name": "install_speech_dispatcher",
+          "cmd": "pkexec",
+          "args": [
+            "apt-get",
+            "install",
+            "-y",
+            "speech-dispatcher"
+          ]
+        }
+      ]
+    },
     "clipboard-manager:default",
     "clipboard-manager:allow-write-text",
     "clipboard-manager:allow-read-text",
