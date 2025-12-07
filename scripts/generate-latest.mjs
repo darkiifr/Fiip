@@ -15,8 +15,9 @@ const tauriConfig = JSON.parse(fs.readFileSync(path.join(tauriDir, 'tauri.conf.j
 const version = tauriConfig.version;
 
 // Validate version format (SemVer)
-if (!/^\d+\.\d+\.\d+$/.test(version)) {
-    console.error(`Error: Version "${version}" is not a valid SemVer (expected X.Y.Z)`);
+// Allow standard X.Y.Z and pre-release tags like X.Y.Z-beta.1
+if (!/^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(version)) {
+    console.error(`Error: Version "${version}" is not a valid SemVer (expected X.Y.Z or X.Y.Z-tag)`);
     process.exit(1);
 }
 

@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "build:update": "npx dotenv -e .env -- npx tauri build && node scripts/generate-latest.mjs"
+    "build:update": "node scripts/sync-version.mjs && npx dotenv -e .env -- npx tauri build && node scripts/generate-latest.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

@@ -92,6 +92,27 @@ jobs:
         with:
           node-version: 20
 
+      - name: Sync Version from Tag
+        shell: bash
+        run: |
+          TAG_NAME=${{ needs.bump-version.outputs.new_tag || github.ref_name }}
+          if [[ "$TAG_NAME" == v* ]]; then
+            VERSION=${TAG_NAME#v}
+            echo "Syncing version to $VERSION from tag $TAG_NAME"
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              pkg.version = '$VERSION';
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+              
+              const tauriConf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+              tauriConf.version = '$VERSION';
+              fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(tauriConf, null, 2));
+            "
+          else
+            echo "Tag $TAG_NAME does not start with 'v', skipping version sync."
+          fi
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
