@@ -26,8 +26,12 @@ export default function Editor({ note, onUpdateNote, settings }) {
     const recognitionRef = useRef(null);
     const noteRef = useRef(note);
 
-    // Keep note ref updated
-    useEffect(() => { noteRef.current = note; }, [note]);
+    // Keep note ref updated, but respect local optimistic updates
+    useEffect(() => { 
+        if (note.id !== noteRef.current.id || note.updatedAt >= noteRef.current.updatedAt) {
+            noteRef.current = note; 
+        }
+    }, [note]);
 
     // Initialize Speech Recognition
     useEffect(() => {
@@ -60,7 +64,11 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     const separator = currentContent.length > 0 && !currentContent.endsWith(' ') && !currentContent.endsWith('\n') ? ' ' : '';
                     const newContent = currentContent + separator + finalTranscript;
                     
-                    onUpdateNote({ ...currentNote, content: newContent, updatedAt: Date.now() });
+                    const updatedNote = { ...currentNote, content: newContent, updatedAt: Date.now() };
+                    
+                    // Optimistic update to prevent race conditions
+                    noteRef.current = updatedNote;
+                    onUpdateNote(updatedNote);
                     setInterimTranscript('');
                 } else {
                     setInterimTranscript(interim);
@@ -209,7 +217,12 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
     const handleContentChange = async (e) => {
         const newContent = e.target.value;
-        onUpdateNote({ ...note, content: newContent, updatedAt: Date.now() });
+        const updatedNote = { ...note, content: newContent, updatedAt: Date.now() };
+        
+        // Optimistic update to prevent STT race conditions
+        noteRef.current = updatedNote;
+        onUpdateNote(updatedNote);
+        
         setSuggestion(null); // Clear suggestion on type
 
         // Auto-completion logic (debounce could be added here)
@@ -390,7 +403,20 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
                     const reader = new FileReader();
                     reader.onloadend = () => {
-                        addAttachment('audio', reader.result);
+                        // Use noteRef.current to get the latest note state
+                        const currentNote = noteRef.current;
+                        const newAttachment = {
+                            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                            type: 'audio',
+                            data: reader.result,
+                            name: `Memo ${new Date().toLocaleTimeString()}`,
+                            width: undefined
+                        };
+                        const attachments = currentNote.attachments || [];
+                        const updatedNote = { ...currentNote, attachments: [...attachments, newAttachment], updatedAt: Date.now() };
+                        
+                        noteRef.current = updatedNote;
+                        onUpdateNote(updatedNote);
                     };
                     reader.readAsDataURL(blob);
 
@@ -483,11 +509,11 @@ export default function Editor({ note, onUpdateNote, settings }) {
         try {
             // Prompt : Amélioration globale (Modification/Suppression/Ajout)
             const prompt = note.content
-                ? "Voici le contenu de la note :\n\n" + note.content + "\n\nAgis comme un éditeur professionnel et un expert en communication. Ta mission est de sublimer ce texte.\n\nObjectifs :\n1. Corrige toutes les fautes d'orthographe, de grammaire et de syntaxe.\n2. Améliore la fluidité, la clarté et le style (vocabulaire plus riche, tournures plus élégantes).\n3. Structure le texte avec des paragraphes clairs et des titres si nécessaire.\n4. Si le texte est brouillon, réorganise les idées de manière logique.\n5. Conserve le ton et l'intention originale, mais rends-le plus percutant.\n\nRenvoie UNIQUEMENT la version finale améliorée, sans commentaires ni explications avant ou après."
+                ? "Voici le contenu de la note :\n\n" + note.content + "\n\nAgis comme un rédacteur expert. Ta mission est de réécrire ce texte pour le rendre meilleur, plus fluide et plus agréable à lire.\n\nObjectifs :\n1. Corrige toutes les fautes (orthographe, grammaire, syntaxe).\n2. Reformule les phrases lourdes ou mal construites.\n3. Enrichis le vocabulaire pour éviter les répétitions et être plus précis.\n4. Rends le texte plus dynamique et percutant.\n5. Garde le sens original, mais n'hésite pas à modifier la structure des phrases pour améliorer la lisibilité.\n\nRenvoie UNIQUEMENT la version améliorée, sans commentaires."
                 : "Écris une note détaillée, structurée et intéressante sur un sujet de culture générale ou technique, en incluant des liens vers des sources si pertinent.";
 
             const messages = [
-                { role: "system", content: "Tu es un assistant d'écriture expert, capable de transformer des brouillons en textes de qualité professionnelle." },
+                { role: "system", content: "Tu es un expert en écriture. Tu transformes des textes brouillons ou moyens en textes clairs, fluides et bien écrits." },
                 { role: "user", content: prompt }
             ];
 
@@ -643,7 +669,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                         value={note.content}
                         onChange={handleContentChange}
                         onKeyDown={handleKeyDown}
-                        placeholder="Commencez à écrire..."
+                        placeholder={suggestion ? "" : "Commencez à écrire..."}
                         className="w-full h-auto overflow-hidden resize-none bg-transparent outline-none text-lg leading-relaxed text-gray-100 placeholder-gray-600 font-sans transition-colors duration-200 selection:bg-blue-900 relative z-10"
                         style={{ minHeight: '400px' }}
                     />
@@ -668,7 +694,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
                     {/* AI Review Overlay */}
                     {pendingAiContent && (
-                        <div className="absolute inset-0 z-30 bg-[#1e1e1e]/95 backdrop-blur-md flex flex-col animate-in fade-in slide-in-from-bottom-4 rounded-lg border border-blue-500/30 shadow-2xl overflow-hidden">
+                        <div className="absolute inset-0 z-30 bg-[#1e1e1e] flex flex-col animate-in fade-in slide-in-from-bottom-4 rounded-lg border border-blue-500/30 shadow-2xl overflow-hidden">
                             <div className="flex items-center justify-between px-4 py-3 bg-blue-900/20 border-b border-blue-500/20 shrink-0">
                                 <div className="flex items-center gap-2">
                                     <Sparkles className="w-4 h-4 text-blue-400" />

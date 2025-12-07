@@ -125,7 +125,7 @@ function App() {
   };
 
   const handleUpdateNote = (updatedNote) => {
-    setNotes(notes.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
+    setNotes((prevNotes) => prevNotes.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
   };
 
   const handleDeleteNote = () => {
