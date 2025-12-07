@@ -53,10 +53,15 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                 .then(name => setPlatformName(name))
                 .catch(err => console.warn("Failed to get platform name:", err));
 
-            // Get App Version
-            getVersion()
-                .then(v => setAppVersion(v))
-                .catch(err => console.warn("Failed to get app version:", err));
+            // Get App Version from installed file
+            fetch('/version.json')
+                .then(res => res.json())
+                .then(data => setAppVersion(data.version))
+                .catch(err => {
+                    console.warn("Failed to load version.json:", err);
+                    // Fallback to Tauri API if file fails
+                    getVersion().then(v => setAppVersion(v)).catch(e => console.error(e));
+                });
         }
     }, [isOpen, settings]);
 

@@ -108,6 +108,10 @@ jobs:
               const tauriConf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
               tauriConf.version = '$VERSION';
               fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(tauriConf, null, 2));
+
+              // Update public/version.json for runtime check
+              const versionData = { version: '$VERSION' };
+              fs.writeFileSync('public/version.json', JSON.stringify(versionData, null, 2));
             "
           else
             echo "Tag $TAG_NAME does not start with 'v', skipping version sync."
@@ -177,8 +181,9 @@ jobs:
             console.log(`TagName: ${tagName} -> Cleaned Version: ${version}`);
             
             // Validate SemVer
-            if (!/^\d+\.\d+\.\d+$/.test(version)) {
-                core.setFailed(`Version ${version} is not valid SemVer (X.Y.Z)`);
+            // Allow standard X.Y.Z and pre-release tags like X.Y.Z-beta.1
+            if (!/^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(version)) {
+                core.setFailed(`Version ${version} is not valid SemVer (X.Y.Z or X.Y.Z-tag)`);
                 return;
             }
 
