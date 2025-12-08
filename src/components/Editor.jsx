@@ -28,7 +28,8 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
     // Keep note ref updated, but respect local optimistic updates
     useEffect(() => { 
-        if (note.id !== noteRef.current.id || note.updatedAt >= noteRef.current.updatedAt) {
+        if (!note) return;
+        if (!noteRef.current || note.id !== noteRef.current.id || note.updatedAt >= noteRef.current.updatedAt) {
             noteRef.current = note; 
         }
     }, [note]);
@@ -60,6 +61,8 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
                 if (finalTranscript) {
                     const currentNote = noteRef.current;
+                    if (!currentNote) return;
+
                     const currentContent = currentNote.content || '';
                     const separator = currentContent.length > 0 && !currentContent.endsWith(' ') && !currentContent.endsWith('\n') ? ' ' : '';
                     const newContent = currentContent + separator + finalTranscript;
