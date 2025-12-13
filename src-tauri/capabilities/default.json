@@ -17,6 +17,14 @@
     "os:allow-platform",
     "os:allow-os-type",
     "fs:default",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "**" }]
+    },
     "dialog:default",
     "shell:allow-open",
     {

@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Video, Paperclip } from 'lucide-react';
+import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Video, Paperclip, FileText, Download } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
 import { open } from '@tauri-apps/plugin-shell';
+import { writeFile } from '@tauri-apps/plugin-fs';
+import { save } from '@tauri-apps/plugin-dialog';
 
 export default function Editor({ note, onUpdateNote, settings }) {
     const [isGenerating, setIsGenerating] = useState(false);
@@ -255,6 +257,38 @@ export default function Editor({ note, onUpdateNote, settings }) {
         }
     };
 
+    const handleDownloadAttachment = async (att) => {
+        try {
+            // 1. Ask user where to save
+            const filePath = await save({
+                defaultPath: att.name,
+                filters: [{
+                    name: 'PDF Files',
+                    extensions: ['pdf']
+                }]
+            });
+
+            if (!filePath) return;
+
+            // 2. Convert base64 to Uint8Array
+            // att.data is "data:application/pdf;base64,..."
+            const base64Data = att.data.split(',')[1];
+            const binaryString = atob(base64Data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            // 3. Write file
+            await writeFile(filePath, bytes);
+            
+        } catch (err) {
+            console.error("Failed to download file:", err);
+            alert("Erreur lors du téléchargement : " + (err.message || JSON.stringify(err)));
+        }
+    };
+
     // Render content with clickable links
     const renderContentWithLinks = (text) => {
         const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -278,12 +312,12 @@ export default function Editor({ note, onUpdateNote, settings }) {
     };
 
     // Helper: Add attachment
-    const addAttachment = (type, data) => {
+    const addAttachment = (type, data, fileName) => {
         const newAttachment = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            type, // 'image', 'audio', 'video'
+            type, // 'image', 'audio', 'video', 'pdf'
             data, // base64
-            name: type === 'audio' ? `Memo ${new Date().toLocaleTimeString()}` : (type === 'video' ? 'Video' : 'Image'),
+            name: fileName || (type === 'audio' ? `Memo ${new Date().toLocaleTimeString()}` : (type === 'video' ? 'Video' : (type === 'pdf' ? 'Document PDF' : 'Image'))),
             width: (type === 'image' || type === 'video') ? 100 : undefined
         };
         const attachments = note.attachments || [];
@@ -327,11 +361,13 @@ export default function Editor({ note, onUpdateNote, settings }) {
         const reader = new FileReader();
         reader.onloadend = () => {
             if (file.type.startsWith('image/')) {
-                addAttachment('image', reader.result);
+                addAttachment('image', reader.result, file.name);
             } else if (file.type.startsWith('video/')) {
-                addAttachment('video', reader.result);
+                addAttachment('video', reader.result, file.name);
             } else if (file.type.startsWith('audio/')) {
-                addAttachment('audio', reader.result);
+                addAttachment('audio', reader.result, file.name);
+            } else if (file.type === 'application/pdf') {
+                addAttachment('pdf', reader.result, file.name);
             }
         };
         reader.readAsDataURL(file);
@@ -808,6 +844,23 @@ export default function Editor({ note, onUpdateNote, settings }) {
                                                 </div>
                                             </div>
                                         </div>
+                                    ) : att.type === 'pdf' ? (
+                                        <div className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded-xl border border-white/10 group/pdf hover:border-blue-500/30 transition-colors">
+                                            <div className="p-3 bg-red-500/10 rounded-xl text-red-400 group-hover/pdf:bg-red-500/20 transition-colors">
+                                                <FileText className="w-8 h-8" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium text-gray-200 truncate mb-0.5">{att.name}</div>
+                                                <div className="text-xs text-gray-500">Document PDF</div>
+                                            </div>
+                                            <button 
+                                                onClick={() => handleDownloadAttachment(att)}
+                                                className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                                                title="Télécharger"
+                                            >
+                                                <Download className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     ) : (
                                         <AudioPlayer
                                             src={att.data}
@@ -850,10 +903,10 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     <input
                         type="file"
                         multiple
-                        accept="image/*,video/*,audio/*"
+                        accept="image/*,video/*,audio/*,application/pdf"
                         onChange={handleFileUpload}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        title="Insérer un fichier (Image, Vidéo, Audio)"
+                        title="Insérer un fichier (Image, Vidéo, Audio, PDF)"
                     />
                     <div className="p-2 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 transition-colors pointer-events-none">
                         <ImageIcon className="w-5 h-5" />

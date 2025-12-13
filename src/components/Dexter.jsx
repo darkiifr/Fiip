@@ -4,9 +4,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     Bot, Send, X, Plus, Sparkles, History,
     FileText, Check, ChevronDown, Reply, Copy, RotateCcw,
-    Trash2, Square, Volume2, Calendar, MessageCircle, PenTool
+    Trash2, Square, Volume2, Calendar, MessageCircle, PenTool, Paperclip
 } from 'lucide-react';
 import { generateText } from '../services/ai';
+import { extractTextFromPdf } from '../services/pdf';
+import { open } from '@tauri-apps/plugin-dialog';
+import { readFile } from '@tauri-apps/plugin-fs';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -37,6 +40,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedSuggestion, setSelectedSuggestion] = useState(0);
     const [mode, setMode] = useState('agent'); // 'plan', 'ask', 'agent', 'edit'
+    const [attachments, setAttachments] = useState([]);
 
     // Responsiveness: Keep anchored right on resize
     useEffect(() => {
@@ -186,21 +190,78 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
         setIsThinking(false);
     };
 
+    const handleAttach = async () => {
+        try {
+            const selected = await open({
+                multiple: true,
+                filters: [{
+                    name: 'PDF Files',
+                    extensions: ['pdf']
+                }]
+            });
+
+            if (selected) {
+                const files = Array.isArray(selected) ? selected : [selected];
+                
+                for (const filePath of files) {
+                    // Check if already attached
+                    if (attachments.some(a => a.path === filePath)) continue;
+
+                    try {
+                        const content = await readFile(filePath);
+                        const text = await extractTextFromPdf(content);
+                        
+                        // Extract filename from path
+                        const fileName = filePath.split(/[\\/]/).pop();
+                        
+                        setAttachments(prev => [...prev, {
+                            path: filePath,
+                            name: fileName,
+                            content: text
+                        }]);
+                    } catch (err) {
+                        console.error(`Failed to read PDF ${filePath}:`, err);
+                        // Optionally show error toast
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Failed to open file dialog:", err);
+        }
+    };
+
+    const removeAttachment = (index) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
     // AI Logic
     const handleSend = async () => {
-        if (!input.trim() || !settings?.aiApiKey) return;
+        if ((!input.trim() && attachments.length === 0) || !settings?.aiApiKey) return;
 
-        const userMsg = { role: 'user', content: input };
+        let messageContent = input;
+        
+        // Append attachments to message content
+        if (attachments.length > 0) {
+            messageContent += "\n\n--- ATTACHMENTS ---\n";
+            attachments.forEach(att => {
+                messageContent += `\nFile: ${att.name}\nContent:\n${att.content}\n-------------------\n`;
+            });
+        }
+
+        const userMsg = { role: 'user', content: messageContent, displayContent: input, attachments: attachments };
 
         // Add to recent prompts
-        setRecentPrompts(prev => {
-            const updated = [input, ...prev.filter(p => p !== input)];
-            return updated.slice(0, 10); // Keep only last 10
-        });
+        if (input.trim()) {
+            setRecentPrompts(prev => {
+                const updated = [input, ...prev.filter(p => p !== input)];
+                return updated.slice(0, 10); // Keep only last 10
+            });
+        }
 
         const newMessages = [...messages, userMsg];
         setMessages(newMessages);
         setInput('');
+        setAttachments([]);
         setShowSuggestions(false);
         setIsThinking(true);
 
@@ -548,9 +609,19 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 <div 
                                     className="markdown-content space-y-2"
                                     dangerouslySetInnerHTML={{ 
-                                        __html: DOMPurify.sanitize(marked.parse(msg.content || '')) 
+                                        __html: DOMPurify.sanitize(marked.parse(msg.displayContent || msg.content || '')) 
                                     }}
                                 />
+                                {msg.attachments && msg.attachments.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {msg.attachments.map((att, idx) => (
+                                            <div key={idx} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded text-xs text-gray-300">
+                                                <Paperclip className="w-3 h-3" />
+                                                <span className="truncate max-w-[150px]">{att.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                                 {msg.role === 'assistant' && settings?.voiceEnabled !== false && (
                                     <button
                                         onClick={() => speak(msg.content)}
@@ -590,6 +661,24 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 >
                                     {suggestion}
                                 </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Pending Attachments */}
+                    {attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2 px-1">
+                            {attachments.map((att, idx) => (
+                                <div key={idx} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded text-xs text-gray-300 group">
+                                    <Paperclip className="w-3 h-3" />
+                                    <span className="truncate max-w-[150px]">{att.name}</span>
+                                    <button 
+                                        onClick={() => removeAttachment(idx)}
+                                        className="ml-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     )}
@@ -644,22 +733,31 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
 
                     <div className="flex items-center justify-between">
                         {/* Model Selector Badge */}
-                        <div className="relative">
+                        <div className="relative flex items-center gap-2">
                             <button
-                                onClick={() => setShowModelSelector(!showModelSelector)}
-                                className="flex items-center gap-1.5 bg-[#3f3f46]/30 hover:bg-[#3f3f46]/50 text-[10px] text-gray-400 hover:text-gray-200 rounded px-2 py-1 transition-colors max-w-[200px] border border-transparent hover:border-[#3f3f46]"
+                                onClick={handleAttach}
+                                className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                                title="Attach PDF"
                             >
-                                <span className="truncate max-w-[140px]">
-                                    {selectedModel === 'default'
-                                        ? `Default (${settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})`
-                                        : selectedModel.split('/').pop()
-                                    }
-                                </span>
-                                <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${showModelSelector ? 'rotate-180' : ''}`} />
+                                <Paperclip className="w-3.5 h-3.5" />
                             </button>
 
-                            {/* Custom Dropdown */}
-                            {showModelSelector && (
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowModelSelector(!showModelSelector)}
+                                    className="flex items-center gap-1.5 bg-[#3f3f46]/30 hover:bg-[#3f3f46]/50 text-[10px] text-gray-400 hover:text-gray-200 rounded px-2 py-1 transition-colors max-w-[200px] border border-transparent hover:border-[#3f3f46]"
+                                >
+                                    <span className="truncate max-w-[140px]">
+                                        {selectedModel === 'default'
+                                            ? `Default (${settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})`
+                                            : selectedModel.split('/').pop()
+                                        }
+                                    </span>
+                                    <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${showModelSelector ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {/* Custom Dropdown */}
+                                {showModelSelector && (
                                 <>
                                     <div
                                         className="fixed inset-0 z-10"
@@ -712,6 +810,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 </>
                             )}
                         </div>
+                    </div>
 
                         {isThinking ? (
                             <button
@@ -724,7 +823,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                         ) : (
                             <button
                                 onClick={handleSend}
-                                disabled={!input.trim()}
+                                disabled={!input.trim() && attachments.length === 0}
                                 className="p-1.5 bg-white text-black rounded hover:opacity-90 disabled:opacity-50 transition-all"
                             >
                                 <Send className="w-3.5 h-3.5" />
