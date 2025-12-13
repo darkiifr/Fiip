@@ -65,7 +65,7 @@ export default function Titlebar({ style = 'macos' }) {
             <div
                 className="h-8 w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
             >
-                <div className="flex-1 px-4" data-tauri-drag-region>
+                <div className="flex-1 px-4 h-full flex items-center" data-tauri-drag-region>
                     <div className="text-sm font-medium text-gray-300">Fiip</div>
                 </div>
                 <div className="flex h-full">
