@@ -4,8 +4,10 @@ import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
 import { open } from '@tauri-apps/plugin-shell';
-import { writeFile } from '@tauri-apps/plugin-fs';
+import { writeFile, mkdir, exists, readFile } from '@tauri-apps/plugin-fs';
 import { save } from '@tauri-apps/plugin-dialog';
+import { appDataDir, join } from '@tauri-apps/api/path';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 export default function Editor({ note, onUpdateNote, settings }) {
     const [isGenerating, setIsGenerating] = useState(false);
@@ -270,18 +272,22 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
             if (!filePath) return;
 
-            // 2. Convert base64 to Uint8Array
-            // att.data is "data:application/pdf;base64,..."
-            const base64Data = att.data.split(',')[1];
-            const binaryString = atob(base64Data);
-            const len = binaryString.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
+            if (att.data.startsWith('data:')) {
+                // 2. Convert base64 to Uint8Array
+                // att.data is "data:application/pdf;base64,..."
+                const base64Data = att.data.split(',')[1];
+                const binaryString = atob(base64Data);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                await writeFile(filePath, bytes);
+            } else {
+                // It's a file path
+                const fileData = await readFile(att.data);
+                await writeFile(filePath, fileData);
             }
-
-            // 3. Write file
-            await writeFile(filePath, bytes);
             
         } catch (err) {
             console.error("Failed to download file:", err);
@@ -355,22 +361,51 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
     // --- Media Handlers ---
 
-    const processFile = (file) => {
+    const saveAttachmentToDisk = async (file) => {
+        try {
+            const appDataDirPath = await appDataDir();
+            const attachmentsDir = await join(appDataDirPath, 'attachments');
+            
+            // Check if directory exists
+            const dirExists = await exists(attachmentsDir);
+            if (!dirExists) {
+                await mkdir(attachmentsDir, { recursive: true });
+            }
+
+            const ext = file.name.split('.').pop();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
+            const filePath = await join(attachmentsDir, fileName);
+
+            const buffer = await file.arrayBuffer();
+            await writeFile(filePath, new Uint8Array(buffer));
+
+            return filePath;
+        } catch (error) {
+            console.error("Failed to save attachment to disk:", error);
+            throw error;
+        }
+    };
+
+    const processFile = async (file) => {
         if (!file) return;
         
-        const reader = new FileReader();
-        reader.onloadend = () => {
+        try {
+            // Save to disk to avoid localStorage quota and performance issues
+            const filePath = await saveAttachmentToDisk(file);
+            
             if (file.type.startsWith('image/')) {
-                addAttachment('image', reader.result, file.name);
+                addAttachment('image', filePath, file.name);
             } else if (file.type.startsWith('video/')) {
-                addAttachment('video', reader.result, file.name);
+                addAttachment('video', filePath, file.name);
             } else if (file.type.startsWith('audio/')) {
-                addAttachment('audio', reader.result, file.name);
+                addAttachment('audio', filePath, file.name);
             } else if (file.type === 'application/pdf') {
-                addAttachment('pdf', reader.result, file.name);
+                addAttachment('pdf', filePath, file.name);
             }
-        };
-        reader.readAsDataURL(file);
+        } catch (e) {
+            console.error("Error processing file:", e);
+            alert("Erreur lors de l'ajout du fichier : " + e.message);
+        }
     };
 
     const handleFileUpload = (e) => {
@@ -773,7 +808,12 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     <div className="border-t border-white/5 pt-6 pb-20 mt-4">
                         <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">Pièces Jointes ({note.attachments.length})</h3>
                         <div className="flex flex-wrap items-start gap-6">
-                            {note.attachments.map((att, index) => (
+                            {note.attachments.map((att, index) => {
+                                const src = (att.data && (att.data.startsWith('data:') || att.data.startsWith('http'))) 
+                                    ? att.data 
+                                    : convertFileSrc(att.data);
+
+                                return (
                                 <div
                                     key={att.id}
                                     className={`relative group rounded-xl transition-all duration-300 animate-scale-in ${att.type === 'image' || att.type === 'video' ? '' : 'w-72'}`}
@@ -822,9 +862,9 @@ export default function Editor({ note, onUpdateNote, settings }) {
                                     {att.type === 'image' || att.type === 'video' ? (
                                         <div className="relative rounded-2xl overflow-hidden shadow-sm border border-white/10">
                                             {att.type === 'image' ? (
-                                                <img src={att.data} alt="Attachment" className="w-full object-cover" style={{ maxHeight: '600px' }} />
+                                                <img src={src} alt="Attachment" className="w-full object-cover" style={{ maxHeight: '600px' }} />
                                             ) : (
-                                                <video src={att.data} controls className="w-full object-cover" style={{ maxHeight: '600px' }} />
+                                                <video src={src} controls className="w-full object-cover" style={{ maxHeight: '600px' }} />
                                             )}
 
                                             {/* Beautiful Resize Slider */}
@@ -863,13 +903,13 @@ export default function Editor({ note, onUpdateNote, settings }) {
                                         </div>
                                     ) : (
                                         <AudioPlayer
-                                            src={att.data}
+                                            src={src}
                                             name={att.name}
                                             onRename={(newName) => renameAttachment(att.id, newName)}
                                         />
                                     )}
                                 </div>
-                            ))}
+                            );})}
                         </div>
                     </div>
                 )}
