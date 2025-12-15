@@ -21,9 +21,9 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
     useEffect(() => {
         // Check OS
-        try {
-            if (type() === 'linux') setIsLinux(true);
-        } catch (e) { console.warn(e); }
+        type().then(osType => {
+            if (osType === 'linux') setIsLinux(true);
+        }).catch(console.warn);
 
         const loadVoices = () => {
             if (typeof window !== 'undefined' && window.speechSynthesis) {

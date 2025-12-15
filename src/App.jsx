@@ -39,20 +39,19 @@ function App() {
     if (saved) {
         return JSON.parse(saved);
     }
-    
-    // Default logic based on OS
-    let defaultStyle = 'macos';
-    try {
-        const osType = type();
-        if (osType === 'windows' || osType === 'linux') {
-            defaultStyle = 'windows';
-        }
-    } catch (e) {
-        console.error("Failed to detect OS", e);
-    }
-
-    return { darkMode: true, largeText: false, windowEffect: 'mica', titlebarStyle: defaultStyle };
+    return { darkMode: true, largeText: false, windowEffect: 'mica', titlebarStyle: 'macos' };
   });
+
+  // Detect OS for default settings
+  useEffect(() => {
+    if (!localStorage.getItem("fiip-settings")) {
+        type().then(osType => {
+            if (osType === 'windows' || osType === 'linux') {
+                setSettings(prev => ({ ...prev, titlebarStyle: 'windows' }));
+            }
+        }).catch(e => console.error("Failed to detect OS", e));
+    }
+  }, []);
 
   // Disable default context menu (Inspect Element)
   useEffect(() => {

@@ -9,6 +9,169 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
+const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, resizeAttachment, renameAttachment, handleDownloadAttachment }) => {
+    const [src, setSrc] = useState('');
+    const [isError, setIsError] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        let active = true;
+        const loadSrc = async () => {
+            setIsLoading(true);
+            setIsError(false);
+            try {
+                // Try standard convertFileSrc first
+                const assetUrl = convertFileSrc(att.data);
+                if (active) setSrc(assetUrl);
+            } catch (e) {
+                console.error("Error generating src:", e);
+                if (active) setIsError(true);
+            } finally {
+                if (active) setIsLoading(false);
+            }
+        };
+        loadSrc();
+        return () => { active = false; };
+    }, [att.data]);
+
+    const handleLoadError = async () => {
+        if (src.startsWith('blob:')) return; // Already tried blob
+
+        console.warn(`Failed to load resource: ${att.data}. Trying fallback...`);
+        try {
+            const content = await readFile(att.data);
+            const blob = new Blob([content], { type: att.mimeType || (att.type === 'video' ? 'video/mp4' : 'image/jpeg') });
+            const blobUrl = URL.createObjectURL(blob);
+            setSrc(blobUrl);
+        } catch (e) {
+            console.error("Fallback loading failed:", e);
+            setIsError(true);
+        }
+    };
+
+    return (
+        <div
+            className={`relative group rounded-xl transition-all duration-300 animate-scale-in ${att.type === 'image' || att.type === 'video' ? '' : 'w-72'}`}
+            style={{
+                width: (att.type === 'image' || att.type === 'video') ? (att.width || 100) + '%' : undefined,
+                maxWidth: (att.type === 'image' || att.type === 'video') ? '100%' : '320px',
+                flexBasis: (att.type === 'image' || att.type === 'video') ? (att.width || 100) + '%' : 'auto'
+            }}
+        >
+            {/* --- Hover Controls (Glassmorphism) --- */}
+            <div className="absolute -top-3 right-2 flex items-center justify-end gap-1 z-30 opacity-0 group-hover:opacity-100 transition-all duration-200 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto">
+                <div className="bg-black/60 backdrop-blur-md rounded-full p-1 flex items-center border border-white/10 shadow-xl">
+                    {/* Move Left */}
+                    {index > 0 && (
+                        <button
+                            onClick={() => moveAttachment(index, 'left')}
+                            className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors"
+                            title="Gauche"
+                        >
+                            <MoveLeft className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                    {/* Move Right */}
+                    {index < note.attachments.length - 1 && (
+                        <button
+                            onClick={() => moveAttachment(index, 'right')}
+                            className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors"
+                            title="Droite"
+                        >
+                            <MoveRight className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                    <div className="w-px h-3 bg-white/20 mx-1"></div>
+                    {/* Delete */}
+                    <button
+                        onClick={() => removeAttachment(att.id)}
+                        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors"
+                        title="Supprimer"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            </div>
+
+
+            {att.type === 'image' || att.type === 'video' ? (
+                <div className="relative rounded-2xl overflow-hidden shadow-sm border border-white/10 bg-black/20 min-h-[200px] flex items-center justify-center">
+                    {isLoading && (
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    )}
+                    
+                    {isError ? (
+                        <div className="flex flex-col items-center gap-2 text-red-400 p-4">
+                            <ImageIcon className="w-8 h-8 opacity-50" />
+                            <span className="text-xs font-medium">Erreur de chargement</span>
+                        </div>
+                    ) : att.type === 'image' ? (
+                        <img 
+                            src={src} 
+                            alt={att.name} 
+                            onError={handleLoadError}
+                            className="w-full object-cover transition-opacity duration-300" 
+                            style={{ maxHeight: '600px', opacity: isLoading ? 0 : 1 }} 
+                        />
+                    ) : (
+                        <video 
+                            src={src} 
+                            controls 
+                            onError={handleLoadError}
+                            className="w-full object-cover transition-opacity duration-300" 
+                            style={{ maxHeight: '600px', opacity: isLoading ? 0 : 1 }} 
+                        />
+                    )}
+
+                    {/* Beautiful Resize Slider */}
+                    {!isError && (
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-20">
+                            <div className="bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-3">
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Size</span>
+                                <input
+                                    type="range"
+                                    min="20"
+                                    max="100"
+                                    step="5"
+                                    value={att.width || 100}
+                                    onChange={(e) => resizeAttachment(att.id, parseInt(e.target.value))}
+                                    className="w-32 h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
+                                />
+                                <span className="text-[10px] font-mono text-white w-8 text-right">{att.width || 100}%</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : att.type === 'pdf' ? (
+                <div className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded-xl border border-white/10 group/pdf hover:border-blue-500/30 transition-colors">
+                    <div className="p-3 bg-red-500/10 rounded-xl text-red-400 group-hover/pdf:bg-red-500/20 transition-colors">
+                        <FileText className="w-8 h-8" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-200 truncate mb-0.5">{att.name}</div>
+                        <div className="text-xs text-gray-500">Document PDF</div>
+                    </div>
+                    <button 
+                        onClick={() => handleDownloadAttachment(att)}
+                        className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                        title="Télécharger"
+                    >
+                        <Download className="w-5 h-5" />
+                    </button>
+                </div>
+            ) : (
+                <AudioPlayer
+                    src={src}
+                    name={att.name}
+                    onRename={(newName) => renameAttachment(att.id, newName)}
+                />
+            )}
+        </div>
+    );
+};
+
 export default function Editor({ note, onUpdateNote, settings }) {
     const [isGenerating, setIsGenerating] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
@@ -318,13 +481,14 @@ export default function Editor({ note, onUpdateNote, settings }) {
     };
 
     // Helper: Add attachment
-    const addAttachment = (type, data, fileName) => {
+    const addAttachment = (type, data, fileName, mimeType) => {
         const newAttachment = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
             type, // 'image', 'audio', 'video', 'pdf'
-            data, // base64
+            data, // path
             name: fileName || (type === 'audio' ? `Memo ${new Date().toLocaleTimeString()}` : (type === 'video' ? 'Video' : (type === 'pdf' ? 'Document PDF' : 'Image'))),
-            width: (type === 'image' || type === 'video') ? 100 : undefined
+            width: (type === 'image' || type === 'video') ? 100 : undefined,
+            mimeType
         };
         const attachments = note.attachments || [];
         onUpdateNote({ ...note, attachments: [...attachments, newAttachment], updatedAt: Date.now() });
@@ -394,17 +558,18 @@ export default function Editor({ note, onUpdateNote, settings }) {
             const filePath = await saveAttachmentToDisk(file);
             
             if (file.type.startsWith('image/')) {
-                addAttachment('image', filePath, file.name);
+                addAttachment('image', filePath, file.name, file.type);
             } else if (file.type.startsWith('video/')) {
-                addAttachment('video', filePath, file.name);
+                addAttachment('video', filePath, file.name, file.type);
             } else if (file.type.startsWith('audio/')) {
-                addAttachment('audio', filePath, file.name);
+                addAttachment('audio', filePath, file.name, file.type);
             } else if (file.type === 'application/pdf') {
-                addAttachment('pdf', filePath, file.name);
+                addAttachment('pdf', filePath, file.name, file.type);
             }
         } catch (e) {
             console.error("Error processing file:", e);
-            alert("Erreur lors de l'ajout du fichier : " + e.message);
+            const errorMessage = e instanceof Error ? e.message : String(e);
+            alert("Erreur lors de l'ajout du fichier : " + errorMessage);
         }
     };
 
@@ -808,108 +973,19 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     <div className="border-t border-white/5 pt-6 pb-20 mt-4">
                         <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">Pièces Jointes ({note.attachments.length})</h3>
                         <div className="flex flex-wrap items-start gap-6">
-                            {note.attachments.map((att, index) => {
-                                const src = (att.data && (att.data.startsWith('data:') || att.data.startsWith('http'))) 
-                                    ? att.data 
-                                    : convertFileSrc(att.data);
-
-                                return (
-                                <div
+                            {note.attachments.map((att, index) => (
+                                <MediaAttachment
                                     key={att.id}
-                                    className={`relative group rounded-xl transition-all duration-300 animate-scale-in ${att.type === 'image' || att.type === 'video' ? '' : 'w-72'}`}
-                                    style={{
-                                        width: (att.type === 'image' || att.type === 'video') ? (att.width || 100) + '%' : undefined,
-                                        maxWidth: (att.type === 'image' || att.type === 'video') ? '100%' : '320px',
-                                        flexBasis: (att.type === 'image' || att.type === 'video') ? (att.width || 100) + '%' : 'auto'
-                                    }}
-                                >
-                                    {/* --- Hover Controls (Glassmorphism) --- */}
-                                    <div className="absolute -top-3 right-2 flex items-center justify-end gap-1 z-30 opacity-0 group-hover:opacity-100 transition-all duration-200 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto">
-                                        <div className="bg-black/60 backdrop-blur-md rounded-full p-1 flex items-center border border-white/10 shadow-xl">
-                                            {/* Move Left */}
-                                            {index > 0 && (
-                                                <button
-                                                    onClick={() => moveAttachment(index, 'left')}
-                                                    className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors"
-                                                    title="Gauche"
-                                                >
-                                                    <MoveLeft className="w-3.5 h-3.5" />
-                                                </button>
-                                            )}
-                                            {/* Move Right */}
-                                            {index < note.attachments.length - 1 && (
-                                                <button
-                                                    onClick={() => moveAttachment(index, 'right')}
-                                                    className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors"
-                                                    title="Droite"
-                                                >
-                                                    <MoveRight className="w-3.5 h-3.5" />
-                                                </button>
-                                            )}
-                                            <div className="w-px h-3 bg-white/20 mx-1"></div>
-                                            {/* Delete */}
-                                            <button
-                                                onClick={() => removeAttachment(att.id)}
-                                                className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors"
-                                                title="Supprimer"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                    </div>
-
-
-                                    {att.type === 'image' || att.type === 'video' ? (
-                                        <div className="relative rounded-2xl overflow-hidden shadow-sm border border-white/10">
-                                            {att.type === 'image' ? (
-                                                <img src={src} alt="Attachment" className="w-full object-cover" style={{ maxHeight: '600px' }} />
-                                            ) : (
-                                                <video src={src} controls className="w-full object-cover" style={{ maxHeight: '600px' }} />
-                                            )}
-
-                                            {/* Beautiful Resize Slider */}
-                                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-20">
-                                                <div className="bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-3">
-                                                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Size</span>
-                                                    <input
-                                                        type="range"
-                                                        min="20"
-                                                        max="100"
-                                                        step="5"
-                                                        value={att.width || 100}
-                                                        onChange={(e) => resizeAttachment(att.id, parseInt(e.target.value))}
-                                                        className="w-32 h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
-                                                    />
-                                                    <span className="text-[10px] font-mono text-white w-8 text-right">{att.width || 100}%</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : att.type === 'pdf' ? (
-                                        <div className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded-xl border border-white/10 group/pdf hover:border-blue-500/30 transition-colors">
-                                            <div className="p-3 bg-red-500/10 rounded-xl text-red-400 group-hover/pdf:bg-red-500/20 transition-colors">
-                                                <FileText className="w-8 h-8" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-sm font-medium text-gray-200 truncate mb-0.5">{att.name}</div>
-                                                <div className="text-xs text-gray-500">Document PDF</div>
-                                            </div>
-                                            <button 
-                                                onClick={() => handleDownloadAttachment(att)}
-                                                className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                                                title="Télécharger"
-                                            >
-                                                <Download className="w-5 h-5" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <AudioPlayer
-                                            src={src}
-                                            name={att.name}
-                                            onRename={(newName) => renameAttachment(att.id, newName)}
-                                        />
-                                    )}
-                                </div>
-                            );})}
+                                    att={att}
+                                    index={index}
+                                    note={note}
+                                    moveAttachment={moveAttachment}
+                                    removeAttachment={removeAttachment}
+                                    resizeAttachment={resizeAttachment}
+                                    renameAttachment={renameAttachment}
+                                    handleDownloadAttachment={handleDownloadAttachment}
+                                />
+                            ))}
                         </div>
                     </div>
                 )}
