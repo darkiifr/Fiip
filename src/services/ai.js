@@ -1,4 +1,4 @@
-export const generateText = async ({ apiKey, model, messages, signal }) => {
+export const generateText = async ({ apiKey, model, messages, signal, jsonMode }) => {
     if (!apiKey) {
         throw new Error("Clé API manquante. Veuillez la configurer dans les paramètres.");
     }
@@ -8,6 +8,16 @@ export const generateText = async ({ apiKey, model, messages, signal }) => {
 
     while (attempt < maxRetries) {
         try {
+            const body = {
+                model: model || "openai/gpt-4o-mini",
+                messages: messages,
+                temperature: 0.7,
+            };
+
+            if (jsonMode) {
+                body.response_format = { type: "json_object" };
+            }
+
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: {
@@ -16,11 +26,7 @@ export const generateText = async ({ apiKey, model, messages, signal }) => {
                     // "HTTP-Referer": "https://fiip-notes.app", // Optional
                     // "X-Title": "Fiip Notes" // Optional
                 },
-                body: JSON.stringify({
-                    model: model || "openai/gpt-4o-mini",
-                    messages: messages,
-                    temperature: 0.7,
-                }),
+                body: JSON.stringify(body),
                 signal: signal
             });
 

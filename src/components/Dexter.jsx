@@ -327,6 +327,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 - You MUST return a JSON action to update the note.
                 - Do NOT use Markdown code blocks (like \`\`\`json) for the JSON.
                 - Return ONLY the JSON object.
+                - Ensure the JSON is valid. Escape all newlines in strings as \\n. Escape double quotes as \\".
                 
                 TOOLS:
                 - To UPDATE the note: Respond with JSON: { "action": "update_note", "content": "..." }
@@ -343,9 +344,13 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 - If you are unsure about what the user wants, ASK QUESTIONS to clarify.
                 - Maintain a natural dialogue flow.
                 - If you decide to perform an action (create/update/delete), output ONLY the JSON object. Do NOT wrap it in markdown code blocks.
+                - CRITICAL: Ensure the JSON is strictly valid. 
+                  - Escape ALL newlines in the 'content' string as \\n (double backslash n). 
+                  - Escape double quotes inside strings as \\".
+                  - Do not use real line breaks inside the JSON string values.
                 
                 TOOLS:
-                - If user wants to CREATE a note: Respond ONLY with JSON: { "action": "create_note", "title": "...", "content": "..." }
+                - If user wants to CREATE a note: Respond ONLY with JSON: { "action": "create_note", "title": "...", "content": "Line 1\\nLine 2\\nLine 3" }
                 - If user wants to UPDATE / APPEND to current note: Respond ONLY with JSON: { "action": "update_note", "content": "..." }
                 - If user wants to DELETE the current note: Respond ONLY with JSON: { "action": "delete_note" }
                 
@@ -369,7 +374,8 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 apiKey: settings.aiApiKey,
                 model: modelToSend,
                 messages: apiMessages,
-                signal: abortController.current.signal
+                signal: abortController.current.signal,
+                jsonMode: mode === 'edit' // Force JSON mode for edit, but not for agent (mixed)
             });
 
             let aiMsg = { role: 'assistant', content: responseText, type: 'text' };
@@ -381,9 +387,21 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
                 
                 if (jsonMatch) {
-                    const actionData = JSON.parse(jsonMatch[0]);
+                    let jsonString = jsonMatch[0];
+                    // Attempt to fix common JSON errors (newlines in strings)
+                    // This regex finds strings and replaces literal newlines with \n
+                    // It handles escaped quotes correctly, but fails if quotes are NOT escaped.
+                    try {
+                         jsonString = jsonString.replace(/"((?:[^"\\]|\\.)*)"/g, (match) => {
+                            return match.replace(/\n/g, '\\n');
+                        });
+                    } catch (e) {
+                        // If regex fails (e.g. stack overflow), ignore
+                    }
 
-                    // Clean up content if it contains literal escaped newlines
+                    const actionData = JSON.parse(jsonString);
+
+                    // Clean up content if it contains literal escaped newlines (double escaped)
                     if (actionData.content && typeof actionData.content === 'string') {
                         actionData.content = actionData.content.replace(/\\n/g, '\n');
                     }
