@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Search, Plus, Trash2, Settings, Bot, Download, Upload } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exportNoteAsMarkdown, importMarkdownFile } from '../services/fileManager';
+import { useTranslation } from 'react-i18next';
 
-export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings, onToggleDexter, settings }) {
+export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings, onToggleDexter, settings }) {
+    const { t } = useTranslation();
     const [searchTerm, setSearchTerm] = useState('');
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
     const appWindow = getCurrentWindow();
@@ -28,14 +30,14 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
     const handleExport = async () => {
         const note = notes.find(n => n.id === selectedNoteId);
         if (!note) {
-            alert('Aucune note sélectionnée');
+            alert(t('sidebar.no_note_selected'));
             return;
         }
         const result = await exportNoteAsMarkdown(note);
         if (result.success) {
-            alert('Note exportée avec succès !');
+            alert(t('sidebar.export_success'));
         } else if (!result.cancelled) {
-            alert('Erreur lors de l\'export : ' + result.error);
+            alert(t('sidebar.export_error', { error: result.error }));
         }
     };
 
@@ -43,19 +45,19 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
         const result = await importMarkdownFile();
         if (result.success) {
             onCreateNote(result.note);
-            alert('Note importée avec succès !');
+            alert(t('sidebar.import_success'));
         } else if (!result.cancelled) {
-            alert('Erreur lors de l\'import : ' + result.error);
+            alert(t('sidebar.import_error', { error: result.error }));
         }
     };
 
-    const filteredNotes = notes.filter(note =>
-        note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.content.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredNotes = (notes || []).filter(note =>
+        (note.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (note.content || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
-        <div className="w-80 h-full bg-sidebar-dark/60 backdrop-blur-2xl border-r border-white/10 flex flex-col transition-colors duration-300">
+        <div className="w-80 h-full bg-[#1C1C1E]/60 backdrop-blur-2xl border-r border-white/10 flex flex-col transition-colors duration-300">
             {/* Header : Window Controls & Search */}
             <div className="flex flex-col gap-1 p-4 pt-1 select-none">
                 {/* Top Row: Traffic Lights + Drag Handle Spacer */}
@@ -86,7 +88,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                     <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-blue-400 transition-colors duration-200" />
                     <input
                         type="text"
-                        placeholder="Search"
+                        placeholder={t('sidebar.search_placeholder')}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-[#2C2C2E] border border-transparent focus:border-blue-500/50 pl-9 pr-3 py-2 rounded-md text-sm outline-none shadow-sm transition-all duration-200 font-medium placeholder-gray-500 text-gray-100"
@@ -97,7 +99,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
             {/* Note List */}
             <div className="flex-1 overflow-y-auto px-3 space-y-2 py-2">
                 {filteredNotes.length === 0 ? (
-                    <div className="text-center text-gray-400 mt-10 text-sm font-medium animate-fade-in">No notes found</div>
+                    <div className="text-center text-gray-400 mt-10 text-sm font-medium animate-fade-in">{t('sidebar.no_notes')}</div>
                 ) : (
                     filteredNotes.map((note, index) => (
                         <div
@@ -114,14 +116,20 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
               `}
                         >
                             <h3 className={`font-bold text-[15px] truncate transition-colors ${selectedNoteId === note.id ? 'text-white' : 'text-white'}`}>
-                                {note.title || 'Nouvelle note'}
+                                {note.title || t('sidebar.new_note')}
                             </h3>
                             <div className="flex justify-between items-baseline opacity-95">
                                 <span className={`text-xs truncate max-w-[70%] font-medium transition-colors ${selectedNoteId === note.id ? 'text-blue-100' : 'text-gray-300'}`}>
                                     {note.content?.slice(0, 40) || 'Pas de contenu...'}
                                 </span>
                                 <span className={`text-[11px] whitespace-nowrap font-medium ${selectedNoteId === note.id ? 'text-blue-200' : 'text-gray-400'}`}>
-                                    {new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                    {(() => {
+                                        try {
+                                            return new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                        } catch (e) {
+                                            return "";
+                                        }
+                                    })()}
                                 </span>
                             </div>
                         </div>
@@ -144,7 +152,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                         className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/10 flex items-center gap-2 transition-colors"
                     >
                         <Trash2 className="w-4 h-4" />
-                        Supprimer
+                        {t('sidebar.delete')}
                     </button>
                     <button
                         onClick={(e) => {
@@ -152,7 +160,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                             const note = notes.find(n => n.id === contextMenu.noteId);
                             if (note) {
                                 exportNoteAsMarkdown(note).then(res => {
-                                    if (res.success) alert('Exporté !');
+                                    if (res.success) alert(t('sidebar.export_success'));
                                 });
                             }
                             setContextMenu({ ...contextMenu, visible: false });
@@ -160,7 +168,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                         className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-white/10 flex items-center gap-2 transition-colors"
                     >
                         <Download className="w-4 h-4" />
-                        Exporter
+                        {t('sidebar.export')}
                     </button>
                 </div>
             )}
@@ -170,7 +178,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                 <button
                     onClick={handleImport}
                     className="p-2.5 text-gray-300 hover:text-green-400 transition-all duration-200 rounded-lg hover:bg-green-900/20 active:scale-95"
-                    title="Importer une note"
+                    title={t('sidebar.import')}
                 >
                     <Upload className="w-5 h-5" />
                 </button>
@@ -178,7 +186,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                 <button
                     onClick={handleExport}
                     className="p-2.5 text-gray-300 hover:text-blue-400 transition-all duration-200 rounded-lg hover:bg-blue-900/20 active:scale-95"
-                    title="Exporter la note"
+                    title={t('sidebar.export')}
                 >
                     <Download className="w-5 h-5" />
                 </button>
@@ -186,7 +194,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                 <button
                     onClick={onOpenSettings}
                     className="p-2.5 text-gray-300 hover:text-white transition-all duration-200 rounded-lg hover:bg-white/10 active:scale-95"
-                    title="Settings"
+                    title={t('sidebar.settings')}
                 >
                     <Settings className="w-5 h-5" />
                 </button>
@@ -195,7 +203,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                     <button
                         onClick={onToggleDexter}
                         className="p-2.5 text-purple-400 hover:text-purple-300 transition-all duration-200 rounded-lg hover:bg-purple-900/30 active:scale-95"
-                        title="Dexter AI"
+                        title={t('dexter.dexter_name')}
                     >
                         <Bot className="w-5 h-5" />
                     </button>
@@ -206,7 +214,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                 <button
                     onClick={onDeleteNote}
                     className="p-2.5 text-gray-500 hover:text-red-600 transition-all duration-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 group"
-                    title="Delete Note"
+                    title={t('sidebar.delete')}
                 >
                     <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
                 </button>
@@ -214,7 +222,7 @@ export default function Sidebar({ notes, onSelectNote, selectedNoteId, onCreateN
                 <button
                     onClick={onCreateNote}
                     className="p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-all duration-200 rounded-lg hover:bg-blue-100/50 dark:hover:bg-blue-900/30 active:scale-95"
-                    title="New note"
+                    title={t('sidebar.new_note')}
                 >
                     <Plus className="w-6 h-6" />
                 </button>

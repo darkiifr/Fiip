@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight } from 'lucide-react';
+import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight, ChevronDown, Globe } from 'lucide-react';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { open, Command } from '@tauri-apps/plugin-shell';
 import { type } from '@tauri-apps/plugin-os';
 import { getVersion } from '@tauri-apps/api/app';
 import { getPlatformDisplayName } from '../services/platform';
 import { generateText } from '../services/ai';
+import { useTranslation } from 'react-i18next';
 
 export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdateSettings }) {
+    const { t, i18n } = useTranslation();
     const [localSettings, setLocalSettings] = useState(settings);
     const [hasChanges, setHasChanges] = useState(false);
     const [audioDevices, setAudioDevices] = useState({ inputs: [], outputs: [] });
@@ -18,12 +20,26 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
     const [voices, setVoices] = useState([]);
     const [isLinux, setIsLinux] = useState(false);
     const [updateInfo, setUpdateInfo] = useState(null);
+    const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+
+    const languages = [
+        { code: 'fr', label: 'Français', flag: '🇫🇷' },
+        { code: 'en', label: 'English', flag: '🇺🇸' },
+        { code: 'es', label: 'Español', flag: '🇪🇸' },
+        { code: 'it', label: 'Italiano', flag: '🇮🇹' }
+    ];
 
     useEffect(() => {
         // Check OS
-        type().then(osType => {
-            if (osType === 'linux') setIsLinux(true);
-        }).catch(console.warn);
+        const checkOS = async () => {
+            try {
+                const osType = await type();
+                if (osType === 'linux') setIsLinux(true);
+            } catch (e) {
+                console.warn(e);
+            }
+        };
+        checkOS();
 
         const loadVoices = () => {
             if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -110,7 +126,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="relative w-96 bg-[#2c2c2c] rounded-xl shadow-2xl border border-white/10 overflow-hidden transform transition-all scale-100 p-6 flex flex-col max-h-[90vh]">
                 <div className="flex justify-between items-center mb-6 shrink-0">
-                    <h2 className="text-lg font-semibold text-white">Paramètres</h2>
+                    <h2 className="text-lg font-semibold text-white">{t('settings.title')}</h2>
                     <button onClick={handleClose} className="p-1 rounded-full hover:bg-white/10 transition-colors">
                         <X className="w-5 h-5 text-gray-400" />
                     </button>
@@ -118,13 +134,57 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                 <div className="space-y-6 overflow-y-auto pr-1 custom-scrollbar">
                     
+                    {/* Language */}
+                    <div className="space-y-3 relative z-20">
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.language')}</h3>
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsLanguageMenuOpen(!isLanguageMenuOpen)}
+                                className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-gray-100 outline-none flex items-center justify-between hover:bg-white/5 transition-colors"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Globe className="w-4 h-4 text-gray-400" />
+                                    <span>{languages.find(l => l.code === i18n.language)?.label || 'Français'}</span>
+                                </div>
+                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isLanguageMenuOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {isLanguageMenuOpen && (
+                                <>
+                                    <div 
+                                        className="fixed inset-0 z-40" 
+                                        onClick={() => setIsLanguageMenuOpen(false)}
+                                    />
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#2c2c2c] border border-white/10 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
+                                        {languages.map((lang) => (
+                                            <button
+                                                key={lang.code}
+                                                onClick={() => {
+                                                    i18n.changeLanguage(lang.code);
+                                                    setIsLanguageMenuOpen(false);
+                                                }}
+                                                className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between hover:bg-white/10 transition-colors ${i18n.language === lang.code ? 'bg-blue-600/20 text-blue-400' : 'text-gray-200'}`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-base">{lang.flag}</span>
+                                                    <span className="font-medium">{lang.label}</span>
+                                                </div>
+                                                {i18n.language === lang.code && <Check className="w-4 h-4" />}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Typography */}
                     <div className="space-y-3">
-                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Affichage</h3>
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.display_title')}</h3>
                         <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                             <div className="flex items-center gap-3">
                                 <Type className="w-5 h-5 text-gray-400" />
-                                <span className="text-sm font-medium text-gray-200">Police Large</span>
+                                <span className="text-sm font-medium text-gray-200">{t('settings.large_text')}</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -140,7 +200,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                     {/* Titlebar Style */}
                     <div className="space-y-3">
-                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Style de Barre de Titre</h3>
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.titlebar_style')}</h3>
                         <div className="bg-black/20 rounded-lg p-1 flex gap-1">
                             {['none', 'windows', 'macos'].map((style) => (
                                 <button
@@ -151,18 +211,18 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
                                         }`}
                                 >
-                                    {style === 'none' ? 'Aucun' : style.charAt(0).toUpperCase() + style.slice(1)}
+                                    {style === 'none' ? t('settings.none') : style.charAt(0).toUpperCase() + style.slice(1)}
                                 </button>
                             ))}
                         </div>
                         <p className="text-[10px] text-gray-400 px-1">
-                            "Aucun" utilise les boutons dans la barre latérale.
+                            {t('settings.titlebar_desc')}
                         </p>
                     </div>
 
                     {/* Window Effects */}
                     <div className="space-y-3">
-                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Effets de Fenêtre (Windows 11)</h3>
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.window_effects_title')}</h3>
                         <div className="bg-black/20 rounded-lg p-1 flex gap-1">
                             {['none', 'mica', 'acrylic'].map((effect) => (
                                 <button
@@ -178,23 +238,23 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                             ))}
                         </div>
                         <p className="text-[10px] text-gray-400 px-1">
-                            "Mica" utilise votre fond d'écran. "Acrylic" est translucide.
+                            {t('settings.window_effects_desc')}
                         </p>
                     </div>
 
                     {/* Audio & Media */}
                     <div className="space-y-3">
-                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Audio et Médias</h3>
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.audio_media_title')}</h3>
 
                         {/* Audio Input */}
                         <div>
-                            <label className="block text-xs font-medium text-gray-300 mb-1">Microphone (Entrée)</label>
+                            <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.mic_input')}</label>
                             <select
                                 value={localSettings.audioInputId || ''}
                                 onChange={(e) => handleUpdate({ ...localSettings, audioInputId: e.target.value })}
                                 className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
                             >
-                                <option value="">Par défaut</option>
+                                <option value="">{t('settings.default')}</option>
                                 {audioDevices.inputs.map(device => (
                                     <option key={device.deviceId} value={device.deviceId}>
                                         {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
@@ -205,13 +265,13 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                         {/* Audio Output */}
                         <div>
-                            <label className="block text-xs font-medium text-gray-300 mb-1">Sortie Audio</label>
+                            <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.audio_output')}</label>
                             <select
                                 value={localSettings.audioOutputId || ''}
                                 onChange={(e) => handleUpdate({ ...localSettings, audioOutputId: e.target.value })}
                                 className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
                             >
-                                <option value="">Par défaut</option>
+                                <option value="">{t('settings.default')}</option>
                                 {audioDevices.outputs.map(device => (
                                     <option key={device.deviceId} value={device.deviceId}>
                                         {device.label || `Sortie ${device.deviceId.slice(0, 5)}...`}
@@ -223,13 +283,13 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                     {/* AI Settings */}
                     <div className="space-y-3">
-                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Intelligence Artificielle</h3>
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.ai_title')}</h3>
                         
                         {/* Master Toggle */}
                         <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                             <div className="flex items-center gap-3">
                                 <Bot className="w-5 h-5 text-gray-400" />
-                                <span className="text-sm font-medium text-gray-200">Activer l'Assistant AI</span>
+                                <span className="text-sm font-medium text-gray-200">{t('settings.ai_toggle')}</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -245,7 +305,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         {localSettings.aiEnabled !== false && (
                             <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-300 mb-1">Clé API OpenRouter</label>
+                                    <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.api_key_label')}</label>
                                     <input
                                         type="password"
                                         value={localSettings.aiApiKey || ''}
@@ -257,20 +317,20 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         onClick={() => open('https://openrouter.ai/keys')}
                                         className="text-[10px] text-blue-400 hover:text-blue-300 mt-1.5 font-medium hover:underline transition-colors"
                                     >
-                                        Obtenir une clé API OpenRouter
+                                        {t('settings.get_api_key')}
                                     </button>
                                 </div>
 
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-300 mb-1">Modèle AI par défaut</label>
+                                    <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.ai_model_label')}</label>
                                     <select
                                         value={localSettings.aiModel || 'openai/gpt-4o-mini'}
                                         onChange={(e) => handleUpdate({ ...localSettings, aiModel: e.target.value })}
                                         className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
                                     >
-                                        <optgroup label="Populaires">
-                                            <option value="openai/gpt-4o-mini">GPT-4o Mini (Rapide & Économique)</option>
-                                            <option value="openai/gpt-4o">GPT-4o (Puissant)</option>
+                                        <optgroup label={t('settings.popular_models')}>
+                                            <option value="openai/gpt-4o-mini">GPT-4o Mini {t('settings.model_desc_fast')}</option>
+                                            <option value="openai/gpt-4o">GPT-4o {t('settings.model_desc_powerful')}</option>
                                             <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
                                             <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
                                             <option value="mistralai/mistral-large-2411">Mistral Large</option>
@@ -287,7 +347,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                                 {/* Custom Models List */}
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-300 mb-2">Modèles Personnalisés</label>
+                                    <label className="block text-xs font-medium text-gray-300 mb-2">{t('settings.custom_models_label')}</label>
 
                                     {/* List */}
                                     <div className="space-y-2 mb-2">
@@ -306,7 +366,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                             </div>
                                         ))}
                                         {(localSettings.customModels || []).length === 0 && (
-                                            <div className="text-xs text-gray-400 italic text-center py-2">Aucun modèle personnalisé</div>
+                                            <div className="text-xs text-gray-400 italic text-center py-2">{t('settings.no_custom_models')}</div>
                                         )}
                                     </div>
 
@@ -314,7 +374,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            placeholder="ID Modèle (ex: google/gemini-pro)"
+                                            placeholder={t('settings.add_model_placeholder')}
                                             className="flex-1 bg-black/20 border border-white/10 rounded-md px-3.5 py-2.5 text-xs text-gray-100 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                             id="new-model-input"
                                             onKeyDown={(e) => {
@@ -340,7 +400,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                             }}
                                             className="px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-xs font-medium"
                                         >
-                                            Ajouter
+                                            {t('settings.add')}
                                         </button>
                                     </div>
                                 </div>
@@ -350,12 +410,12 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                     {/* Audio & Accessibility */}
                     <div className="space-y-3">
-                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">Audio & Accessibilité</h3>
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.audio_accessibility_title')}</h3>
                         
                         {/* TTS Toggle */}
                         <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                             <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium text-gray-200">Synthèse Vocale (TTS)</span>
+                                <span className="text-sm font-medium text-gray-200">{t('settings.tts_toggle')}</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -371,13 +431,13 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         {/* Voice Selection */}
                         {localSettings.voiceEnabled !== false && (
                             <div>
-                                <label className="block text-xs font-medium text-gray-300 mb-1">Voix de l'Assistant</label>
+                                <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.voice_label')}</label>
                                 <select
                                     value={localSettings.voiceName || ''}
                                     onChange={(e) => handleUpdate({ ...localSettings, voiceName: e.target.value })}
                                     className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
                                 >
-                                    <option value="">Par défaut</option>
+                                    <option value="">{t('settings.default')}</option>
                                     {voices.map((voice) => (
                                         <option key={voice.name} value={voice.name}>
                                             {voice.name} ({voice.lang})
@@ -420,7 +480,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         {/* STT Toggle */}
                         <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                             <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium text-gray-200">Dictée Vocale (STT)</span>
+                                <span className="text-sm font-medium text-gray-200">{t('settings.stt_toggle')}</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -441,7 +501,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         className="w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-md transform hover:-translate-y-0.5"
                     >
                         <Check className="w-4 h-4" />
-                        Appliquer les changements
+                        {t('settings.apply')}
                     </button>
 
                     <div className="flex w-full gap-2">
@@ -485,14 +545,14 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                             }}
                             className={`flex-1 py-2.5 px-5 bg-white/10 text-white rounded-lg text-sm font-medium hover:bg-white/20 transition-colors ${isCheckingUpdate ? 'opacity-50 cursor-wait' : ''}`}
                         >
-                            {isCheckingUpdate ? 'Vérification...' : 'Vérifier MAJ'}
+                            {isCheckingUpdate ? t('settings.checking') : t('settings.check_update_btn')}
                         </button>
                         <button
                             onClick={handleRestart}
                             className="flex-1 py-2.5 px-5 bg-white text-gray-900 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                         >
                             <RefreshCw className="w-4 h-4" />
-                            Redémarrer
+                            {t('settings.restart')}
                         </button>
                     </div>
                     <p className="text-[10px] text-gray-400 text-center">Fiip Notes v{appVersion || '...'}</p>
@@ -507,7 +567,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         <div className="flex items-center justify-between mb-4 shrink-0">
                             <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                 <Sparkles className="w-5 h-5 text-blue-400" />
-                                Mise à jour disponible
+                                {t('settings.update_available')}
                             </h3>
                             <button onClick={() => setUpdateInfo(null)} className="p-1 hover:bg-white/10 rounded-full transition-colors">
                                 <X className="w-5 h-5 text-gray-400" />
@@ -517,12 +577,12 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/20 rounded-lg p-4 mb-4 border border-white/5">
                             <div className="flex justify-between items-baseline mb-3 pb-3 border-b border-white/5">
                                 <div className="flex flex-col">
-                                    <span className="text-xs text-gray-500 uppercase tracking-wider">Actuelle</span>
+                                    <span className="text-xs text-gray-500 uppercase tracking-wider">{t('settings.current_version')}</span>
                                     <span className="text-sm font-mono text-gray-400">v{appVersion}</span>
                                 </div>
                                 <MoveRight className="w-4 h-4 text-gray-600 mx-2" />
                                 <div className="flex flex-col items-end">
-                                    <span className="text-xs text-blue-400 uppercase tracking-wider font-medium">Nouvelle</span>
+                                    <span className="text-xs text-blue-400 uppercase tracking-wider font-medium">{t('settings.new_version')}</span>
                                     <span className="text-lg font-bold text-green-400 font-mono">v{updateInfo.version}</span>
                                 </div>
                             </div>
@@ -530,11 +590,11 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                             <div className="prose prose-invert prose-sm max-w-none">
                                 {updateInfo.date && (
                                     <p className="text-xs text-gray-500 mb-2">
-                                        Publié le {new Date(updateInfo.date).toLocaleDateString()}
+                                        {t('settings.published_on')} {new Date(updateInfo.date).toLocaleDateString()}
                                     </p>
                                 )}
                                 <div className="whitespace-pre-wrap text-sm text-gray-300 leading-relaxed">
-                                    {updateInfo.body || "Aucune note de version disponible."}
+                                    {updateInfo.body || t('settings.no_release_notes')}
                                 </div>
                             </div>
                         </div>
@@ -544,7 +604,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 onClick={() => setUpdateInfo(null)}
                                 className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-gray-300 rounded-lg text-sm font-medium transition-colors"
                             >
-                                Ignorer
+                                {t('settings.ignore')}
                             </button>
                             <button
                                 onClick={async () => {
@@ -561,7 +621,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-lg flex items-center justify-center gap-2"
                             >
                                 <Download className="w-4 h-4" />
-                                {isCheckingUpdate ? 'Installation...' : 'Installer'}
+                                {isCheckingUpdate ? t('settings.installing') : t('settings.install')}
                             </button>
                         </div>
                     </div>

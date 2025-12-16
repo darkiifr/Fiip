@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 // Import d'icônes plus "pro" / minimalistes
 import {
     Bot, Send, X, Plus, Sparkles, History,
@@ -14,6 +15,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
 export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, onCreateNote, onUpdateNote, onDeleteNote, currentNote }) {
+    const { t } = useTranslation();
     const WIDGET_WIDTH = 450;
     const MARGIN_RIGHT = 30;
 
@@ -30,7 +32,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
     const abortController = useRef(null);
 
     const [messages, setMessages] = useState([
-        { role: 'system', content: "Hello. I'm Dexter. Ready to code or write notes." }
+        { role: 'system', content: t('dexter.welcome') }
     ]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
@@ -140,17 +142,17 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
 
     const handleDeny = (index) => {
         setMessages(prev => prev.map((m, i) =>
-            i === index ? { ...m, type: 'action_denied', content: "Action cancelled by user." } : m
+            i === index ? { ...m, type: 'action_denied', content: t('dexter.status.action_cancelled') } : m
         ));
     };
 
     // Suggestions logic
     const baseSuggestions = [
-        "Create a note about...",
-        "Update the current note with...",
-        "Summarize the current note",
-        "Generate ideas for...",
-        "Write a detailed explanation of...",
+        t('dexter.suggestions_list.create_note'),
+        t('dexter.suggestions_list.update_note'),
+        t('dexter.suggestions_list.summarize_note'),
+        t('dexter.suggestions_list.generate_ideas'),
+        t('dexter.suggestions_list.explain'),
     ];
 
     const getSuggestions = () => {
@@ -422,22 +424,22 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
             >
                 <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
-                        <span className="text-white font-medium text-xs tracking-wide font-dexter-mono">Dexter Assistant</span>
+                        <span className="text-white font-medium text-xs tracking-wide font-dexter-mono">{t('dexter.dexter_name')}</span>
                     </div>
                     <div className="flex items-center gap-3">
                         <button
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={handleRegenerate}
                             className="text-gray-500 hover:text-white transition-colors"
-                            title="Reload Last Prompt"
+                            title={t('dexter.retry')}
                         >
                             <RotateCcw className="w-3.5 h-3.5" />
                         </button>
                         <button
                             onPointerDown={(e) => e.stopPropagation()}
-                            onClick={() => setMessages([{ role: 'system', content: 'Ready.' }])}
+                            onClick={() => setMessages([{ role: 'system', content: t('dexter.welcome') }])}
                             className="text-gray-500 hover:text-white transition-colors"
-                            title="Clear History"
+                            title={t('dexter.clear_history')}
                         >
                             <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -454,10 +456,10 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 {/* Mode Selector */}
                 <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5" onPointerDown={(e) => e.stopPropagation()}>
                     {[
-                        { id: 'plan', icon: Calendar, label: 'Plan' },
-                        { id: 'ask', icon: MessageCircle, label: 'Ask' },
-                        { id: 'agent', icon: Bot, label: 'Agent' },
-                        { id: 'edit', icon: PenTool, label: 'Edit' }
+                        { id: 'plan', icon: Calendar, label: t('dexter.mode_plan') },
+                        { id: 'ask', icon: MessageCircle, label: t('dexter.mode_ask') },
+                        { id: 'agent', icon: Bot, label: t('dexter.mode_agent') },
+                        { id: 'edit', icon: PenTool, label: t('dexter.mode_edit') }
                     ].map((m) => (
                         <button
                             key={m.id}
@@ -486,10 +488,10 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 {msg.role === 'assistant' ? (
                                     <>
                                         <Bot className="w-3 h-3 text-purple-400" />
-                                        <span className="text-[10px] uppercase font-bold text-purple-400">Dexter</span>
+                                        <span className="text-[10px] uppercase font-bold text-purple-400">{t('dexter.dexter_name')}</span>
                                     </>
                                 ) : (
-                                    <span className="text-[10px] uppercase font-bold text-gray-500">You</span>
+                                    <span className="text-[10px] uppercase font-bold text-gray-500">{t('dexter.you')}</span>
                                 )}
                             </div>
                         )}
@@ -505,8 +507,8 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                     <div className="flex items-center gap-2">
                                         <Sparkles className={`w-3.5 h-3.5 ${msg.data.action === 'delete' ? 'text-red-400' : 'text-blue-400'}`} />
                                         <span className={`text-xs font-bold ${msg.data.action === 'delete' ? 'text-red-100' : 'text-blue-100'}`}>
-                                            {msg.data.action === 'create' ? 'Review: Create Note' :
-                                                msg.data.action === 'update' ? 'Review: Update Note' : 'Review: DELETE Note'}
+                                            {msg.data.action === 'create' ? t('dexter.review.create') :
+                                                msg.data.action === 'update' ? t('dexter.review.update') : t('dexter.review.delete')}
                                         </span>
                                     </div>
                                     {msg.data.action !== 'delete' && (
@@ -515,7 +517,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                                 Press <kbd className="font-sans bg-white/10 px-1 rounded text-white">Tab</kbd> to accept
                                             </span>
                                             <span className="text-[10px] font-mono bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">
-                                                {msg.data.lines} lines {msg.data.action === 'create' ? 'created' : 'added'}
+                                                {msg.data.lines} {msg.data.action === 'create' ? t('dexter.review.lines_created') : t('dexter.review.lines_added')}
                                             </span>
                                         </div>
                                     )}
@@ -524,12 +526,12 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 <div className="p-3 bg-[#1e1e20]">
                                     {msg.data.action === 'delete' ? (
                                         <div className="text-xs text-gray-300 font-medium">
-                                            Are you sure you want to delete <span className="text-white font-bold">"{msg.data.title}"</span>?
-                                            <br /><span className="text-red-400 text-[10px] uppercase tracking-wide mt-1 block">This action cannot be undone by Dexter.</span>
+                                            {t('dexter.review.delete_warning')} <span className="text-white font-bold">&quot;{msg.data.title}&quot;</span>?
+                                            <br /><span className="text-red-400 text-[10px] uppercase tracking-wide mt-1 block">{t('dexter.review.delete_warning_sub')}</span>
                                         </div>
                                     ) : (
                                         <>
-                                            <div className="text-xs text-gray-400 mb-1 font-medium">Proposed Content:</div>
+                                            <div className="text-xs text-gray-400 mb-1 font-medium">{t('dexter.review.proposed_content')}</div>
                                             <div className="text-xs font-mono text-gray-300 bg-black/30 p-2 rounded border border-white/5 max-h-32 overflow-y-auto custom-scrollbar-thin">
                                                 {msg.data.content}
                                             </div>
@@ -542,7 +544,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                         onClick={() => handleDeny(i)}
                                         className="flex-1 py-2 hover:bg-gray-800 text-gray-400 hover:text-white transition-colors text-xs font-medium"
                                     >
-                                        Deny
+                                        {t('dexter.review.deny')}
                                     </button>
                                     <button
                                         onClick={() => handleAccept(i, msg)}
@@ -552,7 +554,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                                 : 'hover:bg-green-900/20 text-green-400 hover:text-green-300'} `}
                                     >
                                         <Check className="w-3 h-3" />
-                                        {msg.data.action === 'delete' ? 'Confirm Delete' : 'Accept'}
+                                        {msg.data.action === 'delete' ? t('dexter.review.confirm_delete') : t('dexter.review.accept')}
                                     </button>
                                 </div>
                             </div>
@@ -562,7 +564,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 <div className="bg-[#27272a] px-3 py-2 border-b border-[#3f3f46] flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <FileText className="w-3.5 h-3.5 text-blue-400" />
-                                        <span className="text-xs font-medium text-white">Note Created</span>
+                                        <span className="text-xs font-medium text-white">{t('dexter.status.note_created')}</span>
                                     </div>
                                     <Check className="w-3 h-3 text-green-500" />
                                 </div>
@@ -577,7 +579,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 <div className="bg-[#27272a] px-3 py-2 border-b border-[#3f3f46] flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <FileText className="w-3.5 h-3.5 text-yellow-400" />
-                                        <span className="text-xs font-medium text-white">Note Updated</span>
+                                        <span className="text-xs font-medium text-white">{t('dexter.status.note_updated')}</span>
                                     </div>
                                     <Check className="w-3 h-3 text-green-500" />
                                 </div>
@@ -588,7 +590,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 <div className="bg-[#27272a] px-3 py-2 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <X className="w-3.5 h-3.5 text-red-500" />
-                                        <span className="text-xs font-medium text-red-100">Note Deleted</span>
+                                        <span className="text-xs font-medium text-red-100">{t('dexter.status.note_deleted')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -597,7 +599,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                             <div className="w-full bg-[#27272a]/50 border border-red-900/30 rounded-md overflow-hidden animate-in slide-in-from-left-2 opacity-60">
                                 <div className="px-3 py-2 flex items-center gap-2 text-red-400">
                                     <X className="w-3.5 h-3.5" />
-                                    <span className="text-xs font-medium">Action Cancelled</span>
+                                    <span className="text-xs font-medium">{t('dexter.status.action_cancelled')}</span>
                                 </div>
                             </div>
                         ) : (
@@ -639,7 +641,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 {isThinking && (
                     <div className="flex items-center gap-2 px-1">
                         <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce" />
-                        <span className="text-xs text-gray-500">Dexter is thinking...</span>
+                        <span className="text-xs text-gray-500">{t('dexter.thinking')}</span>
                     </div>
                 )}
             </div>
@@ -726,7 +728,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 handleSend();
                             }
                         }}
-                        placeholder="Ask anything (e.g., 'Create a note about React hooks')..."
+                        placeholder={t('dexter.placeholder')}
                         className="w-full bg-transparent border-none text-sm text-gray-200 placeholder-gray-600 outline-none resize-none font-dexter-mono"
                         rows="2"
                     />
@@ -737,7 +739,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                             <button
                                 onClick={handleAttach}
                                 className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
-                                title="Attach PDF"
+                                title={t('dexter.attach_file')}
                             >
                                 <Paperclip className="w-3.5 h-3.5" />
                             </button>
@@ -749,7 +751,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 >
                                     <span className="truncate max-w-[140px]">
                                         {selectedModel === 'default'
-                                            ? `Default (${settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})`
+                                            ? `${t('dexter.model_selector')} (${settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})`
                                             : selectedModel.split('/').pop()
                                         }
                                     </span>
@@ -765,16 +767,16 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                     />
                                     <div className="absolute bottom-full left-0 mb-2 w-56 bg-[#18181b] border border-[#3f3f46] rounded-lg shadow-2xl overflow-hidden z-20 flex flex-col max-h-64 animate-in fade-in zoom-in-95 duration-100">
                                         <div className="overflow-y-auto custom-scrollbar py-1">
-                                            <div className="px-3 py-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">System</div>
+                                            <div className="px-3 py-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">{t('dexter.model_categories.system')}</div>
                                             <button
                                                 onClick={() => { setSelectedModel('default'); setShowModelSelector(false); }}
                                                 className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between group transition-colors ${selectedModel === 'default' ? 'bg-purple-500/10 text-purple-300' : 'text-gray-300 hover:bg-[#27272a]'}`}
                                             >
-                                                <span className="truncate pr-2">Default ({settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})</span>
+                                                <span className="truncate pr-2">{t('dexter.model_selector')} ({settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})</span>
                                                 {selectedModel === 'default' && <Check className="w-3 h-3 shrink-0" />}
                                             </button>
 
-                                            <div className="px-3 py-1.5 mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">Standard</div>
+                                            <div className="px-3 py-1.5 mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">{t('dexter.model_categories.standard')}</div>
                                             {[
                                                 { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
                                                 { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku' },
@@ -792,7 +794,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
 
                                             {(settings?.customModels || []).length > 0 && (
                                                 <>
-                                                    <div className="px-3 py-1.5 mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">Custom</div>
+                                                    <div className="px-3 py-1.5 mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">{t('dexter.model_categories.custom')}</div>
                                                     {settings.customModels.map(model => (
                                                         <button
                                                             key={model}

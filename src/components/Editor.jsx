@@ -8,8 +8,10 @@ import { writeFile, mkdir, exists, readFile } from '@tauri-apps/plugin-fs';
 import { save } from '@tauri-apps/plugin-dialog';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { useTranslation } from 'react-i18next';
 
 const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, resizeAttachment, renameAttachment, handleDownloadAttachment }) => {
+    const { t } = useTranslation();
     const [src, setSrc] = useState('');
     const [isError, setIsError] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -66,7 +68,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                         <button
                             onClick={() => moveAttachment(index, 'left')}
                             className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors"
-                            title="Gauche"
+                            title={t('editor.move_left')}
                         >
                             <MoveLeft className="w-3.5 h-3.5" />
                         </button>
@@ -76,7 +78,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                         <button
                             onClick={() => moveAttachment(index, 'right')}
                             className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors"
-                            title="Droite"
+                            title={t('editor.move_right')}
                         >
                             <MoveRight className="w-3.5 h-3.5" />
                         </button>
@@ -86,7 +88,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     <button
                         onClick={() => removeAttachment(att.id)}
                         className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors"
-                        title="Supprimer"
+                        title={t('editor.delete')}
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -105,7 +107,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     {isError ? (
                         <div className="flex flex-col items-center gap-2 text-red-400 p-4">
                             <ImageIcon className="w-8 h-8 opacity-50" />
-                            <span className="text-xs font-medium">Erreur de chargement</span>
+                            <span className="text-xs font-medium">{t('editor.loading_error')}</span>
                         </div>
                     ) : att.type === 'image' ? (
                         <img 
@@ -129,7 +131,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     {!isError && (
                         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-20">
                             <div className="bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-3">
-                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Size</span>
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{t('editor.size')}</span>
                                 <input
                                     type="range"
                                     min="20"
@@ -151,12 +153,12 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-200 truncate mb-0.5">{att.name}</div>
-                        <div className="text-xs text-gray-500">Document PDF</div>
+                        <div className="text-xs text-gray-500">{t('editor.pdf_document')}</div>
                     </div>
                     <button 
                         onClick={() => handleDownloadAttachment(att)}
                         className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
-                        title="Télécharger"
+                        title={t('editor.download')}
                     >
                         <Download className="w-5 h-5" />
                     </button>
@@ -173,6 +175,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
 };
 
 export default function Editor({ note, onUpdateNote, settings }) {
+    const { t } = useTranslation();
     const [isGenerating, setIsGenerating] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
     const [pendingAiContent, setPendingAiContent] = useState(null); // Store AI content for review
@@ -273,7 +276,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 if (event.error === 'not-allowed') {
                     setIsListening(false);
                     isListeningRef.current = false;
-                    alert("Accès au micro refusé.");
+                    alert(t('editor.mic_access_denied'));
                 } else if (event.error === 'aborted') {
                     // Ignore aborted errors (manual stop)
                 } else {
@@ -295,7 +298,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
     const toggleListening = () => {
         if (!recognitionRef.current) {
-            alert("La reconnaissance vocale n'est pas supportée.");
+            alert(t('editor.speech_not_supported'));
             return;
         }
 
@@ -375,7 +378,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
     if (!note) {
         return (
             <div className="flex-1 h-full flex items-center justify-center text-gray-400 bg-[#1e1e1e]/90 backdrop-blur-sm transition-all duration-300">
-                <p className="animate-pulse font-medium">Sélectionnez ou créez une note</p>
+                <p className="animate-pulse font-medium">{t('editor.select_note')}</p>
                 <div className="absolute top-0 left-0 right-0 h-8 z-10" data-tauri-drag-region />
             </div>
         );
@@ -470,7 +473,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                         key={index}
                         onClick={() => handleOpenLink(part)}
                         className="text-blue-400 underline cursor-pointer hover:text-blue-300"
-                        title="Cliquer pour ouvrir"
+                        title={t('editor.click_to_open')}
                     >
                         {part}
                     </span>
@@ -845,7 +848,13 @@ export default function Editor({ note, onUpdateNote, settings }) {
 
             <div className="pt-12 px-8 pb-4 animate-in fade-in slide-in-from-bottom-2 duration-500 group relative">
                 <span className="text-xs font-medium text-gray-400 mx-auto block text-center mb-4 transition-colors">
-                    {new Date(note.updatedAt).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}
+                    {(() => {
+                        try {
+                            return new Date(note.updatedAt).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' });
+                        } catch (e) {
+                            return "";
+                        }
+                    })()}
                 </span>
 
                 {/* AI & Accessibility Toolbar */}
@@ -874,7 +883,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                         )}
 
                         {/* AI Generation */}
-                        {(settings?.aiEnabled !== false && settings?.aiApiKey) && (
+                        {(settings?.aiEnabled !== false) && (
                             <button
                                 onClick={handleAiGenerate}
                                 disabled={isGenerating}
@@ -891,7 +900,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     type="text"
                     value={note.title}
                     onChange={handleTitleChange}
-                    placeholder="Titre de la note"
+                    placeholder={t('editor.title_placeholder')}
                     className="w-full text-3xl font-bold bg-transparent outline-none text-white placeholder-gray-500 transition-colors duration-200"
                 />
             </div>
@@ -908,7 +917,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                         value={note.content}
                         onChange={handleContentChange}
                         onKeyDown={handleKeyDown}
-                        placeholder={suggestion ? "" : "Commencez à écrire..."}
+                        placeholder={suggestion ? "" : t('editor.placeholder')}
                         className="w-full h-auto overflow-hidden resize-none bg-transparent outline-none text-lg leading-relaxed text-gray-100 placeholder-gray-600 font-sans transition-colors duration-200 selection:bg-blue-900 relative z-10"
                         style={{ minHeight: '400px' }}
                     />
@@ -937,7 +946,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                             <div className="flex items-center justify-between px-4 py-3 bg-blue-900/20 border-b border-blue-500/20 shrink-0">
                                 <div className="flex items-center gap-2">
                                     <Sparkles className="w-4 h-4 text-blue-400" />
-                                    <span className="text-sm font-bold text-blue-100">Proposition AI</span>
+                                    <span className="text-sm font-bold text-blue-100">{t('editor.ai_suggestion')}</span>
                                 </div>
                                 <div className="flex gap-2">
                                     <button
@@ -945,7 +954,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                                         className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors flex items-center gap-1"
                                     >
                                         <X className="w-3.5 h-3.5" />
-                                        Annuler
+                                        {t('editor.cancel')}
                                     </button>
                                     <button
                                         onClick={() => {
@@ -955,7 +964,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                                         className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded shadow-lg transition-colors flex items-center gap-1"
                                     >
                                         <Check className="w-3.5 h-3.5" />
-                                        Accepter
+                                        {t('editor.accept')}
                                     </button>
                                 </div>
                             </div>
@@ -971,7 +980,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 {/* Attachments Section */}
                 {(note.attachments && note.attachments.length > 0) && (
                     <div className="border-t border-white/5 pt-6 pb-20 mt-4">
-                        <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">Pièces Jointes ({note.attachments.length})</h3>
+                        <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">{t('editor.attachments')} ({note.attachments.length})</h3>
                         <div className="flex flex-wrap items-start gap-6">
                             {note.attachments.map((att, index) => (
                                 <MediaAttachment
@@ -999,7 +1008,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                         <div className={`bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-3 text-sm text-gray-200 shadow-2xl transition-all duration-300 flex items-start gap-3 max-h-32 overflow-hidden ${interimTranscript ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0 mt-1.5" />
                             <span className="font-medium whitespace-pre-wrap break-words text-left line-clamp-4">
-                                {interimTranscript || "Écoute en cours..."}
+                                {interimTranscript || t('editor.listening')}
                             </span>
                         </div>
                     </div>

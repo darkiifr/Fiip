@@ -8,13 +8,17 @@ import Titlebar from "./components/Titlebar";
 import "./App.css";
 
 import { type } from '@tauri-apps/plugin-os';
+import { useTranslation } from 'react-i18next';
+import { FileText } from 'lucide-react';
 
 function App() {
+  const { t } = useTranslation();
   const [notes, setNotes] = useState(() => {
     const saved = localStorage.getItem("fiip-notes");
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
       } catch (e) {
         console.error("Failed to parse notes", e);
       }
@@ -29,7 +33,7 @@ function App() {
     ];
   });
 
-  const [selectedNoteId, setSelectedNoteId] = useState(notes[0]?.id || null);
+  const [selectedNoteId, setSelectedNoteId] = useState(notes?.[0]?.id || null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDexterOpen, setIsDexterOpen] = useState(false);
 
@@ -37,7 +41,12 @@ function App() {
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem("fiip-settings");
     if (saved) {
-        return JSON.parse(saved);
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      } catch (e) {
+        console.error("Failed to parse settings", e);
+      }
     }
     return { darkMode: true, largeText: false, windowEffect: 'mica', titlebarStyle: 'macos' };
   });
@@ -45,11 +54,17 @@ function App() {
   // Detect OS for default settings
   useEffect(() => {
     if (!localStorage.getItem("fiip-settings")) {
-        type().then(osType => {
-            if (osType === 'windows' || osType === 'linux') {
-                setSettings(prev => ({ ...prev, titlebarStyle: 'windows' }));
+        const checkOS = async () => {
+            try {
+                const osType = await type();
+                if (osType === 'windows' || osType === 'linux') {
+                    setSettings(prev => ({ ...prev, titlebarStyle: 'windows' }));
+                }
+            } catch (e) {
+                console.error("Failed to detect OS", e);
             }
-        }).catch(e => console.error("Failed to detect OS", e));
+        };
+        checkOS();
     }
   }, []);
 
@@ -76,6 +91,7 @@ function App() {
   // Close Dexter if AI is disabled
   useEffect(() => {
     if (settings.aiEnabled === false && isDexterOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsDexterOpen(false);
     }
   }, [settings.aiEnabled, isDexterOpen]);
@@ -98,6 +114,13 @@ function App() {
     const effect = settings.windowEffect || 'none';
     document.documentElement.classList.remove('effect-none', 'effect-mica', 'effect-acrylic', 'effect-blur');
     document.documentElement.classList.add(`effect-${effect}`);
+
+    // If effect is 'none', ensure we have a background color
+    if (effect === 'none') {
+        document.body.style.backgroundColor = '#1C1C1E';
+    } else {
+        document.body.style.backgroundColor = 'transparent';
+    }
 
     invoke('set_window_effect', { effect })
       .catch(err => console.error("Failed to set window effect:", err));
@@ -134,10 +157,10 @@ function App() {
     setSelectedNoteId(newNotes[0]?.id || null);
   };
 
-  const selectedNote = notes.find((n) => n.id === selectedNoteId);
+  const selectedNote = Array.isArray(notes) ? notes.find((n) => n.id === selectedNoteId) : null;
 
   return (
-    <div className={`flex flex-col h-screen w-screen overflow-hidden text-gray-100 font-sans transition-colors duration-300 ${settings.largeText ? 'text-lg' : ''}`}>
+    <div className={`flex flex-col h-screen w-screen overflow-hidden text-gray-100 font-sans transition-colors duration-300 ${settings.largeText ? 'text-lg' : ''} bg-[#1C1C1E]/40`}>
       <Titlebar style={settings.titlebarStyle} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
@@ -150,11 +173,20 @@ function App() {
           onToggleDexter={() => setIsDexterOpen(!isDexterOpen)}
           settings={settings}
         />
-        <Editor
-          note={selectedNote}
-          onUpdateNote={handleUpdateNote}
-          settings={settings}
-        />
+        {selectedNote ? (
+          <Editor
+            note={selectedNote}
+            onUpdateNote={handleUpdateNote}
+            settings={settings}
+          />
+        ) : (
+            <div className="flex-1 h-full flex items-center justify-center text-gray-500 select-none">
+                <div className="flex flex-col items-center gap-4">
+                    <FileText className="w-16 h-16 opacity-20" />
+                    <p>{t('editor.select_note')}</p>
+                </div>
+            </div>
+        )}
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}

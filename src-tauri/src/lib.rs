@@ -20,7 +20,11 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
 
         match effect {
             "mica" => {
-                let _ = apply_mica(&window, Some(true));
+                // Try Mica first (Windows 11 only)
+                if let Err(_) = apply_mica(&window, Some(true)) {
+                    // Fallback to Acrylic for Windows 10 if Mica fails
+                    let _ = apply_acrylic(&window, Some((18, 18, 18, 125)));
+                }
             }
             "acrylic" => {
                 let _ = apply_acrylic(&window, Some((18, 18, 18, 125)));

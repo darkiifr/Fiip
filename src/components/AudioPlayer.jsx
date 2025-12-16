@@ -1,18 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Pencil, Check, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function AudioPlayer({ src, name, onRename }) {
+    const { t } = useTranslation();
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
     const [tempName, setTempName] = useState(name || "");
+    const [prevName, setPrevName] = useState(name);
+
+    if (name !== prevName) {
+        setPrevName(name);
+        setTempName(name || "");
+    }
+
     const audioRef = useRef(null);
     const inputRef = useRef(null);
-
-    useEffect(() => {
-        setTempName(name || "");
-    }, [name]);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -70,7 +75,7 @@ export default function AudioPlayer({ src, name, onRename }) {
     };
 
     const startEditing = () => {
-        setTempName(name || "Mémo Vocal");
+        setTempName(name || t('editor.voice_memo'));
         setIsEditing(true);
     };
 
@@ -127,9 +132,9 @@ export default function AudioPlayer({ src, name, onRename }) {
                             <div
                                 onDoubleClick={startEditing}
                                 className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate cursor-text"
-                                title="Double-clic pour renommer"
+                                title={t('editor.double_click_rename')}
                             >
-                                {name || "Mémo Vocal"}
+                                {name || t('editor.voice_memo')}
                             </div>
                             <button
                                 onClick={startEditing}
@@ -141,7 +146,7 @@ export default function AudioPlayer({ src, name, onRename }) {
                     )}
 
                     <div className="flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 font-mono">
-                        <span>{formatTime(audioRef.current?.currentTime)}</span>
+                        <span>{formatTime((progress / 100) * duration)}</span>
                         <span>{formatTime(duration)}</span>
                     </div>
                 </div>

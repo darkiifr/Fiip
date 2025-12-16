@@ -2,9 +2,11 @@ import React from 'react';
 import { X, Minus, Square } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exit } from '@tauri-apps/plugin-process';
+import { useTranslation } from 'react-i18next';
 
 export default function Titlebar({ style = 'macos' }) {
     const appWindow = getCurrentWindow();
+    const { t } = useTranslation();
 
     if (style === 'none') return null;
 
@@ -36,17 +38,17 @@ export default function Titlebar({ style = 'macos' }) {
                     <button
                         onClick={handleClose}
                         className="w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:bg-[#FF4A42] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                        title="Close"
+                        title={t('settings.close')}
                     />
                     <button
                         onClick={handleMinimize}
                         className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E] hover:bg-[#FEAE1C] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                        title="Minimize"
+                        title={t('settings.minimize')}
                     />
                     <button
                         onClick={handleMaximize}
                         className="w-3.5 h-3.5 rounded-full bg-[#28C840] hover:bg-[#1EB332] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                        title="Maximize"
+                        title={t('settings.maximize')}
                     />
                 </div>
                 
@@ -72,21 +74,21 @@ export default function Titlebar({ style = 'macos' }) {
                     <button
                         onClick={handleMinimize}
                         className="w-12 h-full hover:bg-white/10 flex items-center justify-center transition-colors"
-                        title="Minimize"
+                        title={t('settings.minimize')}
                     >
                         <Minus className="w-4 h-4 text-gray-300" />
                     </button>
                     <button
                         onClick={handleMaximize}
                         className="w-12 h-full hover:bg-white/10 flex items-center justify-center transition-colors"
-                        title="Maximize"
+                        title={t('settings.maximize')}
                     >
                         <Square className="w-3.5 h-3.5 text-gray-300" />
                     </button>
                     <button
                         onClick={handleClose}
                         className="w-12 h-full hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors"
-                        title="Close"
+                        title={t('settings.close')}
                     >
                         <X className="w-4 h-4 text-gray-300 group-hover:text-white" />
                     </button>
