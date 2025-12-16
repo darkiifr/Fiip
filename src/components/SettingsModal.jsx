@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight, ChevronDown, Globe } from 'lucide-react';
-import { relaunch } from '@tauri-apps/plugin-process';
+import { relaunch, exit } from '@tauri-apps/plugin-process';
 import { open, Command } from '@tauri-apps/plugin-shell';
 import { type } from '@tauri-apps/plugin-os';
 import { getVersion } from '@tauri-apps/api/app';
@@ -611,7 +611,13 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     try {
                                         setIsCheckingUpdate(true);
                                         await updateInfo.downloadAndInstall();
-                                        await relaunch();
+                                        
+                                        const osType = await type();
+                                        if (osType === 'windows') {
+                                            await exit();
+                                        } else {
+                                            await relaunch();
+                                        }
                                     } catch (e) {
                                         console.error(e);
                                         alert("Erreur MAJ: " + e.message);
