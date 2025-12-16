@@ -1,7 +1,7 @@
 {
   "name": "fiip",
   "private": true,
-  "version": "1.9.5",
+  "version": "3.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

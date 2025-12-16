@@ -1,11 +1,11 @@
 {
-  "version": "1.5.3",
-  "notes": "Update to version 1.5.3",
-  "pub_date": "2025-12-06T15:00:00.000Z",
+  "version": "3.0.1",
+  "notes": "## Fiip v3.0.1 - Dexter & AI Stability Update\n\n### 🤖 Dexter (AI Assistant)\n- **Stabilité accrue** : Correction des erreurs API 503/429 avec un système de reconnexion automatique.\n- **Actions fiables** : Dexter ne \"raconte plus n'importe quoi\" et exécute les actions (créer/modifier note) de manière beaucoup plus fiable.\n- **UX** : Message d'erreur clair si la clé API est manquante au lieu d'un clic silencieux.\n\n### ✨ Éditeur & Outils IA\n- **Outil Étoile (Amélioration)** : L'IA lit désormais correctement le contenu de votre note avant de proposer une amélioration.\n- **Qualité du texte** : Suppression du blabla inutile (introductions, conclusions) pour ne garder que le texte amélioré.\n- **Correctifs divers** : Amélioration de la gestion des réponses JSON et du nettoyage des balises Markdown.",
+  "pub_date": "2025-12-16T12:00:00.000Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "CONTENT_OF_THE_SIGNATURE_FILE_SIG",
-      "url": "https://github.com/darkiifr/Fiip/releases/latest/download/fiip_1.5.3_x64-setup.exe"
+      "signature": "",
+      "url": "https://github.com/darkiifr/Fiip/releases/download/v3.0.1/fiip_3.0.1_x64-setup.exe"
     }
   }
 }

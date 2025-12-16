@@ -133,6 +133,22 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
+      - name: Read Changelog
+        id: read_changelog
+        shell: bash
+        run: |
+          if [ -f CHANGELOG.md ]; then
+            echo "Reading CHANGELOG.md..."
+            body=$(cat CHANGELOG.md)
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "body<<$EOF" >> $GITHUB_OUTPUT
+            echo "$body" >> $GITHUB_OUTPUT
+            echo "$EOF" >> $GITHUB_OUTPUT
+          else
+            echo "CHANGELOG.md not found."
+            echo "body=See the assets to download this version and install." >> $GITHUB_OUTPUT
+          fi
+
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
         env:
@@ -144,7 +160,7 @@ jobs:
         with:
           tagName: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           releaseName: 'App v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseBody: ${{ steps.read_changelog.outputs.body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
