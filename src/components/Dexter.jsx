@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 // Import d'icônes plus "pro" / minimalistes
 import {
@@ -59,6 +59,8 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+
+
     const handlePointerDown = (e) => {
         e.preventDefault(); // Prevent text selection
         setIsDragging(true);
@@ -116,7 +118,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
         }
     };
 
-    const handleAccept = (index, msg) => {
+    const handleAccept = useCallback((index, msg) => {
         const { data } = msg;
 
         if (data.action === 'create') {
@@ -138,7 +140,26 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 i === index ? { ...m, type: 'action_delete_done', data: { title: data.title } } : m
             ));
         }
-    };
+    }, [currentNote, onCreateNote, onUpdateNote, onDeleteNote]);
+
+    // Global Tab handler for accepting actions
+    useEffect(() => {
+        const handleGlobalKeyDown = (e) => {
+            if (e.key === 'Tab' && !e.shiftKey) {
+                const lastMsgIndex = messages.length - 1;
+                const lastMsg = messages[lastMsgIndex];
+                
+                // Only if we have a pending action and suggestions are not active
+                if (lastMsg && lastMsg.type === 'action_pending' && !showSuggestions) {
+                    e.preventDefault();
+                    handleAccept(lastMsgIndex, lastMsg);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [messages, showSuggestions, handleAccept]);
 
     const handleDeny = (index) => {
         setMessages(prev => prev.map((m, i) =>
@@ -362,6 +383,11 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 if (jsonMatch) {
                     const actionData = JSON.parse(jsonMatch[0]);
 
+                    // Clean up content if it contains literal escaped newlines
+                    if (actionData.content && typeof actionData.content === 'string') {
+                        actionData.content = actionData.content.replace(/\\n/g, '\n');
+                    }
+
                     if (actionData.action === 'create_note') {
                         aiMsg = {
                             role: 'assistant',
@@ -544,7 +570,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                     ) : (
                                         <>
                                             <div className="text-xs text-gray-400 mb-1 font-medium">{t('dexter.review.proposed_content')}</div>
-                                            <div className="text-xs font-mono text-gray-300 bg-black/30 p-2 rounded border border-white/5 max-h-32 overflow-y-auto custom-scrollbar-thin">
+                                            <div className="text-xs font-mono text-gray-300 bg-black/30 p-2 rounded border border-white/5 max-h-32 overflow-y-auto custom-scrollbar-thin whitespace-pre-wrap">
                                                 {msg.data.content}
                                             </div>
                                         </>
@@ -719,17 +745,6 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                     return;
                                 } else if (e.key === 'Escape') {
                                     setShowSuggestions(false);
-                                    return;
-                                }
-                            }
-
-                            // 2. Handle Tab to Accept Pending Action
-                            if (e.key === 'Tab' && !e.shiftKey) {
-                                const lastMsgIndex = messages.length - 1;
-                                const lastMsg = messages[lastMsgIndex];
-                                if (lastMsg && lastMsg.type === 'action_pending') {
-                                    e.preventDefault();
-                                    handleAccept(lastMsgIndex, lastMsg);
                                     return;
                                 }
                             }
