@@ -5,7 +5,7 @@
   "platforms": {
     "windows-x86_64": {
       "signature": "",
-      "url": "https://github.com/darkiifr/Fiip/releases/download/v3.0.1/fiip_3.0.1_x64-setup.exe"
+      "url": "https://github.com/darkiifr/Fiip/releases/download/v.3.0.1/fiip_3.0.1_x64-setup.exe"
     }
   }
 }
