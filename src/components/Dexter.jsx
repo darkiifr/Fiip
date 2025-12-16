@@ -238,7 +238,15 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
 
     // AI Logic
     const handleSend = async () => {
-        if ((!input.trim() && attachments.length === 0) || !settings?.aiApiKey) return;
+        if (!input.trim() && attachments.length === 0) return;
+
+        if (!settings?.aiApiKey) {
+            setMessages(prev => [...prev, { 
+                role: 'system', 
+                content: "⚠️ Clé API manquante. Veuillez la configurer dans les paramètres (Settings > AI)." 
+            }]);
+            return;
+        }
 
         let messageContent = input;
         
@@ -296,8 +304,8 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 
                 IMPORTANT:
                 - You MUST return a JSON action to update the note.
-                - In your text response, ONLY explain briefly what you changed (e.g., "Fixed typos", "Rewrote introduction").
-                - Do not chat unnecessarily.
+                - Do NOT use Markdown code blocks (like \`\`\`json) for the JSON.
+                - Return ONLY the JSON object.
                 
                 TOOLS:
                 - To UPDATE the note: Respond with JSON: { "action": "update_note", "content": "..." }
@@ -308,11 +316,12 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
             } else {
                 // Default: 'agent'
                 systemPrompt = `You are Dexter, an advanced AI agent in a note-taking app.
-                You have a slightly humorous, witty, and casual personality.
+                You have a helpful, witty, and casual personality.
                 
                 IMPORTANT:
                 - If you are unsure about what the user wants, ASK QUESTIONS to clarify.
                 - Maintain a natural dialogue flow.
+                - If you decide to perform an action (create/update/delete), output ONLY the JSON object. Do NOT wrap it in markdown code blocks.
                 
                 TOOLS:
                 - If user wants to CREATE a note: Respond ONLY with JSON: { "action": "create_note", "title": "...", "content": "..." }
@@ -346,7 +355,10 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
 
             try {
                 // Attempt to find JSON in the response (handling potential wrapper text or tokens)
-                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                // Remove markdown code blocks if present
+                const cleanText = responseText.replace(/```json\n?|```/g, '').trim();
+                const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+                
                 if (jsonMatch) {
                     const actionData = JSON.parse(jsonMatch[0]);
 

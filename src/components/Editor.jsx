@@ -750,12 +750,21 @@ export default function Editor({ note, onUpdateNote, settings }) {
         setIsWaiting(true);
         try {
             // Prompt : Amélioration globale (Modification/Suppression/Ajout)
-            const prompt = note.content
-                ? "Voici le contenu de la note :\n\n" + note.content + "\n\nAgis comme un rédacteur expert. Ta mission est de réécrire ce texte pour le rendre meilleur, plus fluide et plus agréable à lire.\n\nObjectifs :\n1. Corrige toutes les fautes (orthographe, grammaire, syntaxe).\n2. Reformule les phrases lourdes ou mal construites.\n3. Enrichis le vocabulaire pour éviter les répétitions et être plus précis.\n4. Rends le texte plus dynamique et percutant.\n5. Garde le sens original, mais n'hésite pas à modifier la structure des phrases pour améliorer la lisibilité.\n\nRenvoie UNIQUEMENT la version améliorée, sans commentaires."
+            const hasContent = note.content && note.content.trim().length > 0;
+            
+            const prompt = hasContent
+                ? `Voici le contenu d'une note utilisateur :\n\n"${note.content}"\n\nTa mission est d'améliorer ce texte tout en conservant son sens et ses informations clés.
+                
+                Consignes strictes :
+                1. Corrige l'orthographe, la grammaire et la syntaxe.
+                2. Améliore la fluidité et le style.
+                3. NE AJOUTE PAS de commentaires, d'introduction (ex: "Voici le texte amélioré") ou de conclusion.
+                4. NE UTILISE PAS de balises Markdown pour le code (pas de \`\`\`).
+                5. Renvoie UNIQUEMENT le texte final amélioré.`
                 : "Écris une note détaillée, structurée et intéressante sur un sujet de culture générale ou technique, en incluant des liens vers des sources si pertinent.";
 
             const messages = [
-                { role: "system", content: "Tu es un expert en écriture. Tu transformes des textes brouillons ou moyens en textes clairs, fluides et bien écrits." },
+                { role: "system", content: "Tu es un expert en écriture. Tu transformes des textes brouillons ou moyens en textes clairs, fluides et bien écrits. Tu ne parles jamais, tu ne fais que réécrire le texte." },
                 { role: "user", content: prompt }
             ];
 
@@ -766,8 +775,14 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 context: note.title
             });
 
+            let cleanGenerated = generated;
+            // Remove markdown code blocks if present
+            cleanGenerated = cleanGenerated.replace(/```(?:markdown|text)?\n?/g, '').replace(/```/g, '');
+            // Remove common prefixes if the AI ignores instructions
+            cleanGenerated = cleanGenerated.replace(/^(Voici|Here is|Sure|Certainly).+?:\s*/i, '');
+
             setIsWaiting(false);
-            setPendingAiContent(generated);
+            setPendingAiContent(cleanGenerated.trim());
             
         } catch (error) {
             alert("Erreur AI : " + error.message);
