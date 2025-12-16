@@ -9,6 +9,7 @@
     "import_success": "Note imported successfully!",
     "import_error": "Import error: {{error}}",
     "no_note_selected": "No note selected",
+    "no_content": "No content...",
     "delete_confirm": "Delete this note?",
     "export": "Export",
 "delete": "Delete",

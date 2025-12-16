@@ -4,7 +4,7 @@ import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialo
 // Export note as Markdown
 export async function exportNoteAsMarkdown(note) {
     try {
-        const content = `# ${note.title}\n\n${note.content}\n\n---\n\n*Last updated: ${new Date(note.updatedAt).toLocaleString()}*`;
+        const content = `# ${note.title}\n\n${note.content}\n\n---\n\n*Dernière modification : ${new Date(note.updatedAt).toLocaleString()}*`;
 
         // Open save dialog
         const filePath = await saveDialog({
@@ -22,7 +22,7 @@ export async function exportNoteAsMarkdown(note) {
         return { success: false, cancelled: true };
     } catch (error) {
         console.error('Export error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: error.message || String(error) };
     }
 }
 

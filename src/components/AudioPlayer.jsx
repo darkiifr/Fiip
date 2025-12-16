@@ -29,28 +29,55 @@ export default function AudioPlayer({ src, name, onRename }) {
         const audio = audioRef.current;
         if (!audio) return;
 
+        let isFixingDuration = false;
+
         const updateProgress = () => {
-            if (audio.duration) {
+            if (isFixingDuration) return;
+            if (audio.duration && isFinite(audio.duration)) {
                 setProgress((audio.currentTime / audio.duration) * 100);
             }
         };
 
         const updateDuration = () => {
-            setDuration(audio.duration);
+            if (audio.duration && isFinite(audio.duration)) {
+                setDuration(audio.duration);
+            }
+        };
+
+        const onLoadedMetadata = () => {
+            if (audio.duration === Infinity) {
+                isFixingDuration = true;
+                audio.currentTime = 1e101;
+                
+                const onTimeUpdateTemp = () => {
+                    audio.removeEventListener('timeupdate', onTimeUpdateTemp);
+                    audio.currentTime = 0;
+                    isFixingDuration = false;
+                    if (isFinite(audio.duration)) {
+                        setDuration(audio.duration);
+                    }
+                };
+                audio.addEventListener('timeupdate', onTimeUpdateTemp);
+            } else {
+                setDuration(audio.duration);
+            }
         };
 
         const onEnded = () => {
+            if (isFixingDuration) return;
             setIsPlaying(false);
             setProgress(0);
         };
 
         audio.addEventListener('timeupdate', updateProgress);
-        audio.addEventListener('loadedmetadata', updateDuration);
+        audio.addEventListener('durationchange', updateDuration);
+        audio.addEventListener('loadedmetadata', onLoadedMetadata);
         audio.addEventListener('ended', onEnded);
 
         return () => {
             audio.removeEventListener('timeupdate', updateProgress);
-            audio.removeEventListener('loadedmetadata', updateDuration);
+            audio.removeEventListener('durationchange', updateDuration);
+            audio.removeEventListener('loadedmetadata', onLoadedMetadata);
             audio.removeEventListener('ended', onEnded);
         };
     }, []);
@@ -92,7 +119,7 @@ export default function AudioPlayer({ src, name, onRename }) {
     };
 
     const formatTime = (time) => {
-        if (isNaN(time)) return "0:00";
+        if (isNaN(time) || !isFinite(time)) return "0:00";
         const minutes = Math.floor(time / 60);
         const seconds = Math.floor(time % 60);
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;

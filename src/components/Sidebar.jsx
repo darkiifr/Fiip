@@ -5,7 +5,7 @@ import { exportNoteAsMarkdown, importMarkdownFile } from '../services/fileManage
 import { useTranslation } from 'react-i18next';
 
 export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings, onToggleDexter, settings }) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [searchTerm, setSearchTerm] = useState('');
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
     const appWindow = getCurrentWindow();
@@ -120,12 +120,12 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
                             </h3>
                             <div className="flex justify-between items-baseline opacity-95">
                                 <span className={`text-xs truncate max-w-[70%] font-medium transition-colors ${selectedNoteId === note.id ? 'text-blue-100' : 'text-gray-300'}`}>
-                                    {note.content?.slice(0, 40) || 'Pas de contenu...'}
+                                    {note.content?.slice(0, 40) || t('sidebar.no_content')}
                                 </span>
                                 <span className={`text-[11px] whitespace-nowrap font-medium ${selectedNoteId === note.id ? 'text-blue-200' : 'text-gray-400'}`}>
                                     {(() => {
                                         try {
-                                            return new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                            return new Date(note.updatedAt).toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
                                         } catch (e) {
                                             return "";
                                         }

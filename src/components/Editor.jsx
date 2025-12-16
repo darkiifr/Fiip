@@ -22,9 +22,13 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
             setIsLoading(true);
             setIsError(false);
             try {
-                // Try standard convertFileSrc first
-                const assetUrl = convertFileSrc(att.data);
-                if (active) setSrc(assetUrl);
+                if (att.data && (att.data.startsWith('data:') || att.data.startsWith('blob:'))) {
+                    if (active) setSrc(att.data);
+                } else {
+                    // Try standard convertFileSrc first
+                    const assetUrl = convertFileSrc(att.data);
+                    if (active) setSrc(assetUrl);
+                }
             } catch (e) {
                 console.error("Error generating src:", e);
                 if (active) setIsError(true);
@@ -175,7 +179,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
 };
 
 export default function Editor({ note, onUpdateNote, settings }) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [isGenerating, setIsGenerating] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
     const [pendingAiContent, setPendingAiContent] = useState(null); // Store AI content for review
@@ -638,7 +642,9 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 chunksRef.current = [];
 
                 mediaRecorderRef.current.ondataavailable = (e) => {
-                    chunksRef.current.push(e.data);
+                    if (e.data.size > 0) {
+                        chunksRef.current.push(e.data);
+                    }
                 };
 
                 mediaRecorderRef.current.onstop = () => {
@@ -666,7 +672,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                     stream.getTracks().forEach(track => track.stop());
                 };
 
-                mediaRecorderRef.current.start();
+                mediaRecorderRef.current.start(200);
                 setIsRecording(true);
             } catch (err) {
                 console.error("Mic Error:", err);
@@ -865,7 +871,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 <span className="text-xs font-medium text-gray-400 mx-auto block text-center mb-4 transition-colors">
                     {(() => {
                         try {
-                            return new Date(note.updatedAt).toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' });
+                            return new Date(note.updatedAt).toLocaleString(i18n.language, { dateStyle: 'long', timeStyle: 'short' });
                         } catch (e) {
                             return "";
                         }
