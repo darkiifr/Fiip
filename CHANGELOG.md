@@ -16,3 +16,9 @@
 ### 🐛 Correctifs Techniques
 - Amélioration du parsing des réponses JSON de l'IA.
 - Nettoyage automatique des artefacts Markdown dans les réponses d'actions.
+
+### 🤝 Contributing
+- Ajout de la documentation pour les contributeurs.
+
+### 🔒 Privacy
+- Ajout de la politique de confidentialité.
