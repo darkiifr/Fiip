@@ -76,6 +76,10 @@ jobs:
             args: ""
             rust_targets: ""
           - platform: windows-latest
+            args: "--bundles none --target x86_64-pc-windows-msvc"
+            rust_targets: "x86_64-pc-windows-msvc"
+            portable: true
+          - platform: windows-latest
             args: "--target aarch64-pc-windows-msvc"
             rust_targets: "aarch64-pc-windows-msvc"
 
@@ -164,6 +168,46 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+          
+      - name: Package Portable Version
+        if: matrix.portable == true
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $TAG_NAME = "${{ needs.bump-version.outputs.new_tag || github.ref_name }}"
+          $VERSION = $TAG_NAME -replace '^v', ''
+          $ZIP_NAME = "Fiip-Portable-${VERSION}-Windows-x64.zip"
+          
+          echo "Packaging portable version: $ZIP_NAME"
+          
+          # Paths
+          $EXE_PATH = "src-tauri/target/x86_64-pc-windows-msvc/release/fiip.exe"
+          $MARKER_PATH = "src-tauri/.portable"
+          
+          # Verify files exist
+          if (-not (Test-Path $EXE_PATH)) {
+            Write-Error "Executable not found at $EXE_PATH"
+            exit 1
+          }
+          if (-not (Test-Path $MARKER_PATH)) {
+            New-Item -Path $MARKER_PATH -ItemType File -Force | Out-Null
+          }
+          
+          # create a temporary directory for zipping
+          if (Test-Path "temp_portable") { Remove-Item "temp_portable" -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path "temp_portable" | Out-Null
+          
+          # Rename executable to include Portable
+          Copy-Item $EXE_PATH -Destination "temp_portable/Fiip-Portable.exe"
+          Copy-Item $MARKER_PATH -Destination "temp_portable/.portable"
+          
+          # Zip it
+          Compress-Archive -Path "temp_portable/*" -DestinationPath $ZIP_NAME -Force
+          
+          # Upload
+          gh release upload $TAG_NAME $ZIP_NAME
+
 
   generate-updater-json:
     needs: [release, bump-version]

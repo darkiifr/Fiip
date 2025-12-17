@@ -56,10 +56,32 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![greet, set_window_effect])
+        .setup(|app| {
+            use tauri::{WebviewUrl, WebviewWindowBuilder};
+
+            let mut builder =
+                WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+                    .title("fiip")
+                    .inner_size(800.0, 600.0)
+                    .decorations(false)
+                    .transparent(true)
+                    .shadow(true);
+
+            // Check for .portable file
+            if let Ok(current_exe) = std::env::current_exe() {
+                if let Some(exe_dir) = current_exe.parent() {
+                    let portable_marker = exe_dir.join(".portable");
+                    if portable_marker.exists() {
+                        let data_dir = exe_dir.join("data");
+                        builder = builder.data_directory(data_dir);
+                    }
+                }
+            }
+
+            builder.build()?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

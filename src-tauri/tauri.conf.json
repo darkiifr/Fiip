@@ -10,16 +10,6 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "title": "fiip",
-        "width": 800,
-        "height": 600,
-        "decorations": false,
-        "transparent": true,
-        "shadow": true
-      }
-    ],
     "security": {
       "csp": null
     }
@@ -41,6 +31,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "resources": [
+      ".portable"
     ],
     "windows": {
       "wix": {
