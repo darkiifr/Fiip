@@ -38,12 +38,13 @@
     ],
     "windows": {
       "wix": {
-        "language": "fr-FR"
+        "language": "en-US"
       },
       "nsis": {
         "installMode": "currentUser",
         "languages": [
-          "French"
+          "French",
+          "English"
         ]
       }
     }
