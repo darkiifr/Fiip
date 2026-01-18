@@ -24,10 +24,35 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
     const languages = [
         { code: 'fr', label: 'Français', flag: '🇫🇷' },
+        { code: 'fr-BE', label: 'Français (Belgique)', flag: '🇧🇪' },
+        { code: 'fr-CA', label: 'Français (Canada)', flag: '🇨🇦' },
+        { code: 'fr-QC', label: 'Français (Québec)', flag: '⚜️' },
         { code: 'en', label: 'English', flag: '🇺🇸' },
+        { code: 'en-US', label: 'English (US)', flag: '🇺🇸' },
+        { code: 'en-GB', label: 'English (UK)', flag: '🇬🇧' },
+        { code: 'en-CA', label: 'English (Canada)', flag: '🇨🇦' },
         { code: 'es', label: 'Español', flag: '🇪🇸' },
-        { code: 'it', label: 'Italiano', flag: '🇮🇹' }
-    ];
+        { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+        { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+        { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
+        { code: 'ja', label: '日本語', flag: '🇯🇵' },
+        { code: 'pl', label: 'Polski', flag: '🇵🇱' },
+        { code: 'pt', label: 'Português', flag: '🇵🇹' },
+        { code: 'ru', label: 'Русский', flag: '🇷🇺' },
+        { code: 'ru-UA', label: 'Русский (Украина)', flag: '🇺🇦' },
+        { code: 'zh-CN', label: '简体中文', flag: '🇨🇳' },
+        { code: 'zh-TW', label: '繁體中文', flag: '🇹🇼' },
+        { code: 'uk', label: 'Українська', flag: '🇺🇦' },
+        { code: 'ar', label: 'العربية', flag: '🇸🇦' },
+        { code: 'bg', label: 'Български', flag: '🇧🇬' },
+        { code: 'ca', label: 'Català', flag: '🇦🇩' },
+        { code: 'hr', label: 'Hrvatski', flag: '🇭🇷' },
+        { code: 'fa', label: 'فارسی', flag: '🇮🇷' },
+        { code: 'sl', label: 'Slovenščina', flag: '🇸🇮' },
+        { code: 'hy', label: 'Հայերեն', flag: '🇦🇲' },
+        { code: 'br', label: 'Brezhoneg', flag: '' },
+        { code: 'co', label: 'Corsu', flag: '' }
+    ].sort((a, b) => a.label.localeCompare(b.label));
 
     useEffect(() => {
         // Check OS

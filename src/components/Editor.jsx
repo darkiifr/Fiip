@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import LanguageToolHighlightTextarea from './LanguageToolHighlightTextarea';
 import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Video, Paperclip, FileText, Download } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
@@ -310,6 +311,11 @@ export default function Editor({ note, onUpdateNote, settings }) {
             isListeningRef.current = false;
             setIsListening(false);
             recognitionRef.current.stop();
+                                    {/* Zone de dessin */}
+                                    <div className="mt-8">
+                                        <h4 className="text-xs font-bold uppercase text-gray-400 mb-2 tracking-wider pl-1">Dessin</h4>
+                                        <CanvasDraw />
+                                    </div>
         } else {
             isListeningRef.current = true;
             setIsListening(true);
@@ -933,7 +939,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                 className="flex-1 px-8 pb-4 overflow-y-auto animate-fade-in scroll-pt-4 relative"
             >
                 <div className="relative w-full mb-8 min-h-[400px]">
-                    <textarea
+                    <LanguageToolHighlightTextarea
                         ref={textareaRef}
                         value={note.content}
                         onChange={handleContentChange}
@@ -941,6 +947,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
                         placeholder={suggestion ? "" : t('editor.placeholder')}
                         className="w-full h-auto overflow-hidden resize-none bg-transparent outline-none text-lg leading-relaxed text-gray-100 placeholder-gray-600 font-sans transition-colors duration-200 selection:bg-blue-900 relative z-10"
                         style={{ minHeight: '400px' }}
+                        language="auto"
                     />
                     {/* Suggestion Overlay */}
                     {suggestion && (

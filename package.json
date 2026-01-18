@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "tauri": "tauri",
-    "build:update": "node scripts/sync-version.mjs && npx dotenv -e .env -- npx tauri build && node scripts/generate-latest.mjs"
+    "build:update": "node scripts/sync-version.mjs && npx dotenv -e .env -- npx tauri build && node scripts/generate-latest.mjs",
+    "crowdin:push": "crowdin upload sources",
+    "crowdin:pull": "crowdin download",
+    "crowdin:sync": "crowdin upload sources && crowdin download"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -35,6 +38,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@crowdin/cli": "^4.12.0",
     "@eslint/js": "^9.39.2",
     "@tailwindcss/postcss": "^4.1.17",
     "@tauri-apps/cli": "^2",
