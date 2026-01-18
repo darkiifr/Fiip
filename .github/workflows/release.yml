@@ -179,12 +179,20 @@ jobs:
           echo "Packaging portable version: $ZIP_NAME"
           
           # Paths
-          $EXE_PATH = "src-tauri/target/x86_64-pc-windows-msvc/release/fiip.exe"
+          $EXE_PATH = "src-tauri/target/release/fiip.exe"
+          if (-not (Test-Path $EXE_PATH)) {
+            $EXE_PATH = "src-tauri/target/x86_64-pc-windows-msvc/release/fiip.exe"
+          }
+
           $MARKER_PATH = "src-tauri/.portable"
           
           # Verify files exist
           if (-not (Test-Path $EXE_PATH)) {
-            Write-Error "Executable not found at $EXE_PATH"
+            Write-Error "Executable not found at $EXE_PATH or src-tauri/target/release/fiip.exe"
+            # List contents of target release to debug if needed
+            if (Test-Path "src-tauri/target/release") {
+                Get-ChildItem "src-tauri/target/release"
+            }
             exit 1
           }
           if (-not (Test-Path $MARKER_PATH)) {
