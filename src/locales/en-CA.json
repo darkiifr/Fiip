@@ -12,7 +12,7 @@
     "no_content": "No content...",
     "delete_confirm": "Delete this note?",
     "export": "Export",
-"delete": "Delete",
+    "delete": "Delete",
     "import": "Import"
   },
   "editor": {
