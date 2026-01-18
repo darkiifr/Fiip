@@ -75,9 +75,6 @@ jobs:
           - platform: windows-latest
             args: ""
             rust_targets: ""
-          - platform: windows-latest
-            args: "--no-bundle --target x86_64-pc-windows-msvc"
-            rust_targets: "x86_64-pc-windows-msvc"
             portable: true
           - platform: windows-latest
             args: "--target aarch64-pc-windows-msvc"
