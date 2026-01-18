@@ -11,8 +11,9 @@
     "tauri": "tauri",
     "build:update": "node scripts/sync-version.mjs && npx dotenv -e .env -- npx tauri build && node scripts/generate-latest.mjs",
     "crowdin:push": "crowdin upload sources",
+    "crowdin:push:translations": "crowdin upload translations",
     "crowdin:pull": "crowdin download",
-    "crowdin:sync": "crowdin upload sources && crowdin download"
+    "crowdin:sync": "crowdin upload sources && crowdin upload translations && crowdin download"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

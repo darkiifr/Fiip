@@ -9,3 +9,28 @@ files:
   - source: /src/locales/fr.json
     translation: /src/locales/%locale%.json
 
+languages_mapping:
+  locale:
+    'ar-SA': 'ar'
+    'bg-BG': 'bg'
+    'br-FR': 'br'
+    'ca-ES': 'ca'
+    'co-FR': 'co'
+    'de-DE': 'de'
+    'en-US': 'en'
+    'es-ES': 'es'
+    'es-EM': 'es'
+    'fa-IR': 'fa'
+    'fr-FR': 'fr'
+    'hr-HR': 'hr'
+    'hy-AM': 'hy'
+    'it-IT': 'it'
+    'ja-JP': 'ja'
+    'nl-NL': 'nl'
+    'pl-PL': 'pl'
+    'pt-PT': 'pt'
+    'ru-RU': 'ru'
+    'sl-SI': 'sl'
+    'uk-UA': 'uk'
+
+

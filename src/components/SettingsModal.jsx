@@ -27,31 +27,30 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
         { code: 'fr-BE', label: 'Français (Belgique)', flag: '🇧🇪' },
         { code: 'fr-CA', label: 'Français (Canada)', flag: '🇨🇦' },
         { code: 'fr-QC', label: 'Français (Québec)', flag: '⚜️' },
-        { code: 'en', label: 'English', flag: '🇺🇸' },
-        { code: 'en-US', label: 'English (US)', flag: '🇺🇸' },
+        { code: 'en-US', label: 'English', flag: '🇺🇸' },
         { code: 'en-GB', label: 'English (UK)', flag: '🇬🇧' },
         { code: 'en-CA', label: 'English (Canada)', flag: '🇨🇦' },
-        { code: 'es', label: 'Español', flag: '🇪🇸' },
-        { code: 'it', label: 'Italiano', flag: '🇮🇹' },
-        { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
-        { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
-        { code: 'ja', label: '日本語', flag: '🇯🇵' },
-        { code: 'pl', label: 'Polski', flag: '🇵🇱' },
-        { code: 'pt', label: 'Português', flag: '🇵🇹' },
-        { code: 'ru', label: 'Русский', flag: '🇷🇺' },
+        { code: 'es-EM', label: 'Español', flag: '🇪🇸' },
+        { code: 'it-IT', label: 'Italiano', flag: '🇮🇹' },
+        { code: 'de-DE', label: 'Deutsch', flag: '🇩🇪' },
+        { code: 'nl-NL', label: 'Nederlands', flag: '🇳🇱' },
+        { code: 'ja-JP', label: '日本語', flag: '🇯🇵' },
+        { code: 'pl-PL', label: 'Polski', flag: '🇵🇱' },
+        { code: 'pt-PT', label: 'Português', flag: '🇵🇹' },
+        { code: 'ru-RU', label: 'Русский', flag: '🇷🇺' },
         { code: 'ru-UA', label: 'Русский (Украина)', flag: '🇺🇦' },
         { code: 'zh-CN', label: '简体中文', flag: '🇨🇳' },
         { code: 'zh-TW', label: '繁體中文', flag: '🇹🇼' },
-        { code: 'uk', label: 'Українська', flag: '🇺🇦' },
-        { code: 'ar', label: 'العربية', flag: '🇸🇦' },
-        { code: 'bg', label: 'Български', flag: '🇧🇬' },
-        { code: 'ca', label: 'Català', flag: '🇦🇩' },
-        { code: 'hr', label: 'Hrvatski', flag: '🇭🇷' },
-        { code: 'fa', label: 'فارسی', flag: '🇮🇷' },
-        { code: 'sl', label: 'Slovenščina', flag: '🇸🇮' },
-        { code: 'hy', label: 'Հայերեն', flag: '🇦🇲' },
-        { code: 'br', label: 'Brezhoneg', flag: '' },
-        { code: 'co', label: 'Corsu', flag: '' }
+        { code: 'uk-UA', label: 'Українська', flag: '🇺🇦' },
+        { code: 'ar-SA', label: 'العربية', flag: '🇸🇦' },
+        { code: 'bg-BG', label: 'Български', flag: '🇧🇬' },
+        { code: 'ca-ES', label: 'Català', flag: '🇦🇩' },
+        { code: 'hr-HR', label: 'Hrvatski', flag: '🇭🇷' },
+        { code: 'fa-IR', label: 'فارسی', flag: '🇮🇷' },
+        { code: 'sl-SI', label: 'Slovenščina', flag: '🇸🇮' },
+        { code: 'hy-AM', label: 'Հայերեն', flag: '🇦🇲' },
+        { code: 'br-FR', label: 'Brezhoneg', flag: '🇫🇷' },
+        { code: 'co-FR', label: 'Corsu', flag: '🇫🇷' }
     ].sort((a, b) => a.label.localeCompare(b.label));
 
     useEffect(() => {
@@ -516,6 +515,17 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 />
                                 <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                             </label>
+                        </div>
+                        
+                        {/* Windows Voice Settings Link */}
+                        <div className="flex justify-end px-1">
+                            <button
+                                onClick={() => open('https://support.microsoft.com/en-us/windows/language-packs-for-windows-a5094319-a92d-18de-5b53-1cfc697cfca8')}
+                                className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1.5 transition-colors group"
+                            >
+                                <span className="group-hover:underline underline-offset-2 decoration-blue-400/30">{t('settings.download_voices', 'Guide: Installer des langues et voix')}</span>
+                                <Download className="w-3 h-3" />
+                            </button>
                         </div>
                     </div>
                 </div>
