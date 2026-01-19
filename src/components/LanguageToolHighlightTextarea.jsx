@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 
 const API_URL = "https://api.languagetoolplus.com/v2/check";
 
@@ -32,8 +32,11 @@ export default function LanguageToolHighlightTextarea({ value, onChange, languag
 
     useEffect(() => {
         if (!value || value.length < 3) {
-            setErrors([]);
-            setLang('');
+            // Utiliser setTimeout pour éviter la mise à jour synchrone dans useEffect
+            setTimeout(() => {
+                setErrors(prev => prev.length > 0 ? [] : prev);
+                setLang(prev => prev !== '' ? '' : prev);
+            }, 0);
             return;
         }
         const handler = setTimeout(() => {

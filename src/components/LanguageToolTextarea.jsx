@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 
 // Utilise l'API publique de LanguageTool (limite de requêtes)
 const API_URL = "https://api.languagetoolplus.com/v2/check";
@@ -10,7 +10,9 @@ export default function LanguageToolTextarea({ value, onChange, language = 'auto
 
     useEffect(() => {
         if (!value || value.length < 3) {
-            setErrors([]);
+            setTimeout(() => {
+                setErrors(prev => prev.length > 0 ? [] : prev);
+            }, 0);
             return;
         }
         const handler = setTimeout(() => {

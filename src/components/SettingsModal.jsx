@@ -6,7 +6,9 @@ import { type } from '@tauri-apps/plugin-os';
 import { getVersion } from '@tauri-apps/api/app';
 import { getPlatformDisplayName } from '../services/platform';
 import { generateText } from '../services/ai';
+import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
+import { ShieldCheck, ShieldAlert, Key } from 'lucide-react';
 
 export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdateSettings }) {
     const { t, i18n } = useTranslation();
@@ -21,6 +23,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
     const [isLinux, setIsLinux] = useState(false);
     const [updateInfo, setUpdateInfo] = useState(null);
     const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+    const [authData, setAuthData] = useState(null);
 
     const languages = [
         { code: 'fr', label: 'Français', flag: '🇫🇷' },
@@ -84,6 +87,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
             originalSettingsRef.current = settings;
             setLocalSettings(settings);
             setHasChanges(false);
+            setAuthData(keyAuthService.isAuthenticated ? keyAuthService.userData : null);
 
             // Load Audio Devices
             if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
@@ -199,6 +203,41 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     </div>
                                 </>
                             )}
+                        </div>
+                    </div>
+
+                    {/* License Section */}
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('license.title', 'Licence & Abonnement')}</h3>
+                        <div className={`p-4 rounded-lg border flex flex-col gap-3 ${authData ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                            <div className="flex items-start gap-3">
+                                {authData ? (
+                                    <ShieldCheck className="w-5 h-5 text-green-400 mt-0.5" />
+                                ) : (
+                                    <ShieldAlert className="w-5 h-5 text-red-400 mt-0.5" />
+                                )}
+                                <div>
+                                    <h4 className={`text-sm font-medium ${authData ? 'text-green-400' : 'text-red-400'}`}>
+                                        {authData ? t('license.status_active', 'Licence Active') : t('license.status_inactive', 'Licence Inactive')}
+                                    </h4>
+                                    {authData ? (
+                                        <div className="mt-1 space-y-0.5">
+                                            <p className="text-xs text-gray-400">
+                                                {t('license.level', 'Niveau')}: <span className="text-gray-200 font-medium capitalize">{authData.subscription || 'Standard'}</span>
+                                            </p>
+                                            {authData.expiry && (
+                                                <p className="text-xs text-gray-400">
+                                                    {t('license.expiry', 'Expire le')}: <span className="text-gray-200">{authData.expiry}</span>
+                                                </p>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            {t('license.features_locked', 'Certaines fonctionnalités comme l\'IA sont restreintes.')}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 

@@ -143,5 +143,19 @@
     "popular_models": "Popular",
     "model_desc_fast": "(Fast & Cheap)",
     "model_desc_powerful": "(Powerful)"
+  },
+  "license": {
+    "title": "License & Subscription",
+    "status_label": "License Status",
+    "status_active": "Active",
+    "status_inactive": "Inactive",
+    "enter_key": "Enter your license key",
+    "key_placeholder": "XXXX-XXXX-XXXX-XXXX",
+    "activate": "Activate",
+    "logout": "Deactivate",
+    "expiry": "Expires on:",
+    "level": "Level:",
+    "features_locked": "This feature requires an active license.",
+    "get_license": "Get a license"
   }
 }

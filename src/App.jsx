@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Sidebar from "./components/Sidebar";
 import Editor from "./components/Editor";
 import SettingsModal from "./components/SettingsModal";
+import LicenseModal from "./components/LicenseModal";
 import Dexter from "./components/Dexter";
 import Titlebar from "./components/Titlebar";
 import "./App.css";
@@ -10,6 +11,7 @@ import "./App.css";
 import { type } from '@tauri-apps/plugin-os';
 import { useTranslation } from 'react-i18next';
 import { FileText } from 'lucide-react';
+import { keyAuthService } from "./services/keyauth";
 
 function App() {
   const { t } = useTranslation();
@@ -36,6 +38,12 @@ function App() {
   const [selectedNoteId, setSelectedNoteId] = useState(notes?.[0]?.id || null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDexterOpen, setIsDexterOpen] = useState(false);
+  const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
+
+  // Initialize KeyAuth
+  useEffect(() => {
+    keyAuthService.init();
+  }, []);
 
   // Settings State with Persistence
   const [settings, setSettings] = useState(() => {
@@ -170,6 +178,7 @@ function App() {
           onCreateNote={handleCreateNote}
           onDeleteNote={handleDeleteNote}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenLicense={() => setIsLicenseModalOpen(true)}
           onToggleDexter={() => setIsDexterOpen(!isDexterOpen)}
           settings={settings}
         />
@@ -192,6 +201,10 @@ function App() {
           onClose={() => setIsSettingsOpen(false)}
           settings={settings}
           onUpdateSettings={setSettings}
+        />
+        <LicenseModal
+            isOpen={isLicenseModalOpen}
+            onClose={() => setIsLicenseModalOpen(false)}
         />
         <Dexter
           isOpen={isDexterOpen}

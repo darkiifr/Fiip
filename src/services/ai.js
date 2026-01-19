@@ -1,4 +1,11 @@
+import { keyAuthService } from './keyauth';
+
 export const generateText = async ({ apiKey, model, messages, signal, jsonMode }) => {
+    // Vérification de la licence (Abonnement requis pour l'IA)
+    if (!keyAuthService.hasAIAccess()) {
+        throw new Error("Cette fonctionnalité nécessite un abonnement actif. Veuillez activer votre licence.");
+    }
+
     if (!apiKey) {
         throw new Error("Clé API manquante. Veuillez la configurer dans les paramètres.");
     }

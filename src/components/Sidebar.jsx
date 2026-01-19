@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Search, Plus, Trash2, Settings, Bot, Download, Upload } from 'lucide-react';
+import { Search, Plus, Trash2, Settings, Bot, Download, Upload, Key } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exportNoteAsMarkdown, importMarkdownFile } from '../services/fileManager';
 import { useTranslation } from 'react-i18next';
 
-export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings, onToggleDexter, settings }) {
+export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings, onOpenLicense, onToggleDexter, settings }) {
     const { t, i18n } = useTranslation();
     const [searchTerm, setSearchTerm] = useState('');
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
@@ -189,6 +189,14 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
                     title={t('sidebar.export')}
                 >
                     <Download className="w-5 h-5" />
+                </button>
+
+                <button
+                    onClick={onOpenLicense}
+                    className="p-2.5 text-orange-400 hover:text-orange-300 transition-all duration-200 rounded-lg hover:bg-orange-900/20 active:scale-95"
+                    title={t('license.title', 'Licence')}
+                >
+                    <Key className="w-5 h-5" />
                 </button>
 
                 <button
