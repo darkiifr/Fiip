@@ -143,5 +143,19 @@
     "popular_models": "Populaires",
     "model_desc_fast": "(Rapide & Économique)",
     "model_desc_powerful": "(Puissant)"
+  },
+  "license": {
+    "title": "Licence & Abonnement",
+    "status_label": "Statut de la licence",
+    "status_active": "Active",
+    "status_inactive": "Inactive",
+    "enter_key": "Entrez votre clé de licence",
+    "key_placeholder": "XXXX-XXXX-XXXX-XXXX",
+    "activate": "Activer",
+    "logout": "Désactiver",
+    "expiry": "Expire le :",
+    "level": "Niveau :",
+    "features_locked": "Cette fonctionnalité nécessite une licence active.",
+    "get_license": "Obtenir une licence"
   }
 }
