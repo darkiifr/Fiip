@@ -16,6 +16,7 @@
     "import": "Importer"
   },
   "editor": {
+    "add_elements": "Ajouter des éléments",
     "placeholder": "Commencez à écrire...",
     "title_placeholder": "Titre de la note",
     "select_note": "Sélectionnez ou créez une note",
@@ -142,7 +143,11 @@
     "installing": "Installation...",
     "popular_models": "Populaires",
     "model_desc_fast": "(Rapide & Économique)",
-    "model_desc_powerful": "(Puissant)"
+    "model_desc_powerful": "(Puissant)",
+    "update_not_found": "Vous êtes à jour ! Aucune nouvelle version détectée.",
+    "update_check_error_version": "Vous êtes probablement à jour (Format de version invalide).",
+    "update_check_error_network": "Impossible de vérifier les mises à jour. Vérifiez votre connexion.",
+    "update_check_error_generic": "Erreur lors de la vérification : {{error}}"
   },
   "license": {
     "title": "Licence & Abonnement",
@@ -153,9 +158,25 @@
     "key_placeholder": "XXXX-XXXX-XXXX-XXXX",
     "activate": "Activer",
     "logout": "Désactiver",
-    "expiry": "Expire le :",
-    "level": "Niveau :",
+    "expiry": "Expire le",
+    "level": "Niveau",
     "features_locked": "Cette fonctionnalité nécessite une licence active.",
-    "get_license": "Obtenir une licence"
+    "get_license": "Obtenir une licence",
+    "features_title": "Fonctionnalités Incluses",
+    "feature_notes": "Fiip - Prise de notes & Organisation",
+    "feature_ai": "Intelligence Artificielle Premium",
+    "feature_expert": "Mode Expert & Outils Avancés",
+    "activate_now": "Activer maintenant",
+    "or": "Ou",
+    "product_key": "Clé produit",
+    "unlock_desc": "Débloquez l'IA illimitée et les outils avancés pour booster votre productivité.",
+    "refresh": "Actualiser",
+    "required_title": "Licence Requise",
+    "required_desc": "Une licence active ou une période d'essai est nécessaire pour utiliser Fiip.",
+    "trial_title": "Essai Gratuit",
+    "trial_desc": "Profitez de 15 jours d'essai pour découvrir toutes les fonctionnalités de base.",
+    "start_trial": "Démarrer l'essai (15 jours)",
+    "trial_active": "Essai actif",
+    "trial_expired": "Essai expiré"
   }
 }
