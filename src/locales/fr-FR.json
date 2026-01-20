@@ -42,6 +42,7 @@
     "welcome": "Bonjour. Je suis Dexter. Prêt à coder ou prendre des notes.",
     "placeholder": "Demandez à Dexter...",
     "thinking": "Réflexion...",
+    "dexter_name": "Dexter",
     "mode_agent": "Agent",
     "mode_plan": "Plan",
     "mode_ask": "Question",
@@ -80,7 +81,6 @@
         "action_cancelled": "Action annulée"
     },
     "you": "Vous",
-    "dexter_name": "Dexter",
     "model_categories": {
         "system": "Système",
         "standard": "Standard",
@@ -176,6 +176,7 @@
     "trial_title": "Essai Gratuit",
     "trial_desc": "Profitez de 15 jours d'essai pour découvrir toutes les fonctionnalités de base.",
     "start_trial": "Démarrer l'essai (15 jours)",
+    "or_get": "Ou obtenir une licence",
     "trial_active": "Essai actif",
     "trial_expired": "Essai expiré"
   }
