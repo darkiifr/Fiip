@@ -42,6 +42,7 @@
     "welcome": "Привет. Я Декстер. Готов кодить или делать заметки.",
     "placeholder": "Спросите Декстера...",
     "thinking": "Думаю...",
+    "dexter_name": "Декстер",
     "mode_agent": "Агент",
     "mode_plan": "План",
     "mode_ask": "Вопрос",
@@ -80,7 +81,6 @@
         "action_cancelled": "Действие отменено"
     },
     "you": "Вы",
-    "dexter_name": "Декстер",
     "model_categories": {
         "system": "Система",
         "standard": "Стандарт",
@@ -176,6 +176,7 @@
     "trial_title": "Essai Gratuit",
     "trial_desc": "Profitez de 15 jours d'essai pour découvrir toutes les fonctionnalités de base.",
     "start_trial": "Démarrer l'essai (15 jours)",
+    "or_get": "Ou obtenir une licence",
     "trial_active": "Essai actif",
     "trial_expired": "Essai expiré"
   }
