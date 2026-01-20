@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import LanguageToolHighlightTextarea from './LanguageToolHighlightTextarea';
-import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Video, Paperclip, FileText, Download } from 'lucide-react';
+import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Video, Paperclip, FileText, Download, Plus, Lock } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
@@ -180,7 +180,9 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
     );
 };
 
-export default function Editor({ note, onUpdateNote, settings }) {
+import { keyAuthService } from '../services/keyauth';
+
+export default function Editor({ note, onUpdateNote, onCreateNote, settings, onOpenLicense }) {
     const { t, i18n } = useTranslation();
     const [isGenerating, setIsGenerating] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
@@ -1019,7 +1021,7 @@ export default function Editor({ note, onUpdateNote, settings }) {
             </div>
 
             {/* Bottom Toolbar */}
-            <div className="h-12 border-t border-white/5 bg-[#1e1e1e]/80 backdrop-blur-md px-6 flex items-center gap-4 relative z-20">
+            <div className="h-12 border-t border-white/5 bg-[#1e1e1e]/80 backdrop-blur-md px-4 flex items-center gap-2 relative z-20">
                 {/* STT Interim Preview */}
                 {isListening && (
                     <div className="absolute bottom-16 left-1/2 -translate-x-1/2 pointer-events-none w-full max-w-2xl px-4 flex justify-center">
@@ -1031,15 +1033,18 @@ export default function Editor({ note, onUpdateNote, settings }) {
                         </div>
                     </div>
                 )}
-
+                
                 <button
-                    onClick={toggleRecording}
-                    className={`p-2 rounded-full transition-all ${isRecording
+                    onClick={() => keyAuthService.hasProAccess() ? toggleRecording() : onOpenLicense()}
+                    className={`p-2 rounded-full transition-all relative ${isRecording
                         ? 'bg-red-500/20 text-red-400 animate-pulse'
-                        : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
-                    title={isRecording ? "Arrêter l'enregistrement" : "Enregistrer un mémo vocal"}
+                        : keyAuthService.hasProAccess() ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-white/5 text-gray-600 opacity-50 hover:bg-white/10'}`}
+                    title={keyAuthService.hasProAccess() ? (isRecording ? "Arrêter l'enregistrement" : "Enregistrer un mémo vocal") : "Fonctionnalité Pro (Verrouillée)"}
                 >
                     {isRecording ? <StopCircle className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
+                    {!keyAuthService.hasProAccess() && (
+                        <Lock className="w-2.5 h-2.5 absolute -top-0.5 -right-0.5 text-orange-500 bg-[#1e1e1e] rounded-full" />
+                    )}
                 </button>
 
                 <div className="relative">

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Plus, Trash2, Settings, Bot, Download, Upload, Key } from 'lucide-react';
+import { Search, Plus, Trash2, Settings, Bot, Download, Upload, Key, Lock } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exportNoteAsMarkdown, importMarkdownFile } from '../services/fileManager';
 import { useTranslation } from 'react-i18next';
+import { keyAuthService } from '../services/keyauth';
 
 export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings, onOpenLicense, onToggleDexter, settings }) {
     const { t, i18n } = useTranslation();
@@ -174,66 +175,71 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
             )}
 
             {/* Footer Actions */}
-            <div className="p-4 border-t border-white/10 flex justify-between items-center bg-black/40 backdrop-blur-md gap-2">
-                <button
-                    onClick={handleImport}
-                    className="p-2.5 text-gray-300 hover:text-green-400 transition-all duration-200 rounded-lg hover:bg-green-900/20 active:scale-95"
-                    title={t('sidebar.import')}
-                >
-                    <Upload className="w-5 h-5" />
-                </button>
-
-                <button
-                    onClick={handleExport}
-                    className="p-2.5 text-gray-300 hover:text-blue-400 transition-all duration-200 rounded-lg hover:bg-blue-900/20 active:scale-95"
-                    title={t('sidebar.export')}
-                >
-                    <Download className="w-5 h-5" />
-                </button>
-
-                <button
-                    onClick={onOpenLicense}
-                    className="p-2.5 text-orange-400 hover:text-orange-300 transition-all duration-200 rounded-lg hover:bg-orange-900/20 active:scale-95"
-                    title={t('license.title', 'Licence')}
-                >
-                    <Key className="w-5 h-5" />
-                </button>
-
-                <button
-                    onClick={onOpenSettings}
-                    className="p-2.5 text-gray-300 hover:text-white transition-all duration-200 rounded-lg hover:bg-white/10 active:scale-95"
-                    title={t('sidebar.settings')}
-                >
-                    <Settings className="w-5 h-5" />
-                </button>
-
-                {(settings?.aiEnabled !== false) && (
+            <div className="p-3 border-t border-white/10 flex flex-wrap justify-between items-end bg-black/40 backdrop-blur-md gap-2 min-h-[60px]">
+                <div className="flex flex-wrap gap-1 items-center flex-1">
                     <button
-                        onClick={onToggleDexter}
-                        className="p-2.5 text-purple-400 hover:text-purple-300 transition-all duration-200 rounded-lg hover:bg-purple-900/30 active:scale-95"
-                        title={t('dexter.dexter_name')}
+                        onClick={onCreateNote}
+                        className="p-2 text-gray-100 hover:text-blue-400 transition-all duration-200 rounded-lg hover:bg-blue-500/10 active:scale-95 bg-white/5 border border-white/10"
+                        title={t('sidebar.new_note')}
                     >
-                        <Bot className="w-5 h-5" />
+                        <Plus className="w-5 h-5" />
                     </button>
-                )}
 
-                <div className="flex-1"></div>
+                    <button
+                        onClick={handleImport}
+                        className="p-2 text-gray-300 hover:text-green-400 transition-all duration-200 rounded-lg hover:bg-green-900/20 active:scale-95"
+                        title={t('sidebar.import')}
+                    >
+                        <Upload className="w-5 h-5" />
+                    </button>
 
-                <button
-                    onClick={onDeleteNote}
-                    className="p-2.5 text-gray-500 hover:text-red-600 transition-all duration-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 group"
-                    title={t('sidebar.delete')}
-                >
-                    <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                </button>
+                    <button
+                        onClick={handleExport}
+                        className="p-2 text-gray-300 hover:text-blue-400 transition-all duration-200 rounded-lg hover:bg-blue-900/20 active:scale-95"
+                        title={t('sidebar.export')}
+                    >
+                        <Download className="w-5 h-5" />
+                    </button>
 
-                <button
-                    onClick={onCreateNote}
-                    className="p-2.5 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-all duration-200 rounded-lg hover:bg-blue-100/50 dark:hover:bg-blue-900/30 active:scale-95"
-                    title={t('sidebar.new_note')}
-                >
-                    <Plus className="w-6 h-6" />
-                </button>
+                    <button
+                        onClick={onOpenLicense}
+                        className="p-2 text-orange-400 hover:text-orange-300 transition-all duration-200 rounded-lg hover:bg-orange-900/20 active:scale-95"
+                        title={t('license.title', 'Licence')}
+                    >
+                        <Key className="w-5 h-5" />
+                    </button>
+
+                    <button
+                        onClick={onOpenSettings}
+                        className="p-2 text-gray-300 hover:text-white transition-all duration-200 rounded-lg hover:bg-white/10 active:scale-95"
+                        title={t('sidebar.settings')}
+                    >
+                        <Settings className="w-5 h-5" />
+                    </button>
+
+                    {(settings?.aiEnabled !== false) && (
+                        <button
+                            onClick={() => keyAuthService.hasAIAccess() ? onToggleDexter() : onOpenLicense()}
+                            className={`p-2 transition-all duration-200 rounded-lg active:scale-95 relative ${keyAuthService.hasAIAccess() ? 'text-purple-400 hover:text-purple-300 hover:bg-purple-900/30' : 'text-gray-600 hover:text-gray-500 hover:bg-gray-800'}`}
+                            title={keyAuthService.hasAIAccess() ? t('dexter.dexter_name') : t('license.required_desc')}
+                        >
+                            <Bot className="w-5 h-5" />
+                            {!keyAuthService.hasAIAccess() && (
+                                <Lock className="w-2.5 h-2.5 absolute -top-0.5 -right-0.5 text-orange-500 bg-[#1C1C1E] rounded-full" />
+                            )}
+                        </button>
+                    )}
+                </div>
+
+                <div className="flex-shrink-0">
+                    <button
+                        onClick={onDeleteNote}
+                        className="p-2 text-gray-500 hover:text-red-600 transition-all duration-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 group"
+                        title={t('sidebar.delete')}
+                    >
+                        <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    </button>
+                </div>
             </div>
         </div>
     );

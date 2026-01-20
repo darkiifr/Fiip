@@ -40,9 +40,17 @@ function App() {
   const [isDexterOpen, setIsDexterOpen] = useState(false);
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
 
-  // Initialize KeyAuth
+  // Initialize KeyAuth and check license
   useEffect(() => {
-    keyAuthService.init();
+    const initAuth = async () => {
+        await keyAuthService.init();
+        
+        // Force check subscription status
+        if (!keyAuthService.checkSubscription()) {
+            setIsLicenseModalOpen(true);
+        }
+    };
+    initAuth();
   }, []);
 
   // Settings State with Persistence
@@ -186,7 +194,9 @@ function App() {
           <Editor
             note={selectedNote}
             onUpdateNote={handleUpdateNote}
+            onCreateNote={handleCreateNote}
             settings={settings}
+            onOpenLicense={() => setIsLicenseModalOpen(true)}
           />
         ) : (
             <div className="flex-1 h-full flex items-center justify-center text-gray-500 select-none">

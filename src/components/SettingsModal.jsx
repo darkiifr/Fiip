@@ -207,7 +207,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                     </div>
 
                     {/* License Section */}
-                    <div className="space-y-3">
+                    <div className="space-y-3" style={{ fontFamily: 'Sora, sans-serif' }}>
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('license.title', 'Licence & Abonnement')}</h3>
                         <div className={`p-4 rounded-lg border flex flex-col gap-3 ${authData ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
                             <div className="flex items-start gap-3">
@@ -599,7 +599,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                                         setUpdateInfo(update);
                                     } else {
-                                        alert("Vous êtes à jour ! Aucune nouvelle version détectée.");
+                                        alert(t('settings.update_not_found'));
                                     }
                                 } catch (e) {
                                     console.error("Update check error:", e);
@@ -607,11 +607,11 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     
                                     if (msg.includes("parsing major version number") || msg.includes("unexpected character")) {
                                          console.warn("Update check failed due to invalid server version format. Assuming up to date.");
-                                         alert("Vous êtes probablement à jour. (Impossible de vérifier la version distante)");
+                                         alert(t('settings.update_check_error_version'));
                                     } else if (msg.includes("Could not fetch a valid release JSON")) {
-                                        alert("Impossible de récupérer les informations de mise à jour. Vérifiez votre connexion internet ou réessayez plus tard.");
+                                        alert(t('settings.update_check_error_network'));
                                     } else {
-                                        alert("Erreur lors de la vérification : " + msg);
+                                        alert(t('settings.update_check_error_generic', { error: msg }));
                                     }
                                 } finally {
                                     setIsCheckingUpdate(false);
