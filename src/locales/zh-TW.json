@@ -42,6 +42,7 @@
     "welcome": "你好。我是 Dexter。準備好寫程式或做筆記了。",
     "placeholder": "詢問 Dexter...",
     "thinking": "思考中...",
+    "dexter_name": "Dexter",
     "mode_agent": "代理",
     "mode_plan": "計畫",
     "mode_ask": "提問",
@@ -80,7 +81,6 @@
         "action_cancelled": "操作已取消"
     },
     "you": "你",
-    "dexter_name": "Dexter",
     "model_categories": {
         "system": "系統",
         "standard": "標準",
@@ -176,6 +176,7 @@
     "trial_title": "Essai Gratuit",
     "trial_desc": "Profitez de 15 jours d'essai pour découvrir toutes les fonctionnalités de base.",
     "start_trial": "Démarrer l'essai (15 jours)",
+    "or_get": "Ou obtenir une licence",
     "trial_active": "Essai actif",
     "trial_expired": "Essai expiré"
   }
