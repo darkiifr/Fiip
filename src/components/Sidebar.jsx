@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Search, Plus, Trash2, Settings, Bot, Download, Upload, Key, Lock } from 'lucide-react';
+import { Search, Plus, Trash2, Settings, Bot, Download, Upload, Key, Lock, MessageCircle, UserCircle } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exportNoteAsMarkdown, importMarkdownFile } from '../services/fileManager';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
 
-export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings, onOpenLicense, onToggleDexter, settings }) {
+export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCreateNote, onDeleteNote, onOpenSettings, onOpenLicense, onToggleDexter, onOpenChat, onOpenAuth, settings }) {
     const { t, i18n } = useTranslation();
     const [searchTerm, setSearchTerm] = useState('');
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
@@ -60,29 +60,65 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
     return (
         <div className="w-80 h-full bg-[#1C1C1E]/60 backdrop-blur-2xl border-r border-white/10 flex flex-col transition-colors duration-300">
             {/* Header : Window Controls & Search */}
-            <div className="flex flex-col gap-1 p-4 pt-1 select-none">
-                {/* Top Row: Traffic Lights + Drag Handle Spacer */}
-                <div className="flex items-center">
+            <div className="flex flex-col gap-0 px-4 pb-2 pt-1 select-none">
+                {/* Top Row: User/Traffic + Drag */}
+                <div className="flex items-center justify-between mb-0 mt-0">
                     {/* Traffic Lights - Only show when titlebar style is 'none' */}
                     {(!settings?.titlebarStyle || settings.titlebarStyle === 'none') && (
                         <div className="flex gap-2.5 group pl-1.5 pt-1 pr-4 z-50">
                             <button
                                 onClick={(e) => { e.stopPropagation(); appWindow.close(); }}
-                                className="w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:bg-[#FF4A42] border border-black/10 flex items-center justify-center text-[8px] transition-all active:scale-95 shadow-sm cursor-pointer"
+                                className="w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:bg-[#FF4A42] border border-black/10 transition-all active:scale-95 shadow-sm"
                             ></button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); appWindow.minimize(); }}
-                                className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E] hover:bg-[#FEAE1C] border border-black/10 flex items-center justify-center text-[8px] transition-all active:scale-95 shadow-sm cursor-pointer"
+                                className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E] hover:bg-[#FEAE1C] border border-black/10 transition-all active:scale-95 shadow-sm"
                             ></button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); appWindow.toggleMaximize(); }}
-                                className="w-3.5 h-3.5 rounded-full bg-[#28C840] hover:bg-[#1EB332] border border-black/10 flex items-center justify-center text-[8px] transition-all active:scale-95 shadow-sm cursor-pointer"
+                                className="w-3.5 h-3.5 rounded-full bg-[#28C840] hover:bg-[#1EB332] border border-black/10 transition-all active:scale-95 shadow-sm"
                             ></button>
                         </div>
                     )}
 
-                    {/* Drag Region: Takes remaining space in this row */}
+                    {/* Drag Region */}
                     <div className="flex-1 h-6" data-tauri-drag-region></div>
+
+                     {/* Profile Avatar (Top Right of Sidebar actually, since Search is below ?? Wait user said "Top Left above search") */}
+                     {/* The User asked: "met en haut a gauche du logiciel au dessus de la barre de recherche la photo de profile de l'utilisateur" */}
+                     {/* Currently Traffic lights are top left. If macOS style, traffic lights are there. */}
+                     {/* If I put it top left, I might conflict with traffic lights if present. */}
+                     {/* But the user asked for it. I will place it next to traffic lights or above search. */}
+                </div>
+
+                {/* Profile Header Block */}
+                <div className="flex items-center gap-3 mb-2 px-1 pt-1">
+                    <button onClick={onOpenAuth} className="relative group shrink-0">
+                         {keyAuthService.isAuthenticated && keyAuthService.userData?.username ? (
+                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-md group-hover:shadow-blue-500/20 transition-all">
+                                 {settings?.avatarUrl ? (
+                                     <img src={settings.avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                 ) : (
+                                    <div className="w-full h-full rounded-full bg-[#2C2C2E] flex items-center justify-center text-xs font-bold text-white uppercase">
+                                        {keyAuthService.userData.username.substring(0, 2)}
+                                    </div>
+                                 )}
+                             </div>
+                         ) : (
+                             <div className="w-9 h-9 rounded-full bg-[#2C2C2E] flex items-center justify-center hover:bg-[#3A3A3C] transition-colors border border-white/5">
+                                 <UserCircle className="w-5 h-5 text-gray-400" />
+                             </div>
+                         )}
+                         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#1C1C1E] bg-green-500 opacity-0 transition-opacity group-hover:opacity-100"></div>
+                    </button>
+                    <div>
+                        <div className="text-sm font-bold text-white leading-tight">
+                            {keyAuthService.isAuthenticated ? keyAuthService.userData?.username : 'Invité'}
+                        </div>
+                        <div className="text-[10px] text-gray-400">
+                             {keyAuthService.isAuthenticated ? (keyAuthService.getCurrentSubscriptionName() || 'Membre') : 'Non connecté'}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="relative z-10 flex-1 group">
@@ -178,14 +214,6 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
             <div className="p-3 border-t border-white/10 flex flex-wrap justify-between items-end bg-black/40 backdrop-blur-md gap-2 min-h-[60px]">
                 <div className="flex flex-wrap gap-1 items-center flex-1">
                     <button
-                        onClick={onCreateNote}
-                        className="p-2 text-gray-100 hover:text-blue-400 transition-all duration-200 rounded-lg hover:bg-blue-500/10 active:scale-95 bg-white/5 border border-white/10"
-                        title={t('sidebar.new_note')}
-                    >
-                        <Plus className="w-5 h-5" />
-                    </button>
-
-                    <button
                         onClick={handleImport}
                         className="p-2 text-gray-300 hover:text-green-400 transition-all duration-200 rounded-lg hover:bg-green-900/20 active:scale-95"
                         title={t('sidebar.import')}
@@ -199,6 +227,22 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
                         title={t('sidebar.export')}
                     >
                         <Download className="w-5 h-5" />
+                    </button>
+
+                    <button
+                        onClick={onOpenAuth}
+                        className={`p-2 transition-all duration-200 rounded-lg active:scale-95 ${keyAuthService.isAuthenticated && keyAuthService.userData?.username ? 'text-green-400 hover:bg-green-900/20' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
+                        title={keyAuthService.isAuthenticated && keyAuthService.userData?.username ? `Compte: ${keyAuthService.userData.username}` : "Connexion / Inscription"}
+                    >
+                        <UserCircle className="w-5 h-5" />
+                    </button>
+
+                    <button
+                        onClick={onOpenChat}
+                        className="p-2 text-blue-400 hover:text-blue-300 transition-all duration-200 rounded-lg hover:bg-blue-900/20 active:scale-95"
+                        title={t('sidebar.chat', 'Communauté')}
+                    >
+                        <MessageCircle className="w-5 h-5" />
                     </button>
 
                     <button
@@ -231,7 +275,15 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
                     )}
                 </div>
 
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 flex items-center gap-1">
+                    <button
+                        onClick={onCreateNote}
+                        className="p-2 text-gray-100 hover:text-blue-400 transition-all duration-200 rounded-lg hover:bg-blue-500/10 active:scale-95 bg-white/5 border border-white/10"
+                        title={t('sidebar.new_note')}
+                    >
+                        <Plus className="w-5 h-5" />
+                    </button>
+
                     <button
                         onClick={onDeleteNote}
                         className="p-2 text-gray-500 hover:text-red-600 transition-all duration-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-95 group"

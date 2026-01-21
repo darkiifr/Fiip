@@ -193,3 +193,9 @@ html.effect-none body {
   color: inherit;
   font-size: 0.875rem;
 }
+
+@keyframes loading-bar {
+  0% { left: -40%; }
+  50% { left: 40%; }
+  100% { left: 100%; }
+}

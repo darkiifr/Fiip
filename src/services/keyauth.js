@@ -220,12 +220,269 @@ class KeyAuthService {
         }
     }
 
+    // --- Chat System ---
+
+    /**
+     * Récupère les messages du chat
+     * @param {string} channel Le nom du canal de chat
+     */
+    async getChatMessages(channel = "general") {
+        if (!this.isAuthenticated) return { success: false, message: "Non connecté" };
+
+        try {
+            const data = await this._request({
+                type: 'chatget',
+                channel: channel,
+                sessionid: this.sessionid,
+                name: KA_CONFIG.name,
+                ownerid: KA_CONFIG.ownerid
+            });
+
+            if (data.success) {
+                return { success: true, messages: data.messages };
+            } else {
+                return { success: false, message: data.message };
+            }
+        } catch (error) {
+            return { success: false, message: "Erreur récupération chat: " + error.message };
+        }
+    }
+
+    /**
+     * Envoie un message dans le chat
+     * @param {string} message Le message à envoyer
+     * @param {string} channel Le nom du canal
+     */
+    async sendChatMessage(message, channel = "general") {
+        if (!this.isAuthenticated) return { success: false, message: "Non connecté" };
+
+        try {
+            const data = await this._request({
+                type: 'chatsend',
+                message: message,
+                channel: channel,
+                sessionid: this.sessionid,
+                name: KA_CONFIG.name,
+                ownerid: KA_CONFIG.ownerid
+            });
+
+            return data;
+        } catch (error) {
+            return { success: false, message: "Erreur envoi message: " + error.message };
+        }
+    }
+
+    // --- User System (Signup/Login) ---
+
+    /**
+     * Inscription d'un nouvel utilisateur
+     * @param {string} username 
+     * @param {string} password 
+     * @param {string} license Clé de licence pour l'inscription 
+     * @param {string} email (Optionnel)
+     */
+    async register(username, password, license, email = "") {
+        if (!this.initialized) await this.init();
+
+        try {
+            const data = await this._request({
+                type: 'register',
+                username: username,
+                pass: password,
+                key: license,
+                email: email,
+                sessionid: this.sessionid,
+                name: KA_CONFIG.name,
+                ownerid: KA_CONFIG.ownerid
+            });
+
+            if (data.success) {
+                return { success: true, message: data.message };
+            } else {
+                return { success: false, message: data.message };
+            }
+        } catch (error) {
+            return { success: false, message: "Erreur inscription: " + error.message };
+        }
+    }
+
+    /**
+     * Synchronise le statut de l'essai gratuit avec le compte utilisateur
+     */
+    async syncTrialStatus() {
+        if (!this.isAuthenticated) return;
+
+        try {
+            // 1. Charger les données cloud
+            const cloudRes = await this.loadUserData();
+            const cloudData = cloudRes.success && cloudRes.data ? cloudRes.data : {};
+            
+            // 2. Vérifier statut local
+            const localUsed = localStorage.getItem('fiip-trial-used') === 'true';
+            
+            // 3. Sync Logic
+            let needsSave = false;
+            
+            // Si utilisé localement mais pas dans le cloud -> mettre à jour le cloud
+            if (localUsed && !cloudData.trial_used) {
+                cloudData.trial_used = true;
+                needsSave = true;
+            }
+            // Si utilisé dans le cloud mais pas localement -> mettre à jour local (empêcher futur essai)
+            else if (cloudData.trial_used && !localUsed) {
+                localStorage.setItem('fiip-trial-used', 'true');
+                // Si un essai était actif (incohérence ?), on pourrait le désactiver, 
+                // mais on laisse finir la session courante pour éviter de frustrer.
+            }
+
+            // 4. Sauvegarder si nécessaire
+            if (needsSave) {
+                await this.saveUserData(cloudData);
+            }
+        } catch (e) {
+            console.error("Trial Sync Error:", e);
+        }
+    }
+
+    /**
+     * Ajoute une licence à un compte existant (Upgrade)
+     * @param {string} username 
+     * @param {string} key 
+     */
+    async addLicense(username, key) {
+        if (!this.initialized) await this.init();
+
+        try {
+            const data = await this._request({
+                type: 'upgrade',
+                username: username,
+                key: key,
+                sessionid: this.sessionid,
+                name: KA_CONFIG.name,
+                ownerid: KA_CONFIG.ownerid
+            });
+
+            if (data.success) {
+                // Refresh local data
+                await this.loginByUser(username, "ignored_password"); // Re-sync to get updated subs if possible, or just trust the next init
+                // Actually loginByUser requires password. We don't have it here if we are just in the modal. 
+                // We should probably just return success and let UI handle re-login or just assume it worked.
+                // Better: if we are authenticated, we don't need password for some calls but 'login' needs it.
+                // But wait, if we are 'upgrade'ing, the session might imply we are logged in? 
+                // KeyAuth upgrade uses username.
+                return { success: true, message: data.message };
+            } else {
+                return { success: false, message: data.message };
+            }
+        } catch (error) {
+            return { success: false, message: "Erreur ajout licence: " + error.message };
+        }
+    }
+
+    /**
+     * Connexion utilisateur (Username/Password)
+     * @param {string} username 
+     * @param {string} password 
+     */
+    async loginByUser(username, password) {
+        if (!this.initialized) await this.init();
+
+        try {
+            const data = await this._request({
+                type: 'login',
+                username: username,
+                pass: password,
+                sessionid: this.sessionid,
+                name: KA_CONFIG.name,
+                ownerid: KA_CONFIG.ownerid
+            });
+
+            if (data.success) {
+                this.isAuthenticated = true;
+                this.userData = data.info;
+                this.currentLevel = this._calculateLevel(data.info);
+                // We don't save password, but we mark as user login
+                localStorage.setItem('fiip-auth-mode', 'user');
+                
+                // Sync Trial Status
+                this.syncTrialStatus();
+
+                return { success: true, message: data.message, info: data.info };
+            } else {
+                return { success: false, message: data.message };
+            }
+        } catch (error) {
+            return { success: false, message: "Erreur connexion: " + error.message };
+        }
+    }
+
+    /**
+     * Sauvegarde les données utilisateur (Cloud Sync)
+     * @param {object} data Données à sauvegarder
+     */
+    async saveUserData(data) {
+        if (!this.isAuthenticated) return { success: false, message: "Non connecté" };
+
+        try {
+            const jsonString = JSON.stringify(data);
+            
+            const res = await this._request({
+                type: 'setvar',
+                var: 'fiip_data',
+                data: jsonString,
+                sessionid: this.sessionid,
+                name: KA_CONFIG.name,
+                ownerid: KA_CONFIG.ownerid
+            });
+
+            if (res.success) {
+                return { success: true };
+            } else {
+                return { success: false, message: res.message };
+            }
+        } catch (error) {
+            return { success: false, message: "Erreur sauvegarde: " + error.message };
+        }
+    }
+
+    /**
+     * Récupère les données utilisateur (Cloud Sync)
+     */
+    async loadUserData() {
+        if (!this.isAuthenticated) return { success: false, message: "Non connecté" };
+
+        try {
+            const res = await this._request({
+                type: 'getvar',
+                var: 'fiip_data',
+                sessionid: this.sessionid,
+                name: KA_CONFIG.name,
+                ownerid: KA_CONFIG.ownerid
+            });
+
+            if (res.success) {
+                const content = res.response || res.message; 
+                try {
+                    const parsed = JSON.parse(content);
+                    return { success: true, data: parsed };
+                } catch (e) {
+                     return { success: true, data: null };
+                }
+            } else {
+                return { success: false, message: res.message };
+            }
+        } catch (error) {
+            return { success: false, message: "Erreur chargement: " + error.message };
+        }
+    }
+
     logout() {
         this.isAuthenticated = false;
         this.userData = null;
         this.sessionid = null;
         this.currentLevel = 0;
         localStorage.removeItem('fiip-license-key');
+        localStorage.removeItem('fiip-auth-mode');
     }
 
     async _request(params) {

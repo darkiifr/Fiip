@@ -1,20 +1,37 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Sidebar from "./components/Sidebar";
 import Editor from "./components/Editor";
 import SettingsModal from "./components/SettingsModal";
 import LicenseModal from "./components/LicenseModal";
+import ChatModal from "./components/ChatModal";
+import AuthModal from "./components/AuthModal";
+import LoadingScreen from "./components/LoadingScreen";
 import Dexter from "./components/Dexter";
 import Titlebar from "./components/Titlebar";
 import "./App.css";
 
 import { type } from '@tauri-apps/plugin-os';
+import { readFile } from '@tauri-apps/plugin-fs';
 import { useTranslation } from 'react-i18next';
 import { FileText } from 'lucide-react';
 import { keyAuthService } from "./services/keyauth";
+import { soundManager } from "./services/soundManager";
+
+// Helper to convert buffer to base64
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
 
 function App() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [appLoading, setAppLoading] = useState({ isLoading: true, status: 'Chargement...' });
   const [notes, setNotes] = useState(() => {
     const saved = localStorage.getItem("fiip-notes");
     if (saved) {
@@ -36,36 +53,283 @@ function App() {
   });
 
   const [selectedNoteId, setSelectedNoteId] = useState(notes?.[0]?.id || null);
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem("fiip-settings");
+    const defaults = { 
+        theme: 'system', 
+        fontSize: 'medium', 
+        autoSave: true, 
+        aiEnabled: true,
+        appSound: true,
+        chatSound: true,
+        windowEffect: 'mica',
+        titlebarStyle: 'macos',
+        darkMode: true,
+        cloudSync: true // Default to true
+    };
+    return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDexterOpen, setIsDexterOpen] = useState(false);
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Initialize KeyAuth and check license
+  // Safety Net: Force app to load after 7 seconds no matter what
   useEffect(() => {
-    const initAuth = async () => {
-        await keyAuthService.init();
-        
-        // Force check subscription status
-        if (!keyAuthService.checkSubscription()) {
-            setIsLicenseModalOpen(true);
-        }
-    };
-    initAuth();
+    const safetyTimer = setTimeout(() => {
+        setAppLoading(prev => {
+            if (prev.isLoading) {
+                console.warn("Safety net triggered: Force loading app");
+                return { isLoading: false, status: "" };
+            }
+            return prev;
+        });
+    }, 7000);
+    return () => clearTimeout(safetyTimer);
   }, []);
 
-  // Settings State with Persistence
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem("fiip-settings");
-    if (saved) {
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+        // Check if target is a button, or inside a button
+        let target = e.target;
+        while (target && target !== document.body) {
+            if (target.tagName === 'BUTTON' || target.getAttribute('role') === 'button') {
+                soundManager.play('interaction');
+                break;
+            }
+            target = target.parentElement;
+        }
+    };
+    window.addEventListener('click', handleGlobalClick, true); // Capture phase to ensure we catch it
+    return () => window.removeEventListener('click', handleGlobalClick, true);
+  }, []);
+
+  // Initialize KeyAuth and check license with Loading Screen
+  useEffect(() => {
+    const initApp = async () => {
+        try {
+            // Fake sequence for UX
+            setAppLoading({ isLoading: true, status: "Démarrage des services..." });
+            await new Promise(r => setTimeout(r, 800));
+
+            setAppLoading({ isLoading: true, status: "Connexion au serveur..." });
+            
+            // Timeout wrapper for KeyAuth init to prevent blocking
+            const initWithTimeout = async () => {
+                const timeout = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Connection timed out")), 5000)
+                );
+                return Promise.race([keyAuthService.init(), timeout]);
+            };
+
+            try {
+                await initWithTimeout();
+            } catch (err) {
+                console.warn("KeyAuth initialization skipped or failed:", err);
+                // Continue execution so user isn't stuck
+            }
+            
+            setAppLoading({ isLoading: true, status: "Vérification de la licence..." });
+            // Force check subscription status
+            try {
+                if (!keyAuthService.checkSubscription()) {
+                    setIsLicenseModalOpen(true);
+                }
+            } catch (e) {
+                console.warn("Subscription check invalid", e);
+                // Fail safe open license modal if needed, or default to free? 
+                // keyAuthService might be uninitialized, so checkSubscription might crash if not robust.
+                // Assuming checkSubscription is safe or we caught it. 
+                // If init failed, isAuthenticated is false, checkSubscription should return false.
+                setIsLicenseModalOpen(true); 
+            }
+            
+            // If logged in, maybe sync?
+            if (keyAuthService.isAuthenticated) {
+                 setAppLoading({ isLoading: true, status: "Synchronisation des notes..." });
+                 // check cloud?
+                 await new Promise(r => setTimeout(r, 500));
+            }
+
+            setAppLoading({ isLoading: true, status: "Prêt" });
+            await new Promise(r => setTimeout(r, 400));
+            
+        } catch (e) {
+            console.error("Critical Init Error", e);
+            setAppLoading({ isLoading: false, status: "Mode hors ligne" });
+        } finally {
+            // ALWAYS finish loading
+            setAppLoading({ isLoading: false, status: "" });
+        }
+    };
+    initApp();
+  }, []);
+
+  // Cloud Sync Logic
+  const handleCloudSync = async () => {
+      // Check portability (don't sync if portable)
       try {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') return parsed;
-      } catch (e) {
-        console.error("Failed to parse settings", e);
+          const isPortable = await invoke('is_portable');
+          if (isPortable) {
+              console.log("Portable mode: Sync disabled.");
+              return;
+          }
+      } catch (_e) { /* ignore */ }
+
+      // Only sync if user is logged in with account (has username)
+      if (!keyAuthService.isAuthenticated || !keyAuthService.userData?.username) return;
+
+      // Load existing cloud data first to avoid wiping other fields
+      let currentCloudData = {};
+      try {
+          const res = await keyAuthService.loadUserData();
+          if (res.success && res.data) currentCloudData = res.data;
+      } catch (_e) { /* ignore */ }
+      
+      const settingsToSync = { ...settings };
+      const prefs = settings.syncPreferences || {};
+      
+      // Define groups
+      const groups = {
+        ai: ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels'],
+        appearance: ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText'],
+        general: ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound'],
+      };
+
+      // Remove strictly excluded hardware settings
+      delete settingsToSync.audioInputId;
+      delete settingsToSync.audioOutputId;
+
+      // Filter granularly
+      if (prefs.ai === false) groups.ai.forEach(k => delete settingsToSync[k]);
+      if (prefs.appearance === false) groups.appearance.forEach(k => delete settingsToSync[k]);
+      if (prefs.general === false) groups.general.forEach(k => delete settingsToSync[k]);
+      
+      // Language special handling
+      if (prefs.language !== false) {
+           settingsToSync.language = i18n.language; 
+      } else {
+           delete settingsToSync.language;
       }
-    }
-    return { darkMode: true, largeText: false, windowEffect: 'mica', titlebarStyle: 'macos' };
-  });
+      
+      const newData = {
+          ...currentCloudData,
+          settings: settingsToSync
+      };
+      
+      // Sync Notes only if enabled (default true)
+      if (prefs.notes !== false) {
+          // Deep copy notes to avoid mutating state
+          const hydratedNotes = JSON.parse(JSON.stringify(notes));
+
+          // Process attachments: convert file paths to Base64
+          for (const note of hydratedNotes) {
+              if (note.attachments && Array.isArray(note.attachments)) {
+                  for (const att of note.attachments) {
+                      // Check if data is a file path (not base64, not blob, not http)
+                      // Assuming local paths don't start with these prefixes.
+                      if (att.data && 
+                          typeof att.data === 'string' && 
+                          !att.data.startsWith('data:') && 
+                          !att.data.startsWith('blob:') && 
+                          !att.data.startsWith('http')) {
+                          
+                          try {
+                              console.log(`Hydrating attachment ${att.name || att.id}...`);
+                              const content = await readFile(att.data);
+                              const base64 = arrayBufferToBase64(content);
+                              
+                              let mime = att.mimeType;
+                              if (!mime) {
+                                  if (att.type === 'video') mime = 'video/mp4';
+                                  else if (att.type === 'image') mime = 'image/jpeg';
+                                  else if (att.type === 'pdf') mime = 'application/pdf';
+                                  else mime = 'application/octet-stream';
+                              }
+                              
+                              att.data = `data:${mime};base64,${base64}`;
+                          } catch (err) {
+                              console.warn(`Failed to read attachment file for sync: ${att.data}`, err);
+                          }
+                      }
+                  }
+              }
+          }
+          newData.notes = hydratedNotes;
+      }
+      
+      await keyAuthService.saveUserData(newData);
+  };
+
+  const handleLoginSuccess = async () => {
+      setIsAuthModalOpen(false);
+      
+      // Only sync if enabled
+      if (settings.cloudSync === false) return;
+
+      // Try to load data
+      const res = await keyAuthService.loadUserData();
+      if (res.success && res.data) {
+          // Sync Notes - Check preference (default true if undefined)
+          const syncNotesEnabled = !settings.syncPreferences || settings.syncPreferences.notes !== false;
+          
+          if (syncNotesEnabled && res.data.notes && Array.isArray(res.data.notes)) {
+              const cloudNotes = res.data.notes;
+              if (cloudNotes.length > 0) {
+                  setNotes(prev => {
+                      const newNotes = [...prev];
+                      cloudNotes.forEach(cNote => {
+                          const idx = newNotes.findIndex(n => n.id === cNote.id);
+                          if (idx === -1) {
+                              newNotes.push(cNote);
+                          } else {
+                              if (cNote.updatedAt > newNotes[idx].updatedAt) {
+                                  newNotes[idx] = cNote;
+                              }
+                          }
+                      });
+                      return newNotes;
+                  });
+              }
+          }
+          
+          // Sync Settings
+          if (res.data.settings) {
+              const cloudSettings = res.data.settings;
+              const currentPrefs = settings.syncPreferences || {}; 
+              
+              setSettings(prev => {
+                   const newSettings = { ...prev };
+                   const mergeIfEnabled = (category, keys) => {
+                       if (currentPrefs[category] !== false) {
+                           keys.forEach(k => {
+                               if (cloudSettings[k] !== undefined) newSettings[k] = cloudSettings[k];
+                           });
+                       }
+                   };
+                   
+                   mergeIfEnabled('ai', ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels']);
+                   mergeIfEnabled('appearance', ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText']);
+                   mergeIfEnabled('general', ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound']);
+                   
+                   // Preserve syncPreferences of THIS device (don't overwrite with cloud's)
+                   newSettings.syncPreferences = prev.syncPreferences; 
+                   
+                   return newSettings;
+              });
+
+              // Apply Language
+              if (cloudSettings.language && currentPrefs.language !== false) {
+                  i18n.changeLanguage(cloudSettings.language);
+              }
+              
+              alert("Données synchronisées avec succès !");
+          }
+      } else {
+         handleCloudSync();
+      }
+  };
 
   // Detect OS for default settings
   useEffect(() => {
@@ -107,7 +371,6 @@ function App() {
   // Close Dexter if AI is disabled
   useEffect(() => {
     if (settings.aiEnabled === false && isDexterOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsDexterOpen(false);
     }
   }, [settings.aiEnabled, isDexterOpen]);
@@ -177,6 +440,7 @@ function App() {
 
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden text-gray-100 font-sans transition-colors duration-300 ${settings.largeText ? 'text-lg' : ''} bg-[#1C1C1E]/40`}>
+      {appLoading.isLoading && <LoadingScreen status={appLoading.status} />}
       <Titlebar style={settings.titlebarStyle} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
@@ -188,6 +452,8 @@ function App() {
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenLicense={() => setIsLicenseModalOpen(true)}
           onToggleDexter={() => setIsDexterOpen(!isDexterOpen)}
+          onOpenChat={() => setIsChatModalOpen(true)}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
           settings={settings}
         />
         {selectedNote ? (
@@ -215,6 +481,15 @@ function App() {
         <LicenseModal
             isOpen={isLicenseModalOpen}
             onClose={() => setIsLicenseModalOpen(false)}
+        />
+        <ChatModal 
+            isOpen={isChatModalOpen}
+            onClose={() => setIsChatModalOpen(false)}
+        />
+        <AuthModal
+            isOpen={isAuthModalOpen}
+            onClose={() => setIsAuthModalOpen(false)}
+            onLoginSuccess={handleLoginSuccess}
         />
         <Dexter
           isOpen={isDexterOpen}

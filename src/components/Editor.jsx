@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import LanguageToolHighlightTextarea from './LanguageToolHighlightTextarea';
-import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Video, Paperclip, FileText, Download, Plus, Lock } from 'lucide-react';
+import CanvasDraw from './CanvasDraw';
+import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Paperclip, FileText, Download, Lock } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
@@ -10,7 +11,7 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
-import CanvasDraw from './CanvasDraw';
+import { keyAuthService } from '../services/keyauth';
 
 const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, resizeAttachment, renameAttachment, handleDownloadAttachment }) => {
     const { t } = useTranslation();
@@ -179,8 +180,6 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
         </div>
     );
 };
-
-import { keyAuthService } from '../services/keyauth';
 
 export default function Editor({ note, onUpdateNote, onCreateNote, settings, onOpenLicense }) {
     const { t, i18n } = useTranslation();
@@ -789,6 +788,12 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
     };
 
     const handleAiGenerate = async () => {
+        // License Check
+        if (!keyAuthService.hasAIAccess()) {
+             alert(t('license.features_locked', "Cette fonctionnalité nécessite une licence active avec l'option AI."));
+             return;
+        }
+
         if (!settings?.aiApiKey) {
             alert("Veuillez configurer votre clé API OpenRouter dans les paramètres.");
             return;
@@ -940,6 +945,7 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
                         className="w-full h-auto overflow-hidden resize-none bg-transparent outline-none text-lg leading-relaxed text-gray-100 placeholder-gray-600 font-sans transition-colors duration-200 selection:bg-blue-900 relative z-10"
                         style={{ minHeight: '400px' }}
                         language="auto"
+                        enabled={settings?.enableCorrection !== false}
                     />
                     {/* Suggestion Overlay */}
                     {suggestion && (

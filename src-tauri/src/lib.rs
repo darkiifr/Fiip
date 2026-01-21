@@ -44,6 +44,16 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
     }
 }
 
+#[tauri::command]
+fn is_portable() -> bool {
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(exe_dir) = current_exe.parent() {
+            return exe_dir.join(".portable").exists();
+        }
+    }
+    false
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -56,7 +66,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![greet, set_window_effect])
+        .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable])
         .setup(|app| {
             use tauri::{WebviewUrl, WebviewWindowBuilder};
 

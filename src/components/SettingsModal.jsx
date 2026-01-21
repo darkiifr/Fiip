@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight, ChevronDown, Globe } from 'lucide-react';
+import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight, ChevronDown, Globe, Cloud } from 'lucide-react';
 import { relaunch, exit } from '@tauri-apps/plugin-process';
 import { open, Command } from '@tauri-apps/plugin-shell';
 import { type } from '@tauri-apps/plugin-os';
@@ -162,6 +162,45 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                 <div className="space-y-6 overflow-y-auto pr-1 custom-scrollbar">
                     
+                    {/* Profile & Avatar Settings */}
+                    {authData && (
+                        <div className="space-y-3 relative z-20">
+                            <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.profile', 'Profil')}</h3>
+                            <div className="p-4 bg-black/20 border border-white/10 rounded-xl space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5">
+                                        {localSettings.avatarUrl ? (
+                                            <img src={localSettings.avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full rounded-full bg-[#1e1e1e] flex items-center justify-center text-xl font-bold text-white">
+                                                {authData.username.substring(0, 2).toUpperCase()}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                         <label className="text-xs text-gray-400 block mb-1">URL de l&apos;avatar</label>
+                                         <input 
+                                            type="text" 
+                                            placeholder="https://..." 
+                                            value={localSettings.avatarUrl || ''}
+                                            onChange={(e) => handleUpdate({ ...localSettings, avatarUrl: e.target.value })}
+                                            onBlur={() => {
+                                                // Sync with KeyAuth cloud var when saving settings
+                                                if (keyAuthService.isAuthenticated) {
+                                                    keyAuthService.loadUserData().then(res => {
+                                                        const currentData = res.data || {};
+                                                        keyAuthService.saveUserData({ ...currentData, avatarUrl: localSettings.avatarUrl });
+                                                    });
+                                                }
+                                            }}
+                                            className="w-full bg-[#1e1e1e] border border-white/10 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                                         />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Language */}
                     <div className="space-y-3 relative z-20">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.language')}</h3>
@@ -203,6 +242,23 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     </div>
                                 </>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Writing Assistance */}
+                    <div className="space-y-3 relative z-20">
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.writing', 'Rédaction')}</h3>
+                        <div className="p-3 bg-black/20 border border-white/10 rounded-lg flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-200">{t('settings.enable_correction', "Correcteur d'orthographe")}</span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={localSettings.enableCorrection !== false}
+                                    onChange={(e) => handleUpdate({ ...localSettings, enableCorrection: e.target.checked })}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                            </label>
                         </div>
                     </div>
 
@@ -283,6 +339,83 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         </p>
                     </div>
 
+                    {/* Cloud Sync */}
+                    <div className="space-y-3">
+                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.cloud_sync_title', 'Synchronisation Cloud')}</h3>
+                         <div className="bg-black/20 rounded-lg p-3 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Cloud className="w-5 h-5 text-blue-400" />
+                                    <span className="text-sm font-medium text-gray-200">{t('settings.cloud_sync_toggle', 'Activer la synchronisation')}</span>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={localSettings.cloudSync !== false}
+                                        onChange={async (e) => {
+                                            const enabled = e.target.checked;
+                                            handleUpdate({ ...localSettings, cloudSync: enabled });
+                                            
+                                            // Handle sync & restart
+                                            if (window.confirm("L'application va synchroniser vos données et redémarrer pour appliquer les changements. Voulez-vous continuer ?")) {
+                                                 // Force save local first just in case
+                                                 if (keyAuthService.isAuthenticated && enabled) {
+                                                     const notes = JSON.parse(localStorage.getItem('fiip-notes') || '[]');
+                                                     await keyAuthService.saveUserData({ notes: notes }); // Sync notes now
+                                                 }
+                                                 localStorage.setItem('fiip-settings', JSON.stringify({ ...localSettings, cloudSync: enabled }));
+                                                 try {
+                                                     await relaunch();
+                                                 } catch (err) {
+                                                     alert("Redémarrage échoué: " + err);
+                                                 }
+                                            } else {
+                                                // Revert toggle if cancelled
+                                                handleUpdate({ ...localSettings, cloudSync: !enabled });
+                                            }
+                                        }}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+
+                            {localSettings.cloudSync !== false && (
+                                <div className="mt-2 pt-2 border-t border-white/5 space-y-2 animate-in fade-in slide-in-from-top-1">
+                                    <p className="text-[10px] text-gray-400 px-1 mb-2 font-medium">Choisir les éléments à synchroniser :</p>
+                                    
+                                    {[
+                                        { key: 'notes', label: 'Mes Notes (Docs, Mémos)' },
+                                        { key: 'ai', label: 'IA (Modèles, Clés API)' },
+                                        { key: 'appearance', label: 'Apparence (Thème, Effets)' },
+                                        { key: 'language', label: 'Langue' },
+                                        { key: 'general', label: 'Général (Sons, Préférences)' }
+                                    ].map(item => (
+                                        <div key={item.key} className="flex items-center justify-between px-1 hover:bg-white/5 rounded py-1 transition-colors">
+                                            <span className="text-xs text-gray-300">{item.label}</span>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={localSettings.syncPreferences?.[item.key] !== false}
+                                                onChange={(e) => handleUpdate({ 
+                                                    ...localSettings, 
+                                                    syncPreferences: { 
+                                                        ...(localSettings.syncPreferences || { notes: true, ai: true, appearance: true, language: true, general: true }), 
+                                                        [item.key]: e.target.checked 
+                                                    }
+                                                })}
+                                                className="accent-blue-600 w-3.5 h-3.5 rounded bg-gray-700 border-gray-600 cursor-pointer"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <p className="text-[10px] text-gray-400 px-1 pt-1 border-t border-white/5 mt-1">
+                                {t('settings.cloud_sync_desc', "Synchronise vos notes avec le cloud à chaque démarrage.")}
+                            </p>
+                         </div>
+                    </div>
+
                     {/* Window Effects */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.window_effects_title')}</h3>
@@ -308,6 +441,34 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                     {/* Audio & Media */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.audio_media_title')}</h3>
+
+                        {/* Sound Effects Toggles */}
+                        <div className="bg-black/20 rounded-lg p-3 space-y-3 mb-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-gray-200">{t('settings.app_sounds', "Sons de l'interface")}</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={localSettings.appSound !== false}
+                                        onChange={(e) => handleUpdate({ ...localSettings, appSound: e.target.checked })}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                            <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                                <span className="text-sm font-medium text-gray-200">{t('settings.chat_sounds', "Notifications du chat")}</span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={localSettings.chatSound !== false}
+                                        onChange={(e) => handleUpdate({ ...localSettings, chatSound: e.target.checked })}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                        </div>
 
                         {/* Audio Input */}
                         <div>

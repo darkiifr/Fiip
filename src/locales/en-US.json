@@ -179,5 +179,24 @@
     "or_get": "Ou obtenir une licence",
     "trial_active": "Essai actif",
     "trial_expired": "Essai expiré"
+  },
+  "auth": {
+    "login_tab": "Login",
+    "register_tab": "Register",
+    "welcome_login": "Welcome to Fiip",
+    "create_account": "Create Account",
+    "username": "Username",
+    "password": "Password",
+    "license": "License Key",
+    "email": "Email (Optional)",
+    "login_btn": "Sign In",
+    "register_btn": "Create Account",
+    "cancel": "Cancel",
+    "success_login": "Login successful!",
+    "success_register": "Registration successful! You can now login.",
+    "error_generic": "An error occurred.",
+    "username_placeholder": "Username",
+    "email_placeholder": "email@example.com",
+    "password_placeholder": "• • • • • • • •"
   }
 }

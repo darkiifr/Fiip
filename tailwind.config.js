@@ -9,6 +9,7 @@ export default {
         extend: {
             fontFamily: {
                 sans: [
+                    'Sora',
                     '-apple-system',
                     'BlinkMacSystemFont',
                     '"Segoe UI"',
@@ -17,6 +18,7 @@ export default {
                     'Arial',
                     'sans-serif',
                 ],
+                'sora': ['"Sora"', 'sans-serif'],
                 'dexter': ['"Inter"', 'sans-serif'],
                 'dexter-mono': ['"JetBrains Mono"', 'monospace'],
             },
@@ -30,8 +32,14 @@ export default {
                 'fade-in': 'fadeIn 0.3s ease-out forwards',
                 'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
                 'slide-in-right': 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                'loading-bar': 'loading-bar 1.5s ease-in-out infinite',
             },
             keyframes: {
+                'loading-bar': {
+                    '0%': { left: '-40%' },
+                    '50%': { left: '40%' },
+                    '100%': { left: '100%' },
+                },
                 fadeInUp: {
                     '0%': { opacity: '0', transform: 'translateY(10px)' },
                     '100%': { opacity: '1', transform: 'translateY(0)' },
