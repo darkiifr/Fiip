@@ -1,5 +1,37 @@
-import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
+import { writeTextFile, readTextFile, stat } from '@tauri-apps/plugin-fs';
 import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
+
+export async function calculateTotalUsage(notes) {
+    let totalSize = 0;
+    
+    if (!notes || !Array.isArray(notes)) return 0;
+
+    for (const note of notes) {
+        // Text content size (UTF-16 characters = 2 bytes usually, but simple length approximation)
+        totalSize += (note.title ? note.title.length : 0);
+        totalSize += (note.content ? note.content.length : 0);
+
+        if (note.attachments && Array.isArray(note.attachments)) {
+            for (const att of note.attachments) {
+                if (att.data) {
+                    if (att.data.startsWith('data:')) {
+                        // Base64 string: Length * 0.75 is roughly bytes
+                        totalSize += Math.ceil(att.data.length * 0.75); 
+                    } else if (typeof att.data === 'string' && !att.data.startsWith('http')) {
+                        // File path
+                        try {
+                            const fileStat = await stat(att.data);
+                            totalSize += fileStat.size;
+                        } catch (e) {
+                            // File might be missing, ignore size
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return totalSize;
+}
 
 // Export note as Markdown
 export async function exportNoteAsMarkdown(note) {

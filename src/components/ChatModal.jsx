@@ -178,7 +178,11 @@ export default function ChatModal({ isOpen, onClose }) {
             setNewMessage('');
             fetchMessages(); 
         } else {
-            setError(result.message);
+            if (result.message === "Chat channel not found") {
+                setError(t('chat.channel_not_found', "Erreur: Canal inexistant sur le serveur (Vérifiez KeyAuth)"));
+            } else {
+                setError(result.message);
+            }
         }
         setSending(false);
     };
@@ -469,7 +473,7 @@ export default function ChatModal({ isOpen, onClose }) {
                                         <div className="shadow-2xl rounded-lg overflow-hidden border border-[#202225]">
                                             <EmojiPicker 
                                                 theme={Theme.DARK} 
-                                                emojiStyle={EmojiStyle.APPLE}
+                                                emojiStyle={EmojiStyle.NATIVE}
                                                 onEmojiClick={onEmojiClick}
                                                 width={350}
                                                 height={400}

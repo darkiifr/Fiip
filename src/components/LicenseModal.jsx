@@ -14,7 +14,7 @@ function FeatureItem({ label, active, icon: Icon }) {
     )
 }
 
-export default function LicenseModal({ isOpen, onClose }) {
+export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
   const { t } = useTranslation();
   const [licenseKey, setLicenseKey] = useState('');
   const [loading, setLoading] = useState(false);
@@ -165,7 +165,14 @@ export default function LicenseModal({ isOpen, onClose }) {
                   </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-gray-800">
+              <div className="flex justify-end pt-4 border-t border-gray-800 gap-3">
+                <button
+                    onClick={onOpenAuth}
+                    className="px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors font-medium flex items-center gap-2"
+                >
+                    <Globe className="w-4 h-4" />
+                    {t('license.manage_account', 'Gérer le compte')}
+                </button>
                 <button
                   onClick={handleLogout}
                   className="px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors font-medium"
@@ -177,22 +184,19 @@ export default function LicenseModal({ isOpen, onClose }) {
           ) : (
             // Inactive State
             <div className="space-y-4">
-              {!authData && (
-                 <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-center gap-2 text-sm text-red-200 mb-2">
-                     <AlertCircle className="w-4 h-4 shrink-0" />
-                     <span>{t('license.required_desc', 'Une licence active ou une période d\'essai est nécessaire pour utiliser Fiip.')}</span>
-                 </div>
-              )}
-
-
               <div className="text-center space-y-2 mb-6">
                 <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-purple-500/20 shadow-lg shadow-purple-900/10">
                   <Key className="w-8 h-8 text-purple-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-white tracking-tight">{t('license.enter_key', 'Activer votre licence')}</h2>
-                <p className="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
-                  {t('license.unlock_desc', "Débloquez l'IA illimitée et les outils avancés pour booster votre productivité.")}
-                </p>
+                <div className="flex flex-col gap-2 max-w-xs mx-auto">
+                    <button onClick={onOpenAuth} className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1.5 py-1">
+                        <span>{t('license.login_with_account', 'Se connecter avec un compte')}</span>
+                    </button>
+                    <p className="text-sm text-gray-400 leading-relaxed">
+                    {t('license.unlock_desc', "Débloquez l'IA illimitée et les outils avancés pour booster votre productivité.")}
+                    </p>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -224,60 +228,23 @@ export default function LicenseModal({ isOpen, onClose }) {
                   </div>
               )}
 
-              <div className="space-y-5 bg-gray-900/30 p-6 rounded-xl border border-gray-800/50">
-                <div className="space-y-2">
-                  <label className="text-xs text-gray-500 uppercase font-bold tracking-wider ml-1">{t('license.product_key', 'Clé produit')}</label>
-                  <input 
-                    type="text" 
-                    placeholder={t('license.key_placeholder', 'XXXX-XXXX-XXXX-XXXX')}
-                    value={licenseKey}
-                    onChange={(e) => setLicenseKey(e.target.value)}
-                    className="w-full h-12 bg-black/40 border border-gray-700/80 rounded-lg px-4 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all font-mono uppercase tracking-wide"
-                  />
-                </div>
-
-                {status && (
-                  <div className={`p-3 rounded-lg text-sm flex items-start gap-2 animate-in fade-in slide-in-from-top-2 ${
-                    status.success ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                  }`}>
-                    {status.success ? <Check className="w-4 h-4 mt-0.5 shrink-0" /> : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />}
-                    <span>{status.message}</span>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleActivate}
-                  disabled={loading || !licenseKey}
-                  className="w-full h-11 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 active:scale-[0.98]"
-                >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : t('license.activate_now', 'Activer maintenant')}
-                </button>
-
-                <div className="relative py-2">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-gray-800" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-[#1a1b26] px-3 text-gray-500 font-medium">{t('license.or_get', 'Ou obtenir une licence')}</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => open('https://vinsstudio.mysellauth.com/')}
-                      className="h-10 bg-[#2b2d3b] hover:bg-[#343746] text-gray-300 hover:text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 border border-gray-700/50 hover:border-gray-600 active:scale-[0.98]"
-                    >
-                      <Globe className="w-4 h-4 text-blue-400" />
-                      Website
-                    </button>
-                    <button
-                      onClick={() => open('https://discord.gg/9T6BBERXTP')}
-                      className="h-10 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 text-gray-300 hover:text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 border border-[#5865F2]/20 hover:border-[#5865F2]/40 active:scale-[0.98]"
-                    >
-                      <MessageCircle className="w-4 h-4 text-[#5865F2]" />
-                      Discord
-                    </button>
-                </div>
+              <div className="space-y-3 bg-gray-900/30 p-6 rounded-xl border border-gray-800/50 text-center">
+                  <p className="text-sm text-gray-400 mb-2">
+                    {t('license.auth_required_desc', 'Pour activer votre licence, vous devez vous connecter ou créer un compte. Cela permet de sauvegarder vos données et de synchroniser vos préférences.')}
+                  </p>
+                  <button
+                    onClick={onOpenAuth}
+                    className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Globe className="w-4 h-4" />
+                    {t('license.login_or_register', 'Se connecter / S\'inscrire')}
+                  </button>
+                  <button 
+                    onClick={handleBuy}
+                    className="w-full py-2 bg-transparent hover:bg-white/5 text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg text-sm transition-colors"
+                  >
+                    {t('license.get_license', 'OU OBTENIR UNE LICENCE')}
+                  </button>
               </div>
             </div>
           )}

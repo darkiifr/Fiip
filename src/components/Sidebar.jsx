@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Trash2, Settings, Bot, Download, Upload, Key, Lock, MessageCircle, UserCircle } from 'lucide-react';
+import { Search, Plus, Trash2, Settings, Bot, Download, Upload, Key, Lock, MessageCircle, UserCircle, ShieldCheck } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exportNoteAsMarkdown, importMarkdownFile } from '../services/fileManager';
 import { useTranslation } from 'react-i18next';
@@ -246,11 +246,20 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
                     </button>
 
                     <button
-                        onClick={onOpenLicense}
-                        className="p-2 text-orange-400 hover:text-orange-300 transition-all duration-200 rounded-lg hover:bg-orange-900/20 active:scale-95"
-                        title={t('license.title', 'Licence')}
+                        onClick={() => {
+                            if (!keyAuthService.isAuthenticated) {
+                                onOpenLicense();
+                            } else {
+                                // Already licensed/authenticated
+                                // Optionally show a small notification or just do nothing as requested
+                                // alert(t('license.already_active', 'Licence active'));
+                                onOpenAuth(); // Show profile instead
+                            }
+                        }}
+                        className={`p-2 transition-all duration-200 rounded-lg active:scale-95 ${keyAuthService.isAuthenticated ? 'text-green-500 hover:text-green-400 hover:bg-green-900/20' : 'text-orange-400 hover:text-orange-300 hover:bg-orange-900/20'}`}
+                        title={keyAuthService.isAuthenticated ? "Licence Active" : t('sidebar.license', 'Licence')}
                     >
-                        <Key className="w-5 h-5" />
+                        {keyAuthService.isAuthenticated ? <ShieldCheck className="w-5 h-5" /> : <Key className="w-5 h-5" />}
                     </button>
 
                     <button

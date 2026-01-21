@@ -209,7 +209,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
                   </div>
 
                   <div className="text-[#949BA4] text-xs mt-4">
-                    Ce profil est lié à votre clé de licence Fiip. Les modification du profil public n&apos;affectent pas votre compte KeyAuth.
+                    Ce profil est lié à votre clé de licence Fiip.
                   </div>
                </div>
             )}

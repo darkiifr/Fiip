@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight, ChevronDown, Globe, Cloud } from 'lucide-react';
+import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight, ChevronDown, Globe, Cloud, Upload } from 'lucide-react';
 import { relaunch, exit } from '@tauri-apps/plugin-process';
 import { open, Command } from '@tauri-apps/plugin-shell';
 import { type } from '@tauri-apps/plugin-os';
@@ -10,7 +10,7 @@ import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
 import { ShieldCheck, ShieldAlert, Key } from 'lucide-react';
 
-export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdateSettings }) {
+export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdateSettings, storageUsage }) {
     const { t, i18n } = useTranslation();
     const [localSettings, setLocalSettings] = useState(settings);
     const [hasChanges, setHasChanges] = useState(false);
@@ -24,6 +24,17 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
     const [updateInfo, setUpdateInfo] = useState(null);
     const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
     const [authData, setAuthData] = useState(null);
+    const fileInputRef = useRef(null);
+
+    // Helper for formatting bytes
+    const formatBytes = (bytes, decimals = 2) => {
+        if (!+bytes) return '0 Octets';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Octets', 'Ko', 'Mo', 'Go', 'To'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    };
 
     const languages = [
         { code: 'fr', label: 'Français', flag: '🇫🇷' },
@@ -87,7 +98,24 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
             originalSettingsRef.current = settings;
             setLocalSettings(settings);
             setHasChanges(false);
-            setAuthData(keyAuthService.isAuthenticated ? keyAuthService.userData : null);
+            
+            // Construct Auth Data with Trial Logic
+            const authInfo = keyAuthService.isAuthenticated ? { ...keyAuthService.userData } : {};
+            if (keyAuthService.isTrialActive) {
+                authInfo.isTrialActive = true;
+                authInfo.subscription = 'Essai Gratuit';
+                authInfo.expiry = keyAuthService.trialExpiry;
+                authInfo.username = authInfo.username || 'Invité'; 
+            } else if (!keyAuthService.isAuthenticated) {
+                // Not authenticated and not trial
+                setAuthData(null);
+            }
+            
+            if (keyAuthService.isAuthenticated || keyAuthService.isTrialActive) {
+                setAuthData(authInfo);
+            } else {
+                setAuthData(null);
+            }
 
             // Load Audio Devices
             if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
@@ -148,6 +176,32 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
         }
     };
 
+    const handleAvatarUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Limit size to 2MB for avatar
+        if (file.size > 2 * 1024 * 1024) {
+            alert(t('settings.avatar_too_large', "L'image est trop volumineuse (Max 2Mo)."));
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result;
+            handleUpdate({ ...localSettings, avatarUrl: base64 });
+            
+            // Sync immediately
+            if (keyAuthService.isAuthenticated) {
+                keyAuthService.loadUserData().then(res => {
+                    const currentData = res.data || {};
+                    keyAuthService.saveUserData({ ...currentData, avatarUrl: base64 });
+                });
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -178,23 +232,41 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         )}
                                     </div>
                                     <div className="flex-1">
-                                         <label className="text-xs text-gray-400 block mb-1">URL de l&apos;avatar</label>
+                                         <label className="text-xs text-gray-400 block mb-1">{t('settings.avatar_label', 'Avatar')}</label>
+                                         <div className="flex gap-2">
+                                             <button 
+                                                 onClick={() => fileInputRef.current?.click()}
+                                                 className="flex items-center gap-2 px-3 py-1.5 bg-[#1e1e1e] hover:bg-white/10 border border-white/10 rounded text-xs text-white transition-colors"
+                                             >
+                                                 <Upload className="w-3.5 h-3.5" />
+                                                 {t('settings.upload_avatar', 'Choisir une image')}
+                                             </button>
+                                             {localSettings.avatarUrl && (
+                                                 <button 
+                                                     onClick={() => {
+                                                         handleUpdate({ ...localSettings, avatarUrl: '' });
+                                                          if (keyAuthService.isAuthenticated) {
+                                                              keyAuthService.loadUserData().then(res => {
+                                                                  const currentData = res.data || {};
+                                                                  keyAuthService.saveUserData({ ...currentData, avatarUrl: '' });
+                                                              });
+                                                          }
+                                                     }}
+                                                     className="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors"
+                                                     title={t('settings.remove_avatar', 'Supprimer')}
+                                                 >
+                                                     <X className="w-3.5 h-3.5" />
+                                                 </button>
+                                             )}
+                                         </div>
                                          <input 
-                                            type="text" 
-                                            placeholder="https://..." 
-                                            value={localSettings.avatarUrl || ''}
-                                            onChange={(e) => handleUpdate({ ...localSettings, avatarUrl: e.target.value })}
-                                            onBlur={() => {
-                                                // Sync with KeyAuth cloud var when saving settings
-                                                if (keyAuthService.isAuthenticated) {
-                                                    keyAuthService.loadUserData().then(res => {
-                                                        const currentData = res.data || {};
-                                                        keyAuthService.saveUserData({ ...currentData, avatarUrl: localSettings.avatarUrl });
-                                                    });
-                                                }
-                                            }}
-                                            className="w-full bg-[#1e1e1e] border border-white/10 rounded px-2 py-1.5 text-xs text-white focus:border-blue-500 outline-none"
+                                            type="file" 
+                                            ref={fileInputRef}
+                                            onChange={handleAvatarUpload}
+                                            accept="image/*"
+                                            className="hidden"
                                          />
+                                         <p className="text-[10px] text-gray-500 mt-1">Max 2 Mo. Formats : JPG, PNG, GIF</p>
                                     </div>
                                 </div>
                             </div>
@@ -279,7 +351,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     {authData ? (
                                         <div className="mt-1 space-y-0.5">
                                             <p className="text-xs text-gray-400">
-                                                {t('license.level', 'Niveau')}: <span className="text-gray-200 font-medium capitalize">{authData.subscription || 'Standard'}</span>
+                                                {t('license.level', 'Niveau')}: <span className="text-gray-200 font-medium capitalize">{authData.subscription || (authData.isTrialActive ? 'Essai' : 'Standard')}</span>
                                             </p>
                                             {authData.expiry && (
                                                 <p className="text-xs text-gray-400">
@@ -294,6 +366,27 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     )}
                                 </div>
                             </div>
+
+                            {/* Storage Usage Bar */}
+                            {storageUsage && !authData?.isTrialActive && (
+                                <div className="mt-2 pt-3 border-t border-white/5">
+                                    <div className="flex justify-between items-center mb-1.5">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                            <Cloud className="w-3 h-3" />
+                                            {t('settings.storage_usage', 'Stockage Cloud')}
+                                        </span>
+                                        <span className={`text-[10px] font-mono ${storageUsage.percent > 90 ? 'text-red-400' : 'text-gray-400'}`}>
+                                            {formatBytes(storageUsage.used)} / {formatBytes(storageUsage.limit)}
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
+                                        <div 
+                                            className={`h-full rounded-full transition-all duration-500 ${storageUsage.percent > 90 ? 'bg-red-500' : 'bg-blue-500'}`}
+                                            style={{ width: `${Math.min(storageUsage.percent, 100)}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

@@ -32,11 +32,54 @@
     "move_left": "Déplacer à gauche",
     "move_right": "Déplacer à droite",
     "delete": "Supprimer",
+    "save_error": "Erreur de sauvegarde",
+    "loading": "Chargement...",
     "click_to_open": "Cliquer pour ouvrir",
     "loading_error": "Erreur de chargement",
     "size": "Taille",
     "pdf_document": "Document PDF",
     "download": "Télécharger"
+  },
+  "auth": {
+    "login_title": "Connexion",
+    "register_title": "Inscription",
+    "username": "Nom d'utilisateur",
+    "password": "Mot de passe",
+    "confirm_password": "Confirmer le mot de passe",
+    "license_key": "Clé de Licence",
+    "email": "Email (Optionnel)",
+    "login_action": "Se connecter",
+    "register_action": "Créer un compte",
+    "no_account": "Pas encore de compte ? S'inscrire",
+    "has_account": "Déjà un compte ? Se connecter",
+    "success_login": "Connexion réussie",
+    "success_register": "Inscription réussie",
+    "error_match": "Les mots de passe ne correspondent pas"
+  },
+  "license": {
+    "trial_active": "Essai Gratuit",
+    "active_plan": "Licence Active",
+    "expiry": "Expire le",
+    "level": "Niveau",
+    "features_title": "Fonctionnalités Incluses",
+    "feature_notes": "Fiip - Prise de notes & Organisation",
+    "feature_ai": "Intelligence Artificielle Premium",
+    "feature_expert": "Mode Expert & Outils Avancés",
+    "manage_account": "Gérer le compte",
+    "logout": "Se déconnecter",
+    "enter_key": "Activer votre licence",
+    "login_with_account": "Se connecter avec un compte",
+    "unlock_desc": "Débloquez l'IA illimitée et les outils avancés pour booster votre productivité.",
+    "trial_title": "Essai Gratuit",
+    "trial_desc": "Profitez de 15 jours d'essai pour découvrir toutes les fonctionnalités de base.",
+    "start_trial": "Démarrer l'essai (15 jours)",
+    "product_key": "Clé produit",
+    "key_placeholder": "XXXX-XXXX-XXXX-XXXX",
+    "activate": "Activer maintenant",
+    "get_license": "OU OBTENIR UNE LICENCE",
+    "website": "Site Web",
+    "discord": "Discord",
+    "license_used_error": "Cette clé est déjà liée à un utilisateur. Veuillez utiliser le bouton 'Se connecter avec un compte'."
   },
   "dexter": {
     "welcome": "Bonjour. Je suis Dexter. Prêt à coder ou prendre des notes.",
@@ -90,6 +133,12 @@
   },
   "settings": {
     "title": "Paramètres",
+    "storage_usage": "Stockage Cloud",
+    "profile": "Profil",
+    "avatar_label": "Avatar",
+    "upload_avatar": "Choisir une image",
+    "remove_avatar": "Supprimer",
+    "avatar_too_large": "L'image est trop volumineuse (Max 2Mo).",
     "appearance": "Apparence",
     "dark_mode": "Mode Sombre",
     "large_text": "Texte Large",
@@ -228,5 +277,8 @@
   },
   "date": {
     "today": "Aujourd'hui"
+  },
+  "storage": {
+      "limit_exceeded": "Votre espace de stockage est plein. Mettez à niveau votre abonnement pour continuer."
   }
 }

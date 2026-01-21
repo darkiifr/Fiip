@@ -181,7 +181,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
     );
 };
 
-export default function Editor({ note, onUpdateNote, onCreateNote, settings, onOpenLicense }) {
+export default function Editor({ note, onUpdateNote, onCreateNote, settings, onOpenLicense, checkStorageLimit }) {
     const { t, i18n } = useTranslation();
     const [isGenerating, setIsGenerating] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
@@ -603,6 +603,15 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
         
         try {
             // Save to disk to avoid localStorage quota and performance issues
+            // Check limits first
+            if (checkStorageLimit) {
+                const canAdd = await checkStorageLimit(file.size);
+                if (!canAdd) {
+                    alert(t('storage.limit_exceeded', "Espace de stockage insuffisant pour votre abonnement."));
+                    return;
+                }
+            }
+
             const filePath = await saveAttachmentToDisk(file);
             
             if (file.type.startsWith('image/')) {
@@ -694,6 +703,32 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
                     reader.onloadend = () => {
                         // Use noteRef.current to get the latest note state
                         const currentNote = noteRef.current;
+                        
+                        // Check storage limit for audio blob (approx size)
+                        if (checkStorageLimit) {
+                             // Blob size is available in blob.size
+                             checkStorageLimit(blob.size).then(canAdd => {
+                                 if (!canAdd) {
+                                     alert(t('storage.limit_exceeded', "Espace de stockage insuffisant pour votre abonnement."));
+                                     return;
+                                 }
+                                 
+                                 const newAttachment = {
+                                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                                    type: 'audio',
+                                    data: reader.result,
+                                    name: `Memo ${new Date().toLocaleTimeString()}`,
+                                    width: undefined
+                                };
+                                const attachments = currentNote.attachments || [];
+                                const updatedNote = { ...currentNote, attachments: [...attachments, newAttachment], updatedAt: Date.now() };
+                                
+                                noteRef.current = updatedNote;
+                                onUpdateNote(updatedNote);
+                             });
+                             return;
+                        }
+
                         const newAttachment = {
                             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                             type: 'audio',

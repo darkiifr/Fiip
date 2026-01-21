@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { FileText } from 'lucide-react';
 import { keyAuthService } from "./services/keyauth";
 import { soundManager } from "./services/soundManager";
+import { calculateTotalUsage } from "./services/fileManager";
 
 // Helper to convert buffer to base64
 function arrayBufferToBase64(buffer) {
@@ -74,6 +75,18 @@ function App() {
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [storageUsage, setStorageUsage] = useState({ used: 0, limit: 0, percent: 0 });
+
+  // Update storage info whenever notes change or modal opens
+  useEffect(() => {
+      const updateStorage = async () => {
+          const used = await calculateTotalUsage(notes);
+          const limit = keyAuthService.getStorageLimit();
+          const percent = limit > 0 ? (used / limit) * 100 : 0;
+          setStorageUsage({ used, limit, percent });
+      };
+      updateStorage();
+  }, [notes, isSettingsOpen]);
 
   // Safety Net: Force app to load after 7 seconds no matter what
   useEffect(() => {
@@ -133,15 +146,29 @@ function App() {
             setAppLoading({ isLoading: true, status: "Vérification de la licence..." });
             // Force check subscription status
             try {
+                // If not authenticated, try to restore session first (handled by init)
+                // If still not authenticated and not in trial -> show license modal
                 if (!keyAuthService.checkSubscription()) {
                     setIsLicenseModalOpen(true);
+                     // If it's a critical license check, you might want to force the modal and prevent closing
+                     // until a valid key is provided.
                 }
+
+                // Verify specific hardware/session validity if needed
+                // E.g. re-login silently if session expired but key is stored?
+                // init() handles restoreSession() which calls login().
+                
+                // If logged in, double check user status just to be sure
+                if (keyAuthService.isAuthenticated) {
+                     // Check if hwid is mismatch? (Handled by server usually)
+                     // Refresh user data is handled during login
+                     
+                     // Optional: Re-fetch data to ensure up to date license
+                     // But we just logged in via init->restoreSession, so it should be fresh.
+                }
+                
             } catch (e) {
                 console.warn("Subscription check invalid", e);
-                // Fail safe open license modal if needed, or default to free? 
-                // keyAuthService might be uninitialized, so checkSubscription might crash if not robust.
-                // Assuming checkSubscription is safe or we caught it. 
-                // If init failed, isAuthenticated is false, checkSubscription should return false.
                 setIsLicenseModalOpen(true); 
             }
             
@@ -168,6 +195,12 @@ function App() {
 
   // Cloud Sync Logic
   const handleCloudSync = async () => {
+      // Security check: Never sync if disabled in settings
+      if (settings.cloudSync === false) {
+          console.log("Cloud sync disabled by user.");
+          return;
+      }
+
       // Check portability (don't sync if portable)
       try {
           const isPortable = await invoke('is_portable');
@@ -363,10 +396,17 @@ function App() {
     return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
-  // Persist Notes
+  // Persist Notes & Cloud Sync
   useEffect(() => {
     localStorage.setItem("fiip-notes", JSON.stringify(notes));
-  }, [notes]);
+    // Trigger Cloud Sync (debounced)
+    if (settings.cloudSync) {
+        const timeoutId = setTimeout(() => {
+            handleCloudSync();
+        }, 3000); // Sync after 3 seconds of inactivity
+        return () => clearTimeout(timeoutId);
+    }
+  }, [notes, settings.cloudSync]); // Re-run when notes change
 
   // Close Dexter if AI is disabled
   useEffect(() => {
@@ -429,6 +469,20 @@ function App() {
     setNotes((prevNotes) => prevNotes.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
   };
 
+  const checkStorageLimit = async (additionalBytes = 0) => {
+      const limit = keyAuthService.getStorageLimit();
+      if (limit === 0) return true; // No limit or not logged in (handled elsewhere) - But wait, if not logged in, usually free tier? Assuming unlimited or restricted elsewhere.
+                                    // User said "par abonnement", implying if you have sub you have limit. If no sub, maybe block?
+                                    // But license modal blocks usage if no license. So we are always licensed/trial here.
+      
+      const currentUsage = await calculateTotalUsage(notes);
+      
+      if (currentUsage + additionalBytes > limit) {
+          return false;
+      }
+      return true;
+  };
+
   const handleDeleteNote = () => {
     if (!selectedNoteId) return;
     const newNotes = notes.filter((n) => n.id !== selectedNoteId);
@@ -463,6 +517,7 @@ function App() {
             onCreateNote={handleCreateNote}
             settings={settings}
             onOpenLicense={() => setIsLicenseModalOpen(true)}
+            checkStorageLimit={checkStorageLimit}
           />
         ) : (
             <div className="flex-1 h-full flex items-center justify-center text-gray-500 select-none">
@@ -477,10 +532,19 @@ function App() {
           onClose={() => setIsSettingsOpen(false)}
           settings={settings}
           onUpdateSettings={setSettings}
+          storageUsage={storageUsage}
         />
         <LicenseModal
             isOpen={isLicenseModalOpen}
-            onClose={() => setIsLicenseModalOpen(false)}
+            onClose={() => {
+              if (keyAuthService.isAuthenticated || keyAuthService.isTrialActive) {
+                setIsLicenseModalOpen(false);
+              }
+            }}
+            onOpenAuth={() => {
+                setIsLicenseModalOpen(false);
+                setIsAuthModalOpen(true);
+            }}
         />
         <ChatModal 
             isOpen={isChatModalOpen}
@@ -488,7 +552,13 @@ function App() {
         />
         <AuthModal
             isOpen={isAuthModalOpen}
-            onClose={() => setIsAuthModalOpen(false)}
+            onClose={() => {
+              setIsAuthModalOpen(false);
+              // If not authenticated and not in trial mode, show license modal again
+              if (!keyAuthService.isAuthenticated && !keyAuthService.isTrialActive) {
+                setIsLicenseModalOpen(true);
+              }
+            }}
             onLoginSuccess={handleLoginSuccess}
         />
         <Dexter

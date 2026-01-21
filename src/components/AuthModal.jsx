@@ -140,7 +140,14 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                                     <User className="w-6 h-6 text-white" />
                                 </div>
                             </div>
-                            <h2 className="text-xl font-bold text-white mb-1">{userData?.username}</h2>
+                            <h2 className="text-xl font-bold text-white mb-1 px-4 text-center break-all">
+                                {(userData?.username && userData.username.length > 25 && userData.username.toUpperCase().startsWith('KEYAUTH-')) 
+                                    ? "Utilisateur Licence"
+                                    : userData?.username}
+                             </h2>
+                            <p className="text-[10px] text-gray-500 font-mono mb-2 truncate max-w-[200px] opacity-60">
+                                {userData?.username}
+                            </p>
                             <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-medium uppercase tracking-wide">
                                 {t('auth.account_active', 'Compte Actif')}
                             </span>
@@ -175,18 +182,44 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                                         </div>
                                     )}
                                     
-                                    {userData?.subscriptions?.map((sub, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[#141517] border border-gray-800">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-purple-300 capitalize">{sub.subscription}</span>
-                                                <span className="text-[10px] text-gray-500">Niveau {sub.level}</span>
+                                    {userData?.subscriptions?.map((sub, idx) => {
+                                        // Format Expiry
+                                        let expiryDate = sub.expiry;
+                                        if (!isNaN(sub.expiry) && sub.expiry > 2000000000) { // Likely timestamp in seconds
+                                            // 2084433960 is year 2036, so fits seconds.
+                                            // Handle potential ms vs s
+                                            // If < 100000000000 (100 billion), it's likely seconds (valid until year 5000)
+                                            expiryDate = new Date(parseInt(sub.expiry) * 1000).toLocaleDateString();
+                                        } else if (!isNaN(sub.expiry)) {
+                                             // older timestamps
+                                             expiryDate = new Date(parseInt(sub.expiry) * 1000).toLocaleDateString();
+                                        }
+
+                                        // Map Level
+                                        const getLevelLabel = (lvl) => {
+                                            const l = parseFloat(lvl);
+                                            if (l >= 4) return "Dev";
+                                            if (l >= 3) return "Pro";
+                                            if (l >= 2) return "AI"; // Ou 1.5 si c'était le cas avant
+                                            if (l >= 1) return "Basic";
+                                            return "Inconnu";
+                                        };
+
+                                        return (
+                                            <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[#141517] border border-gray-800">
+                                                <div className="flex flex-col items-start pr-3">
+                                                    <span className="text-sm font-medium text-purple-300 capitalize text-left">{sub.subscription || "Licence"}</span>
+                                                    <span className="text-[10px] text-gray-500">
+                                                        Niveau {sub.level} ({getLevelLabel(sub.level)})
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 px-2 py-1 bg-green-900/20 rounded border border-green-900/30 shrink-0">
+                                                    <Calendar className="w-3 h-3 text-green-500" />
+                                                    <span className="text-[10px] text-green-400 font-mono">{expiryDate}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-green-900/20 rounded border border-green-900/30">
-                                                <Calendar className="w-3 h-3 text-green-500" />
-                                                <span className="text-[10px] text-green-400">{sub.expiry}</span>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {(!userData?.subscriptions || userData.subscriptions.length === 0) && !keyAuthService.isTrialActive && (
                                         <div className="text-center py-4 text-xs text-gray-500 italic border border-dashed border-gray-800 rounded-lg">
                                             Aucune licence active

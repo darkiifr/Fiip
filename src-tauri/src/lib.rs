@@ -54,6 +54,33 @@ fn is_portable() -> bool {
     false
 }
 
+#[tauri::command]
+fn get_hwid() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        use std::os::windows::process::CommandExt;
+        
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let output = Command::new("powershell")
+            .args(&["-NoProfile", "-Command", "(Get-WmiObject -Class Win32_ComputerSystemProduct).UUID"])
+            .creation_flags(CREATE_NO_WINDOW) 
+            .output()
+            .map_err(|e| e.to_string())?;
+            
+        let uuid = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if uuid.is_empty() {
+             return Err("Failed to get HWID".to_string());
+        }
+        Ok(uuid)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok("UNSUPPORTED_PLATFORM".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -66,7 +93,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable])
+        .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, get_hwid])
         .setup(|app| {
             use tauri::{WebviewUrl, WebviewWindowBuilder};
 

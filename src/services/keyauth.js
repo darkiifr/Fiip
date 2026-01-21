@@ -1,6 +1,8 @@
 
 // Configuration KeyAuth - À REMPLACER PAR VOS INFORMATIONS
 // Les informations sont chargées depuis les variables d'environnement (.env) pour la sécurité
+import { invoke } from '@tauri-apps/api/core';
+
 const KA_CONFIG = {
     name: import.meta.env.VITE_KEYAUTH_NAME, // Nom de votre application
     ownerid: import.meta.env.VITE_KEYAUTH_OWNERID, // Owner ID
@@ -16,17 +18,36 @@ export const SUBSCRIPTION_LEVELS = {
     DEV: 4
 };
 
+export const STORAGE_LIMITS = {
+    BASIC: 15 * 1024 * 1024 * 1024, // 15 GB
+    PRO: 50 * 1024 * 1024 * 1024,   // 50 GB
+    DEV: 500 * 1024 * 1024 * 1024   // 500 GB
+};
+
 class KeyAuthService {
     constructor() {
         this.sessionid = null;
         this.isAuthenticated = false;
         this.userData = null;
+        this.currentPassword = null; // Store password in memory for re-auth
         this.initialized = false;
         this.currentLevel = 0;
+        this.hwid = null;
         
         // Trial State
         this.isTrialActive = false;
         this.trialExpiry = null;
+    }
+
+    async _fetchHWID() {
+        if (this.hwid) return;
+        try {
+            this.hwid = await invoke('get_hwid');
+            console.log("HWID:", this.hwid);
+        } catch (e) {
+            console.error("Failed to get HWID:", e);
+            this.hwid = "UNKNOWN";
+        }
     }
 
     /**
@@ -36,29 +57,99 @@ class KeyAuthService {
         // Restore trial first
         this._restoreTrial();
 
-        if (this.initialized) return;
+        // Fetch HWID
+        await this._fetchHWID(); // Ensure HWID is available
+
+        if (this.initialized && this.sessionid) return { success: true };
+        
+        if (this.initPromise) return this.initPromise;
+
+        this.initPromise = (async () => {
+            // Reset flag since we are attempting to init
+            this.initialized = false;
+
+            try {
+                const data = await this._request({
+                    type: 'init',
+                    name: KA_CONFIG.name,
+                    ownerid: KA_CONFIG.ownerid,
+                    ver: KA_CONFIG.version,
+                    hash: "null"
+                });
+
+                if (data.success) {
+                    this.sessionid = data.sessionid;
+                    this.initialized = true;
+                    await this._restoreSession();
+                    return { success: true, message: data.message };
+                } else {
+                    console.error("KeyAuth Init Failed:", data.message);
+                    // En mode dev, pour ne pas bloquer si pas configuré
+                    if (KA_CONFIG.ownerid === "YOUR_OWNER_ID") {
+                        console.warn("KeyAuth non configuré. Mode développement actif.");
+                    }
+                    return { success: false, message: data.message };
+                }
+            } catch (error) {
+                console.error("KeyAuth Init Error:", error);
+                return { success: false, message: error.message };
+            } finally {
+                this.initPromise = null;
+            }
+        })();
+
+        return this.initPromise;
+    }
+
+    /**
+     * Connexion avec nom d'utilisateur et mot de passe
+     * @param {string} username 
+     * @param {string} password 
+     */
+    async loginByUser(username, password) {
+        let initError = null;
+        if (!this.initialized || !this.sessionid) {
+            const initRes = await this.init();
+            if (!initRes.success) initError = initRes.message;
+        }
+        
+        // Check again if init succeeded
+        if (!this.sessionid) {
+            return { success: false, message: initError || "Erreur d'initialisation: Impossible de contacter le serveur d'authentification." };
+        }
 
         try {
             const data = await this._request({
-                type: 'init',
+                type: 'login',
+                username: username,
+                pass: password,
+                hwid: this.hwid,
+                sessionid: this.sessionid,
                 name: KA_CONFIG.name,
-                ownerid: KA_CONFIG.ownerid,
-                ver: KA_CONFIG.version
+                ownerid: KA_CONFIG.ownerid
             });
 
             if (data.success) {
-                this.sessionid = data.sessionid;
-                this.initialized = true;
-                this._restoreSession();
+                this.isAuthenticated = true;
+                this.userData = this._processUserData(data.info);
+                this.currentPassword = password; // Remember password
+                this.currentLevel = this._calculateLevel(this.userData);
+                
+                // Disable trial visual overrides if we are logged in with a real account
+                this.isTrialActive = false;
+                
+                // Save credentials for auto-login
+                this._saveUserCredentials(username, password);
+
+                // Sync Trial
+                this.syncTrialStatus();
+
+                return { success: true, message: data.message, info: data.info };
             } else {
-                console.error("KeyAuth Init Failed:", data.message);
-                // En mode dev, pour ne pas bloquer si pas configuré
-                if (KA_CONFIG.ownerid === "YOUR_OWNER_ID") {
-                    console.warn("KeyAuth non configuré. Mode développement actif.");
-                }
+                return { success: false, message: data.message };
             }
         } catch (error) {
-            console.error("KeyAuth Init Error:", error);
+            return { success: false, message: "Erreur de connexion serveur: " + error.message };
         }
     }
 
@@ -67,7 +158,16 @@ class KeyAuthService {
      * @param {string} key 
      */
     async login(key) {
-        if (!this.initialized) await this.init();
+        let initError = null;
+        if (!this.initialized || !this.sessionid) {
+            const initRes = await this.init();
+            if (!initRes.success) initError = initRes.message;
+        }
+
+        // Check again if init succeeded
+        if (!this.sessionid) {
+            return { success: false, message: initError || "Erreur d'initialisation: Impossible de contacter le serveur d'authentification." };
+        }
 
         // Si mode démo/dev sans config
         if (KA_CONFIG.ownerid === "YOUR_OWNER_ID") {
@@ -87,6 +187,7 @@ class KeyAuthService {
             const data = await this._request({
                 type: 'license',
                 key: key,
+                hwid: this.hwid,
                 sessionid: this.sessionid,
                 name: KA_CONFIG.name,
                 ownerid: KA_CONFIG.ownerid
@@ -94,9 +195,16 @@ class KeyAuthService {
 
             if (data.success) {
                 this.isAuthenticated = true;
-                this.userData = data.info;
-                this.currentLevel = this._calculateLevel(data.info);
+                this.userData = this._processUserData(data.info);
+                this.currentLevel = this._calculateLevel(this.userData);
                 this._saveSession(key);
+                
+                // Clear user credentials if switching to license-only mode
+                this._clearUserCredentials();
+                
+                // Disable trial visual overrides if we are logged in with a real license
+                this.isTrialActive = false;
+                
                 return { success: true, message: data.message, info: data.info };
             } else {
                 return { success: false, message: data.message };
@@ -104,6 +212,42 @@ class KeyAuthService {
         } catch (error) {
             return { success: false, message: "Erreur de connexion serveur: " + error.message };
         }
+    }
+
+    _processUserData(info) {
+        if (!info) return info;
+        
+        // Fix Username if it's a raw key (too long)
+        // KeyAuth often returns the license key as username for pure license logins
+        // We verify if username looks like a key (long, often capitalized)
+        if (info.username && info.username.length > 20 && info.username.includes('-')) {
+             // We can rename it for UI purposes, but keeping unique ID is good.
+             // Let's just create a displayName property we can use? 
+             // Or we just rely on UI to format it. 
+             // But actually, let's fix the subscriptions first.
+        }
+
+        if (info.subscriptions && Array.isArray(info.subscriptions)) {
+            info.subscriptions = info.subscriptions.map(sub => {
+                // Fix Level
+                if (sub.level === undefined || sub.level === null || sub.level === "") {
+                    // Start default fallback
+                    if (sub.subscription === "default" || sub.subscription === "Default") {
+                        sub.level = "1";
+                    }
+                }
+                
+                // Fix large int levels (timestamps)
+                const lvl = parseFloat(sub.level);
+                if (!isNaN(lvl) && lvl > 1000) {
+                     sub.level = "1";
+                }
+                
+                return sub;
+            });
+        }
+        
+        return info;
     }
 
     _calculateLevel(info) {
@@ -116,14 +260,19 @@ class KeyAuthService {
         // Handle subscriptions array
         if (info.subscriptions && Array.isArray(info.subscriptions)) {
             for (const sub of info.subscriptions) {
-                const lvl = parseFloat(sub.level);
+                let lvl = parseFloat(sub.level);
+                // Fix for weird timestamps appearing as level
+                if (lvl > 1000) lvl = 1; // Default fallback if level is obviously wrong
+
                 if (!isNaN(lvl) && lvl > maxLevel) maxLevel = lvl;
             }
         }
         
         // Fallback: check direct level property
         if (info.level !== undefined) {
-             const lvl = parseFloat(info.level);
+             let lvl = parseFloat(info.level);
+             if (lvl > 1000) lvl = 1; 
+
              if (!isNaN(lvl) && lvl > maxLevel) maxLevel = lvl;
         }
 
@@ -145,7 +294,7 @@ class KeyAuthService {
      * Trial ne donne pas accès à l'AI (Basic = 1)
      */
     hasAIAccess() {
-        return this.isAuthenticated && this.currentLevel >= 1.5;
+        return this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.AI;
     }
 
     /**
@@ -153,7 +302,7 @@ class KeyAuthService {
      * Trial ne donne pas accès Pro (Basic = 1)
      */
     hasProAccess() {
-        return this.isAuthenticated && this.currentLevel >= 2;
+        return this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.PRO;
     }
 
     getCurrentSubscriptionName() {
@@ -175,6 +324,24 @@ class KeyAuthService {
         }
         
         return subName;
+    }
+
+    /**
+     * Retourne la limite de stockage en octets selon l'abonnement
+     */
+    getStorageLimit() {
+        // En cas d'essai ou pas connecté (mais essai actif), on peut donner le niveau BASIC
+        if (this.isTrialActive) return STORAGE_LIMITS.BASIC;
+
+        if (!this.isAuthenticated) return 0; // Pas de compte, pas de stockage cloud/persistant garanti hors local
+
+        const level = this.currentLevel;
+
+        if (level >= SUBSCRIPTION_LEVELS.DEV) return STORAGE_LIMITS.DEV;
+        if (level >= SUBSCRIPTION_LEVELS.PRO) return STORAGE_LIMITS.PRO;
+        if (level >= SUBSCRIPTION_LEVELS.BASIC) return STORAGE_LIMITS.BASIC;
+
+        return 0; // Fallback
     }
 
     // --- Trial Management ---
@@ -282,7 +449,15 @@ class KeyAuthService {
      * @param {string} email (Optionnel)
      */
     async register(username, password, license, email = "") {
-        if (!this.initialized) await this.init();
+        let initError = null;
+        if (!this.initialized || !this.sessionid) {
+            const initRes = await this.init();
+            if (!initRes.success) initError = initRes.message;
+        }
+
+        if (!this.sessionid) {
+            return { success: false, message: initError || "Erreur d'initialisation: Impossible de contacter le serveur d'authentification." };
+        }
 
         try {
             const data = await this._request({
@@ -291,13 +466,20 @@ class KeyAuthService {
                 pass: password,
                 key: license,
                 email: email,
+                hwid: this.hwid,
                 sessionid: this.sessionid,
                 name: KA_CONFIG.name,
                 ownerid: KA_CONFIG.ownerid
             });
 
             if (data.success) {
-                return { success: true, message: data.message };
+                // Auto-login after registration to link chat and license immediately
+                console.log("Registration successful, attempting auto-login...");
+                const loginRes = await this.loginByUser(username, password);
+                if (loginRes.success) {
+                     return { success: true, message: "Inscription et connexion réussies !", info: loginRes.info };
+                }
+                return { success: true, message: "Inscription réussie, mais la connexion automatique a échoué: " + loginRes.message };
             } else {
                 return { success: false, message: data.message };
             }
@@ -350,7 +532,15 @@ class KeyAuthService {
      * @param {string} key 
      */
     async addLicense(username, key) {
-        if (!this.initialized) await this.init();
+        let initError = null;
+        if (!this.initialized || !this.sessionid) {
+            const initRes = await this.init();
+            if (!initRes.success) initError = initRes.message;
+        }
+
+        if (!this.sessionid) {
+            return { success: false, message: initError || "Erreur d'initialisation..." };
+        }
 
         try {
             const data = await this._request({
@@ -363,13 +553,13 @@ class KeyAuthService {
             });
 
             if (data.success) {
-                // Refresh local data
-                await this.loginByUser(username, "ignored_password"); // Re-sync to get updated subs if possible, or just trust the next init
-                // Actually loginByUser requires password. We don't have it here if we are just in the modal. 
-                // We should probably just return success and let UI handle re-login or just assume it worked.
-                // Better: if we are authenticated, we don't need password for some calls but 'login' needs it.
-                // But wait, if we are 'upgrade'ing, the session might imply we are logged in? 
-                // KeyAuth upgrade uses username.
+                // Refresh local data using stored password
+                if (this.currentPassword) {
+                    await this.loginByUser(username, this.currentPassword);
+                } else {
+                    // Try to fake a refresh or just warn
+                     return { success: true, message: "Licence ajoutée. Veuillez vous reconnecter pour mettre à jour les droits." };
+                }
                 return { success: true, message: data.message };
             } else {
                 return { success: false, message: data.message };
@@ -379,42 +569,7 @@ class KeyAuthService {
         }
     }
 
-    /**
-     * Connexion utilisateur (Username/Password)
-     * @param {string} username 
-     * @param {string} password 
-     */
-    async loginByUser(username, password) {
-        if (!this.initialized) await this.init();
 
-        try {
-            const data = await this._request({
-                type: 'login',
-                username: username,
-                pass: password,
-                sessionid: this.sessionid,
-                name: KA_CONFIG.name,
-                ownerid: KA_CONFIG.ownerid
-            });
-
-            if (data.success) {
-                this.isAuthenticated = true;
-                this.userData = data.info;
-                this.currentLevel = this._calculateLevel(data.info);
-                // We don't save password, but we mark as user login
-                localStorage.setItem('fiip-auth-mode', 'user');
-                
-                // Sync Trial Status
-                this.syncTrialStatus();
-
-                return { success: true, message: data.message, info: data.info };
-            } else {
-                return { success: false, message: data.message };
-            }
-        } catch (error) {
-            return { success: false, message: "Erreur connexion: " + error.message };
-        }
-    }
 
     /**
      * Sauvegarde les données utilisateur (Cloud Sync)
@@ -480,9 +635,12 @@ class KeyAuthService {
         this.isAuthenticated = false;
         this.userData = null;
         this.sessionid = null;
+        this.initialized = false;
         this.currentLevel = 0;
+        this.isTrialActive = false; // Disable trial on explicit logout to allow key entry
         localStorage.removeItem('fiip-license-key');
         localStorage.removeItem('fiip-auth-mode');
+        this._clearUserCredentials();
     }
 
     async _request(params) {
@@ -521,11 +679,41 @@ class KeyAuthService {
         const savedKey = localStorage.getItem('fiip-license-key');
         if (savedKey) {
             await this.login(savedKey);
+            return;
+        }
+
+        const creds = this._loadUserCredentials();
+        if (creds) {
+            await this.loginByUser(creds.username, creds.password);
         }
     }
 
     _saveSession(key) {
         localStorage.setItem('fiip-license-key', key);
+    }
+
+    _saveUserCredentials(username, password) {
+        // Simple base64 encoding to avoid plain text staring at you
+        // In production, consider encryption or secure storage
+        const token = btoa(username + ":" + password);
+        localStorage.setItem('fiip-user-creds', token);
+    }
+
+    _loadUserCredentials() {
+        const token = localStorage.getItem('fiip-user-creds');
+        if (!token) return null;
+        try {
+            const decoded = atob(token);
+            const [username, ...passParts] = decoded.split(':');
+            const password = passParts.join(':');
+            return { username, password };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    _clearUserCredentials() {
+        localStorage.removeItem('fiip-user-creds');
     }
 }
 
