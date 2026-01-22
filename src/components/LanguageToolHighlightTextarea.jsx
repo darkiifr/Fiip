@@ -30,17 +30,8 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
     const [errors, setErrors] = useState([]);
     const [checking, setChecking] = useState(false);
     const [lang, setLang] = useState('');
-    const [isTyping, setIsTyping] = useState(false);
-    const typingTimeoutRef = useRef(null);
 
     const handleInput = (e) => {
-        setIsTyping(true);
-        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        
-        typingTimeoutRef.current = setTimeout(() => {
-            setIsTyping(false);
-        }, 150);
-        
         if (onChange) onChange(e);
     };
 
@@ -101,8 +92,7 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
     const textareaClass = twMerge(
         "text-gray-100 transition-[filter] duration-100 ease-out", 
         baseClass, 
-        "relative z-10 bg-transparent",
-        isTyping && "blur-[0.5px]"
+        "relative z-10 bg-transparent"
     );
 
     return ( 

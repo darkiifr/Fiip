@@ -298,10 +298,9 @@ export default function ChatModal({ isOpen, onClose }) {
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="text-white text-xs font-bold truncate">
-                                {currentUserProfile.nickname || 
-                                 (keyAuthService.isAuthenticated && keyAuthService.userData?.username 
+                                {keyAuthService.isAuthenticated && keyAuthService.userData?.username 
                                     ? keyAuthService.userData.username 
-                                    : t('chat.user_default', 'Utilisateur'))}
+                                    : (currentUserProfile.nickname || t('chat.user_default', 'Utilisateur'))}
                             </div>
                             <div className="text-[#B5BAC1] text-[10px] truncate">
                                 {keyAuthService.isAuthenticated 

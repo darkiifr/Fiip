@@ -112,6 +112,11 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
             }
             
             if (keyAuthService.isAuthenticated || keyAuthService.isTrialActive) {
+                 // Refresh level info from service to ensure UI reflects real capabilities
+                 if (keyAuthService.isAuthenticated) {
+                     authInfo.currentLevel = keyAuthService.currentLevel;
+                     authInfo.subscription = keyAuthService.getCurrentSubscriptionName();
+                 }
                 setAuthData(authInfo);
             } else {
                 setAuthData(null);
@@ -351,7 +356,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     {authData ? (
                                         <div className="mt-1 space-y-0.5">
                                             <p className="text-xs text-gray-400">
-                                                {t('license.level', 'Niveau')}: <span className="text-gray-200 font-medium capitalize">{authData.subscription || (authData.isTrialActive ? 'Essai' : 'Standard')}</span>
+                                                {t('license.level', 'Niveau')}: <span className="text-gray-200 font-medium capitalize">{authData.subscription || (authData.isTrialActive ? 'Essai' : 'Standard')} (Niv. {authData.currentLevel || keyAuthService.currentLevel})</span>
                                             </p>
                                             {authData.expiry && (
                                                 <p className="text-xs text-gray-400">
@@ -376,15 +381,23 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                             {t('settings.storage_usage', 'Stockage Cloud')}
                                         </span>
                                         <span className={`text-[10px] font-mono ${storageUsage.percent > 90 ? 'text-red-400' : 'text-gray-400'}`}>
-                                            {formatBytes(storageUsage.used)} / {formatBytes(storageUsage.limit)}
+                                            {formatBytes(storageUsage.used)} / {(storageUsage.limit === 0 && authData) ? (authData.currentLevel >= 4 ? "500 Go" : authData.currentLevel >= 2 ? "50 Go" : "15 Go") : formatBytes(storageUsage.limit)}
                                         </span>
                                     </div>
-                                    <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
+                                    <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/5">
                                         <div 
-                                            className={`h-full rounded-full transition-all duration-500 ${storageUsage.percent > 90 ? 'bg-red-500' : 'bg-blue-500'}`}
-                                            style={{ width: `${Math.min(storageUsage.percent, 100)}%` }}
+                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                storageUsage.percent > 90 ? 'bg-red-500' : 
+                                                storageUsage.percent > 70 ? 'bg-yellow-500' : 'bg-blue-500'
+                                            }`}
+                                            style={{ width: `${storageUsage.limit === 0 ? 0 : storageUsage.percent}%` }}
                                         />
                                     </div>
+                                    {storageUsage.limit === 0 && (
+                                        <p className="text-[9px] text-gray-500 mt-1 italic text-right">
+                                            Synchronisation en attente...
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>

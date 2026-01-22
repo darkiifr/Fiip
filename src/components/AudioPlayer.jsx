@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Pencil, Check, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export default function AudioPlayer({ src, name, onRename }) {
+export default function AudioPlayer({ src, name, onRename, onError }) {
     const { t } = useTranslation();
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -127,7 +127,16 @@ export default function AudioPlayer({ src, name, onRename }) {
 
     return (
         <div className="w-full h-full flex flex-col justify-center p-4 bg-white dark:bg-[#27272a] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm transition-all hover:shadow-md hover:border-blue-500/20 group">
-            <audio ref={audioRef} src={src} preload="metadata" />
+            <audio 
+                ref={audioRef} 
+                src={src} 
+                preload="metadata" 
+                onEnded={() => setIsPlaying(false)}
+                onError={(e) => {
+                    console.error("Audio Load Error in Player:", e);
+                    if (onError) onError(e);
+                }}
+            />
 
             <div className="flex items-center gap-3 mb-2">
                 <button

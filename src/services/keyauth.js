@@ -2,6 +2,7 @@
 // Configuration KeyAuth - À REMPLACER PAR VOS INFORMATIONS
 // Les informations sont chargées depuis les variables d'environnement (.env) pour la sécurité
 import { invoke } from '@tauri-apps/api/core';
+import { fetch } from '@tauri-apps/plugin-http';
 
 const KA_CONFIG = {
     name: import.meta.env.VITE_KEYAUTH_NAME, // Nom de votre application
@@ -217,36 +218,35 @@ class KeyAuthService {
     _processUserData(info) {
         if (!info) return info;
         
-        // Fix Username if it's a raw key (too long)
-        // KeyAuth often returns the license key as username for pure license logins
-        // We verify if username looks like a key (long, often capitalized)
-        if (info.username && info.username.length > 20 && info.username.includes('-')) {
-             // We can rename it for UI purposes, but keeping unique ID is good.
-             // Let's just create a displayName property we can use? 
-             // Or we just rely on UI to format it. 
-             // But actually, let's fix the subscriptions first.
-        }
-
         if (info.subscriptions && Array.isArray(info.subscriptions)) {
             info.subscriptions = info.subscriptions.map(sub => {
-                // Fix Level
-                if (sub.level === undefined || sub.level === null || sub.level === "") {
-                    // Start default fallback
-                    if (sub.subscription === "default" || sub.subscription === "Default") {
-                        sub.level = "1";
-                    }
+                let subName = (sub.subscription || "").toLowerCase();
+                
+                // Correction forcée des niveaux
+                // Mots clés basés sur les abonnements officiels
+                if (subName.includes("dev") || subName.includes("admin") || subName.includes("interndevloppers")) {
+                    sub.level = "4"; 
+                } else if (subName === "family pro" || subName === "pro" || subName.includes("expert") || subName.includes("premium")) {
+                    if (!sub.level || sub.level < 2) sub.level = "2";
+                } else if (subName === "ai" || subName.includes("plus")) {
+                     if (!sub.level || sub.level < 1.5) sub.level = "1.5";
+                }
+
+                // Fallback niveau 1 par défaut si rien n'est défini
+                if (!sub.level || sub.level === "0") {
+                    sub.level = "1"; 
                 }
                 
                 // Fix large int levels (timestamps)
                 const lvl = parseFloat(sub.level);
                 if (!isNaN(lvl) && lvl > 1000) {
-                     sub.level = "1";
+                     sub.level = "1"; // Reset to basic
+                     if (subName.includes("dev") || subName.includes("admin")) sub.level = "4";
                 }
                 
                 return sub;
             });
         }
-        
         return info;
     }
 
@@ -306,24 +306,19 @@ class KeyAuthService {
     }
 
     getCurrentSubscriptionName() {
-        if (this.isTrialActive) return "Essai Gratuit (15 jours)";
-        
+        if (this.isTrialActive) return "Essai Gratuit";
         if (!this.isAuthenticated || !this.userData) return null;
         
-        // Default to the main subscription field
-        let subName = this.userData.subscription || 'Inconnu';
-        if (subName === 'default') subName = 'Standard'; // Cosmetic fix for unassigned keys
-
+        // Trouver l'abonnement avec le niveau le plus élevé
         if (this.userData.subscriptions && this.userData.subscriptions.length > 0) {
-            const highest = this.userData.subscriptions.reduce((prev, current) => {
-                const prevLvl = parseFloat(prev.level) || 0;
-                const currLvl = parseFloat(current.level) || 0;
-                return (prevLvl > currLvl) ? prev : current;
+            // Trier par niveau décroissant
+            const sorted = [...this.userData.subscriptions].sort((a, b) => {
+                return (parseFloat(b.level) || 0) - (parseFloat(a.level) || 0);
             });
-            if (highest.subscription) subName = highest.subscription;
+            return sorted[0].subscription || 'Standard';
         }
         
-        return subName;
+        return this.userData.subscription || 'Standard';
     }
 
     /**
@@ -523,6 +518,44 @@ class KeyAuthService {
             }
         } catch (e) {
             console.error("Trial Sync Error:", e);
+        }
+    }
+    
+    /**
+     * Upload a file to KeyAuth
+     * @param {Blob|File} file
+     * @param {string} filename
+     */
+     async fileUpload(file, filename) {
+        if (!this.isAuthenticated) return { success: false, message: "Authentication required" };
+        
+        try {
+            const formData = new FormData();
+            formData.append('type', 'upload');
+            if (filename) {
+                formData.append('file', file, filename);
+            } else {
+                formData.append('file', file);
+            }
+            formData.append('sessionid', this.sessionid);
+            formData.append('name', KA_CONFIG.name);
+            formData.append('ownerid', KA_CONFIG.ownerid);
+
+            // Fetch natively supports FormData and will set correct boundary
+            const response = await fetch(KA_CONFIG.apiUrl, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                return { success: true, url: data.url, fileId: data.fileid };
+            } else {
+                return { success: false, message: data.message };
+            }
+        } catch (e) {
+            console.error("Upload error:", e);
+            return { success: false, message: e.message };
         }
     }
 

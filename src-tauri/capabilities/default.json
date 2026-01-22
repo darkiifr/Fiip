@@ -17,6 +17,11 @@
     "os:allow-platform",
     "os:allow-os-type",
     "fs:default",
+    "http:default",
+    {
+      "identifier": "http:allow-fetch",
+      "allow": [{ "url": "https://keyauth.win/*" }]
+    },
     {
       "identifier": "fs:allow-read-file",
       "allow": [{ "path": "**" }]

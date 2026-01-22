@@ -175,8 +175,8 @@ function App() {
             // If logged in, maybe sync?
             if (keyAuthService.isAuthenticated) {
                  setAppLoading({ isLoading: true, status: "Synchronisation des notes..." });
-                 // check cloud?
-                 await new Promise(r => setTimeout(r, 500));
+                 // Auto-sync down silently on startup
+                 await performCloudSyncDown(true);
             }
 
             setAppLoading({ isLoading: true, status: "Prêt" });
@@ -252,41 +252,68 @@ function App() {
       };
       
       // Sync Notes only if enabled (default true)
-      if (prefs.notes !== false) {
+      if (settings.cloudSync && prefs.notes !== false) {
           // Deep copy notes to avoid mutating state
           const hydratedNotes = JSON.parse(JSON.stringify(notes));
 
-          // Process attachments: convert file paths to Base64
+          // Process attachments: Upload local files to cloud
           for (const note of hydratedNotes) {
               if (note.attachments && Array.isArray(note.attachments)) {
+                  const processedAttachments = [];
+                  
                   for (const att of note.attachments) {
-                      // Check if data is a file path (not base64, not blob, not http)
-                      // Assuming local paths don't start with these prefixes.
-                      if (att.data && 
-                          typeof att.data === 'string' && 
-                          !att.data.startsWith('data:') && 
-                          !att.data.startsWith('blob:') && 
-                          !att.data.startsWith('http')) {
-                          
-                          try {
-                              console.log(`Hydrating attachment ${att.name || att.id}...`);
-                              const content = await readFile(att.data);
-                              const base64 = arrayBufferToBase64(content);
-                              
-                              let mime = att.mimeType;
-                              if (!mime) {
-                                  if (att.type === 'video') mime = 'video/mp4';
-                                  else if (att.type === 'image') mime = 'image/jpeg';
-                                  else if (att.type === 'pdf') mime = 'application/pdf';
-                                  else mime = 'application/octet-stream';
-                              }
-                              
-                              att.data = `data:${mime};base64,${base64}`;
-                          } catch (err) {
-                              console.warn(`Failed to read attachment file for sync: ${att.data}`, err);
-                          }
+                      // Check if it's a local file path (string not starting with http/data/blob)
+                      // OR if it's a large Base64 string (> 100KB)
+                      const isLocalFile = att.data && typeof att.data === 'string' && !att.data.startsWith('data:') && !att.data.startsWith('http') && !att.data.startsWith('blob:');
+                      const isLargeBase64 = att.data && typeof att.data === 'string' && att.data.startsWith('data:') && att.data.length > 100000;
+
+                      if (isLocalFile || isLargeBase64) {
+                           try {
+                               let file;
+                               if (isLocalFile) {
+                                   // Verify file exists and read it
+                                   const content = await readFile(att.data);
+                                   // Prepare file object
+                                   const mime = att.mimeType || 'application/octet-stream';
+                                   const blob = new Blob([content], { type: mime });
+                                   file = new File([blob], att.name, { type: mime });
+                               } else {
+                                   // Convert Base64 (Data URI) to Blob
+                                   const fetchRes = await fetch(att.data);
+                                   const blob = await fetchRes.blob();
+                                   // Ensure filename has extension
+                                   let name = att.name;
+                                   if (!name.includes('.')) {
+                                       const ext = blob.type.split('/')[1] || 'bin';
+                                       name = `${name}.${ext}`;
+                                   }
+                                   file = new File([blob], name, { type: blob.type });
+                               }
+                               
+                               // Upload to KeyAuth
+                               const uploadRes = await keyAuthService.fileUpload(file, file.name);
+                               
+                               if (uploadRes.success && uploadRes.url) {
+                                   processedAttachments.push({
+                                       ...att,
+                                       data: uploadRes.url,
+                                       // Keep mimeType and type
+                                   });
+                               } else {
+                                   console.warn("Upload failed for " + att.name, uploadRes.message);
+                                   // Keep original local path/content so it works locally at least
+                                   processedAttachments.push({ ...att, syncError: "Upload failed: " + uploadRes.message });
+                               }
+                           } catch (e) {
+                               console.error("Sync attachment error", e);
+                               processedAttachments.push({ ...att, syncError: "File processing error" });
+                           }
+                      } else {
+                          // Already Cloud URL or small Data URI
+                          processedAttachments.push(att);
                       }
                   }
+                  note.attachments = processedAttachments;
               }
           }
           newData.notes = hydratedNotes;
@@ -295,9 +322,7 @@ function App() {
       await keyAuthService.saveUserData(newData);
   };
 
-  const handleLoginSuccess = async () => {
-      setIsAuthModalOpen(false);
-      
+  const performCloudSyncDown = async (silent = false) => {
       // Only sync if enabled
       if (settings.cloudSync === false) return;
 
@@ -357,11 +382,16 @@ function App() {
                   i18n.changeLanguage(cloudSettings.language);
               }
               
-              alert("Données synchronisées avec succès !");
+              if (!silent) alert("Données synchronisées avec succès !");
           }
       } else {
-         handleCloudSync();
+         if (!silent) handleCloudSync();
       }
+  };
+
+  const handleLoginSuccess = async () => {
+      setIsAuthModalOpen(false);
+      await performCloudSyncDown(false);
   };
 
   // Detect OS for default settings

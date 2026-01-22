@@ -25,33 +25,26 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
 
   const refreshAuthData = async () => {
       setRefreshing(true);
-      if (keyAuthService.checkSubscription()) {
-          // If licensed/trial active
-          if (keyAuthService.isAuthenticated) {
-              setAuthData({
-                  ...keyAuthService.userData,
-                  subscriptionName: keyAuthService.getCurrentSubscriptionName(),
-                  hasAI: keyAuthService.hasAIAccess(),
-                  hasPro: keyAuthService.hasProAccess(),
-                  currentLevel: keyAuthService.currentLevel,
-                  isTrial: false
-              });
-          } else if (keyAuthService.isTrialActive) {
-               setAuthData({
-                  subscriptionName: t('license.trial_active'),
-                  expiry: keyAuthService.trialExpiry,
-                  hasAI: false,
-                  hasPro: false,
-                  currentLevel: 1,
-                  isTrial: true
-              });
-          }
+      
+      // Si connecté (KeyAuth ou Essai), on affiche les données
+      if (keyAuthService.isAuthenticated || keyAuthService.isTrialActive) {
+          const isTrial = keyAuthService.isTrialActive && !keyAuthService.isAuthenticated;
+          
+          setAuthData({
+              ...(keyAuthService.userData || {}),
+              subscriptionName: keyAuthService.getCurrentSubscriptionName(),
+              hasAI: keyAuthService.hasAIAccess(),
+              hasPro: keyAuthService.hasProAccess(),
+              currentLevel: keyAuthService.currentLevel,
+              isTrial: isTrial,
+              // Si le niveau est 0 malgré la connexion, c'est une licence expirée
+              expiry: (keyAuthService.userData?.expiry) || keyAuthService.trialExpiry
+          });
       } else {
         setAuthData(null);
         setCanTrial(keyAuthService.canStartTrial());
       }
       
-      // Simulate a small delay
       setTimeout(() => setRefreshing(false), 500);
   };
 
@@ -237,7 +230,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                     className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                   >
                     <Globe className="w-4 h-4" />
-                    {t('license.login_or_register', 'Se connecter / S\'inscrire')}
+                    {t('license.login_or_register', "Se connecter / S'inscrire")}
                   </button>
                   <button 
                     onClick={handleBuy}

@@ -49,7 +49,9 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
         console.warn(`Failed to load resource: ${att.data}. Trying fallback...`);
         try {
             const content = await readFile(att.data);
-            const blob = new Blob([content], { type: att.mimeType || (att.type === 'video' ? 'video/mp4' : 'image/jpeg') });
+            const blob = new Blob([content], { 
+                type: att.mimeType || (att.type === 'audio' ? 'audio/mpeg' : (att.type === 'video' ? 'video/mp4' : 'image/jpeg')) 
+            });
             const blobUrl = URL.createObjectURL(blob);
             setSrc(blobUrl);
         } catch (e) {
@@ -175,6 +177,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     src={src}
                     name={att.name}
                     onRename={(newName) => renameAttachment(att.id, newName)}
+                    onError={handleLoadError}
                 />
             )}
         </div>

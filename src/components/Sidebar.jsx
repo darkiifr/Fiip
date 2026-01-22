@@ -10,8 +10,24 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
     const [searchTerm, setSearchTerm] = useState('');
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
     const appWindow = getCurrentWindow();
+    
+    // START FIX: Local Profile Sync
+    const [localProfile, setLocalProfile] = useState(null);
 
-    // Close context menu on click anywhere
+    React.useEffect(() => {
+        const loadProfile = () => {
+            const saved = localStorage.getItem('fiip_public_profile');
+            if (saved) {
+                try {
+                    setLocalProfile(JSON.parse(saved));
+                } catch (e) { console.error(e); }
+            }
+        };
+        loadProfile();
+        window.addEventListener('storage', loadProfile);
+        return () => window.removeEventListener('storage', loadProfile);
+    }, []);
+    // END FIX
     React.useEffect(() => {
         const handleClick = () => setContextMenu({ ...contextMenu, visible: false });
         window.addEventListener('click', handleClick);
@@ -96,8 +112,8 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
                     <button onClick={onOpenAuth} className="relative group shrink-0">
                          {keyAuthService.isAuthenticated && keyAuthService.userData?.username ? (
                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-md group-hover:shadow-blue-500/20 transition-all">
-                                 {settings?.avatarUrl ? (
-                                     <img src={settings.avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                 {localProfile?.avatar || settings?.avatarUrl ? (
+                                     <img src={localProfile?.avatar || settings?.avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
                                  ) : (
                                     <div className="w-full h-full rounded-full bg-[#2C2C2E] flex items-center justify-center text-xs font-bold text-white uppercase">
                                         {keyAuthService.userData.username.substring(0, 2)}
@@ -113,7 +129,7 @@ export default function Sidebar({ notes = [], onSelectNote, selectedNoteId, onCr
                     </button>
                     <div>
                         <div className="text-sm font-bold text-white leading-tight">
-                            {keyAuthService.isAuthenticated ? keyAuthService.userData?.username : 'Invité'}
+                            {keyAuthService.isAuthenticated ? (localProfile?.nickname || keyAuthService.userData?.username) : 'Invité'}
                         </div>
                         <div className="text-[10px] text-gray-400">
                              {keyAuthService.isAuthenticated ? (keyAuthService.getCurrentSubscriptionName() || 'Membre') : 'Non connecté'}
