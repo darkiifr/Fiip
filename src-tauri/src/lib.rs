@@ -1,3 +1,5 @@
+use tauri::Manager;
+
 #[cfg(target_os = "windows")]
 use window_vibrancy::{
     apply_acrylic, apply_blur, apply_mica, clear_acrylic, clear_blur, clear_mica,
@@ -94,6 +96,9 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            let _ = app.get_webview_window("main").expect("no main window").set_focus();
+        }))
         .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, get_hwid])
         .setup(|app| {
             use tauri::{WebviewUrl, WebviewWindowBuilder};
