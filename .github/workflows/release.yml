@@ -42,6 +42,11 @@ jobs:
       - name: Bump Version
         run: node scripts/bump-version.mjs --type=${{ github.event.inputs.bump_type }}
 
+      - name: Update KeyAuth Version
+        env:
+          KEYAUTH_SELLER_KEY: ${{ secrets.KEYAUTH_SELLER_KEY }}
+        run: node scripts/update-keyauth.mjs
+
       - name: Get New Version
         id: get_version
         run: |
@@ -102,6 +107,7 @@ jobs:
             # Remove leading dot if present (e.g. v.1.9.4 -> .1.9.4 -> 1.9.4)
             VERSION=${VERSION#.}
             echo "Syncing version to $VERSION from tag $TAG_NAME"
+            echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
             node -e "
               const fs = require('fs');
               const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
@@ -161,7 +167,7 @@ jobs:
           VITE_KEYAUTH_NAME: Fiip
           VITE_KEYAUTH_OWNERID: wVgfmuIs9X
           VITE_KEYAUTH_SECRET: ${{ secrets.VITE_KEYAUTH_SECRET }}
-          VITE_KEYAUTH_VERSION: 1.0
+          VITE_KEYAUTH_VERSION: ${{ env.APP_VERSION }}
           VITE_KEYAUTH_APIURL: https://keyauth.win/api/1.2/
         with:
           tagName: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
