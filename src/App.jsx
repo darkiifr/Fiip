@@ -342,7 +342,11 @@ function App() {
                           if (idx === -1) {
                               newNotes.push(cNote);
                           } else {
-                              if (cNote.updatedAt > newNotes[idx].updatedAt) {
+                              // Robust date comparison (handle string vs number timestamps)
+                              const cloudTime = new Date(cNote.updatedAt || 0).getTime();
+                              const localTime = new Date(newNotes[idx].updatedAt || 0).getTime();
+                              
+                              if (cloudTime > localTime) {
                                   newNotes[idx] = cNote;
                               }
                           }
@@ -436,7 +440,7 @@ function App() {
         }, 3000); // Sync after 3 seconds of inactivity
         return () => clearTimeout(timeoutId);
     }
-  }, [notes, settings.cloudSync]); // Re-run when notes change
+  }, [notes, settings]); // Re-run when notes OR settings change
 
   // Close Dexter if AI is disabled
   useEffect(() => {
