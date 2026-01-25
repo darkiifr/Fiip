@@ -299,7 +299,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         className="fixed inset-0 z-40" 
                                         onClick={() => setIsLanguageMenuOpen(false)}
                                     />
-                                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#2c2c2c] border border-white/10 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-neutral-900 border border-white/10 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
                                         {languages.map((lang) => (
                                             <button
                                                 key={lang.code}

@@ -23,14 +23,16 @@ export default function UserProfileModal({ isOpen, onClose }) {
               const cloudData = await keyAuthService.loadUserData();
               if (cloudData.success && cloudData.data) {
                   try {
-                      // KeyAuth returns stringified JSON in 'data' usually, depending on implementation
-                      // In saveUserData we stringify. In _request for getvar, check response.
-                      // keyauth.js loadUserData returns res (which has data boolean or string?)
-                      // Let's assume loadUserData parses it or returns object if I implemented it well.
-                      // Looking at keyauth.js: loadUserData calls _request type:'getvar'.
-                      // usually getvar returns { success: true, response: "json_string" } or similar.
-                      // I'll need to double check keyauth.js response for loadUserData
-                      profile = typeof cloudData.data === 'string' ? JSON.parse(cloudData.data) : cloudData.data;
+                      const rawData = typeof cloudData.data === 'string' ? JSON.parse(cloudData.data) : cloudData.data;
+                      // Handle nested structure vs legacy
+                      if (rawData.profile) {
+                          profile = rawData.profile;
+                      } else {
+                          // Check if it looks like a profile (has fields we expect)
+                          if (rawData.nickname || rawData.avatar) {
+                              profile = rawData;
+                          }
+                      }
                   } catch (e) { console.error("Parse error", e); }
               }
           }
@@ -61,7 +63,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
     
     // Save Cloud
     if (keyAuthService.isAuthenticated) {
-        await keyAuthService.saveUserData(publicProfile);
+        await keyAuthService.saveMergedUserData({ profile: publicProfile });
     }
     
     onClose();

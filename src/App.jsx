@@ -213,12 +213,8 @@ function App() {
       // Only sync if user is logged in with account (has username)
       if (!keyAuthService.isAuthenticated || !keyAuthService.userData?.username) return;
 
-      // Load existing cloud data first to avoid wiping other fields
-      let currentCloudData = {};
-      try {
-          const res = await keyAuthService.loadUserData();
-          if (res.success && res.data) currentCloudData = res.data;
-      } catch (_e) { /* ignore */ }
+      // (Optimisation) On n'a plus besoin de charger 'currentCloudData' manuellement ici
+      // car on utilise saveMergedUserData qui le fait pour nous de manière atomique/sécurisée.
       
       const settingsToSync = { ...settings };
       const prefs = settings.syncPreferences || {};
@@ -246,8 +242,7 @@ function App() {
            delete settingsToSync.language;
       }
       
-      const newData = {
-          ...currentCloudData,
+      const updates = {
           settings: settingsToSync
       };
       
@@ -316,10 +311,10 @@ function App() {
                   note.attachments = processedAttachments;
               }
           }
-          newData.notes = hydratedNotes;
+          updates.notes = hydratedNotes;
       }
       
-      await keyAuthService.saveUserData(newData);
+      await keyAuthService.saveMergedUserData(updates);
   };
 
   const performCloudSyncDown = async (silent = false) => {

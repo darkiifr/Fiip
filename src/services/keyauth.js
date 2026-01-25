@@ -634,6 +634,45 @@ class KeyAuthService {
     }
 
     /**
+     * Sauvegarde une partie des données utilisateur en fusionnant avec l'existant.
+     * @param {object} updates Objet contenant les champs à mettre à jour (ex: { notes: [...] } ou { profile: {...} })
+     */
+    async saveMergedUserData(updates) {
+        if (!this.isAuthenticated) return { success: false, message: "Non connecté" };
+
+        try {
+            // 1. Charger les données actuelles
+            const loadRes = await this.loadUserData();
+            let currentData = {};
+            
+            if (loadRes.success && loadRes.data) {
+                currentData = loadRes.data;
+                // Migration: si l'ancien format était juste le profil (pas de clé 'profile' mais a des champs de profil)
+                // On détecte ça si 'nickname' existe à la racine et pas 'profile'
+                if (currentData.nickname && !currentData.profile) {
+                    currentData = { profile: { ...currentData } };
+                    // Nettoyer les champs racine qui sont maintenant dans profile pour éviter la duplication ?
+                    // Pas strictement nécessaire si on écrase avec le nouveau format structuré.
+                    delete currentData.nickname;
+                    delete currentData.bio;
+                    delete currentData.accentColor;
+                    delete currentData.avatar;
+                }
+            }
+
+            // 2. Fusionner
+            // On fait un merge "smart" au premier niveau seulement
+            const newData = { ...currentData, ...updates };
+
+            // 3. Sauvegarder
+            return await this.saveUserData(newData);
+
+        } catch (error) {
+            return { success: false, message: "Erreur sauvegarde fusionnée: " + error.message };
+        }
+    }
+
+    /**
      * Récupère les données utilisateur (Cloud Sync)
      */
     async loadUserData() {

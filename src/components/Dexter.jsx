@@ -167,6 +167,14 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
         ));
     };
 
+    const handleUpdatePendingContent = (index, newContent) => {
+        setMessages(prev => prev.map((msg, i) => 
+            i === index && msg.type === 'action_pending'
+                ? { ...msg, data: { ...msg.data, content: newContent, lines: newContent.split('\n').length } }
+                : msg
+        ));
+    };
+
     // Suggestions logic
     const baseSuggestions = [
         t('dexter.suggestions_list.create_note'),
@@ -330,7 +338,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                 - Ensure the JSON is valid. Escape all newlines in strings as \\n. Escape double quotes as \\".
                 
                 TOOLS:
-                - To UPDATE the note: Respond with JSON: { "action": "update_note", "content": "..." }
+                - To UPDATE the note: Respond with JSON: { "action": "update_note", "content": "NEW CONTENT HERE" }
                 
                 CONTEXT:
                 Current Note Title: "${currentNote?.title || 'None'}"
@@ -406,19 +414,19 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                         actionData.content = actionData.content.replace(/\\n/g, '\n');
                     }
 
-                    if (actionData.action === 'create_note') {
+                    if (actionData.action === 'create_note' || actionData.action === 'create') {
                         aiMsg = {
                             role: 'assistant',
                             content: responseText,
                             type: 'action_pending',
                             data: {
                                 action: 'create',
-                                title: actionData.title,
+                                title: actionData.title || "Nouvelle Note",
                                 content: actionData.content,
                                 lines: actionData.content.split('\n').length
                             }
                         };
-                    } else if (actionData.action === 'update_note' && currentNote) {
+                    } else if ((actionData.action === 'update_note' || actionData.action === 'update') && currentNote) {
                         aiMsg = {
                             role: 'assistant',
                             content: responseText,
@@ -430,7 +438,7 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                 lines: actionData.content.split('\n').length
                             }
                         };
-                    } else if (actionData.action === 'delete_note' && currentNote) {
+                    } else if ((actionData.action === 'delete_note' || actionData.action === 'delete') && currentNote) {
                         aiMsg = {
                             role: 'assistant',
                             content: responseText,
@@ -588,9 +596,11 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                                     ) : (
                                         <>
                                             <div className="text-xs text-gray-400 mb-1 font-medium">{t('dexter.review.proposed_content')}</div>
-                                            <div className="text-xs font-mono text-gray-300 bg-black/30 p-2 rounded border border-white/5 max-h-32 overflow-y-auto custom-scrollbar-thin whitespace-pre-wrap">
-                                                {msg.data.content}
-                                            </div>
+                                            <textarea
+                                                value={msg.data.content}
+                                                onChange={(e) => handleUpdatePendingContent(i, e.target.value)}
+                                                className="w-full bg-black/30 text-xs font-mono text-gray-300 p-2 rounded border border-white/5 max-h-48 min-h-[100px] overflow-y-auto custom-scrollbar-thin resize-y focus:border-blue-500/50 outline-none"
+                                            />
                                         </>
                                     )}
                                 </div>
