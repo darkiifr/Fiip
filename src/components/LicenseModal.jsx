@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, Key, Check, ShieldCheck, Sparkles, Star, Zap, RefreshCw, Clock, Globe } from 'lucide-react';
+import { X, Key, Check, ShieldCheck, Sparkles, Star, Zap, RefreshCw, Clock, Globe, Download } from 'lucide-react';
 import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
 import { open } from '@tauri-apps/plugin-shell';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch, exit } from '@tauri-apps/plugin-process';
+import { type } from '@tauri-apps/plugin-os';
 
 function FeatureItem({ label, active, icon: Icon }) {
     return (
@@ -19,6 +22,45 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
   const [authData, setAuthData] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [canTrial, setCanTrial] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState('idle'); // idle, checking, available, downloading, error
+  const [updateInfo, setUpdateInfo] = useState(null);
+
+  const handleCheckUpdate = async () => {
+      setUpdateStatus('checking');
+      try {
+          const update = await check();
+          if (update?.available) {
+              setUpdateInfo(update);
+              setUpdateStatus('available');
+          } else {
+              setUpdateStatus('idle');
+              // Optional: show a small toast or temporary text instead of alert to be less intrusive
+              // alert(t('settings.update_not_found', 'Vous êtes à jour !'));
+          }
+      } catch (e) {
+          console.error(e);
+          setUpdateStatus('error');
+          // alert(t('settings.update_check_error_generic', 'Erreur de mise à jour: ' + e.message));
+      }
+  };
+
+  const handleInstallUpdate = async () => {
+      if (!updateInfo) return;
+      setUpdateStatus('downloading');
+      try {
+          await updateInfo.downloadAndInstall();
+          const osType = await type();
+          if (osType === 'windows') {
+              await exit();
+          } else {
+              await relaunch();
+          }
+      } catch (e) {
+          console.error(e);
+          setUpdateStatus('error');
+          alert("Erreur lors de l'installation: " + e.message);
+      }
+  };
 
   const refreshAuthData = async () => {
       setRefreshing(true);
@@ -216,6 +258,47 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                   >
                     {t('license.get_license', 'OU OBTENIR UNE LICENCE')}
                   </button>
+
+                  {/* Update Section */}
+                  <div className="pt-3 border-t border-gray-800/50 mt-2">
+                      {updateStatus === 'available' ? (
+                          <div className="space-y-2">
+                              <p className="text-xs text-green-400 font-medium">
+                                  {t('settings.update_available', 'Mise à jour disponible')} v{updateInfo.version}
+                              </p>
+                              <button 
+                                  onClick={handleInstallUpdate}
+                                  className="w-full py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                              >
+                                  <Download className="w-4 h-4" />
+                                  {t('settings.install', 'Installer la mise à jour')}
+                              </button>
+                          </div>
+                      ) : updateStatus === 'downloading' ? (
+                          <div className="text-xs text-blue-400 flex items-center justify-center gap-2 py-2">
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              {t('settings.installing', 'Installation en cours...')}
+                          </div>
+                      ) : (
+                          <button 
+                              onClick={handleCheckUpdate}
+                              disabled={updateStatus === 'checking'}
+                              className="text-[10px] text-gray-600 hover:text-gray-400 transition-colors flex items-center justify-center gap-1.5 mx-auto w-full py-1"
+                          >
+                              {updateStatus === 'checking' ? (
+                                  <>
+                                      <RefreshCw className="w-3 h-3 animate-spin" />
+                                      {t('settings.checking', 'Vérification...')}
+                                  </>
+                              ) : (
+                                  <>
+                                      <RefreshCw className="w-3 h-3" />
+                                      {t('settings.check_update_btn', 'Vérifier les mises à jour')}
+                                  </>
+                              )}
+                          </button>
+                      )}
+                  </div>
               </div>
             </div>
           )}
