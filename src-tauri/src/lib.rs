@@ -56,6 +56,11 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
              let _ = apply_vibrancy(&window, mat, None, None);
         }
     }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = window;
+        let _ = effect;
+    }
 }
 
 #[tauri::command]
