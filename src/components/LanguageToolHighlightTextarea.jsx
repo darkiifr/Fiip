@@ -82,7 +82,7 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
         }
     };
 
-    const sharedStyles = "w-full h-full p-6 text-lg leading-relaxed font-sans outline-none border-0 m-0 resize-none font-medium tracking-wide";
+    const sharedStyles = "w-full h-full p-6 text-lg leading-relaxed font-sans outline-none border-0 m-0 resize-none font-medium tracking-wide whitespace-pre-wrap break-words [scrollbar-gutter:stable]";
     
     // Merge sharedStyles with passed className
     const baseClass = twMerge(sharedStyles, className);

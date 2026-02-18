@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, User, Shield, CreditCard, Save, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
@@ -68,8 +68,6 @@ export default function UserProfileModal({ isOpen, onClose }) {
     
     onClose();
   };
-
-  const activeTabClass = (tab) => `flex items-center gap-2 px-2 py-1.5 rounded text-sm font-medium transition-colors ${activeTab === tab ? 'bg-[#404249] text-white' : 'text-[#B5BAC1] hover:bg-[#35373C] hover:text-[#DBDEE1]'}`;
 
   const handleBioChange = (e) => {
       const val = e.target.value;

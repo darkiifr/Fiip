@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, RefreshCw, Hash, Bell, Users, HelpCircle, PlusCircle, Gift, Sticker, Smile, Inbox, AlertTriangle, ShieldCheck, User, Settings } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Send, RefreshCw, Hash, Smile, User, Settings, PlusCircle } from 'lucide-react';
 import { keyAuthService } from '../services/keyauth';
 import { moderationService } from '../services/moderation';
 import { soundManager } from '../services/soundManager';
@@ -15,7 +15,7 @@ export default function ChatModal({ isOpen, onClose }) {
     const [error, setError] = useState(null);
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef(null);
-    const [autoRefresh, setAutoRefresh] = useState(true);
+    const [autoRefresh] = useState(true);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [showGifPicker, setShowGifPicker] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
@@ -79,7 +79,7 @@ export default function ChatModal({ isOpen, onClose }) {
                         try {
                             profile = typeof cloud.data === 'string' ? JSON.parse(cloud.data) : cloud.data;
                             if (profile) localStorage.setItem('fiip_public_profile', JSON.stringify(profile));
-                        } catch (e) { /* ignore */ }
+                        } catch { /* ignore */ }
                     }
                 }
                 if (!profile) {
@@ -89,13 +89,13 @@ export default function ChatModal({ isOpen, onClose }) {
                 setCurrentUserProfile(profile || {});
             };
             load();
-            // eslint-disable-next-line
             fetchMessages();
             const interval = setInterval(() => {
                 if (autoRefresh) fetchMessages();
             }, 5000);
             return () => clearInterval(interval);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, autoRefresh, activeChannel, showProfileModal]);
 
     const searchTenor = async (query) => {

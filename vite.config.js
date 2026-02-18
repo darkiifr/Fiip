@@ -29,12 +29,15 @@ export default defineConfig(async () => ({
     },
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
           pdf: ['pdfjs-dist'],
-          ui: ['lucide-react', 'marked', 'dompurify'],
+          ui: ['lucide-react', 'marked', 'dompurify', 'clsx', 'tailwind-merge'],
+          i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+          emoji: ['emoji-picker-react'],
         },
       },
     },

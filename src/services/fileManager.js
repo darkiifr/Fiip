@@ -22,7 +22,7 @@ export async function calculateTotalUsage(notes) {
                         try {
                             const fileStat = await stat(att.data);
                             totalSize += fileStat.size;
-                        } catch (e) {
+                        } catch {
                             // File might be missing, ignore size
                         }
                     }

@@ -1,14 +1,4 @@
 
-// Liste de domaines autorisés (Whitelist) - Optionnel, pour un mode strict
-const ALLOWED_DOMAINS = [
-    'youtube.com',
-    'youtu.be',
-    'github.com',
-    'stackoverflow.com',
-    'google.com',
-    'wikipedia.org'
-];
-
 // Liste de mots-clés ou regex pour la propagande et contenus dangereux
 // Ceci est une liste basique et doit être enrichie.
 const BLOCKED_TERMS = [
@@ -62,7 +52,7 @@ export const moderationService = {
                             sanitized: message.replace(url, "[LIEN SUPPRIMÉ]")
                         };
                     }
-                } catch (e) {
+                } catch {
                     // URL malformée, on laisse passer ou on bloque selon la politique. 
                     // Ici on bloque si ça ressemble à une URL mais que c'est invalide.
                     return {

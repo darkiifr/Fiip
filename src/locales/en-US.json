@@ -1,5 +1,12 @@
 {
   "sidebar": {
+    "all_notes": "All Notes",
+    "favorites": "Favorites",
+    "trash": "Trash",
+    "favorite": "Favorite",
+    "unfavorite": "Unfavorite",
+    "restore": "Restore",
+    "delete_permanently": "Delete Permanently",
     "search_placeholder": "Search...",
     "no_notes": "No notes",
     "new_note": "New note",
@@ -13,7 +20,10 @@
     "delete_confirm": "Delete this note?",
     "export": "Export",
     "delete": "Delete",
-    "import": "Import"
+    "import": "Import",
+    "empty_trash": "Empty Trash",
+    "empty": "Empty",
+    "empty_trash_confirm": "Empty trash permanently?"
   },
   "editor": {
     "add_elements": "Ajouter des éléments",

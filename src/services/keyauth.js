@@ -81,7 +81,18 @@ class KeyAuthService {
                 if (data.success) {
                     this.sessionid = data.sessionid;
                     this.initialized = true;
-                    await this._restoreSession();
+                    
+                    try {
+                        const restoreRes = await this._restoreSession();
+                        if (restoreRes.success) {
+                            console.log("Session restored successfully");
+                        } else {
+                            console.log("Session restoration failed:", restoreRes.message);
+                        }
+                    } catch (restoreErr) {
+                        console.error("Critical error during session restore:", restoreErr);
+                    }
+                    
                     return { success: true, message: data.message };
                 } else {
                     console.error("KeyAuth Init Failed:", data.message);
@@ -692,7 +703,7 @@ class KeyAuthService {
                 try {
                     const parsed = JSON.parse(content);
                     return { success: true, data: parsed };
-                } catch (e) {
+                } catch {
                      return { success: true, data: null };
                 }
             } else {
@@ -738,7 +749,7 @@ class KeyAuthService {
         
         try {
             return JSON.parse(text);
-        } catch (e) {
+        } catch {
             if (text.trim().startsWith('<')) {
                 console.error("KeyAuth HTML Error:", text);
                 throw new Error("Erreur serveur inattendue (HTML retourné). Vérifiez l'URL ou la configuration.");
@@ -750,14 +761,27 @@ class KeyAuthService {
     async _restoreSession() {
         const savedKey = localStorage.getItem('fiip-license-key');
         if (savedKey) {
-            await this.login(savedKey);
-            return;
+            console.log("Restoring session with key...");
+            const result = await this.login(savedKey);
+            if (!result.success) {
+                console.warn("Session restoration failed with license key:", result.message);
+                return { success: false, message: result.message };
+            }
+            return { success: true };
         }
 
         const creds = this._loadUserCredentials();
         if (creds) {
-            await this.loginByUser(creds.username, creds.password);
+            console.log("Restoring session with user credentials...");
+            const result = await this.loginByUser(creds.username, creds.password);
+            if (!result.success) {
+                console.warn("Session restoration failed with credentials:", result.message);
+                return { success: false, message: result.message };
+            }
+            return { success: true };
         }
+        
+        return { success: false, message: "No saved session found" };
     }
 
     _saveSession(key) {
@@ -779,7 +803,7 @@ class KeyAuthService {
             const [username, ...passParts] = decoded.split(':');
             const password = passParts.join(':');
             return { username, password };
-        } catch (e) {
+        } catch {
             return null;
         }
     }

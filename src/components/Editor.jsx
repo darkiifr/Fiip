@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import LanguageToolHighlightTextarea from './LanguageToolHighlightTextarea';
 import CanvasDraw from './CanvasDraw';
-import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Paperclip, FileText, Download, Lock } from 'lucide-react';
+import NoteBadges from './NoteBadges';
+import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Paperclip, FileText, Download, Lock, PenTool } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
-import { open } from '@tauri-apps/plugin-shell';
 import { writeFile, mkdir, exists, readFile } from '@tauri-apps/plugin-fs';
 import { save } from '@tauri-apps/plugin-dialog';
 import { appDataDir, join } from '@tauri-apps/api/path';
@@ -13,7 +13,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
 
-const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, resizeAttachment, renameAttachment, handleDownloadAttachment }) => {
+const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, resizeAttachment, renameAttachment, handleDownloadAttachment, onAnnotate }) => {
     const { t } = useTranslation();
     const [src, setSrc] = useState('');
     const [isError, setIsError] = useState(false);
@@ -62,7 +62,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
 
     return (
         <div
-            className={`relative group rounded-xl transition-all duration-300 animate-scale-in ${att.type === 'image' || att.type === 'video' ? '' : 'w-72'}`}
+            className={`relative group rounded-xl transition-all duration-[250ms] ease-in-out animate-scale-in ${att.type === 'image' || att.type === 'video' ? '' : 'w-72'}`}
             style={{
                 width: (att.type === 'image' || att.type === 'video') ? (att.width || 100) + '%' : undefined,
                 maxWidth: (att.type === 'image' || att.type === 'video') ? '100%' : '320px',
@@ -70,13 +70,13 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
             }}
         >
             {/* --- Hover Controls (Glassmorphism) --- */}
-            <div className="absolute -top-3 right-2 flex items-center justify-end gap-1 z-30 opacity-0 group-hover:opacity-100 transition-all duration-200 scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto">
+            <div className="absolute -top-3 right-2 flex items-center justify-end gap-1 z-30 opacity-0 group-hover:opacity-100 transition-all duration-[150ms] ease-out scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto">
                 <div className="bg-black/60 backdrop-blur-md rounded-full p-1 flex items-center border border-white/10 shadow-xl">
                     {/* Move Left */}
                     {index > 0 && (
                         <button
                             onClick={() => moveAttachment(index, 'left')}
-                            className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors"
+                            className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors duration-[150ms] ease-out"
                             title={t('editor.move_left')}
                         >
                             <MoveLeft className="w-3.5 h-3.5" />
@@ -86,7 +86,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     {index < note.attachments.length - 1 && (
                         <button
                             onClick={() => moveAttachment(index, 'right')}
-                            className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors"
+                            className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors duration-[150ms] ease-out"
                             title={t('editor.move_right')}
                         >
                             <MoveRight className="w-3.5 h-3.5" />
@@ -96,13 +96,26 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     {/* Delete */}
                     <button
                         onClick={() => removeAttachment(att.id)}
-                        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors"
+                        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors duration-[150ms] ease-out"
                         title={t('editor.delete')}
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
                 </div>
             </div>
+
+            {/* Annotate Button for Images */}
+            {att.type === 'image' && !isError && (
+                <div className="absolute top-2 left-2 z-30 opacity-0 group-hover:opacity-100 transition-all duration-[150ms] ease-out scale-95 group-hover:scale-100">
+                     <button
+                        onClick={() => onAnnotate(att)}
+                        className="p-2 bg-black/60 backdrop-blur-md text-white hover:bg-blue-600 rounded-full shadow-xl border border-white/10 transition-colors"
+                        title="Annoter l'image"
+                    >
+                        <PenTool className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            )}
 
 
             {att.type === 'image' || att.type === 'video' ? (
@@ -123,7 +136,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                             src={src} 
                             alt={att.name} 
                             onError={handleLoadError}
-                            className="w-full object-cover transition-opacity duration-300"
+                            className="w-full object-cover transition-opacity duration-[250ms] ease-in-out"
                             style={{ maxHeight: '600px', opacity: isLoading ? 0 : 1 }}
                         />
                     ) : (
@@ -131,14 +144,14 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                             src={src}
                             controls 
                             onError={handleLoadError}
-                            className="w-full object-cover transition-opacity duration-300" 
+                            className="w-full object-cover transition-opacity duration-[250ms] ease-in-out" 
                             style={{ maxHeight: '600px', opacity: isLoading ? 0 : 1 }} 
                         />
                     )}
 
                     {/* Beautiful Resize Slider */}
                     {!isError && (
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 z-20">
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-[150ms] ease-out translate-y-2 group-hover:translate-y-0 z-20">
                             <div className="bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-3">
                                 <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{t('editor.size')}</span>
                                 <input
@@ -156,8 +169,8 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     )}
                 </div>
             ) : att.type === 'pdf' ? (
-                <div className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded-xl border border-white/10 group/pdf hover:border-blue-500/30 transition-colors">
-                    <div className="p-3 bg-red-500/10 rounded-xl text-red-400 group-hover/pdf:bg-red-500/20 transition-colors">
+                <div className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded-xl border border-white/10 group/pdf hover:border-blue-500/30 transition-colors duration-[150ms] ease-out">
+                    <div className="p-3 bg-red-500/10 rounded-xl text-red-400 group-hover/pdf:bg-red-500/20 transition-colors duration-[150ms] ease-out">
                         <FileText className="w-8 h-8" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -166,7 +179,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     </div>
                     <button 
                         onClick={() => handleDownloadAttachment(att)}
-                        className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                        className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors duration-[150ms] ease-out"
                         title={t('editor.download')}
                     >
                         <Download className="w-5 h-5" />
@@ -184,15 +197,15 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
     );
 };
 
-export default function Editor({ note, onUpdateNote, onCreateNote, settings, onOpenLicense, checkStorageLimit }) {
+export default function Editor({ note, onUpdateNote, settings, onOpenLicense, checkStorageLimit }) {
     const { t, i18n } = useTranslation();
     const [isGenerating, setIsGenerating] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
     const [pendingAiContent, setPendingAiContent] = useState(null); // Store AI content for review
     const [isRecording, setIsRecording] = useState(false);
     const [suggestion, setSuggestion] = useState(null);
-    const [isSuggesting, setIsSuggesting] = useState(false);
     const [isDragging, setIsDragging] = useState(false); // Drag & Drop state
+    const [drawingSession, setDrawingSession] = useState(null); // { type: 'standard' | 'overlay' | 'image', data: string | null }
     const textareaRef = useRef(null);
     const editorContainerRef = useRef(null);
     const dragCounter = useRef(0);
@@ -205,52 +218,8 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
     const [interimTranscript, setInterimTranscript] = useState('');
     const recognitionRef = useRef(null);
     const noteRef = useRef(note);
-
-    // Trigger suggestion manually (or could be hooked to debounce)
-    const triggerSuggestion = React.useCallback(async () => {
-        if (!settings?.aiApiKey || isSuggesting || !note?.content) return;
-
-        setIsSuggesting(true);
-        try {
-            // Context: Last 500 chars for better relevance
-            const context = note.content.slice(-500);
-            const prompt = `Tu es un moteur d'autocomplétion. Propose une suite logique, courte et naturelle (max 15 mots) au texte suivant. Si le texte se termine par un mot complet, commence impérativement ta réponse par une espace. Texte : "${context}"`;
-            
-            const messages = [{ role: "user", content: prompt }];
-
-            const generated = await generateText({
-                apiKey: settings.aiApiKey,
-                model: settings.aiModel,
-                messages: messages,
-                context: note.title
-            });
-            
-            if (generated && generated.trim()) {
-                // Ensure we don't repeat the last word if it was partial (simple check)
-                let cleanSuggestion = generated;
-                const lastWord = context.split(' ').pop();
-                
-                if (lastWord && cleanSuggestion.startsWith(lastWord)) {
-                    cleanSuggestion = cleanSuggestion.replace(lastWord, '');
-                }
-                
-                // Safety: If context ends with a letter and suggestion starts with a letter, ensure space
-                if (context.length > 0 && !/\s$/.test(context) && /^[a-zA-Z0-9À-ÿ]/.test(cleanSuggestion)) {
-                     // Check if it looks like a suffix (short and lowercase)
-                     // This is a heuristic. If it's > 3 chars or Capitalized, assume it's a new word.
-                     if (cleanSuggestion.length > 3 || /^[A-Z]/.test(cleanSuggestion)) {
-                         cleanSuggestion = ' ' + cleanSuggestion;
-                     }
-                }
-
-                setSuggestion(cleanSuggestion);
-            }
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setIsSuggesting(false);
-        }
-    }, [settings, isSuggesting, note]);
+    const mediaRecorderRef = useRef(null);
+    const chunksRef = useRef([]);
 
     // Keep note ref updated, but respect local optimistic updates
     useEffect(() => { 
@@ -259,6 +228,11 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
             noteRef.current = note; 
         }
     }, [note]);
+
+    const onUpdateNoteRef = useRef(onUpdateNote);
+    useEffect(() => {
+        onUpdateNoteRef.current = onUpdateNote;
+    }, [onUpdateNote]);
 
     // Initialize Speech Recognition
     useEffect(() => {
@@ -297,84 +271,64 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
                     
                     // Optimistic update to prevent race conditions
                     noteRef.current = updatedNote;
-                    onUpdateNote(updatedNote);
+                    if (onUpdateNoteRef.current) {
+                        onUpdateNoteRef.current(updatedNote);
+                    }
+                    
+                    // Also clear interim since we committed final
                     setInterimTranscript('');
                 } else {
                     setInterimTranscript(interim);
                 }
             };
 
-            recognitionRef.current.onend = () => {
-                // Auto-restart logic with crash prevention
-                if (isListeningRef.current) {
-                    const timeSinceStart = Date.now() - lastSpeechStartRef.current;
-                    if (timeSinceStart < 1000) {
-                        console.warn("Speech recognition stopped too quickly. Preventing restart loop.");
-                        setIsListening(false);
-                        isListeningRef.current = false;
-                        return;
-                    }
-
-                    try {
-                        recognitionRef.current.start();
-                    } catch (e) {
-                        console.warn("Failed to restart speech recognition:", e);
-                        setIsListening(false);
-                        isListeningRef.current = false;
-                    }
-                } else {
-                    setIsListening(false);
-                }
-            };
-            
             recognitionRef.current.onerror = (event) => {
-                console.error("Speech recognition error", event.error);
+                console.error("Speech error:", event.error);
                 if (event.error === 'not-allowed') {
                     setIsListening(false);
                     isListeningRef.current = false;
-                    alert(t('editor.mic_access_denied'));
-                } else if (event.error === 'aborted') {
-                    // Ignore aborted errors (manual stop)
-                } else {
-                    // For other errors, we might want to stop or retry
-                    // If it's a network error, maybe stop
-                    if (event.error === 'network') {
-                         setIsListening(false);
-                         isListeningRef.current = false;
+                    alert("Accès au microphone refusé.");
+                }
+            };
+
+            recognitionRef.current.onend = () => {
+                // Auto-restart if we intended to keep listening
+                if (isListeningRef.current) {
+                    const duration = Date.now() - lastSpeechStartRef.current;
+                    if (duration < 1000) {
+                        // Prevent rapid loops
+                        setTimeout(() => {
+                            if (isListeningRef.current && recognitionRef.current) {
+                                try { recognitionRef.current.start(); } catch { /* ignore */ }
+                            }
+                        }, 1000);
+                    } else {
+                        try { recognitionRef.current.start(); } catch { /* ignore */ }
                     }
+                } else {
+                    setIsListening(false);
                 }
             };
         }
-        
-        return () => {
-            if (recognitionRef.current) recognitionRef.current.stop();
-            window.speechSynthesis.cancel();
-        };
     }, []);
 
     const toggleListening = () => {
         if (!recognitionRef.current) {
-            alert(t('editor.speech_not_supported'));
+            alert("La reconnaissance vocale n'est pas supportée par ce navigateur/système.");
             return;
         }
 
         if (isListening) {
             isListeningRef.current = false;
-            setIsListening(false);
             recognitionRef.current.stop();
-                                    {/* Zone de dessin */}
-                                    <div className="mt-8">
-                                        <h4 className="text-xs font-bold uppercase text-gray-400 mb-2 tracking-wider pl-1">Dessin</h4>
-                                        <CanvasDraw />
-                                    </div>
+            setIsListening(false);
         } else {
             isListeningRef.current = true;
-            setIsListening(true);
             try {
                 recognitionRef.current.start();
+                setIsListening(true);
             } catch (e) {
-                console.error(e);
-                setIsListening(false);
+                console.error("Failed to start recognition:", e);
                 isListeningRef.current = false;
             }
         }
@@ -385,123 +339,60 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
             window.speechSynthesis.cancel();
             setIsSpeaking(false);
         } else {
-            if (!note?.content) return;
-            
+            if (!note.content) return;
             const utterance = new SpeechSynthesisUtterance(note.content);
-            if (settings?.voiceName) {
-                const voices = window.speechSynthesis.getVoices();
-                const voice = voices.find(v => v.name === settings.voiceName);
-                if (voice) utterance.voice = voice;
-            }
-            
+            utterance.lang = 'fr-FR';
             utterance.onend = () => setIsSpeaking(false);
-            utterance.onerror = () => setIsSpeaking(false);
-            
             window.speechSynthesis.speak(utterance);
             setIsSpeaking(true);
         }
     };
 
-    // Media Refs
-    const mediaRecorderRef = useRef(null);
-    const chunksRef = useRef([]);
-
-    // Auto-resize textarea
-    useEffect(() => {
-        if (textareaRef.current) {
-            // Preserve scroll position to prevent jumping to top
-            const scrollContainer = editorContainerRef.current;
-            const currentScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
-
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-
-            if (scrollContainer) {
-                scrollContainer.scrollTop = currentScrollTop;
-            }
-        }
-    }, [note?.content]);
-
-    // Smart Auto-completion (Debounced)
-    useEffect(() => {
-        if (!note?.content || !settings?.aiApiKey) return;
-
-        const timer = setTimeout(() => {
-            // Only suggest if cursor is at the end and content is long enough
-            if (textareaRef.current && textareaRef.current.selectionStart === note.content.length && note.content.length > 20) {
-                triggerSuggestion();
-            }
-        }, 1000); // Wait 1s after typing stops
-
-        return () => clearTimeout(timer);
-    }, [note?.content, settings?.aiApiKey, triggerSuggestion]);
-
-    if (!note) {
-        return (
-            <div className="flex-1 h-full flex items-center justify-center text-gray-400 bg-[#1e1e1e]/90 backdrop-blur-sm transition-all duration-300">
-                <p className="animate-pulse font-medium">{t('editor.select_note')}</p>
-                <div className="absolute top-0 left-0 right-0 h-8 z-10" data-tauri-drag-region />
-            </div>
-        );
-    }
-
+    // Auto-save title/content handlers
     const handleTitleChange = (e) => {
-        onUpdateNote({ ...note, title: e.target.value, updatedAt: Date.now() });
+        const newTitle = e.target.value;
+        const updatedNote = { ...note, title: newTitle, updatedAt: Date.now() };
+        noteRef.current = updatedNote;
+        onUpdateNote(updatedNote);
     };
 
-    const handleContentChange = async (e) => {
+    const handleContentChange = (e) => {
         const newContent = e.target.value;
         const updatedNote = { ...note, content: newContent, updatedAt: Date.now() };
-        
-        // Optimistic update to prevent STT race conditions
         noteRef.current = updatedNote;
         onUpdateNote(updatedNote);
         
-        setSuggestion(null); // Clear suggestion on type
-
-        // Auto-completion logic (debounce could be added here)
-        if (settings?.aiApiKey && newContent.length > 10 && !isSuggesting && newContent.endsWith(' ')) {
-            // Only trigger if user pauses or ends a sentence (simplified)
-            // For a real implementation, use a debounce hook
-            // This is a placeholder for where you'd call the AI for a short completion
-        }
+        // Clear suggestion if typing
+        if (suggestion) setSuggestion(null);
     };
 
-    // Handle keyboard shortcuts for suggestion
     const handleKeyDown = (e) => {
-        if (e.key === 'ArrowRight' && suggestion) {
+        // Tab to accept suggestion
+        if (e.key === 'Tab' && suggestion) {
             e.preventDefault();
-            const newContent = note.content + suggestion;
+            const newContent = (note.content || '') + suggestion;
             onUpdateNote({ ...note, content: newContent, updatedAt: Date.now() });
             setSuggestion(null);
         }
-    };
-
-    // Open link in browser
-    const handleOpenLink = async (url) => {
-        try {
-            await open(url);
-        } catch (err) {
-            console.error('Failed to open link:', err);
-        }
+        
+        // Trigger AI on pause or specific key could go here
     };
 
     const handleDownloadAttachment = async (att) => {
         try {
-            // 1. Ask user where to save
+            // Ask user where to save
             const filePath = await save({
                 defaultPath: att.name,
                 filters: [{
-                    name: 'PDF Files',
-                    extensions: ['pdf']
+                    name: 'Fichier',
+                    extensions: [att.name.split('.').pop() || '*']
                 }]
             });
 
-            if (!filePath) return;
+            if (!filePath) return; // Cancelled
 
             if (att.data.startsWith('data:')) {
-                // 2. Convert base64 to Uint8Array
-                // att.data is "data:application/pdf;base64,..."
+                // It's a base64 string
                 const base64Data = att.data.split(',')[1];
                 const binaryString = atob(base64Data);
                 const len = binaryString.length;
@@ -521,15 +412,6 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
             alert("Erreur lors du téléchargement : " + (err.message || JSON.stringify(err)));
         }
     };
-
-    const renderContentWithLinks = (text) => {
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        // ... (rest of implementation) ...
-        return <>{/* Placeholder for renderContentWithLinks implementation if needed to be used */}</>;
-    };
-    // Suppress unused warning since it's not currently used in JSX
-    // eslint-disable-next-line
-    const _ignored = renderContentWithLinks;
 
     // Helper: Add attachment
     const addAttachment = (type, data, fileName, mimeType) => {
@@ -599,6 +481,54 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
             console.error("Failed to save attachment to disk:", error);
             throw error;
         }
+    };
+
+    const handleSaveDrawing = async (blob) => {
+        try {
+            const fileName = `drawing-${Date.now()}.png`;
+            const file = new File([blob], fileName, { type: 'image/png' });
+            
+            const filePath = await saveAttachmentToDisk(file);
+            
+            // Create the new attachment object
+            const newAttachment = {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                type: 'image',
+                data: filePath,
+                name: fileName,
+                width: 100,
+                mimeType: 'image/png'
+            };
+
+            // Get current attachments
+            const currentAttachments = note.attachments || [];
+            const newAttachments = [...currentAttachments, newAttachment];
+            
+            // Append image to content so it is linked in the note
+            const assetUrl = convertFileSrc(filePath);
+            const imageMarkdown = `\n![Dessin](${assetUrl})\n`;
+            
+            // Update note with BOTH new attachment and new content in a single update
+            onUpdateNote({
+                ...note,
+                attachments: newAttachments,
+                content: (note.content || "") + imageMarkdown,
+                updatedAt: Date.now()
+            });
+
+            setDrawingSession(null);
+        } catch (err) {
+            console.error("Failed to save drawing:", err);
+            alert("Erreur lors de l'enregistrement du dessin.");
+        }
+    };
+
+    const handleAnnotate = async (att) => {
+        let src = att.data;
+        if (!src.startsWith('data:') && !src.startsWith('blob:')) {
+             src = convertFileSrc(src);
+        }
+        setDrawingSession({ type: 'image', data: src });
     };
 
     const processFile = async (file) => {
@@ -809,9 +739,6 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
                     const newContent = currentContent.substring(0, start) + text + currentContent.substring(end);
                     
                     onUpdateNote({ ...note, content: newContent, updatedAt: Date.now() });
-                    
-                    // Optional: Update cursor position after render could be tricky here without effect, 
-                    // but the content update is the priority.
                 }
                 return;
             }
@@ -883,7 +810,28 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
         }
     };
 
+    // Sync favorite badge with note.favorite state
+    useEffect(() => {
+        if (!note) return;
+        const hasFavBadge = (note.badges || []).some(b => b.id === 'favorite');
+        
+        // If note is favorite but misses badge, add it
+        if (note.favorite && !hasFavBadge) {
+             const newBadges = [...(note.badges || []), { id: 'favorite', label: 'Favori', icon: 'Star', color: 2 }];
+             // Avoid triggering update if not needed (though here we must update to persist badge)
+             onUpdateNote({ ...note, badges: newBadges, updatedAt: Date.now() });
+        } 
+        // If note is NOT favorite but has badge, remove it
+        else if (!note.favorite && hasFavBadge) {
+             const newBadges = (note.badges || []).filter(b => b.id !== 'favorite');
+             onUpdateNote({ ...note, badges: newBadges, updatedAt: Date.now() });
+        }
+    }, [note, onUpdateNote]);
 
+    const handleUpdateBadges = (newBadges) => {
+        const isFavorite = newBadges.some(b => b.id === 'favorite');
+        onUpdateNote({ ...note, badges: newBadges, favorite: isFavorite, updatedAt: Date.now() });
+    };
 
     return (
         <div 
@@ -903,30 +851,28 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
                 </div>
             )}
 
-            {/* Invisible Drag Region at top - Only when titlebar is 'none' */}
-            {(!settings?.titlebarStyle || settings.titlebarStyle === 'none') && (
-                <div className="absolute top-0 left-0 right-0 h-8 z-10" data-tauri-drag-region />
-            )}
-
-            <div className="pt-12 px-8 pb-4 animate-in fade-in slide-in-from-bottom-2 duration-500 group relative">
-                <span className="text-xs font-medium text-gray-400 mx-auto block text-center mb-4 transition-colors">
-                    {(() => {
-                        try {
-                            return new Date(note.updatedAt).toLocaleString(i18n.language, { dateStyle: 'long', timeStyle: 'short' });
-                        } catch (e) {
-                            return "";
-                        }
-                    })()}
-                </span>
-
-                {/* AI & Accessibility Toolbar */}
+            {/* Sticky Toolbar */}
+            <div className="sticky top-0 z-40 h-[44px] px-3 flex items-center gap-1 bg-[#1C1C1E]/90 backdrop-blur-xl border-b border-white/5 transition-all duration-[250ms] ease-in-out">
+                {/* STT Interim Preview */}
+                {isListening && (
+                    <div className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-none w-full max-w-2xl px-4 flex justify-center z-50">
+                        <div className={`bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-3 text-sm text-gray-200 shadow-2xl transition-all duration-[250ms] ease-in-out flex items-start gap-3 max-h-32 overflow-hidden ${interimTranscript ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0 mt-1.5" />
+                            <span className="font-medium whitespace-pre-wrap break-words text-left line-clamp-4">
+                                {interimTranscript || t('editor.listening')}
+                            </span>
+                        </div>
+                    </div>
+                )}
+                
+                {/* AI & Accessibility Tools */}
                 {(settings?.aiEnabled !== false || settings?.voiceEnabled !== false || settings?.dictationEnabled !== false) && (
-                    <div className={`absolute right-8 top-12 flex gap-2 transition-all duration-300 ${isGenerating || isListening || isSpeaking ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                    <div className="flex items-center gap-1 mr-2 border-r border-white/10 pr-2">
                         {/* TTS */}
                         {(settings?.voiceEnabled !== false) && (
                             <button
                                 onClick={toggleSpeaking}
-                                className={`p-2 rounded-full transition-all duration-300 ${isSpeaking ? 'bg-green-500/20 text-green-400 animate-pulse' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`}
+                                className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center ${isSpeaking ? 'bg-green-500/20 text-green-400 animate-pulse' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
                                 title={isSpeaking ? "Arrêter la lecture" : "Lire la note"}
                             >
                                 {isSpeaking ? <StopCircle className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -937,7 +883,7 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
                         {(settings?.dictationEnabled !== false) && (
                             <button
                                 onClick={toggleListening}
-                                className={`p-2 rounded-full transition-all duration-300 ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-blue-900/20 text-blue-400 hover:bg-blue-900/40'}`}
+                                className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
                                 title={isListening ? "Arrêter la dictée" : "Dicter"}
                             >
                                 {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -949,7 +895,7 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
                             <button
                                 onClick={handleAiGenerate}
                                 disabled={isGenerating}
-                                className={`p-2 rounded-full bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 transition-all duration-300`}
+                                className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center text-blue-400 hover:bg-blue-900/40 hover:text-blue-300`}
                                 title="Assistant AI (Compléter/Améliorer)"
                             >
                                 {isGenerating ? <Sparkles className="w-5 h-5 animate-pulse" /> : <Sparkles className="w-5 h-5" />}
@@ -958,171 +904,291 @@ export default function Editor({ note, onUpdateNote, onCreateNote, settings, onO
                     </div>
                 )}
 
-                <input
-                    type="text"
-                    value={note.title}
-                    onChange={handleTitleChange}
-                    placeholder={t('editor.title_placeholder')}
-                    className="w-full text-3xl font-bold bg-transparent outline-none text-white placeholder-gray-500 transition-colors duration-200"
-                />
-            </div>
+                {/* Editor Tools */}
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => keyAuthService.hasProAccess() ? toggleRecording() : onOpenLicense()}
+                        className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center relative ${isRecording
+                            ? 'bg-red-500/20 text-red-400 animate-pulse'
+                            : keyAuthService.hasProAccess() ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-600 opacity-50 hover:bg-white/10'}`}
+                        title={keyAuthService.hasProAccess() ? (isRecording ? "Arrêter l'enregistrement" : "Enregistrer un mémo vocal") : "Fonctionnalité Pro (Verrouillée)"}
+                    >
+                        {isRecording ? <StopCircle className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
+                        {!keyAuthService.hasProAccess() && (
+                            <Lock className="w-2.5 h-2.5 absolute -top-0.5 -right-0.5 text-orange-500 bg-[#1e1e1e] rounded-full" />
+                        )}
+                    </button>
 
-            {/* EDITOR AREA */}
-            <div 
-                key={note.id} 
-                ref={editorContainerRef}
-                className="flex-1 px-8 pb-4 overflow-y-auto animate-fade-in scroll-pt-4 relative"
-            >
-                <div className="relative w-full mb-8 min-h-[400px]">
-                    <LanguageToolHighlightTextarea
-                        ref={textareaRef}
-                        value={note.content}
-                        onChange={handleContentChange}
-                        onKeyDown={handleKeyDown}
-                        placeholder={suggestion ? "" : t('editor.placeholder')}
-                        className="w-full h-auto overflow-hidden resize-none bg-transparent outline-none text-lg leading-relaxed text-gray-100 placeholder-gray-600 font-sans transition-colors duration-200 selection:bg-blue-900 relative z-10"
-                        style={{ minHeight: '400px' }}
-                        language="auto"
-                        enabled={settings?.enableCorrection !== false}
-                    />
-                    {/* Suggestion Overlay */}
-                    {suggestion && (
-                        <div className="absolute top-0 left-0 pointer-events-none z-0 whitespace-pre-wrap text-lg leading-relaxed font-sans text-transparent w-full">
-                            {note.content}
-                            <span className="text-gray-500 opacity-60">{suggestion}</span>
+                    <div className="relative w-8 h-8 flex items-center justify-center">
+                        <input
+                            type="file"
+                            multiple
+                            accept="image/*,video/*,audio/*,application/pdf"
+                            onChange={handleFileUpload}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            title="Insérer un fichier (Image, Vidéo, Audio, PDF)"
+                        />
+                        <div className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-full h-full flex items-center justify-center">
+                            <ImageIcon className="w-5 h-5" />
                         </div>
-                    )}
+                    </div>
 
-                    {/* Shimmer Loading Overlay */}
-                    {isWaiting && (
-                        <div className="absolute inset-0 z-20 bg-[#1e1e1e]/40 backdrop-blur-[1px] flex flex-col gap-4 pt-2 animate-in fade-in duration-300 pointer-events-none">
-                            <div className="h-4 w-3/4 bg-white/5 rounded animate-shimmer"></div>
-                            <div className="h-4 w-full bg-white/5 rounded animate-shimmer"></div>
-                            <div className="h-4 w-5/6 bg-white/5 rounded animate-shimmer"></div>
-                            <div className="h-4 w-4/5 bg-white/5 rounded animate-shimmer"></div>
-                            <div className="h-4 w-2/3 bg-white/5 rounded animate-shimmer"></div>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-0.5 bg-white/5 rounded-md p-0.5">
+                        <button
+                            onClick={() => setDrawingSession({ type: 'standard' })}
+                            className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out w-8 h-8 flex items-center justify-center"
+                            title="Dessiner"
+                        >
+                            <PenTool className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => setDrawingSession({ type: 'overlay' })}
+                            className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out w-8 h-8 flex items-center justify-center"
+                            title="Dessiner sur la note"
+                        >
+                            <PenTool className="w-5 h-5 opacity-50" />
+                        </button>
+                    </div>
 
-                    {/* AI Review Overlay */}
-                    {pendingAiContent && (
-                        <div className="absolute inset-0 z-30 bg-[#1e1e1e] flex flex-col animate-in fade-in slide-in-from-bottom-4 rounded-lg border border-blue-500/30 shadow-2xl overflow-hidden">
-                            <div className="flex items-center justify-between px-4 py-3 bg-blue-900/20 border-b border-blue-500/20 shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <Sparkles className="w-4 h-4 text-blue-400" />
-                                    <span className="text-sm font-bold text-blue-100">{t('editor.ai_suggestion')}</span>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setPendingAiContent(null)}
-                                        className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors flex items-center gap-1"
-                                    >
-                                        <X className="w-3.5 h-3.5" />
-                                        {t('editor.cancel')}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            onUpdateNote({ ...note, content: pendingAiContent, updatedAt: Date.now() });
-                                            setPendingAiContent(null);
-                                        }}
-                                        className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded shadow-lg transition-colors flex items-center gap-1"
-                                    >
-                                        <Check className="w-3.5 h-3.5" />
-                                        {t('editor.accept')}
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-                                <div className="whitespace-pre-wrap text-lg leading-relaxed text-gray-100 font-sans">
-                                    {pendingAiContent}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    <button
+                        onClick={handlePaste}
+                        className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center"
+                        title="Coller (Texte ou Image)"
+                    >
+                        <ClipboardPaste className="w-5 h-5" />
+                    </button>
                 </div>
-
-                {/* Attachments Section */}
-                {(note.attachments && note.attachments.length > 0) && (
-                    <div className="border-t border-white/5 pt-6 pb-20 mt-4">
-                        <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">{t('editor.attachments')} ({note.attachments.length})</h3>
-                        <div className="flex flex-wrap items-start gap-6">
-                            {note.attachments.map((att, index) => (
-                                <MediaAttachment
-                                    key={att.id}
-                                    att={att}
-                                    index={index}
-                                    note={note}
-                                    moveAttachment={moveAttachment}
-                                    removeAttachment={removeAttachment}
-                                    resizeAttachment={resizeAttachment}
-                                    renameAttachment={renameAttachment}
-                                    handleDownloadAttachment={handleDownloadAttachment}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Bottom Toolbar */}
-            <div className="h-12 border-t border-white/5 bg-[#1e1e1e]/80 backdrop-blur-md px-4 flex items-center gap-2 relative z-20">
-                {/* STT Interim Preview */}
-                {isListening && (
-                    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 pointer-events-none w-full max-w-2xl px-4 flex justify-center">
-                        <div className={`bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-3 text-sm text-gray-200 shadow-2xl transition-all duration-300 flex items-start gap-3 max-h-32 overflow-hidden ${interimTranscript ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0 mt-1.5" />
-                            <span className="font-medium whitespace-pre-wrap break-words text-left line-clamp-4">
-                                {interimTranscript || t('editor.listening')}
-                            </span>
-                        </div>
-                    </div>
-                )}
-                
-                <button
-                    onClick={() => keyAuthService.hasProAccess() ? toggleRecording() : onOpenLicense()}
-                    className={`p-2 rounded-full transition-all relative ${isRecording
-                        ? 'bg-red-500/20 text-red-400 animate-pulse'
-                        : keyAuthService.hasProAccess() ? 'bg-white/5 text-gray-400 hover:bg-white/10' : 'bg-white/5 text-gray-600 opacity-50 hover:bg-white/10'}`}
-                    title={keyAuthService.hasProAccess() ? (isRecording ? "Arrêter l'enregistrement" : "Enregistrer un mémo vocal") : "Fonctionnalité Pro (Verrouillée)"}
-                >
-                    {isRecording ? <StopCircle className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
-                    {!keyAuthService.hasProAccess() && (
-                        <Lock className="w-2.5 h-2.5 absolute -top-0.5 -right-0.5 text-orange-500 bg-[#1e1e1e] rounded-full" />
-                    )}
-                </button>
-
-                <div className="relative">
-                    <input
-                        type="file"
-                        multiple
-                        accept="image/*,video/*,audio/*,application/pdf"
-                        onChange={handleFileUpload}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        title="Insérer un fichier (Image, Vidéo, Audio, PDF)"
-                    />
-                    <div className="p-2 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 transition-colors pointer-events-none">
-                        <ImageIcon className="w-5 h-5" />
-                    </div>
-                </div>
-
-                <button
-                    onClick={handlePaste}
-                    className="p-2 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 transition-colors"
-                    title="Coller (Texte ou Image)"
-                >
-                    <ClipboardPaste className="w-5 h-5" />
-                </button>
 
                 <div className="flex-1" />
 
                 <button
                     onClick={handleCopyNote}
-                    className="p-2 rounded-full bg-blue-900/20 text-blue-400 hover:bg-blue-900/40 transition-colors"
+                    className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center"
                     title="Copier la note"
                 >
                     <Copy className="w-5 h-5" />
                 </button>
             </div>
+
+            {/* Invisible Drag Region at top - Only when titlebar is 'none' */}
+            {(!settings?.titlebarStyle || settings.titlebarStyle === 'none') && (
+                <div className="absolute top-0 left-0 right-0 h-2 z-50 pointer-events-none" data-tauri-drag-region />
+            )}
+
+            {/* EDITOR AREA */}
+            <div 
+                key={note.id} 
+                ref={editorContainerRef}
+                className="flex-1 overflow-y-auto animate-fade-in scroll-pt-4 relative custom-scrollbar"
+            >
+                <div className="w-full max-w-5xl mx-0 px-6 py-5 lg:px-10 lg:py-8 pb-20"> {/* Responsive Padding: 20px 24px (tablet) -> 32px 40px (desktop) */}
+                    {/* Metadata (Date) */}
+                    <div className="text-[11px] text-gray-500 mb-6 font-medium tracking-wide">
+                        {(() => {
+                            try {
+                                return new Date(note.updatedAt).toLocaleString(i18n.language, { dateStyle: 'long', timeStyle: 'short' });
+                            } catch {
+                                return "";
+                            }
+                        })()}
+                    </div>
+
+                    {/* Title Input */}
+                    <input
+                        type="text"
+                        value={note.title}
+                        onChange={handleTitleChange}
+                        placeholder={t('editor.title_placeholder')}
+                        className="w-full bg-transparent border-none outline-none text-[28px] font-bold text-white leading-9 mb-6 placeholder-gray-600 p-0"
+                    />
+
+                    <div className="relative w-full min-h-[500px]">
+                        <LanguageToolHighlightTextarea
+                            ref={textareaRef}
+                            value={note.content}
+                            onChange={handleContentChange}
+                            onKeyDown={handleKeyDown}
+                            placeholder={suggestion ? "" : t('editor.placeholder')}
+                            className="w-full h-auto overflow-y-auto custom-scrollbar resize-none bg-transparent outline-none text-[16px] leading-7 text-gray-200 placeholder-gray-600 font-sans transition-colors duration-200 selection:bg-blue-900 relative z-10"
+                            style={{ minHeight: '500px' }}
+                            language="auto"
+                            enabled={settings?.enableCorrection !== false}
+                        />
+                        {/* Suggestion Overlay */}
+                        {suggestion && (
+                            <div className="absolute top-0 left-0 pointer-events-none z-0 whitespace-pre-wrap text-[16px] leading-7 font-sans text-transparent w-full">
+                                {note.content}
+                                <span className="text-gray-500 opacity-60">{suggestion}</span>
+                            </div>
+                        )}
+
+                        {/* Shimmer Loading Overlay */}
+                        {isWaiting && (
+                            <div className="absolute inset-0 z-20 bg-[#1e1e1e]/40 backdrop-blur-[1px] flex flex-col gap-4 pt-2 animate-in fade-in duration-300 pointer-events-none">
+                                <div className="h-4 w-3/4 bg-white/5 rounded animate-shimmer"></div>
+                                <div className="h-4 w-full bg-white/5 rounded animate-shimmer"></div>
+                                <div className="h-4 w-5/6 bg-white/5 rounded animate-shimmer"></div>
+                                <div className="h-4 w-4/5 bg-white/5 rounded animate-shimmer"></div>
+                                <div className="h-4 w-2/3 bg-white/5 rounded animate-shimmer"></div>
+                            </div>
+                        )}
+
+                        {/* AI Review Overlay */}
+                        {pendingAiContent && (
+                            <div className="absolute inset-0 z-30 bg-[#1e1e1e] flex flex-col animate-in fade-in slide-in-from-bottom-4 rounded-lg border border-blue-500/30 shadow-2xl overflow-hidden min-h-[400px]">
+                                <div className="flex items-center justify-between px-4 py-3 bg-blue-900/20 border-b border-blue-500/20 shrink-0">
+                                    <div className="flex items-center gap-2">
+                                        <Sparkles className="w-4 h-4 text-blue-400" />
+                                        <span className="text-sm font-bold text-blue-100">{t('editor.ai_suggestion')}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setPendingAiContent(null)}
+                                            className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors flex items-center gap-1"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                            {t('editor.cancel')}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                onUpdateNote({ ...note, content: pendingAiContent, updatedAt: Date.now() });
+                                                setPendingAiContent(null);
+                                            }}
+                                            className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded shadow-lg transition-colors flex items-center gap-1"
+                                        >
+                                            <Check className="w-3.5 h-3.5" />
+                                            {t('editor.accept')}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
+                                    <div className="whitespace-pre-wrap text-[16px] leading-7 text-gray-100 font-sans">
+                                        {pendingAiContent}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Attachments Section */}
+                    {(note.attachments && note.attachments.length > 0) && (
+                        <div className="border-t border-white/5 pt-6 pb-20 mt-12">
+                            <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">{t('editor.attachments')} ({note.attachments.length})</h3>
+                            <div className="flex flex-wrap items-start gap-6">
+                                {note.attachments.map((att, index) => (
+                                    <MediaAttachment
+                                        key={att.id}
+                                        att={att}
+                                        index={index}
+                                        note={note}
+                                        moveAttachment={moveAttachment}
+                                        removeAttachment={removeAttachment}
+                                        resizeAttachment={resizeAttachment}
+                                        renameAttachment={renameAttachment}
+                                        handleDownloadAttachment={handleDownloadAttachment}
+                                        onAnnotate={handleAnnotate}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Note Badges (Fixed Bottom Left) */}
+            {!drawingSession && (
+                <NoteBadges badges={note.badges || []} onUpdate={handleUpdateBadges} />
+            )}
+
+            {drawingSession && (
+                <div className={`absolute left-0 right-0 bottom-0 animate-in fade-in duration-200 ${drawingSession.type === 'overlay' ? 'top-[44px] z-30 pointer-events-none' : 'top-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8'}`}>
+                    {drawingSession.type === 'overlay' ? (
+                        <div className="w-full h-full pointer-events-auto">
+                            <CanvasDraw 
+                                onSave={handleSaveDrawing} 
+                                onClose={() => setDrawingSession(null)}
+                                initialImage={null}
+                                isOverlay={true}
+                            />
+                        </div>
+                    ) : (
+                        <ResizableModal
+                            initialSize={{ width: 1200, height: 800 }}
+                            onClose={() => setDrawingSession(null)}
+                        >
+                            <CanvasDraw 
+                                onSave={handleSaveDrawing} 
+                                onClose={() => setDrawingSession(null)}
+                                initialImage={drawingSession.type === 'image' ? drawingSession.data : null}
+                                isOverlay={false}
+                            />
+                        </ResizableModal>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
+
+// Helper component for resizable modal
+const ResizableModal = ({ children, initialSize }) => {
+    const ref = useRef(null);
+    
+    // Lazy initialization of state to avoid setState in useEffect
+    const [size] = useState(() => {
+        const saved = localStorage.getItem('drawing_modal_size');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.warn('Failed to parse drawing modal size:', e);
+            }
+        }
+        return initialSize;
+    });
+
+    useEffect(() => {
+        if (!ref.current) return;
+        const ro = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                const { width, height } = entry.contentRect;
+                if (width > 100 && height > 100) {
+                     localStorage.setItem('drawing_modal_size', JSON.stringify({ width, height }));
+                }
+            }
+        });
+        ro.observe(ref.current);
+        return () => ro.disconnect();
+    }, []);
+
+    return (
+        <div 
+            ref={ref}
+            style={{ 
+                width: size.width, 
+                height: size.height,
+                maxWidth: '95vw', 
+                maxHeight: '95vh',
+                resize: 'both',
+                overflow: 'hidden',
+                minWidth: '320px',
+                minHeight: '300px'
+            }} 
+            className="bg-[#1e1e1e] rounded-xl shadow-2xl relative flex flex-col"
+        >
+            {children}
+            
+            {/* Custom Resize Handle Indicator (Visual only, browser handles interaction) */}
+            <div className="absolute bottom-0 right-0 p-1 pointer-events-none text-white/20">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v6" />
+                    <path d="M15 21h6" />
+                    <path d="M21 3v6" />
+                    <path d="M3 21h6" />
+                    <path d="M14.5 9.5 21 3" />
+                    <path d="M3 21l6.5-6.5" />
+                </svg>
+            </div>
+        </div>
+    );
+};

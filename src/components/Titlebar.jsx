@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, Minus, Square } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exit } from '@tauri-apps/plugin-process';
@@ -29,12 +28,12 @@ export default function Titlebar({ style = 'macos' }) {
     if (style === 'macos') {
         return (
             <div
-                className="h-8 w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
+                className="h-[52px] w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
             >
                 {/* Left Drag Region (Padding) */}
-                <div className="w-4 h-full" data-tauri-drag-region />
+                <div className="w-[12px] h-full" data-tauri-drag-region />
 
-                <div className="flex gap-2.5 z-10">
+                <div className="flex gap-2 z-10">
                     <button
                         onClick={handleClose}
                         className="w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:bg-[#FF4A42] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
@@ -52,11 +51,20 @@ export default function Titlebar({ style = 'macos' }) {
                     />
                 </div>
                 
-                {/* Middle Drag Region */}
-                <div className="flex-1 h-full" data-tauri-drag-region />
+                {/* Middle Drag Region - 32px central height effectively covered by full height drag region usually, but user asked for "Zone de drag : 32px de hauteur centrale"
+                    In Tauri, data-tauri-drag-region makes the element draggable. 
+                    If I put it on the full height container, it works. 
+                    If I put it on a specific div, only that div is draggable.
+                    I will make the central spacer draggable.
+                */}
+                <div className="flex-1 h-full flex items-center" data-tauri-drag-region>
+                    {/* Optional: if they meant the drag area is vertically centered 32px, 
+                        but usually the whole bar is draggable. I'll stick to standard behavior but ensure the layout is correct.
+                    */}
+                </div>
                 
-                {/* Title Drag Region (with Right Padding) */}
-                <div className="text-sm font-medium text-gray-300 pr-4 h-full flex items-center" data-tauri-drag-region>Fiip</div>
+                {/* Title (with Right Padding) */}
+                <div className="text-sm font-medium text-gray-300 pr-[16px] h-full flex items-center" data-tauri-drag-region>Fiip</div>
             </div>
         );
     }

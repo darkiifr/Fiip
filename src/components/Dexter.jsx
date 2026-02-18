@@ -1,10 +1,10 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 // Import d'icônes plus "pro" / minimalistes
 import {
-    Bot, Send, X, Plus, Sparkles, History,
-    FileText, Check, ChevronDown, Reply, Copy, RotateCcw,
+    Bot, Send, X, Sparkles,
+    FileText, Check, ChevronDown, RotateCcw,
     Trash2, Square, Volume2, Calendar, MessageCircle, PenTool, Paperclip
 } from 'lucide-react';
 import { generateText } from '../services/ai';
@@ -14,7 +14,7 @@ import { readFile } from '@tauri-apps/plugin-fs';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
-export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, onCreateNote, onUpdateNote, onDeleteNote, currentNote }) {
+export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpdateNote, onDeleteNote, currentNote }) {
     const { t } = useTranslation();
     const WIDGET_WIDTH = 450;
     const MARGIN_RIGHT = 30;
@@ -402,10 +402,10 @@ export default function Dexter({ isOpen, onClose, settings, onUpdateSettings, on
                     try {
                          jsonString = jsonString.replace(/"((?:[^"\\]|\\.)*)"/g, (match) => {
                             return match.replace(/\n/g, '\\n');
-                        });
-                    } catch (e) {
-                        // If regex fails (e.g. stack overflow), ignore
-                    }
+                    });
+                } catch {
+                    // If regex fails (e.g. stack overflow), ignore
+                }
 
                     const actionData = JSON.parse(jsonString);
 

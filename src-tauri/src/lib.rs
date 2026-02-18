@@ -1,4 +1,4 @@
-use tauri::Manager;
+// use tauri::Manager;
 
 #[cfg(target_os = "windows")]
 use window_vibrancy::{
@@ -25,14 +25,18 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
                 // Try Mica first (Windows 11 only)
                 if let Err(_) = apply_mica(&window, Some(true)) {
                     // Fallback to Acrylic for Windows 10 if Mica fails
-                    let _ = apply_acrylic(&window, Some((18, 18, 18, 125)));
+                    let _ = apply_acrylic(&window, None);
                 }
             }
             "acrylic" => {
-                let _ = apply_acrylic(&window, Some((18, 18, 18, 125)));
+                let _ = apply_acrylic(&window, None);
             }
             "blur" => {
-                let _ = apply_blur(&window, Some((18, 18, 18, 125)));
+                let _ = apply_blur(&window, None);
+            }
+            "vibrancy" => {
+                // Map vibrancy to Acrylic on Windows
+                let _ = apply_acrylic(&window, None);
             }
             _ => {} // "none" or default
         }
@@ -40,8 +44,16 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
     #[cfg(target_os = "macos")]
     {
         use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
-        if effect == "mica" || effect == "acrylic" {
-            let _ = apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None);
+        
+        let material = match effect {
+            "mica" | "acrylic" | "vibrancy" => Some(NSVisualEffectMaterial::HudWindow),
+            "blur" => Some(NSVisualEffectMaterial::UnderWindowBackground),
+            "sidebar" => Some(NSVisualEffectMaterial::Sidebar),
+            _ => None
+        };
+
+        if let Some(mat) = material {
+             let _ = apply_vibrancy(&window, mat, None, None);
         }
     }
 }
@@ -96,33 +108,22 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = app.get_webview_window("main").expect("no main window").set_focus();
-        }))
+        // .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        //    let _ = app.get_webview_window("main").expect("no main window").set_focus();
+        // }))
         .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, get_hwid])
-        .setup(|app| {
-            use tauri::{WebviewUrl, WebviewWindowBuilder};
-
-            let mut builder =
-                WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-                    .title("fiip")
-                    .inner_size(800.0, 600.0)
-                    .decorations(false)
-                    .transparent(true)
-                    .shadow(true);
-
+        .setup(|_app| {
+            println!("App setup starting...");
             // Check for .portable file
             if let Ok(current_exe) = std::env::current_exe() {
                 if let Some(exe_dir) = current_exe.parent() {
                     let portable_marker = exe_dir.join(".portable");
                     if portable_marker.exists() {
                         let data_dir = exe_dir.join("data");
-                        builder = builder.data_directory(data_dir);
+                        println!("Portable mode detected. Data dir: {:?}", data_dir);
                     }
                 }
             }
-
-            builder.build()?;
             Ok(())
         })
         .run(tauri::generate_context!())

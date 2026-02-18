@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Key, Check, AlertCircle, Loader2, ShieldCheck, CreditCard, Sparkles, Star, Zap, RefreshCw, Clock, Globe, MessageCircle } from 'lucide-react';
+import { X, Key, Check, ShieldCheck, Sparkles, Star, Zap, RefreshCw, Clock, Globe } from 'lucide-react';
 import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
 import { open } from '@tauri-apps/plugin-shell';
@@ -16,9 +16,6 @@ function FeatureItem({ label, active, icon: Icon }) {
 
 export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
   const { t } = useTranslation();
-  const [licenseKey, setLicenseKey] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState(null); // { success: boolean, message: string }
   const [authData, setAuthData] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [canTrial, setCanTrial] = useState(false);
@@ -50,8 +47,10 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
 
   useEffect(() => {
     if (isOpen) {
-      refreshAuthData();
-      setStatus(null);
+      const timer = setTimeout(() => {
+        refreshAuthData();
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -62,30 +61,9 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
       }
   };
 
-  const handleActivate = async () => {
-    if (!licenseKey.trim()) return;
-    setLoading(true);
-    setStatus(null);
-
-    try {
-      const result = await keyAuthService.login(licenseKey);
-      setStatus({ success: result.success, message: result.message });
-      if (result.success) {
-        refreshAuthData();
-        setLicenseKey('');
-      }
-    } catch (e) {
-      setStatus({ success: false, message: e.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLogout = () => {
     keyAuthService.logout();
     refreshAuthData();
-    setLicenseKey('');
-    setStatus(null);
   };
 
   const handleBuy = async () => {

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, User, Lock, Key, Mail, LogIn, UserPlus, Fingerprint, ShieldCheck, LogOut, Calendar, Award, Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, User, Lock, Key, Mail, LogIn, UserPlus, ShieldCheck, LogOut, Calendar, Award, Plus } from 'lucide-react';
 import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
 
@@ -67,7 +67,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             } else {
                 setError(res.message);
             }
-        } catch (err) {
+        } catch {
             setError("Erreur lors de l'ajout de la licence.");
         } finally {
             setLoading(false);
@@ -102,7 +102,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                     setError(res.message);
                 }
             }
-        } catch (err) {
+        } catch {
             setError(t('auth.error_generic', "Une erreur est survenue."));
         } finally {
             setLoading(false);
@@ -122,19 +122,29 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     const activeLicensesCount = userData?.subscriptions?.length || (keyAuthService.isTrialActive ? 1 : 0);
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md font-sora">
-            <div className={`w-full ${mode === 'profile' ? 'max-w-md' : 'max-w-sm'} bg-[#1a1b1e]/90 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden transform transition-all font-sora relative duration-500 ease-in-out`}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md font-sora animate-in fade-in duration-300">
+            <div className={`w-[480px] max-w-[480px] bg-[#1a1b1e]/90 backdrop-blur-xl rounded-[12px] border border-white/10 shadow-2xl overflow-hidden transform transition-all font-sora relative duration-300 ease-in-out flex flex-col`}>
                 
-                {mode === 'profile' ? (
-                    <div className="p-6 animate-fade-in text-center relative">
-                        {/* Close Button specific for profile */}
-                        <button 
-                            onClick={onClose}
-                            className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors z-10"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                        <div className="flex flex-col items-center mb-6">
+                {/* Header - 40px */}
+                <div className="h-[40px] px-6 flex items-center justify-between border-b border-white/5 shrink-0">
+                    <h2 className="text-sm font-semibold text-white">
+                        {mode === 'login' ? t('auth.login', 'Connexion') : 
+                         mode === 'register' ? t('auth.register', 'Inscription') : 
+                         t('auth.profile', 'Profil')}
+                    </h2>
+                    <button 
+                        onClick={onClose}
+                        className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors duration-[150ms] ease-out"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-[24px] overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(90vh - 96px)' }}>
+                    {mode === 'profile' ? (
+                        <div className="animate-fade-in text-center relative">
+                            <div className="flex flex-col items-center mb-6">
                             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-lg shadow-purple-900/20 mb-3">
                                 <div className="w-full h-full rounded-full bg-[#1C1C1E] flex items-center justify-center">
                                     <User className="w-6 h-6 text-white" />
@@ -232,7 +242,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                                     {!showAddLicense ? (
                                         <button
                                             onClick={() => setShowAddLicense(true)}
-                                            className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1.5 transition-colors font-medium ml-1"
+                                            className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1.5 transition-colors duration-[150ms] ease-out font-medium ml-1"
                                         >
                                             <Plus className="w-3 h-3" />
                                             {t('auth.add_license', 'Ajouter une licence / Upgrade')}
@@ -244,21 +254,21 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                                                 value={upgradeKey}
                                                 onChange={(e) => setUpgradeKey(e.target.value)}
                                                 placeholder={t('license.key_placeholder_short', "Clé de licence")}
-                                                className="w-full bg-[#1C1C1E] border border-gray-700 text-white text-xs rounded-md px-3 py-2 focus:outline-none focus:border-blue-500 font-mono placeholder:text-gray-600"
+                                                className="w-full bg-[#1C1C1E] border border-gray-700 text-white text-xs rounded-md px-3 py-2 focus:outline-none focus:border-blue-500 font-mono placeholder:text-gray-600 transition-all duration-[250ms] ease-in-out"
                                                 required
                                             />
                                             <div className="flex gap-2">
                                                 <button
                                                     type="submit"
                                                     disabled={loading}
-                                                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-1.5 rounded-md transition-all flex items-center justify-center gap-1"
+                                                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold py-1.5 rounded-md transition-all duration-[250ms] ease-in-out flex items-center justify-center gap-1"
                                                 >
                                                     {loading ? <span className="w-2 h-2 rounded-full border border-t-transparent animate-spin"></span> : 'Activer'}
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => { setShowAddLicense(false); setUpgradeKey(''); setError(null); }}
-                                                    className="px-3 bg-white/5 hover:bg-white/10 text-gray-400 text-[10px] rounded-md transition-colors"
+                                                    className="px-3 bg-white/5 hover:bg-white/10 text-gray-400 text-[10px] rounded-md transition-colors duration-[150ms] ease-out"
                                                 >
                                                     Annuler
                                                 </button>
@@ -268,160 +278,140 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                                 </div>
                             </div>
                         </div>
-
-                        <button
-                            onClick={handleLogout}
-                            className="w-full py-2.5 rounded-xl font-medium text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm"
-                        >
-                            <LogOut className="w-4 h-4" />
-                            {t('auth.logout', 'Se déconnecter')}
-                        </button>
                     </div>
                 ) : (
-                    <>
-                        {/* Auth Header with Tabs - Compressed */}
-                        <div className="flex items-center p-1 gap-2 bg-[#141517] border-b border-gray-800 pr-1.5">
-                            <button 
-                                onClick={() => setMode('login')}
-                                className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all duration-300 font-sora ${mode === 'login' ? 'bg-[#2C2E33] text-white shadow-lg' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
-                            >
-                                {t('auth.login_tab', 'Connexion')}
-                            </button>
-                            <button 
-                                onClick={() => setMode('register')}
-                                className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all duration-300 font-sora ${mode === 'register' ? 'bg-[#2C2E33] text-white shadow-lg' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
-                            >
-                                {t('auth.register_tab', 'Inscription')}
-                            </button>
-                            
-                            <button 
-                                onClick={onClose}
-                                className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors flex items-center justify-center"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className={`font-sora animate-fade-in ${mode === 'register' ? 'p-4' : 'p-6'}`}>
-                            <div className={`flex flex-col items-center justify-center ${mode === 'register' ? 'mb-4' : 'mb-6'}`}>
-                                <div className={`p-2.5 rounded-2xl mb-2 transition-colors duration-500 ${mode === 'login' ? 'bg-blue-500/10 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.15)]' : 'bg-purple-500/10 text-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.15)]'}`}>
-                                    {mode === 'login' ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                                </div>
-                                <h2 className="text-base font-bold text-center text-white mb-0.5 font-sora">
-                                    {mode === 'login' ? t('auth.welcome_login', 'Heureux de vous revoir') : t('auth.create_account', 'Commencer l\'aventure')}
-                                </h2>
-                                <p className="text-[10px] text-gray-500 text-center max-w-[200px] leading-tight">
-                                    {mode === 'login' ? 'Accédez à votre espace synchronisé.' : 'Créez un compte synchronisé.'}
-                                </p>
+                    <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in">
+                        <div>
+                            <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">{t('auth.username', 'Nom d\'utilisateur')}</label>
+                            <div className="relative">
+                                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <input
+                                    type="text"
+                                    name="username"
+                                    value={formData.username}
+                                    onChange={handleChange}
+                                    className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all duration-[250ms] ease-in-out placeholder-gray-600 h-[40px]"
+                                    placeholder="Nom d'utilisateur"
+                                    required
+                                />
                             </div>
-
-                            {(error || success) && (
-                                <div className={`mb-3 p-2.5 ${error ? 'bg-red-500/10 border-red-500/20' : 'bg-green-500/10 border-green-500/20'} border rounded-xl flex items-start gap-2 backdrop-blur-sm animate-fade-in-up`}>
-                                    <ShieldCheck className={`w-3.5 h-3.5 ${error ? 'text-red-400' : 'text-green-400'} shrink-0 mt-0.5`} />
-                                    <p className={`${error ? 'text-red-400' : 'text-green-400'} text-[11px] leading-tight`}>{error || success}</p>
-                                </div>
-                            )}
-
-                            <form onSubmit={handleSubmit} className={mode === 'register' ? 'space-y-2.5' : 'space-y-4'}>
-                                
-                                <div className="space-y-1 group">
-                                    <label className="text-[10px] font-medium text-gray-400 ml-1 transition-colors group-focus-within:text-white">{t('auth.username', "Nom d'utilisateur")}</label>
-                                    <div className="relative">
-                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-blue-500 transition-colors pointer-events-none">
-                                            <User className="w-3.5 h-3.5" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            name="username"
-                                            value={formData.username}
-                                            onChange={handleChange}
-                                            required
-                                            className={`w-full bg-[#141517] border border-gray-800 text-white rounded-xl pl-9 pr-4 ${mode === 'register' ? 'py-2' : 'py-2.5'} text-xs focus:outline-none focus:border-blue-500 focus:bg-[#1C1C1E] transition-all font-sora placeholder:text-gray-700`}
-                                            placeholder={t('auth.username_placeholder', "Utilisateur")}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1 group">
-                                    <label className="text-[10px] font-medium text-gray-400 ml-1 transition-colors group-focus-within:text-white">{t('auth.password', "Mot de passe")}</label>
-                                    <div className="relative">
-                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-blue-500 transition-colors pointer-events-none">
-                                            <Lock className="w-3.5 h-3.5" />
-                                        </div>
-                                        <input
-                                            type="password"
-                                            name="password"
-                                            value={formData.password}
-                                            onChange={handleChange}
-                                            required
-                                            className={`w-full bg-[#141517] border border-gray-800 text-white rounded-xl pl-9 pr-4 ${mode === 'register' ? 'py-2' : 'py-2.5'} text-xs focus:outline-none focus:border-blue-500 focus:bg-[#1C1C1E] transition-all font-sora placeholder:text-gray-700`}
-                                            placeholder={t('auth.password_placeholder', "• • • • • • • •")}
-                                        />
-                                    </div>
-                                </div>
-
-                                {mode === 'register' && (
-                                    <>
-                                        <div className="space-y-1 group animate-fade-in-up" style={{animationDelay: '0.05s'}}>
-                                            <label className="text-[10px] font-medium text-gray-400 ml-1 transition-colors group-focus-within:text-white">{t('auth.license', "Clé de Licence")}</label>
-                                            <div className="relative">
-                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-purple-500 transition-colors pointer-events-none">
-                                                    <Key className="w-3.5 h-3.5" />
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    name="license"
-                                                    value={formData.license}
-                                                    onChange={handleChange}
-                                                    required
-                                                    className="w-full bg-[#141517] border border-gray-800 text-white rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-purple-500 focus:bg-[#1C1C1E] transition-all font-mono placeholder:text-gray-700"
-                                                    placeholder={t('license.key_placeholder', "XXXX-XXXX-XXXX-XXXX")}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-1 group animate-fade-in-up" style={{animationDelay: '0.1s'}}>
-                                            <label className="text-[10px] font-medium text-gray-400 ml-1 transition-colors group-focus-within:text-white">{t('auth.email', "Email (Optionnel)")}</label>
-                                            <div className="relative">
-                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-purple-500 transition-colors pointer-events-none">
-                                                    <Mail className="w-3.5 h-3.5" />
-                                                </div>
-                                                <input
-                                                    type="email"
-                                                    name="email"
-                                                    value={formData.email}
-                                                    onChange={handleChange}
-                                                    className="w-full bg-[#141517] border border-gray-800 text-white rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:border-purple-500 focus:bg-[#1C1C1E] transition-all font-sora placeholder:text-gray-700"
-                                                    placeholder={t('auth.email_placeholder', "email@exemple.com")}
-                                                />
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className={`w-full py-2.5 rounded-xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-2 font-sora ${mode === 'register' ? 'mt-2' : 'mt-3'} text-xs
-                                        ${mode === 'login' 
-                                            ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-blue-500/20' 
-                                            : 'bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 shadow-purple-500/20'}
-                                    `}
-                                >
-                                    {loading ? (
-                                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    ) : (
-                                        <>
-                                            {mode === 'login' ? <LogIn className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-                                            {mode === 'login' ? t('auth.login_btn', 'Se connecter') : t('auth.register_btn', 'Créer un compte')}
-                                        </>
-                                    )}
-                                </button>
-                            </form>
                         </div>
+                        
+                        {mode === 'register' && (
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">{t('auth.email', 'Email (Optionnel)')}</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all duration-[250ms] ease-in-out placeholder-gray-600 h-[40px]"
+                                        placeholder="email@exemple.com"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">{t('auth.password', 'Mot de passe')}</label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <input
+                                    type="password"
+                                    name="password"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all duration-[250ms] ease-in-out placeholder-gray-600 h-[40px]"
+                                    placeholder="••••••••"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        {mode === 'register' && (
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">{t('auth.license', 'Clé de Licence')}</label>
+                                <div className="relative">
+                                    <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                    <input
+                                        type="text"
+                                        name="license"
+                                        value={formData.license}
+                                        onChange={handleChange}
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all duration-[250ms] ease-in-out placeholder-gray-600 h-[40px]"
+                                        placeholder="XXXX-XXXX-XXXX-XXXX"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {error && (
+                            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+                                <ShieldCheck className="w-4 h-4 shrink-0" />
+                                {error}
+                            </div>
+                        )}
+
+                        {success && (
+                            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs flex items-center gap-2">
+                                <ShieldCheck className="w-4 h-4 shrink-0" />
+                                {success}
+                            </div>
+                        )}
+                    </form>
+                )}
+            </div>
+
+            {/* Footer - 56px */}
+            <div className="h-[56px] px-[16px] bg-[#1a1b1e] border-t border-white/5 flex items-center justify-between shrink-0">
+                {mode === 'profile' ? (
+                    <button
+                        onClick={handleLogout}
+                        className="px-4 h-[32px] rounded-[6px] text-[13px] font-medium transition-all duration-[250ms] ease-in-out flex items-center gap-2 text-red-400 hover:bg-red-500/10 hover:text-red-300 ml-auto"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        {t('auth.logout', 'Déconnexion')}
+                    </button>
+                ) : (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setMode(mode === 'login' ? 'register' : 'login');
+                                setError(null);
+                                setSuccess(null);
+                            }}
+                            className="text-[13px] text-gray-400 hover:text-white transition-all duration-[250ms] ease-in-out font-medium"
+                        >
+                            {mode === 'login' ? t('auth.create_account', 'Créer un compte') : t('auth.have_account', 'Déjà un compte ?')}
+                        </button>
+
+                        <button
+                            onClick={handleSubmit}
+                            disabled={loading}
+                            className="px-[16px] h-[32px] bg-blue-600 hover:bg-blue-500 text-white rounded-[6px] text-[13px] font-medium transition-all duration-[250ms] ease-in-out shadow-lg shadow-blue-900/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                        >
+                            {loading ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : mode === 'login' ? (
+                                <>
+                                    <LogIn className="w-4 h-4" />
+                                    {t('auth.login_btn', 'Se connecter')}
+                                </>
+                            ) : (
+                                <>
+                                    <UserPlus className="w-4 h-4" />
+                                    {t('auth.register_btn', 'S\'inscrire')}
+                                </>
+                            )}
+                        </button>
                     </>
                 )}
             </div>
         </div>
+    </div>
     );
 }

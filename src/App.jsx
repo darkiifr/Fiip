@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Sidebar from "./components/Sidebar";
+import NoteList from "./components/NoteList";
 import Editor from "./components/Editor";
 import SettingsModal from "./components/SettingsModal";
 import LicenseModal from "./components/LicenseModal";
@@ -20,19 +21,20 @@ import { soundManager } from "./services/soundManager";
 import { calculateTotalUsage } from "./services/fileManager";
 
 // Helper to convert buffer to base64
-function arrayBufferToBase64(buffer) {
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);
-}
+// function arrayBufferToBase64(buffer) {
+//    let binary = '';
+//    const bytes = new Uint8Array(buffer);
+//    const len = bytes.byteLength;
+//    for (let i = 0; i < len; i++) {
+//        binary += String.fromCharCode(bytes[i]);
+//    }
+//    return window.btoa(binary);
+// }
 
 function App() {
   const { t, i18n } = useTranslation();
   const [appLoading, setAppLoading] = useState({ isLoading: true, status: 'Chargement...' });
+  const [activeNav, setActiveNav] = useState('home');
   const [notes, setNotes] = useState(() => {
     const saved = localStorage.getItem("fiip-notes");
     if (saved) {
@@ -191,6 +193,7 @@ function App() {
         }
     };
     initApp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cloud Sync Logic
@@ -208,7 +211,7 @@ function App() {
               console.log("Portable mode: Sync disabled.");
               return;
           }
-      } catch (_e) { /* ignore */ }
+      } catch { /* ignore */ }
 
       // Only sync if user is logged in with account (has username)
       if (!keyAuthService.isAuthenticated || !keyAuthService.userData?.username) return;
@@ -435,6 +438,7 @@ function App() {
         }, 3000); // Sync after 3 seconds of inactivity
         return () => clearTimeout(timeoutId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, settings]); // Re-run when notes OR settings change
 
   // Close Dexter if AI is disabled
@@ -489,6 +493,8 @@ function App() {
       title: initialData.title || "",
       content: initialData.content || "",
       updatedAt: Date.now(),
+      deleted: false,
+      favorite: false,
     };
     setNotes([newNote, ...notes]);
     setSelectedNoteId(newNote.id);
@@ -500,9 +506,7 @@ function App() {
 
   const checkStorageLimit = async (additionalBytes = 0) => {
       const limit = keyAuthService.getStorageLimit();
-      if (limit === 0) return true; // No limit or not logged in (handled elsewhere) - But wait, if not logged in, usually free tier? Assuming unlimited or restricted elsewhere.
-                                    // User said "par abonnement", implying if you have sub you have limit. If no sub, maybe block?
-                                    // But license modal blocks usage if no license. So we are always licensed/trial here.
+      if (limit === 0) return true; 
       
       const currentUsage = await calculateTotalUsage(notes);
       
@@ -512,14 +516,57 @@ function App() {
       return true;
   };
 
-  const handleDeleteNote = () => {
-    if (!selectedNoteId) return;
-    const newNotes = notes.filter((n) => n.id !== selectedNoteId);
-    setNotes(newNotes);
-    setSelectedNoteId(newNotes[0]?.id || null);
+  const handleDeleteNote = (noteId) => {
+    const idToDelete = noteId || selectedNoteId;
+    if (!idToDelete) return;
+
+    if (activeNav === 'trash') {
+        // Permanent delete
+        const newNotes = notes.filter((n) => n.id !== idToDelete);
+        setNotes(newNotes);
+        if (selectedNoteId === idToDelete) {
+            setSelectedNoteId(newNotes[0]?.id || null);
+        }
+    } else {
+        // Soft delete
+        setNotes(prev => prev.map(n => n.id === idToDelete ? { ...n, deleted: true } : n));
+        if (selectedNoteId === idToDelete) {
+             setSelectedNoteId(null);
+        }
+    }
+  };
+
+  const handleRestoreNote = (noteId) => {
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, deleted: false } : n));
+  };
+
+  const handleToggleFavorite = (noteId) => {
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, favorite: !n.favorite } : n));
+  };
+
+  const handleEmptyTrash = () => {
+    if (confirm(t('sidebar.empty_trash_confirm') || "Vider la corbeille définitivement ?")) {
+        setNotes(prev => prev.filter(n => !n.deleted));
+        setSelectedNoteId(null);
+    }
   };
 
   const selectedNote = Array.isArray(notes) ? notes.find((n) => n.id === selectedNoteId) : null;
+
+  // Filter notes based on activeNav
+  const getFilteredNotes = () => {
+      if (!Array.isArray(notes)) return [];
+      switch (activeNav) {
+          case 'favorites':
+              return notes.filter(n => !n.deleted && n.favorite);
+          case 'trash':
+              return notes.filter(n => n.deleted);
+          default: // home
+              return notes.filter(n => !n.deleted);
+      }
+  };
+
+  const visibleNotes = getFilteredNotes();
 
   return (
     <div className={`flex flex-col h-screen w-screen overflow-hidden text-gray-100 font-sans transition-colors duration-300 ${settings.largeText ? 'text-lg' : ''} bg-[#1C1C1E]/40`}>
@@ -527,18 +574,32 @@ function App() {
       <Titlebar style={settings.titlebarStyle} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar
-          notes={notes}
+          activeNav={activeNav}
+          onNavigate={setActiveNav}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenLicense={() => setIsLicenseModalOpen(true)}
+          onToggleDexter={() => {
+            if (!settings.aiEnabled) {
+                setSettings(prev => ({ ...prev, aiEnabled: true }));
+            }
+            setIsDexterOpen(!isDexterOpen);
+          }}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          settings={settings}
+        />
+        <div className="w-[1px] h-full bg-white/5 flex-shrink-0" />
+        <NoteList
+          notes={visibleNotes}
           selectedNoteId={selectedNoteId}
           onSelectNote={setSelectedNoteId}
           onCreateNote={handleCreateNote}
           onDeleteNote={handleDeleteNote}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenLicense={() => setIsLicenseModalOpen(true)}
-          onToggleDexter={() => setIsDexterOpen(!isDexterOpen)}
-          onOpenChat={() => setIsChatModalOpen(true)}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
-          settings={settings}
+          onRestoreNote={handleRestoreNote}
+          onToggleFavorite={handleToggleFavorite}
+          activeNav={activeNav}
+          onEmptyTrash={handleEmptyTrash}
         />
+        <div className="w-[1px] h-full bg-white/5 flex-shrink-0" />
         {selectedNote ? (
           <Editor
             note={selectedNote}
@@ -549,10 +610,10 @@ function App() {
             checkStorageLimit={checkStorageLimit}
           />
         ) : (
-            <div className="flex-1 h-full flex items-center justify-center text-gray-500 select-none">
+            <div className="flex-1 h-full flex items-center justify-center text-gray-500 select-none bg-[#1C1C1E]/20">
                 <div className="flex flex-col items-center gap-4">
                     <FileText className="w-16 h-16 opacity-20" />
-                    <p>{t('editor.select_note')}</p>
+                    <p>{t('editor.select_note') || "Select a note to view"}</p>
                 </div>
             </div>
         )}

@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight, ChevronDown, Globe, Cloud, Upload } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight, Globe, Cloud, Upload, Mic, Volume2, Cpu, MessageSquare } from 'lucide-react';
 import { relaunch, exit } from '@tauri-apps/plugin-process';
 import { open, Command } from '@tauri-apps/plugin-shell';
 import { type } from '@tauri-apps/plugin-os';
 import { getVersion } from '@tauri-apps/api/app';
 import { getPlatformDisplayName } from '../services/platform';
-import { generateText } from '../services/ai';
 import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, ShieldAlert, Key } from 'lucide-react';
+import { ShieldCheck, ShieldAlert } from 'lucide-react';
+import CustomSelect from './CustomSelect';
 
 export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdateSettings, storageUsage }) {
     const { t, i18n } = useTranslation();
@@ -22,7 +22,6 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
     const [voices, setVoices] = useState([]);
     const [isLinux, setIsLinux] = useState(false);
     const [updateInfo, setUpdateInfo] = useState(null);
-    const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
     const [authData, setAuthData] = useState(null);
     const fileInputRef = useRef(null);
 
@@ -211,15 +210,17 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="relative w-96 bg-[#2c2c2c] rounded-xl shadow-2xl border border-white/10 overflow-hidden transform transition-all scale-100 p-6 flex flex-col max-h-[90vh]">
-                <div className="flex justify-between items-center mb-6 shrink-0">
-                    <h2 className="text-lg font-semibold text-white">{t('settings.title')}</h2>
-                    <button onClick={handleClose} className="p-1 rounded-full hover:bg-white/10 transition-colors">
-                        <X className="w-5 h-5 text-gray-400" />
+            <div className="relative w-[480px] bg-[#2c2c2c] rounded-[12px] shadow-2xl border border-white/10 overflow-hidden transform transition-all scale-100 flex flex-col max-h-[90vh]">
+                {/* Header */}
+                <div className="h-[40px] px-6 flex items-center justify-between border-b border-white/5 shrink-0">
+                    <h2 className="text-sm font-semibold text-white">{t('settings.title')}</h2>
+                    <button onClick={handleClose} className="p-1 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors duration-[150ms] ease-out">
+                        <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                <div className="space-y-6 overflow-y-auto pr-1 custom-scrollbar">
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 custom-scrollbar">
                     
                     {/* Profile & Avatar Settings */}
                     {authData && (
@@ -281,45 +282,23 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                     {/* Language */}
                     <div className="space-y-3 relative z-20">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.language')}</h3>
-                        <div className="relative">
-                            <button
-                                onClick={() => setIsLanguageMenuOpen(!isLanguageMenuOpen)}
-                                className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-gray-100 outline-none flex items-center justify-between hover:bg-white/5 transition-colors"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Globe className="w-4 h-4 text-gray-400" />
-                                    <span>{languages.find(l => l.code === i18n.language)?.label || 'Français'}</span>
-                                </div>
-                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isLanguageMenuOpen ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {isLanguageMenuOpen && (
+                        <CustomSelect
+                            value={i18n.language}
+                            onChange={(code) => i18n.changeLanguage(code)}
+                            options={languages.map(l => ({ value: l.code, label: l.label, icon: l.flag }))}
+                            renderOption={(option) => (
                                 <>
-                                    <div 
-                                        className="fixed inset-0 z-40" 
-                                        onClick={() => setIsLanguageMenuOpen(false)}
-                                    />
-                                    <div className="absolute top-full left-0 right-0 mt-1 bg-neutral-900 border border-white/10 rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
-                                        {languages.map((lang) => (
-                                            <button
-                                                key={lang.code}
-                                                onClick={() => {
-                                                    i18n.changeLanguage(lang.code);
-                                                    setIsLanguageMenuOpen(false);
-                                                }}
-                                                className={`w-full text-left px-3 py-2.5 text-sm flex items-center justify-between hover:bg-white/10 transition-colors ${i18n.language === lang.code ? 'bg-blue-600/20 text-blue-400' : 'text-gray-200'}`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-base">{lang.flag}</span>
-                                                    <span className="font-medium">{lang.label}</span>
-                                                </div>
-                                                {i18n.language === lang.code && <Check className="w-4 h-4" />}
-                                            </button>
-                                        ))}
-                                    </div>
+                                    <span className="text-base shrink-0">{option.icon}</span>
+                                    <span className="font-medium truncate">{option.label}</span>
                                 </>
                             )}
-                        </div>
+                            renderTrigger={(option) => (
+                                <>
+                                    <Globe className="w-4 h-4 text-gray-400" />
+                                    <span className="truncate">{option.label}</span>
+                                </>
+                            )}
+                        />
                     </div>
 
                     {/* Writing Assistance */}
@@ -334,7 +313,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     onChange={(e) => handleUpdate({ ...localSettings, enableCorrection: e.target.checked })}
                                     className="sr-only peer"
                                 />
-                                <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                <div className="w-[40px] h-[24px] bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
                     </div>
@@ -418,7 +397,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     onChange={(e) => handleUpdate({ ...localSettings, largeText: e.target.checked })}
                                     className="sr-only peer"
                                 />
-                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                <div className="w-[40px] h-[24px] bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
                     </div>
@@ -443,6 +422,26 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         <p className="text-[10px] text-gray-400 px-1">
                             {t('settings.titlebar_desc')}
                         </p>
+                    </div>
+
+                    {/* Auto Update */}
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.updates', 'Mises à jour')}</h3>
+                        <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <Download className="w-5 h-5 text-gray-400" />
+                                <span className="text-sm font-medium text-gray-200">{t('settings.auto_update', 'Mises à jour automatiques')}</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={localSettings.autoUpdate !== false}
+                                    onChange={(e) => handleUpdate({ ...localSettings, autoUpdate: e.target.checked })}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-[40px] h-[24px] bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
                     </div>
 
                     {/* Cloud Sync */}
@@ -482,7 +481,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         }}
                                         className="sr-only peer"
                                     />
-                                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                    <div className="w-[40px] h-[24px] bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                                 </label>
                             </div>
 
@@ -559,7 +558,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         onChange={(e) => handleUpdate({ ...localSettings, appSound: e.target.checked })}
                                         className="sr-only peer"
                                     />
-                                    <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                    <div className="w-[40px] h-[24px] bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                                 </label>
                             </div>
                             <div className="flex items-center justify-between border-t border-white/5 pt-3">
@@ -571,7 +570,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         onChange={(e) => handleUpdate({ ...localSettings, chatSound: e.target.checked })}
                                         className="sr-only peer"
                                     />
-                                    <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                    <div className="w-[40px] h-[24px] bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                                 </label>
                             </div>
                         </div>
@@ -579,35 +578,45 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         {/* Audio Input */}
                         <div>
                             <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.mic_input')}</label>
-                            <select
+                            <CustomSelect
                                 value={localSettings.audioInputId || ''}
-                                onChange={(e) => handleUpdate({ ...localSettings, audioInputId: e.target.value })}
-                                className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
-                            >
-                                <option value="">{t('settings.default')}</option>
-                                {audioDevices.inputs.map(device => (
-                                    <option key={device.deviceId} value={device.deviceId}>
-                                        {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={(val) => handleUpdate({ ...localSettings, audioInputId: val })}
+                                options={[
+                                    { value: "", label: t('settings.default') },
+                                    ...audioDevices.inputs.map(device => ({
+                                        value: device.deviceId,
+                                        label: device.label || `Microphone ${device.deviceId.slice(0, 5)}...`
+                                    }))
+                                ]}
+                                renderTrigger={(option) => (
+                                    <>
+                                        <Mic className="w-4 h-4 text-gray-400" />
+                                        <span className="truncate">{option.label}</span>
+                                    </>
+                                )}
+                            />
                         </div>
 
                         {/* Audio Output */}
                         <div>
                             <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.audio_output')}</label>
-                            <select
+                            <CustomSelect
                                 value={localSettings.audioOutputId || ''}
-                                onChange={(e) => handleUpdate({ ...localSettings, audioOutputId: e.target.value })}
-                                className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
-                            >
-                                <option value="">{t('settings.default')}</option>
-                                {audioDevices.outputs.map(device => (
-                                    <option key={device.deviceId} value={device.deviceId}>
-                                        {device.label || `Sortie ${device.deviceId.slice(0, 5)}...`}
-                                    </option>
-                                ))}
-                            </select>
+                                onChange={(val) => handleUpdate({ ...localSettings, audioOutputId: val })}
+                                options={[
+                                    { value: "", label: t('settings.default') },
+                                    ...audioDevices.outputs.map(device => ({
+                                        value: device.deviceId,
+                                        label: device.label || `Sortie ${device.deviceId.slice(0, 5)}...`
+                                    }))
+                                ]}
+                                renderTrigger={(option) => (
+                                    <>
+                                        <Volume2 className="w-4 h-4 text-gray-400" />
+                                        <span className="truncate">{option.label}</span>
+                                    </>
+                                )}
+                            />
                         </div>
                     </div>
 
@@ -628,7 +637,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     onChange={(e) => handleUpdate({ ...localSettings, aiEnabled: e.target.checked })}
                                     className="sr-only peer"
                                 />
-                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                <div className="w-[40px] h-[24px] bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
 
@@ -653,26 +662,24 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                                 <div>
                                     <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.ai_model_label')}</label>
-                                    <select
+                                    <CustomSelect
                                         value={localSettings.aiModel || 'openai/gpt-4o-mini'}
-                                        onChange={(e) => handleUpdate({ ...localSettings, aiModel: e.target.value })}
-                                        className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
-                                    >
-                                        <optgroup label={t('settings.popular_models')}>
-                                            <option value="openai/gpt-4o-mini">GPT-4o Mini {t('settings.model_desc_fast')}</option>
-                                            <option value="openai/gpt-4o">GPT-4o {t('settings.model_desc_powerful')}</option>
-                                            <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
-                                            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                                            <option value="mistralai/mistral-large-2411">Mistral Large</option>
-                                        </optgroup>
-                                        {(localSettings.customModels && localSettings.customModels.length > 0) && (
-                                            <optgroup label="Personnalisés">
-                                                {localSettings.customModels.map(m => (
-                                                    <option key={m} value={m}>{m}</option>
-                                                ))}
-                                            </optgroup>
+                                        onChange={(val) => handleUpdate({ ...localSettings, aiModel: val })}
+                                        options={[
+                                            { value: "openai/gpt-4o-mini", label: `GPT-4o Mini ${t('settings.model_desc_fast') || ''}` },
+                                            { value: "openai/gpt-4o", label: `GPT-4o ${t('settings.model_desc_powerful') || ''}` },
+                                            { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
+                                            { value: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet" },
+                                            { value: "mistralai/mistral-large-2411", label: "Mistral Large" },
+                                            ...(localSettings.customModels || []).map(m => ({ value: m, label: m }))
+                                        ]}
+                                        renderTrigger={(option) => (
+                                            <>
+                                                <Cpu className="w-4 h-4 text-gray-400" />
+                                                <span className="truncate">{option.label}</span>
+                                            </>
                                         )}
-                                    </select>
+                                    />
                                 </div>
 
                                 {/* Custom Models List */}
@@ -754,7 +761,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     onChange={(e) => handleUpdate({ ...localSettings, voiceEnabled: e.target.checked })}
                                     className="sr-only peer"
                                 />
-                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                <div className="w-[40px] h-[24px] bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
 
@@ -762,18 +769,23 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         {localSettings.voiceEnabled !== false && (
                             <div>
                                 <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.voice_label')}</label>
-                                <select
+                                <CustomSelect
                                     value={localSettings.voiceName || ''}
-                                    onChange={(e) => handleUpdate({ ...localSettings, voiceName: e.target.value })}
-                                    className="w-full bg-black/20 border border-white/10 rounded-md px-2 py-2 text-sm text-gray-100 outline-none"
-                                >
-                                    <option value="">{t('settings.default')}</option>
-                                    {voices.map((voice) => (
-                                        <option key={voice.name} value={voice.name}>
-                                            {voice.name} ({voice.lang})
-                                        </option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => handleUpdate({ ...localSettings, voiceName: val })}
+                                    options={[
+                                        { value: "", label: t('settings.default') },
+                                        ...voices.map(voice => ({
+                                            value: voice.name,
+                                            label: `${voice.name} (${voice.lang})`
+                                        }))
+                                    ]}
+                                    renderTrigger={(option) => (
+                                        <>
+                                            <MessageSquare className="w-4 h-4 text-gray-400" />
+                                            <span className="truncate">{option.label}</span>
+                                        </>
+                                    )}
+                                />
 
                                 {/* Linux TTS Warning */}
                                 {isLinux && voices.length === 0 && (
@@ -819,7 +831,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     onChange={(e) => handleUpdate({ ...localSettings, dictationEnabled: e.target.checked })}
                                     className="sr-only peer"
                                 />
-                                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                <div className="w-[40px] h-[24px] bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                             </label>
                         </div>
                         
@@ -834,72 +846,78 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                             </button>
                         </div>
                     </div>
+
+                    {/* System */}
+                    <div className="space-y-3 pt-4 border-t border-white/5">
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.system', 'Système')}</h3>
+                        
+                        <div className="flex w-full gap-2">
+                            <button
+                                disabled={isCheckingUpdate}
+                                onClick={async () => {
+                                    setIsCheckingUpdate(true);
+                                    try {
+                                        const { check } = await import('@tauri-apps/plugin-updater');
+                                        const update = await check();
+
+                                        if (update?.available) {
+                                            const currentVersion = update.currentVersion;
+                                            const latestVersion = update.version;
+
+                                            if (currentVersion === latestVersion) {
+                                                alert(`Vous êtes déjà à jour ! (Version ${currentVersion})`);
+                                                setIsCheckingUpdate(false);
+                                                return;
+                                            }
+
+                                            setUpdateInfo(update);
+                                        } else {
+                                            alert(t('settings.update_not_found'));
+                                        }
+                                    } catch (e) {
+                                        console.error("Update check error:", e);
+                                        const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
+                                        
+                                        if (msg.includes("parsing major version number") || msg.includes("unexpected character")) {
+                                             console.warn("Update check failed due to invalid server version format. Assuming up to date.");
+                                             alert(t('settings.update_check_error_version'));
+                                        } else if (msg.includes("Could not fetch a valid release JSON")) {
+                                            alert(t('settings.update_check_error_network'));
+                                        } else {
+                                            alert(t('settings.update_check_error_generic', { error: msg }));
+                                        }
+                                    } finally {
+                                        setIsCheckingUpdate(false);
+                                    }
+                                }}
+                                className={`flex-1 h-[32px] px-5 bg-white/10 text-white rounded-[6px] text-[13px] font-medium hover:bg-white/20 transition-colors duration-[250ms] ease-in-out ${isCheckingUpdate ? 'opacity-50 cursor-wait' : ''}`}
+                            >
+                                {isCheckingUpdate ? t('settings.checking') : t('settings.check_update_btn')}
+                            </button>
+                            <button
+                                onClick={handleRestart}
+                                className="flex-1 h-[32px] px-5 bg-white text-gray-900 rounded-[6px] text-[13px] font-medium hover:opacity-90 transition-opacity duration-[250ms] ease-in-out flex items-center justify-center gap-2"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                {t('settings.restart')}
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-gray-400 text-center">Fiip Notes v{appVersion || '...'}</p>
+                        {platformName && (
+                            <p className="text-[10px] text-gray-500 text-center">Running on {platformName}</p>
+                        )}
+                    </div>
                 </div>
 
-                <div className="pt-6 border-t border-white/5 flex flex-col gap-3 mt-4 shrink-0">
+                {/* Footer */}
+                <div className="h-[56px] px-[16px] bg-[#2c2c2c] border-t border-white/5 flex items-center justify-end gap-3 shrink-0">
                     <button
                         onClick={handleApply}
-                        className="w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-md transform hover:-translate-y-0.5"
+                        className="w-full h-[32px] px-4 rounded-[6px] text-[13px] font-medium transition-all duration-[250ms] ease-in-out flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-md transform hover:-translate-y-0.5"
                     >
                         <Check className="w-4 h-4" />
                         {t('settings.apply')}
                     </button>
-
-                    <div className="flex w-full gap-2">
-                        <button
-                            disabled={isCheckingUpdate}
-                            onClick={async () => {
-                                setIsCheckingUpdate(true);
-                                try {
-                                    const { check } = await import('@tauri-apps/plugin-updater');
-                                    const update = await check();
-
-                                    if (update?.available) {
-                                        const currentVersion = update.currentVersion;
-                                        const latestVersion = update.version;
-
-                                        if (currentVersion === latestVersion) {
-                                            alert(`Vous êtes déjà à jour ! (Version ${currentVersion})`);
-                                            setIsCheckingUpdate(false);
-                                            return;
-                                        }
-
-                                        setUpdateInfo(update);
-                                    } else {
-                                        alert(t('settings.update_not_found'));
-                                    }
-                                } catch (e) {
-                                    console.error("Update check error:", e);
-                                    const msg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e));
-                                    
-                                    if (msg.includes("parsing major version number") || msg.includes("unexpected character")) {
-                                         console.warn("Update check failed due to invalid server version format. Assuming up to date.");
-                                         alert(t('settings.update_check_error_version'));
-                                    } else if (msg.includes("Could not fetch a valid release JSON")) {
-                                        alert(t('settings.update_check_error_network'));
-                                    } else {
-                                        alert(t('settings.update_check_error_generic', { error: msg }));
-                                    }
-                                } finally {
-                                    setIsCheckingUpdate(false);
-                                }
-                            }}
-                            className={`flex-1 py-2.5 px-5 bg-white/10 text-white rounded-lg text-sm font-medium hover:bg-white/20 transition-colors ${isCheckingUpdate ? 'opacity-50 cursor-wait' : ''}`}
-                        >
-                            {isCheckingUpdate ? t('settings.checking') : t('settings.check_update_btn')}
-                        </button>
-                        <button
-                            onClick={handleRestart}
-                            className="flex-1 py-2.5 px-5 bg-white text-gray-900 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
-                        >
-                            <RefreshCw className="w-4 h-4" />
-                            {t('settings.restart')}
-                        </button>
-                    </div>
-                    <p className="text-[10px] text-gray-400 text-center">Fiip Notes v{appVersion || '...'}</p>
-                    {platformName && (
-                        <p className="text-[10px] text-gray-500 text-center">Running on {platformName}</p>
-                    )}
                 </div>
 
                 {/* Update Modal Overlay */}

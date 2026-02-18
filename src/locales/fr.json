@@ -1,5 +1,12 @@
 {
   "sidebar": {
+    "all_notes": "Toutes les notes",
+    "favorites": "Favoris",
+    "trash": "Corbeille",
+    "favorite": "Favori",
+    "unfavorite": "Retirer des favoris",
+    "restore": "Restaurer",
+    "delete_permanently": "Supprimer définitivement",
     "search_placeholder": "Rechercher...",
     "no_notes": "Aucune note",
     "new_note": "Nouvelle note",
@@ -13,7 +20,10 @@
     "delete_confirm": "Supprimer cette note ?",
     "export": "Exporter",
     "delete": "Supprimer",
-    "import": "Importer"
+    "import": "Importer",
+    "empty_trash": "Vider la corbeille",
+    "empty": "Vider",
+    "empty_trash_confirm": "Vider la corbeille définitivement ?"
   },
   "editor": {
     "add_elements": "Ajouter des éléments",
