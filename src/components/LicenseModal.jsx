@@ -67,7 +67,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
   };
 
   const handleBuy = async () => {
-    await open('https://fiip-notes.app/pricing'); // Remplacer par l'URL réelle
+    await open('https://vinsstudio.mysellauth.com/');
   };
 
   if (!isOpen) return null;
