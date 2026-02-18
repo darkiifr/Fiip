@@ -1,5 +1,12 @@
 {
   "sidebar": {
+    "all_notes": "Toutes les notes",
+    "favorites": "Favoris",
+    "trash": "Corbeille",
+    "favorite": "Favori",
+    "unfavorite": "Retirer des favoris",
+    "restore": "Restaurer",
+    "delete_permanently": "Supprimer définitivement",
     "search_placeholder": "搜尋...",
     "no_notes": "無筆記",
     "new_note": "新筆記",
@@ -13,7 +20,10 @@
     "delete_confirm": "刪除此筆記？",
     "export": "匯出",
     "delete": "刪除",
-    "import": "匯入"
+    "import": "匯入",
+    "empty_trash": "Vider la corbeille",
+    "empty": "Vider",
+    "empty_trash_confirm": "Vider la corbeille définitivement ?"
   },
   "editor": {
     "add_elements": "Ajouter des éléments",
