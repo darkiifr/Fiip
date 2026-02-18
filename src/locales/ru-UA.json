@@ -1,5 +1,12 @@
 {
   "sidebar": {
+    "all_notes": "Toutes les notes",
+    "favorites": "Favoris",
+    "trash": "Corbeille",
+    "favorite": "Favori",
+    "unfavorite": "Retirer des favoris",
+    "restore": "Restaurer",
+    "delete_permanently": "Supprimer définitivement",
     "search_placeholder": "Поиск...",
     "no_notes": "Нет заметок",
     "new_note": "Новая заметка",
@@ -13,7 +20,10 @@
     "delete_confirm": "Удалить эту заметку?",
     "export": "Экспорт",
     "delete": "Удалить",
-    "import": "Импорт"
+    "import": "Импорт",
+    "empty_trash": "Vider la corbeille",
+    "empty": "Vider",
+    "empty_trash_confirm": "Vider la corbeille définitivement ?"
   },
   "editor": {
     "add_elements": "Ajouter des éléments",
