@@ -23,7 +23,9 @@
     "import": "导入",
     "empty_trash": "Vider la corbeille",
     "empty": "Vider",
-    "empty_trash_confirm": "Vider la corbeille définitivement ?"
+    "empty_trash_confirm": "Vider la corbeille définitivement ?",
+    "logout": "Déconnexion",
+    "shared": "Partagés"
   },
   "editor": {
     "add_elements": "Ajouter des éléments",
