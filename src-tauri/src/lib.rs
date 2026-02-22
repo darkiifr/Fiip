@@ -65,6 +65,7 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
 
 #[tauri::command]
 fn is_portable() -> bool {
+    #[cfg(not(debug_assertions))]
     if let Ok(current_exe) = std::env::current_exe() {
         if let Some(exe_dir) = current_exe.parent() {
             return exe_dir.join(".portable").exists();
@@ -119,7 +120,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, get_hwid])
         .setup(|_app| {
             println!("App setup starting...");
-            // Check for .portable file
+            
+            // Check for .portable file (Skip in Dev/Debug mode)
+            #[cfg(not(debug_assertions))]
             if let Ok(current_exe) = std::env::current_exe() {
                 if let Some(exe_dir) = current_exe.parent() {
                     let portable_marker = exe_dir.join(".portable");

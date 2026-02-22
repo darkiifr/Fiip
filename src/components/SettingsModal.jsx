@@ -23,6 +23,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
     const [isLinux, setIsLinux] = useState(false);
     const [updateInfo, setUpdateInfo] = useState(null);
     const [authData, setAuthData] = useState(null);
+    const [pendingUpdatesCount, setPendingUpdatesCount] = useState(0);
     const fileInputRef = useRef(null);
 
     // Helper for formatting bytes
@@ -89,6 +90,20 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
         if (typeof window !== 'undefined' && window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined) {
             window.speechSynthesis.onvoiceschanged = loadVoices;
         }
+
+        // Check for pending updates
+        const checkPending = () => {
+            const updates = keyAuthService.pendingUpdates;
+            if (updates) {
+                setPendingUpdatesCount(Object.keys(updates).length);
+            } else {
+                setPendingUpdatesCount(0);
+            }
+        };
+        
+        checkPending();
+        const interval = setInterval(checkPending, 2000);
+        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
@@ -204,6 +219,23 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
             }
         };
         reader.readAsDataURL(file);
+    };
+
+    const handleManualSync = async () => {
+        if (!keyAuthService.isAuthenticated) {
+            alert(t('settings.sync_auth_required', "Vous devez être connecté pour synchroniser."));
+            return;
+        }
+
+        try {
+            const notes = JSON.parse(localStorage.getItem('fiip-notes') || '[]');
+            await keyAuthService.saveUserData({ notes: notes });
+            alert(t('settings.sync_success', "Synchronisation effectuée avec succès !"));
+            setPendingUpdatesCount(0);
+        } catch (error) {
+            console.error('Sync failed:', error);
+            alert(t('settings.sync_failed', "Échec de la synchronisation : ") + error.message);
+        }
     };
 
     if (!isOpen) return null;
@@ -487,6 +519,19 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                             {localSettings.cloudSync !== false && (
                                 <div className="mt-2 pt-2 border-t border-white/5 space-y-2 animate-in fade-in slide-in-from-top-1">
+                                    <button 
+                                        onClick={handleManualSync}
+                                        className="w-full py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded text-xs font-medium flex items-center justify-center gap-2 transition-colors mb-2"
+                                    >
+                                        <RefreshCw className="w-3.5 h-3.5" />
+                                        {t('settings.manual_sync', "Synchroniser maintenant")}
+                                    </button>
+                                    {pendingUpdatesCount > 0 && (
+                                        <div className="px-2 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded flex items-center gap-2 text-yellow-200 text-xs mb-2">
+                                            <RefreshCw className="w-3 h-3 animate-spin" />
+                                            <span>{pendingUpdatesCount} modification(s) en attente de connexion...</span>
+                                        </div>
+                                    )}
                                     <p className="text-[10px] text-gray-400 px-1 mb-2 font-medium">Choisir les éléments à synchroniser :</p>
                                     
                                     {[
@@ -558,10 +603,10 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         onChange={(e) => handleUpdate({ ...localSettings, appSound: e.target.checked })}
                                         className="sr-only peer"
                                     />
-                                    <div className="w-[40px] h-[24px] bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                    <div className="w-[40px] h-[24px] bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                                 </label>
                             </div>
-                            <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                            <div className="flex items-center justify-between">
                                 <span className="text-sm font-medium text-gray-200">{t('settings.chat_sounds', "Notifications du chat")}</span>
                                 <label className="relative inline-flex items-center cursor-pointer">
                                     <input
@@ -570,7 +615,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         onChange={(e) => handleUpdate({ ...localSettings, chatSound: e.target.checked })}
                                         className="sr-only peer"
                                     />
-                                    <div className="w-[40px] h-[24px] bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
+                                    <div className="w-[40px] h-[24px] bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
                                 </label>
                             </div>
                         </div>

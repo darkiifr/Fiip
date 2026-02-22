@@ -23,7 +23,9 @@
     "import": "Import",
     "empty_trash": "Empty Trash",
     "empty": "Empty",
-    "empty_trash_confirm": "Empty trash permanently?"
+    "empty_trash_confirm": "Empty trash permanently?",
+    "logout": "Log Out",
+    "shared": "Shared"
   },
   "editor": {
     "add_elements": "Ajouter des éléments",

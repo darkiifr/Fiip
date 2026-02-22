@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Bot, UserCircle, Home, Star, Trash2, LogOut, PanelLeft } from 'lucide-react';
+import { Settings, Bot, UserCircle, Home, Star, Trash2, LogOut, PanelLeft, Users, Cloud, RefreshCw } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
@@ -10,7 +10,9 @@ export default function Sidebar({
     onOpenAuth, 
     settings,
     activeNav = 'home',
-    onNavigate 
+    onNavigate,
+    isSyncing = false,
+    onSync
 }) {
     const { t } = useTranslation();
     const appWindow = getCurrentWindow();
@@ -36,6 +38,7 @@ export default function Sidebar({
     const navItems = [
         { id: 'home', icon: Home, label: t('sidebar.all_notes') || "All Notes" },
         { id: 'favorites', icon: Star, label: t('sidebar.favorites') || "Favorites" },
+        { id: 'shared', icon: Users, label: t('sidebar.shared') || "Shared" },
         { id: 'trash', icon: Trash2, label: t('sidebar.trash') || "Trash" },
     ];
 
@@ -146,6 +149,23 @@ export default function Sidebar({
 
             {/* Footer Actions */}
             <div className={`p-2 border-t border-white/10 space-y-1 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
+                {/* Cloud Sync Button */}
+                {keyAuthService.isAuthenticated && settings?.cloudSync !== false && (
+                    <button
+                        onClick={onSync}
+                        title={isCollapsed ? (isSyncing ? "Synchronisation en cours..." : "Synchroniser") : ''}
+                        disabled={isSyncing}
+                        className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-[12px] px-3'} py-1.5 rounded-md text-[13px] font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all duration-[150ms] ease-out h-[32px]`}
+                    >
+                        {isSyncing ? (
+                            <RefreshCw className="w-4 h-4 opacity-80 shrink-0 animate-spin text-blue-400" />
+                        ) : (
+                            <Cloud className="w-4 h-4 opacity-80 shrink-0" />
+                        )}
+                        {!isCollapsed && <span className="truncate">{isSyncing ? "Synchronisation..." : "Synchroniser"}</span>}
+                    </button>
+                )}
+
                 <button
                     onClick={onOpenSettings}
                     title={isCollapsed ? (t('sidebar.settings') || "Settings") : ''}

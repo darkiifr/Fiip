@@ -3,6 +3,7 @@
 // Les informations sont chargées depuis les variables d'environnement (.env) pour la sécurité
 import { invoke } from '@tauri-apps/api/core';
 import { fetch } from '@tauri-apps/plugin-http';
+import { encryptData, decryptData } from '../utils/crypto';
 
 const KA_CONFIG = {
     name: import.meta.env.VITE_KEYAUTH_NAME, // Nom de votre application
@@ -34,10 +35,56 @@ class KeyAuthService {
         this.initialized = false;
         this.currentLevel = 0;
         this.hwid = null;
+        this.licenseKey = null; // Store license key for encryption
         
         // Trial State
         this.isTrialActive = false;
         this.trialExpiry = null;
+        
+        // Offline Sync Queue
+        this.pendingUpdates = this._loadPendingUpdates();
+        
+        // Listen for online status
+        window.addEventListener('online', () => this.processPendingUpdates());
+    }
+
+    _loadPendingUpdates() {
+        try {
+            const saved = localStorage.getItem('fiip-pending-updates');
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    }
+
+    _savePendingUpdates(updates) {
+        if (!updates) {
+            this.pendingUpdates = null;
+            localStorage.removeItem('fiip-pending-updates');
+        } else {
+            // Merge with existing
+            this.pendingUpdates = { ...(this.pendingUpdates || {}), ...updates };
+            // Deep merge for notes array? No, simpler to just overwrite arrays for now as per logic
+            localStorage.setItem('fiip-pending-updates', JSON.stringify(this.pendingUpdates));
+        }
+    }
+
+    async processPendingUpdates() {
+        if (!this.pendingUpdates || !this.isAuthenticated) return;
+        
+        console.log("Processing offline updates...", this.pendingUpdates);
+        const updates = { ...this.pendingUpdates }; // Copy
+        
+        // Try to save
+        // We set a flag to avoid infinite recursion if this fails again immediately
+        const res = await this.saveMergedUserData(updates, true);
+        
+        if (res.success) {
+            console.log("Offline updates synced successfully");
+            this._savePendingUpdates(null); // Clear
+        } else {
+            console.warn("Failed to sync offline updates, will retry later.");
+        }
     }
 
     async _fetchHWID() {
@@ -57,6 +104,12 @@ class KeyAuthService {
     async init() {
         // Restore trial first
         this._restoreTrial();
+
+        // Process pending updates if any
+        if (this.pendingUpdates) {
+             // Don't await, let it run in background
+             this.processPendingUpdates();
+        }
 
         // Fetch HWID
         await this._fetchHWID(); // Ensure HWID is available
@@ -209,6 +262,7 @@ class KeyAuthService {
                 this.isAuthenticated = true;
                 this.userData = this._processUserData(data.info);
                 this.currentLevel = this._calculateLevel(this.userData);
+                this.licenseKey = key; // Store license key
                 this._saveSession(key);
                 
                 // Clear user credentials if switching to license-only mode
@@ -616,6 +670,13 @@ class KeyAuthService {
 
 
     /**
+     * Get the encryption key (Password or License Key)
+     */
+    getEncryptionKey() {
+        return this.currentPassword || this.licenseKey || "default-fiip-key";
+    }
+
+    /**
      * Sauvegarde les données utilisateur (Cloud Sync)
      * @param {object} data Données à sauvegarder
      */
@@ -623,7 +684,17 @@ class KeyAuthService {
         if (!this.isAuthenticated) return { success: false, message: "Non connecté" };
 
         try {
-            const jsonString = JSON.stringify(data);
+            const key = this.getEncryptionKey();
+            const encrypted = await encryptData(data, key);
+            
+            // Wrap in object with timestamp for conflict resolution
+            const payload = {
+                timestamp: Date.now(),
+                content: encrypted,
+                version: 2 // Version flag for future migrations
+            };
+
+            const jsonString = JSON.stringify(payload);
             
             const res = await this._request({
                 type: 'setvar',
@@ -702,8 +773,23 @@ class KeyAuthService {
                 const content = res.response || res.message; 
                 try {
                     const parsed = JSON.parse(content);
-                    return { success: true, data: parsed };
+                    
+                    // Check if it's our new encrypted format
+                    if (parsed.version === 2 && parsed.content) {
+                         const key = this.getEncryptionKey();
+                         try {
+                             const decrypted = await decryptData(parsed.content, key);
+                             return { success: true, data: decrypted, timestamp: parsed.timestamp };
+                         } catch (decErr) {
+                             console.error("Decryption failed:", decErr);
+                             return { success: false, message: "Impossible de déchiffrer les données (Mauvais mot de passe ?)" };
+                         }
+                    }
+                    
+                    // Legacy (unencrypted)
+                    return { success: true, data: parsed, timestamp: 0 };
                 } catch {
+                     // Maybe it's raw string or empty?
                      return { success: true, data: null };
                 }
             } else {

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import LanguageToolHighlightTextarea from './LanguageToolHighlightTextarea';
 import CanvasDraw from './CanvasDraw';
 import NoteBadges from './NoteBadges';
-import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Paperclip, FileText, Download, Lock, PenTool } from 'lucide-react';
+import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Paperclip, FileText, Download, Lock, PenTool, Share2 } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
@@ -197,7 +197,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
     );
 };
 
-export default function Editor({ note, onUpdateNote, settings, onOpenLicense, checkStorageLimit }) {
+export default function Editor({ note, onUpdateNote, settings, onOpenLicense, checkStorageLimit, onOpenShare }) {
     const { t, i18n } = useTranslation();
     const [isGenerating, setIsGenerating] = useState(false);
     const [isWaiting, setIsWaiting] = useState(false);
@@ -504,15 +504,10 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             const currentAttachments = note.attachments || [];
             const newAttachments = [...currentAttachments, newAttachment];
             
-            // Append image to content so it is linked in the note
-            const assetUrl = convertFileSrc(filePath);
-            const imageMarkdown = `\n![Dessin](${assetUrl})\n`;
-            
-            // Update note with BOTH new attachment and new content in a single update
+            // Update note with new attachment
             onUpdateNote({
                 ...note,
                 attachments: newAttachments,
-                content: (note.content || "") + imageMarkdown,
                 updatedAt: Date.now()
             });
 
@@ -960,6 +955,14 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 </div>
 
                 <div className="flex-1" />
+
+                <button
+                    onClick={onOpenShare}
+                    className="p-1.5 rounded-md text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center mr-1"
+                    title="Partager / Inviter"
+                >
+                    <Share2 className="w-5 h-5" />
+                </button>
 
                 <button
                     onClick={handleCopyNote}

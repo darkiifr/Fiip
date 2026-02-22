@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import Sidebar from "./components/Sidebar";
 import NoteList from "./components/NoteList";
 import Editor from "./components/Editor";
@@ -7,9 +8,11 @@ import SettingsModal from "./components/SettingsModal";
 import LicenseModal from "./components/LicenseModal";
 import ChatModal from "./components/ChatModal";
 import AuthModal from "./components/AuthModal";
+import ShareModal from "./components/ShareModal";
 import LoadingScreen from "./components/LoadingScreen";
 import Dexter from "./components/Dexter";
 import Titlebar from "./components/Titlebar";
+import CollaborationView from "./components/CollaborationView";
 import "./App.css";
 
 import { type } from '@tauri-apps/plugin-os';
@@ -77,7 +80,16 @@ function App() {
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [storageUsage, setStorageUsage] = useState({ used: 0, limit: 0, percent: 0 });
+  
+  // Refs for stable access in callbacks/listeners
+  const notesRef = useRef(notes);
+  const settingsRef = useRef(settings);
+
+  useEffect(() => { notesRef.current = notes; }, [notes]);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
 
   // Update storage info whenever notes change or modal opens
   useEffect(() => {
@@ -197,9 +209,13 @@ function App() {
   }, []);
 
   // Cloud Sync Logic
-  const handleCloudSync = async () => {
+  // Using Refs to ensure latest state access even in async callbacks/listeners
+  const handleCloudSync = async (force = false) => {
+      const currentSettings = settingsRef.current;
+      const currentNotes = notesRef.current;
+
       // Security check: Never sync if disabled in settings
-      if (settings.cloudSync === false) {
+      if (currentSettings.cloudSync === false && !force) {
           console.log("Cloud sync disabled by user.");
           return;
       }
@@ -216,178 +232,191 @@ function App() {
       // Only sync if user is logged in with account (has username)
       if (!keyAuthService.isAuthenticated || !keyAuthService.userData?.username) return;
 
-      // (Optimisation) On n'a plus besoin de charger 'currentCloudData' manuellement ici
-      // car on utilise saveMergedUserData qui le fait pour nous de manière atomique/sécurisée.
-      
-      const settingsToSync = { ...settings };
-      const prefs = settings.syncPreferences || {};
-      
-      // Define groups
-      const groups = {
-        ai: ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels'],
-        appearance: ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText'],
-        general: ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound'],
-      };
+      setIsSyncing(true);
+      try {
+          const settingsToSync = { ...currentSettings };
+          const prefs = currentSettings.syncPreferences || {};
+          
+          // Define groups
+          const groups = {
+            ai: ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels'],
+            appearance: ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText'],
+            general: ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound'],
+          };
 
-      // Remove strictly excluded hardware settings
-      delete settingsToSync.audioInputId;
-      delete settingsToSync.audioOutputId;
+          // Remove strictly excluded hardware settings
+          delete settingsToSync.audioInputId;
+          delete settingsToSync.audioOutputId;
 
-      // Filter granularly
-      if (prefs.ai === false) groups.ai.forEach(k => delete settingsToSync[k]);
-      if (prefs.appearance === false) groups.appearance.forEach(k => delete settingsToSync[k]);
-      if (prefs.general === false) groups.general.forEach(k => delete settingsToSync[k]);
-      
-      // Language special handling
-      if (prefs.language !== false) {
-           settingsToSync.language = i18n.language; 
-      } else {
-           delete settingsToSync.language;
-      }
-      
-      const updates = {
-          settings: settingsToSync
-      };
-      
-      // Sync Notes only if enabled (default true)
-      if (settings.cloudSync && prefs.notes !== false) {
-          // Deep copy notes to avoid mutating state
-          const hydratedNotes = JSON.parse(JSON.stringify(notes));
-
-          // Process attachments: Upload local files to cloud
-          for (const note of hydratedNotes) {
-              if (note.attachments && Array.isArray(note.attachments)) {
-                  const processedAttachments = [];
-                  
-                  for (const att of note.attachments) {
-                      // Check if it's a local file path (string not starting with http/data/blob)
-                      // OR if it's a large Base64 string (> 100KB)
-                      const isLocalFile = att.data && typeof att.data === 'string' && !att.data.startsWith('data:') && !att.data.startsWith('http') && !att.data.startsWith('blob:');
-                      const isLargeBase64 = att.data && typeof att.data === 'string' && att.data.startsWith('data:') && att.data.length > 100000;
-
-                      if (isLocalFile || isLargeBase64) {
-                           try {
-                               let file;
-                               if (isLocalFile) {
-                                   // Verify file exists and read it
-                                   const content = await readFile(att.data);
-                                   // Prepare file object
-                                   const mime = att.mimeType || 'application/octet-stream';
-                                   const blob = new Blob([content], { type: mime });
-                                   file = new File([blob], att.name, { type: mime });
-                               } else {
-                                   // Convert Base64 (Data URI) to Blob
-                                   const fetchRes = await fetch(att.data);
-                                   const blob = await fetchRes.blob();
-                                   // Ensure filename has extension
-                                   let name = att.name;
-                                   if (!name.includes('.')) {
-                                       const ext = blob.type.split('/')[1] || 'bin';
-                                       name = `${name}.${ext}`;
-                                   }
-                                   file = new File([blob], name, { type: blob.type });
-                               }
-                               
-                               // Upload to KeyAuth
-                               const uploadRes = await keyAuthService.fileUpload(file, file.name);
-                               
-                               if (uploadRes.success && uploadRes.url) {
-                                   processedAttachments.push({
-                                       ...att,
-                                       data: uploadRes.url,
-                                       // Keep mimeType and type
-                                   });
-                               } else {
-                                   console.warn("Upload failed for " + att.name, uploadRes.message);
-                                   // Keep original local path/content so it works locally at least
-                                   processedAttachments.push({ ...att, syncError: "Upload failed: " + uploadRes.message });
-                               }
-                           } catch (e) {
-                               console.error("Sync attachment error", e);
-                               processedAttachments.push({ ...att, syncError: "File processing error" });
-                           }
-                      } else {
-                          // Already Cloud URL or small Data URI
-                          processedAttachments.push(att);
-                      }
-                  }
-                  note.attachments = processedAttachments;
-              }
+          // Filter granularly
+          if (prefs.ai === false) groups.ai.forEach(k => delete settingsToSync[k]);
+          if (prefs.appearance === false) groups.appearance.forEach(k => delete settingsToSync[k]);
+          if (prefs.general === false) groups.general.forEach(k => delete settingsToSync[k]);
+          
+          // Language special handling
+          if (prefs.language !== false) {
+               settingsToSync.language = i18n.language; 
+          } else {
+               delete settingsToSync.language;
           }
-          updates.notes = hydratedNotes;
+          
+          const updates = {
+              settings: settingsToSync
+          };
+          
+          // Sync Notes only if enabled (default true)
+          if (currentSettings.cloudSync && prefs.notes !== false) {
+              // Deep copy notes to avoid mutating state
+              const hydratedNotes = JSON.parse(JSON.stringify(currentNotes));
+
+              // Process attachments: Upload local files to cloud
+              for (const note of hydratedNotes) {
+                  if (note.attachments && Array.isArray(note.attachments)) {
+                      const processedAttachments = [];
+                      
+                      for (const att of note.attachments) {
+                          // Check if it's a local file path (string not starting with http/data/blob)
+                          // OR if it's a large Base64 string (> 100KB)
+                          const isLocalFile = att.data && typeof att.data === 'string' && !att.data.startsWith('data:') && !att.data.startsWith('http') && !att.data.startsWith('blob:');
+                          const isLargeBase64 = att.data && typeof att.data === 'string' && att.data.startsWith('data:') && att.data.length > 100000;
+
+                          if (isLocalFile || isLargeBase64) {
+                               try {
+                                   let file;
+                                   if (isLocalFile) {
+                                       // Verify file exists and read it
+                                       const content = await readFile(att.data);
+                                       // Prepare file object
+                                       const mime = att.mimeType || 'application/octet-stream';
+                                       const blob = new Blob([content], { type: mime });
+                                       file = new File([blob], att.name, { type: mime });
+                                   } else {
+                                       // Convert Base64 (Data URI) to Blob
+                                       const fetchRes = await fetch(att.data);
+                                       const blob = await fetchRes.blob();
+                                       // Ensure filename has extension
+                                       let name = att.name;
+                                       if (!name.includes('.')) {
+                                           const ext = blob.type.split('/')[1] || 'bin';
+                                           name = `${name}.${ext}`;
+                                       }
+                                       file = new File([blob], name, { type: blob.type });
+                                   }
+                                   
+                                   // Upload to KeyAuth
+                                   const uploadRes = await keyAuthService.fileUpload(file, file.name);
+                                   
+                                   if (uploadRes.success && uploadRes.url) {
+                                       processedAttachments.push({
+                                           ...att,
+                                           data: uploadRes.url,
+                                           // Keep mimeType and type
+                                       });
+                                   } else {
+                                       console.warn("Upload failed for " + att.name, uploadRes.message);
+                                       // Keep original local path/content so it works locally at least
+                                       processedAttachments.push({ ...att, syncError: "Upload failed: " + uploadRes.message });
+                                   }
+                               } catch (e) {
+                                   console.error("Sync attachment error", e);
+                                   processedAttachments.push({ ...att, syncError: "File processing error" });
+                               }
+                          } else {
+                              // Already Cloud URL or small Data URI
+                              processedAttachments.push(att);
+                          }
+                      }
+                      note.attachments = processedAttachments;
+                  }
+              }
+              updates.notes = hydratedNotes;
+          }
+          
+          await keyAuthService.saveMergedUserData(updates);
+      } catch (err) {
+          console.error("Cloud sync failed:", err);
+      } finally {
+          setIsSyncing(false);
       }
-      
-      await keyAuthService.saveMergedUserData(updates);
   };
 
   const performCloudSyncDown = async (silent = false) => {
+      const currentSettings = settingsRef.current;
+
       // Only sync if enabled
-      if (settings.cloudSync === false) return;
+      if (currentSettings.cloudSync === false) return;
 
-      // Try to load data
-      const res = await keyAuthService.loadUserData();
-      if (res.success && res.data) {
-          // Sync Notes - Check preference (default true if undefined)
-          const syncNotesEnabled = !settings.syncPreferences || settings.syncPreferences.notes !== false;
-          
-          if (syncNotesEnabled && res.data.notes && Array.isArray(res.data.notes)) {
-              const cloudNotes = res.data.notes;
-              if (cloudNotes.length > 0) {
-                  setNotes(prev => {
-                      const newNotes = [...prev];
-                      cloudNotes.forEach(cNote => {
-                          const idx = newNotes.findIndex(n => n.id === cNote.id);
-                          if (idx === -1) {
-                              newNotes.push(cNote);
-                          } else {
-                              // Robust date comparison (handle string vs number timestamps)
-                              const cloudTime = new Date(cNote.updatedAt || 0).getTime();
-                              const localTime = new Date(newNotes[idx].updatedAt || 0).getTime();
-                              
-                              if (cloudTime > localTime) {
-                                  newNotes[idx] = cNote;
+      setIsSyncing(true);
+      try {
+          // Try to load data
+          const res = await keyAuthService.loadUserData();
+          if (res.success && res.data) {
+              // Sync Notes - Check preference (default true if undefined)
+              const syncNotesEnabled = !currentSettings.syncPreferences || currentSettings.syncPreferences.notes !== false;
+              
+              if (syncNotesEnabled && res.data.notes && Array.isArray(res.data.notes)) {
+                  const cloudNotes = res.data.notes;
+                  if (cloudNotes.length > 0) {
+                      setNotes(prev => {
+                          const newNotes = [...prev];
+                          cloudNotes.forEach(cNote => {
+                              const idx = newNotes.findIndex(n => n.id === cNote.id);
+                              if (idx === -1) {
+                                  newNotes.push(cNote);
+                              } else {
+                                  // Robust date comparison (handle string vs number timestamps)
+                                  const cloudTime = new Date(cNote.updatedAt || 0).getTime();
+                                  const localTime = new Date(newNotes[idx].updatedAt || 0).getTime();
+                                  
+                                  if (cloudTime > localTime) {
+                                      newNotes[idx] = cNote;
+                                  }
                               }
-                          }
+                          });
+                          return newNotes;
                       });
-                      return newNotes;
+                  }
+              }
+              
+              // Sync Settings
+              if (res.data.settings) {
+                  const cloudSettings = res.data.settings;
+                  const currentPrefs = currentSettings.syncPreferences || {}; 
+                  
+                  setSettings(prev => {
+                       const newSettings = { ...prev };
+                       const mergeIfEnabled = (category, keys) => {
+                           if (currentPrefs[category] !== false) {
+                               keys.forEach(k => {
+                                   if (cloudSettings[k] !== undefined) newSettings[k] = cloudSettings[k];
+                               });
+                           }
+                       };
+                       
+                       mergeIfEnabled('ai', ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels']);
+                       mergeIfEnabled('appearance', ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText']);
+                       mergeIfEnabled('general', ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound']);
+                       
+                       // Preserve syncPreferences of THIS device (don't overwrite with cloud's)
+                       newSettings.syncPreferences = prev.syncPreferences; 
+                       
+                       return newSettings;
                   });
-              }
-          }
-          
-          // Sync Settings
-          if (res.data.settings) {
-              const cloudSettings = res.data.settings;
-              const currentPrefs = settings.syncPreferences || {}; 
-              
-              setSettings(prev => {
-                   const newSettings = { ...prev };
-                   const mergeIfEnabled = (category, keys) => {
-                       if (currentPrefs[category] !== false) {
-                           keys.forEach(k => {
-                               if (cloudSettings[k] !== undefined) newSettings[k] = cloudSettings[k];
-                           });
-                       }
-                   };
-                   
-                   mergeIfEnabled('ai', ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels']);
-                   mergeIfEnabled('appearance', ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText']);
-                   mergeIfEnabled('general', ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound']);
-                   
-                   // Preserve syncPreferences of THIS device (don't overwrite with cloud's)
-                   newSettings.syncPreferences = prev.syncPreferences; 
-                   
-                   return newSettings;
-              });
 
-              // Apply Language
-              if (cloudSettings.language && currentPrefs.language !== false) {
-                  i18n.changeLanguage(cloudSettings.language);
+                  // Apply Language
+                  if (cloudSettings.language && currentPrefs.language !== false) {
+                      i18n.changeLanguage(cloudSettings.language);
+                  }
+                  
+                  if (!silent) alert("Données synchronisées avec succès !");
               }
-              
-              if (!silent) alert("Données synchronisées avec succès !");
+          } else {
+             if (!silent) handleCloudSync(true);
           }
-      } else {
-         if (!silent) handleCloudSync();
+      } catch (err) {
+          console.error("Cloud sync down failed:", err);
+      } finally {
+          setIsSyncing(false);
       }
   };
 
@@ -428,6 +457,29 @@ function App() {
     return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
+  // Handle Close Request
+  useEffect(() => {
+      let unlisten;
+      const initCloseListener = async () => {
+          const win = getCurrentWindow();
+        unlisten = await win.listen('close-requested', async () => {
+            // Check if we need to sync
+              if (settings.cloudSync && keyAuthService.isAuthenticated) {
+                  // We can't easily prevent close in async listener in all Tauri versions cleanly without a state flag loop
+                  // But we can try to fire a sync. 
+                  // For a truly robust "save on exit", we'd need to preventDefault(), sync, then close.
+                  // For now, let's assume the 3s auto-save catches most, and we fire one last attempt.
+                  // However, since the app dies, this async call might die with it.
+                  // Best practice: The 3s debounce is the main mechanism.
+                  // We can reduce it to 1s for "iCloud-like" speed.
+                  console.log("Closing...");
+              }
+          });
+      };
+      initCloseListener();
+      return () => { if (unlisten) unlisten(); };
+  }, [settings.cloudSync]);
+
   // Persist Notes & Cloud Sync
   useEffect(() => {
     localStorage.setItem("fiip-notes", JSON.stringify(notes));
@@ -435,7 +487,7 @@ function App() {
     if (settings.cloudSync) {
         const timeoutId = setTimeout(() => {
             handleCloudSync();
-        }, 3000); // Sync after 3 seconds of inactivity
+        }, 2000); // Reduced to 2s for faster sync
         return () => clearTimeout(timeoutId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -586,37 +638,62 @@ function App() {
           }}
           onOpenAuth={() => setIsAuthModalOpen(true)}
           settings={settings}
+          isSyncing={isSyncing}
+          onSync={() => handleCloudSync(true)}
         />
         <div className="w-[1px] h-full bg-white/5 flex-shrink-0" />
-        <NoteList
-          notes={visibleNotes}
-          selectedNoteId={selectedNoteId}
-          onSelectNote={setSelectedNoteId}
-          onCreateNote={handleCreateNote}
-          onDeleteNote={handleDeleteNote}
-          onRestoreNote={handleRestoreNote}
-          onToggleFavorite={handleToggleFavorite}
-          activeNav={activeNav}
-          onEmptyTrash={handleEmptyTrash}
-        />
-        <div className="w-[1px] h-full bg-white/5 flex-shrink-0" />
-        {selectedNote ? (
-          <Editor
-            note={selectedNote}
-            onUpdateNote={handleUpdateNote}
-            onCreateNote={handleCreateNote}
-            settings={settings}
-            onOpenLicense={() => setIsLicenseModalOpen(true)}
-            checkStorageLimit={checkStorageLimit}
-          />
+        
+        {activeNav === 'shared' ? (
+             <CollaborationView 
+                 notes={notes}
+                 onImportNote={(newNote) => {
+                     setNotes(prev => [newNote, ...prev]);
+                     setSelectedNoteId(newNote.id);
+                     setActiveNav('home');
+                     alert("Note partagée importée avec succès !");
+                 }}
+             />
         ) : (
-            <div className="flex-1 h-full flex items-center justify-center text-gray-500 select-none bg-[#1C1C1E]/20">
-                <div className="flex flex-col items-center gap-4">
-                    <FileText className="w-16 h-16 opacity-20" />
-                    <p>{t('editor.select_note') || "Select a note to view"}</p>
-                </div>
-            </div>
+            <>
+                <NoteList
+                  notes={visibleNotes}
+                  selectedNoteId={selectedNoteId}
+                  onSelectNote={setSelectedNoteId}
+                  onCreateNote={handleCreateNote}
+                  onDeleteNote={handleDeleteNote}
+                  onRestoreNote={handleRestoreNote}
+                  onToggleFavorite={handleToggleFavorite}
+                  activeNav={activeNav}
+                  onEmptyTrash={handleEmptyTrash}
+                />
+                <div className="w-[1px] h-full bg-white/5 flex-shrink-0" />
+                {selectedNote ? (
+                  <Editor
+                    note={selectedNote}
+                    onUpdateNote={handleUpdateNote}
+                    onCreateNote={handleCreateNote}
+                    settings={settings}
+                    onOpenLicense={() => setIsLicenseModalOpen(true)}
+                    onOpenShare={() => {
+                        if (keyAuthService.isAuthenticated) {
+                            setIsShareModalOpen(true);
+                        } else {
+                            setIsAuthModalOpen(true);
+                        }
+                    }}
+                    checkStorageLimit={checkStorageLimit}
+                  />
+                ) : (
+                    <div className="flex-1 h-full flex items-center justify-center text-gray-500 select-none bg-[#1C1C1E]/20">
+                        <div className="flex flex-col items-center gap-4">
+                            <FileText className="w-16 h-16 opacity-20" />
+                            <p>{t('editor.select_note') || "Select a note to view"}</p>
+                        </div>
+                    </div>
+                )}
+            </>
         )}
+        
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
@@ -639,6 +716,11 @@ function App() {
         <ChatModal 
             isOpen={isChatModalOpen}
             onClose={() => setIsChatModalOpen(false)}
+        />
+        <ShareModal 
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            note={selectedNote}
         />
         <AuthModal
             isOpen={isAuthModalOpen}
