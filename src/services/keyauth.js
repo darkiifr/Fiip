@@ -685,7 +685,11 @@ class KeyAuthService {
 
         try {
             const key = this.getEncryptionKey();
-            const encrypted = await encryptData(data, key);
+            
+            // Prepare data for KeyAuth
+            const dataToSave = { ...data };
+
+            const encrypted = await encryptData(dataToSave, key);
             
             // Wrap in object with timestamp for conflict resolution
             const payload = {
@@ -761,6 +765,10 @@ class KeyAuthService {
         if (!this.isAuthenticated) return { success: false, message: "Non connecté" };
 
         try {
+            let loadedData = {};
+            let timestamp = 0;
+
+            // 1. Load from KeyAuth (Settings, Profile, etc.)
             const res = await this._request({
                 type: 'getvar',
                 var: 'fiip_data',
@@ -779,22 +787,24 @@ class KeyAuthService {
                          const key = this.getEncryptionKey();
                          try {
                              const decrypted = await decryptData(parsed.content, key);
-                             return { success: true, data: decrypted, timestamp: parsed.timestamp };
+                             loadedData = decrypted;
+                             timestamp = parsed.timestamp;
                          } catch (decErr) {
                              console.error("Decryption failed:", decErr);
                              return { success: false, message: "Impossible de déchiffrer les données (Mauvais mot de passe ?)" };
                          }
+                    } else {
+                        // Legacy (unencrypted)
+                        loadedData = parsed;
                     }
-                    
-                    // Legacy (unencrypted)
-                    return { success: true, data: parsed, timestamp: 0 };
                 } catch {
                      // Maybe it's raw string or empty?
-                     return { success: true, data: null };
+                     loadedData = {};
                 }
-            } else {
-                return { success: false, message: res.message };
             }
+
+            return { success: true, data: loadedData, timestamp: timestamp };
+
         } catch (error) {
             return { success: false, message: "Erreur chargement: " + error.message };
         }

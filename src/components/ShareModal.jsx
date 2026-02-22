@@ -1,62 +1,63 @@
-import { useState } from 'react';
-import { X, Send, User, Share2, Lock, Loader2, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Send, User, Share2, Lock, Loader2, Check, FileText } from 'lucide-react';
 import { keyAuthService } from '../services/keyauth';
-import { encryptData } from '../utils/crypto';
+import CustomSelect from './CustomSelect';
 
-export default function ShareModal({ isOpen, onClose, note }) {
+export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
+    const [selectedNote, setSelectedNote] = useState(note);
     const [targetUsername, setTargetUsername] = useState('');
     const [isSharing, setIsSharing] = useState(false);
     const [status, setStatus] = useState({ type: '', message: '' });
 
-    if (!isOpen || !note) return null;
+    useEffect(() => {
+        if (note) setSelectedNote(note);
+    }, [note]);
+
+    if (!isOpen) return null;
 
     const handleShare = async (e) => {
         e.preventDefault();
-        if (!targetUsername.trim()) return;
+        if (!targetUsername.trim() || !selectedNote) return;
 
         setIsSharing(true);
-        setStatus({ type: 'info', message: "Préparation de l'envoi..." });
+        setStatus({ type: 'info', message: "Génération du lien de partage..." });
 
         try {
-            // 1. Encrypt Note Content
-            const shareKey = Math.random().toString(36).substring(2) + Date.now().toString(36);
-            const encryptedContent = await encryptData(note, shareKey);
-            
-            // 2. Upload as file
-            const blob = new Blob([JSON.stringify({ content: encryptedContent })], { type: 'application/json' });
-            const file = new File([blob], `share_${Date.now()}.fiip`, { type: 'application/json' });
-            
-            setStatus({ type: 'info', message: "Envoi sécurisé..." });
+            // 1. Create file from note
+            const noteContent = JSON.stringify(selectedNote);
+            const blob = new Blob([noteContent], { type: 'application/json' });
+            const file = new File([blob], `${selectedNote.title || 'note'}.json`, { type: 'application/json' });
+
+            // 2. Upload to KeyAuth
             const uploadRes = await keyAuthService.fileUpload(file, file.name);
-            
-            if (!uploadRes.success || !uploadRes.url) {
-                throw new Error(uploadRes.message || "Échec de l'upload");
+
+            if (!uploadRes.success) {
+                throw new Error(uploadRes.message || "Erreur lors de l'upload");
             }
 
-            // 3. Send Invite Message
+            const downloadUrl = uploadRes.url;
+
+            // 3. Notify user via KeyAuth Chat
             const invitePayload = {
-                type: 'invite',
+                type: 'shared_note',
                 to: targetUsername.trim(),
                 from: keyAuthService.userData.username,
-                noteId: note.id,
-                noteTitle: note.title,
-                url: uploadRes.url,
-                key: shareKey,
-                sentAt: Date.now()
+                noteId: selectedNote.id,
+                noteTitle: selectedNote.title,
+                downloadUrl: downloadUrl,
+                sentAt: Date.now(),
+                message: "Je t'ai partagé une note. Télécharge-la ici."
             };
 
-            const chatRes = await keyAuthService.sendChatMessage(JSON.stringify(invitePayload), 'invites');
+            // Send to global/invites channel
+            await keyAuthService.sendChatMessage(JSON.stringify(invitePayload), 'invites');
             
-            if (chatRes.success) {
-                setStatus({ type: 'success', message: `Invitation envoyée à ${targetUsername} !` });
-                setTimeout(() => {
-                    onClose();
-                    setTargetUsername('');
-                    setStatus({ type: '', message: '' });
-                }, 2000);
-            } else {
-                throw new Error(chatRes.message || "Échec de l'envoi du message");
-            }
+            setStatus({ type: 'success', message: `Note partagée avec ${targetUsername} !` });
+            setTimeout(() => {
+                onClose();
+                setTargetUsername('');
+                setStatus({ type: '', message: '' });
+            }, 2000);
 
         } catch (e) {
             console.error(e);
@@ -88,15 +89,27 @@ export default function ShareModal({ isOpen, onClose, note }) {
                 {/* Body */}
                 <form onSubmit={handleShare} className="p-6 flex flex-col gap-6">
                     
-                    {/* Note Info */}
-                    <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5">
-                        <div className="w-10 h-10 rounded-lg bg-gray-700/50 flex items-center justify-center shrink-0">
-                            <Lock className="w-5 h-5 text-gray-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-medium text-white truncate">{note.title || "Note sans titre"}</h3>
-                            <p className="text-xs text-gray-500">Chiffrement de bout en bout activé</p>
-                        </div>
+                    {/* Note Selection */}
+                    <div className="space-y-2">
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider ml-1">
+                            Note à partager
+                        </label>
+                        <CustomSelect 
+                            value={selectedNote?.id}
+                            onChange={(id) => setSelectedNote(notes.find(n => n.id === id))}
+                            options={notes.map(n => ({
+                                value: n.id,
+                                label: n.title || "Sans titre",
+                                icon: <FileText className="w-4 h-4 text-gray-400" />
+                            }))}
+                            placeholder="Sélectionner une note..."
+                        />
+                        {selectedNote && (
+                            <div className="flex items-center gap-2 px-1">
+                                <Lock className="w-3 h-3 text-gray-500" />
+                                <span className="text-[10px] text-gray-500">Chiffrement de bout en bout activé</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Input */}

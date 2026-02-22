@@ -652,6 +652,11 @@ function App() {
                      setActiveNav('home');
                      alert("Note partagée importée avec succès !");
                  }}
+                 onOpenNote={(noteId) => {
+                    setSelectedNoteId(noteId);
+                    setActiveNav('home');
+                 }}
+                 onSync={() => handleCloudSync(true)}
              />
         ) : (
             <>
@@ -721,6 +726,7 @@ function App() {
             isOpen={isShareModalOpen}
             onClose={() => setIsShareModalOpen(false)}
             note={selectedNote}
+            notes={notes}
         />
         <AuthModal
             isOpen={isAuthModalOpen}

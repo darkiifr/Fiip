@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Bot, UserCircle, Home, Star, Trash2, LogOut, PanelLeft, Users, Cloud, RefreshCw } from 'lucide-react';
+import { Settings, Bot, UserCircle, Home, Star, Trash2, LogOut, PanelLeft, Users, Cloud, RefreshCw, Check } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
@@ -18,6 +18,19 @@ export default function Sidebar({
     const appWindow = getCurrentWindow();
     const [isCollapsed, setIsCollapsed] = useState(false);
     
+    // Sync Feedback
+    const [syncSuccess, setSyncSuccess] = useState(false);
+    const prevSyncing = React.useRef(isSyncing);
+
+    React.useEffect(() => {
+        if (prevSyncing.current && !isSyncing) {
+            setSyncSuccess(true);
+            const timer = setTimeout(() => setSyncSuccess(false), 2000);
+            return () => clearTimeout(timer);
+        }
+        prevSyncing.current = isSyncing;
+    }, [isSyncing]);
+
     // Local Profile Sync
     const [localProfile, setLocalProfile] = useState(null);
 
@@ -159,10 +172,12 @@ export default function Sidebar({
                     >
                         {isSyncing ? (
                             <RefreshCw className="w-4 h-4 opacity-80 shrink-0 animate-spin text-blue-400" />
+                        ) : syncSuccess ? (
+                            <Check className="w-4 h-4 opacity-80 shrink-0 text-green-400" />
                         ) : (
                             <Cloud className="w-4 h-4 opacity-80 shrink-0" />
                         )}
-                        {!isCollapsed && <span className="truncate">{isSyncing ? "Synchronisation..." : "Synchroniser"}</span>}
+                        {!isCollapsed && <span className="truncate">{isSyncing ? "Synchronisation..." : syncSuccess ? "Synchronisé" : "Synchroniser"}</span>}
                     </button>
                 )}
 
