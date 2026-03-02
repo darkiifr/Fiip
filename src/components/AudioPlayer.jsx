@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Pencil, Check, X } from 'lucide-react';
+import IconPlay from '~icons/mingcute/play-fill';
+import IconPause from '~icons/mingcute/pause-fill';
+import IconEdit from '~icons/mingcute/edit-2-fill';
+import IconCheck from '~icons/mingcute/check-fill';
+import IconClose from '~icons/mingcute/close-fill';
 import { useTranslation } from 'react-i18next';
 
 export default function AudioPlayer({ src, name, onRename, onError }) {
@@ -143,7 +147,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
                     onClick={togglePlay}
                     className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/20 transition-all hover:scale-105 active:scale-95 shrink-0"
                 >
-                    {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                    {isPlaying ? <IconPause className="w-4 h-4 fill-current" /> : <IconPlay className="w-4 h-4 fill-current ml-0.5" />}
                 </button>
 
                 <div className="flex-1 min-w-0">
@@ -160,8 +164,10 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
                                 }}
                                 className="w-full text-xs font-semibold bg-gray-100 dark:bg-black/20 border border-blue-500 rounded px-1 py-0.5 text-gray-900 dark:text-gray-100 outline-none"
                             />
-                            <button onClick={saveRename} className="p-0.5 text-green-500 hover:bg-green-500/10 rounded"><Check className="w-3 h-3" /></button>
-                            <button onClick={cancelRename} className="p-0.5 text-red-500 hover:bg-red-500/10 rounded"><X className="w-3 h-3" /></button>
+                            <div className="flex items-center gap-1">
+                                <button onClick={saveRename} className="p-0.5 text-green-500 hover:bg-green-500/10 rounded"><IconCheck className="w-3 h-3" /></button>
+                                <button onClick={cancelRename} className="p-0.5 text-red-500 hover:bg-red-500/10 rounded"><IconClose className="w-3 h-3" /></button>
+                            </div>
                         </div>
                     ) : (
                         <div className="flex items-center gap-2 mb-1 group/title">
@@ -176,7 +182,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
                                 onClick={startEditing}
                                 className="opacity-0 group-hover/title:opacity-100 text-gray-400 hover:text-blue-500 transition-opacity"
                             >
-                                <Pencil className="w-3 h-3" />
+                                <IconEdit className="w-3 h-3" />
                             </button>
                         </div>
                     )}

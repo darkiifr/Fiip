@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { keyAuthService } from '../services/keyauth';
-import { Mail, Share2, User, Download, RefreshCw, Loader2 } from 'lucide-react';
+import IconMail from '~icons/mingcute/mail-fill';
+import IconShare from '~icons/mingcute/share-2-fill';
+import IconUser from '~icons/mingcute/user-4-fill';
+import IconDownload from '~icons/mingcute/download-2-fill';
+import IconRefresh from '~icons/mingcute/refresh-3-fill';
+import IconLoading from '~icons/mingcute/loading-fill';
 
 export default function CollaborationView({ onImportNote }) {
     const [inbox, setInbox] = useState([]);
@@ -85,7 +90,7 @@ export default function CollaborationView({ onImportNote }) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center bg-[#1C1C1E] text-gray-400">
                 <div className="bg-[#2C2C2E] p-8 rounded-2xl border border-white/10 text-center max-w-md">
-                    <User className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+                    <IconUser className="w-12 h-12 mx-auto mb-4 text-gray-500" />
                     <h2 className="text-xl font-bold text-white mb-2">Connexion Requise</h2>
                     <p className="text-sm mb-6">Vous devez être connecté à votre compte Fiip pour accéder aux fonctionnalités de collaboration.</p>
                 </div>
@@ -105,13 +110,13 @@ export default function CollaborationView({ onImportNote }) {
                     disabled={loading}
                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                 >
-                    <RefreshCw className={`w-5 h-5 text-blue-400 ${loading ? 'animate-spin' : ''}`} />
+                    <IconRefresh className={`w-5 h-5 text-blue-400 ${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
 
             {status && (
                 <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-400 text-sm flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <IconLoading className="w-4 h-4 animate-spin" />
                     {status}
                 </div>
             )}
@@ -119,7 +124,7 @@ export default function CollaborationView({ onImportNote }) {
             <div className="bg-[#2C2C2E]/50 rounded-xl border border-white/10 flex-1 overflow-hidden flex flex-col">
                 <div className="p-4 border-b border-white/10 bg-[#2C2C2E]">
                     <h3 className="font-medium text-white flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-blue-400" />
+                        <IconMail className="w-4 h-4 text-blue-400" />
                         Boîte de réception ({inbox.length})
                     </h3>
                 </div>
@@ -127,7 +132,7 @@ export default function CollaborationView({ onImportNote }) {
                 <div className="overflow-y-auto p-4 space-y-3">
                     {inbox.length === 0 ? (
                         <div className="text-center py-12 text-gray-500">
-                            <Share2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                            <IconShare className="w-12 h-12 mx-auto mb-3 opacity-20" />
                             <p>Aucune note partagée pour le moment.</p>
                         </div>
                     ) : (
@@ -149,7 +154,7 @@ export default function CollaborationView({ onImportNote }) {
                                     onClick={() => handleDownload(item)}
                                     className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                                 >
-                                    <Download className="w-4 h-4" />
+                                    <IconDownload className="w-4 h-4" />
                                     Importer
                                 </button>
                             </div>

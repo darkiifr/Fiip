@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { X, Key, Check, ShieldCheck, Sparkles, Star, Zap, RefreshCw, Clock, Globe, Download } from 'lucide-react';
 import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
 import { open } from '@tauri-apps/plugin-shell';
@@ -7,10 +6,23 @@ import { check } from '@tauri-apps/plugin-updater';
 import { relaunch, exit } from '@tauri-apps/plugin-process';
 import { type } from '@tauri-apps/plugin-os';
 
+// Icons Import (Pim's Edition)
+import IconClose from '~icons/mingcute/close-fill';
+import IconKey from '~icons/mingcute/key-2-fill';
+import IconCheck from '~icons/mingcute/check-fill';
+import IconShieldCheck from '~icons/mingcute/shield-shape-fill';
+import IconSparkles from '~icons/mingcute/sparkles-fill';
+import IconStar from '~icons/mingcute/star-fill';
+import IconZap from '~icons/mingcute/lightning-fill';
+import IconRefresh from '~icons/mingcute/refresh-3-fill';
+import IconClock from '~icons/mingcute/time-fill';
+import IconGlobe from '~icons/mingcute/earth-2-fill';
+import IconDownload from '~icons/mingcute/download-2-fill';
+
 function FeatureItem({ label, active, icon: Icon }) {
     return (
         <div className={`flex items-center gap-2 text-sm p-3 rounded-lg border transition-colors ${active ? 'bg-green-500/10 border-green-500/20 text-gray-200' : 'bg-gray-800/30 border-gray-700/30 text-gray-500'}`}>
-            {active ? <Check className="w-5 h-5 text-green-400 shrink-0" /> : <div className="w-5 h-5 rounded-full border border-gray-600 shrink-0" />}
+            {active ? <IconCheck className="w-5 h-5 text-green-400 shrink-0" /> : <div className="w-5 h-5 rounded-full border border-gray-600 shrink-0" />}
             {Icon && <Icon className={`w-4 h-4 ${active ? 'text-purple-400' : 'text-gray-600'}`} />}
             <span className={`font-medium ${!active ? 'line-through decoration-gray-600 opacity-60' : ''}`}>{label}</span>
         </div>
@@ -124,7 +136,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
         {/* Header */}
         <div className="h-14 px-6 flex items-center justify-between border-b border-gray-800 bg-[#16161e]">
           <div className="flex items-center gap-2 text-gray-100 font-medium">
-            <Key className="w-5 h-5 text-purple-400" />
+            <IconKey className="w-5 h-5 text-purple-400" />
             <span className="tracking-wide">{t('license.title', 'Licence & Abonnement')}</span>
           </div>
           <div className="flex items-center gap-1">
@@ -134,13 +146,13 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                 title={t('license.refresh', 'Actualiser')}
                 className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-all duration-300 transform active:scale-95"
             >
-                <RefreshCw className={`w-4 h-4 transition-transform duration-700 ease-in-out ${refreshing ? 'rotate-[360deg]' : ''}`} />
+                <IconRefresh className={`w-4 h-4 transition-transform duration-700 ease-in-out ${refreshing ? 'rotate-[360deg]' : ''}`} />
             </button>
             <button 
                 onClick={onClose}
                 className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
             >
-                <X className="w-4 h-4" />
+                <IconClose className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -154,7 +166,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
               <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-5 flex flex-col gap-4">
                 <div className="flex items-center gap-4">
                     <div className="bg-green-500/20 p-3 rounded-full shrink-0">
-                        <ShieldCheck className="w-8 h-8 text-green-400" />
+                        <IconShieldCheck className="w-8 h-8 text-green-400" />
                     </div>
                     <div>
                     <h3 className="text-lg text-green-400 font-semibold mb-0.5">{t('license.status_active', 'Licence Active')}</h3>
@@ -172,9 +184,9 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
               <div className="space-y-4">
                   <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">{t('license.features_title', 'Fonctionnalités Incluses')}</h4>
                   <div className="flex flex-col gap-2.5">
-                      <FeatureItem label={t('license.feature_notes', 'Fiip - Prise de notes & Organisation')} active={true} icon={Star} />
-                      <FeatureItem label={t('license.feature_ai', 'Intelligence Artificielle Premium')} active={Boolean(authData.hasAI)} icon={Sparkles} />
-                      <FeatureItem label={t('license.feature_expert', 'Mode Expert & Outils Avancés')} active={Boolean(authData.hasPro)} icon={Zap} />
+                      <FeatureItem label={t('license.feature_notes', 'Fiip - Prise de notes & Organisation')} active={true} icon={IconStar} />
+                      <FeatureItem label={t('license.feature_ai', 'Intelligence Artificielle Premium')} active={Boolean(authData.hasAI)} icon={IconSparkles} />
+                      <FeatureItem label={t('license.feature_expert', 'Mode Expert & Outils Avancés')} active={Boolean(authData.hasPro)} icon={IconZap} />
                   </div>
               </div>
 
@@ -183,7 +195,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                     onClick={onOpenAuth}
                     className="px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors font-medium flex items-center gap-2"
                 >
-                    <Globe className="w-4 h-4" />
+                    <IconGlobe className="w-4 h-4" />
                     {t('license.manage_account', 'Gérer le compte')}
                 </button>
                 <button
@@ -199,7 +211,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
             <div className="space-y-4">
               <div className="text-center space-y-2 mb-6">
                 <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-purple-500/20 shadow-lg shadow-purple-900/10">
-                  <Key className="w-8 h-8 text-purple-400" />
+                  <IconKey className="w-8 h-8 text-purple-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-white tracking-tight">{t('license.enter_key', 'Activer votre licence')}</h2>
                 <div className="flex flex-col gap-2 max-w-xs mx-auto">
@@ -215,9 +227,9 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
               <div className="space-y-4">
                   <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">{t('license.features_title', 'Fonctionnalités Incluses')}</h4>
                   <div className="flex flex-col gap-2.5">
-                      <FeatureItem label={t('license.feature_notes', 'Fiip - Prise de notes & Organisation')} active={true} icon={Star} />
-                      <FeatureItem label={t('license.feature_ai', 'Intelligence Artificielle Premium')} active={false} icon={Sparkles} />
-                      <FeatureItem label={t('license.feature_expert', 'Mode Expert & Outils Avancés')} active={false} icon={Zap} />
+                      <FeatureItem label={t('license.feature_notes', 'Fiip - Prise de notes & Organisation')} active={true} icon={IconStar} />
+                      <FeatureItem label={t('license.feature_ai', 'Intelligence Artificielle Premium')} active={false} icon={IconSparkles} />
+                      <FeatureItem label={t('license.feature_expert', 'Mode Expert & Outils Avancés')} active={false} icon={IconZap} />
                   </div>
               </div>
 
@@ -225,7 +237,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                   <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-4">
                       <div className="flex items-start gap-3">
                           <div className="bg-blue-500/20 p-2 rounded-lg">
-                              <Clock className="w-5 h-5 text-blue-400" />
+                              <IconClock className="w-5 h-5 text-blue-400" />
                           </div>
                           <div className="flex-1">
                               <h3 className="text-blue-400 font-semibold mb-1">{t('license.trial_title', 'Essai Gratuit')}</h3>
@@ -249,7 +261,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                     onClick={onOpenAuth}
                     className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                   >
-                    <Globe className="w-4 h-4" />
+                    <IconGlobe className="w-4 h-4" />
                     {t('license.login_or_register', "Se connecter / S'inscrire")}
                   </button>
                   <button 
@@ -270,13 +282,13 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                                   onClick={handleInstallUpdate}
                                   className="w-full py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                               >
-                                  <Download className="w-4 h-4" />
+                                  <IconDownload className="w-4 h-4" />
                                   {t('settings.install', 'Installer la mise à jour')}
                               </button>
                           </div>
                       ) : updateStatus === 'downloading' ? (
                           <div className="text-xs text-blue-400 flex items-center justify-center gap-2 py-2">
-                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <IconRefresh className="w-3 h-3 animate-spin" />
                               {t('settings.installing', 'Installation en cours...')}
                           </div>
                       ) : (
@@ -287,12 +299,12 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                           >
                               {updateStatus === 'checking' ? (
                                   <>
-                                      <RefreshCw className="w-3 h-3 animate-spin" />
+                                      <IconRefresh className="w-3 h-3 animate-spin" />
                                       {t('settings.checking', 'Vérification...')}
                                   </>
                               ) : (
                                   <>
-                                      <RefreshCw className="w-3 h-3" />
+                                      <IconRefresh className="w-3 h-3" />
                                       {t('settings.check_update_btn', 'Vérifier les mises à jour')}
                                   </>
                               )}
@@ -302,7 +314,6 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
               </div>
             </div>
           )}
-
         </div>
       </div>
     </div>

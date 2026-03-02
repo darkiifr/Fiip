@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Type, Check, RefreshCw, Bot, Download, Sparkles, MoveRight, Globe, Cloud, Upload, Mic, Volume2, Cpu, MessageSquare } from 'lucide-react';
 import { relaunch, exit } from '@tauri-apps/plugin-process';
 import { open, Command } from '@tauri-apps/plugin-shell';
 import { type } from '@tauri-apps/plugin-os';
@@ -7,8 +6,26 @@ import { getVersion } from '@tauri-apps/api/app';
 import { getPlatformDisplayName } from '../services/platform';
 import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, ShieldAlert } from 'lucide-react';
 import CustomSelect from './CustomSelect';
+
+// Icons Import (Pim's Edition)
+import IconClose from '~icons/mingcute/close-fill';
+import IconFontSize from '~icons/mingcute/font-size-fill';
+import IconCheck from '~icons/mingcute/check-fill';
+import IconRefresh from '~icons/mingcute/refresh-3-fill';
+import IconBot from '~icons/mingcute/robot-fill';
+import IconDownload from '~icons/mingcute/download-2-fill';
+import IconSparkles from '~icons/mingcute/sparkles-fill';
+import IconArrowRight from '~icons/mingcute/arrow-right-fill';
+import IconGlobe from '~icons/mingcute/earth-2-fill';
+import IconCloud from '~icons/mingcute/cloud-fill';
+import IconUpload from '~icons/mingcute/upload-2-fill';
+import IconMic from '~icons/mingcute/mic-fill';
+import IconVolume from '~icons/mingcute/volume-fill';
+import IconCpu from '~icons/mingcute/chip-fill';
+import IconMessage from '~icons/mingcute/message-3-fill';
+import IconShieldCheck from '~icons/mingcute/shield-shape-fill';
+import IconShieldAlert from '~icons/mingcute/warning-fill';
 
 export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdateSettings, storageUsage }) {
     const { t, i18n } = useTranslation();
@@ -247,7 +264,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                 <div className="h-[40px] px-6 flex items-center justify-between border-b border-white/5 shrink-0">
                     <h2 className="text-sm font-semibold text-white">{t('settings.title')}</h2>
                     <button onClick={handleClose} className="p-1 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors duration-[150ms] ease-out">
-                        <X className="w-4 h-4" />
+                        <IconClose className="w-4 h-4" />
                     </button>
                 </div>
 
@@ -276,7 +293,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                                  onClick={() => fileInputRef.current?.click()}
                                                  className="flex items-center gap-2 px-3 py-1.5 bg-[#1e1e1e] hover:bg-white/10 border border-white/10 rounded text-xs text-white transition-colors"
                                              >
-                                                 <Upload className="w-3.5 h-3.5" />
+                                                 <IconUpload className="w-3.5 h-3.5" />
                                                  {t('settings.upload_avatar', 'Choisir une image')}
                                              </button>
                                              {localSettings.avatarUrl && (
@@ -293,7 +310,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                                      className="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors"
                                                      title={t('settings.remove_avatar', 'Supprimer')}
                                                  >
-                                                     <X className="w-3.5 h-3.5" />
+                                                     <IconClose className="w-3.5 h-3.5" />
                                                  </button>
                                              )}
                                          </div>
@@ -326,7 +343,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                             )}
                             renderTrigger={(option) => (
                                 <>
-                                    <Globe className="w-4 h-4 text-gray-400" />
+                                    <IconGlobe className="w-4 h-4 text-gray-400" />
                                     <span className="truncate">{option.label}</span>
                                 </>
                             )}
@@ -356,9 +373,9 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         <div className={`p-4 rounded-lg border flex flex-col gap-3 ${authData ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
                             <div className="flex items-start gap-3">
                                 {authData ? (
-                                    <ShieldCheck className="w-5 h-5 text-green-400 mt-0.5" />
+                                    <IconShieldCheck className="w-5 h-5 text-green-400 mt-0.5" />
                                 ) : (
-                                    <ShieldAlert className="w-5 h-5 text-red-400 mt-0.5" />
+                                    <IconShieldAlert className="w-5 h-5 text-red-400 mt-0.5" />
                                 )}
                                 <div>
                                     <h4 className={`text-sm font-medium ${authData ? 'text-green-400' : 'text-red-400'}`}>
@@ -388,11 +405,11 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 <div className="mt-2 pt-3 border-t border-white/5">
                                     <div className="flex justify-between items-center mb-1.5">
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                            <Cloud className="w-3 h-3" />
+                                            <IconCloud className="w-3 h-3" />
                                             {t('settings.storage_usage', 'Stockage Cloud')}
                                         </span>
                                         <span className={`text-[10px] font-mono ${storageUsage.percent > 90 ? 'text-red-400' : 'text-gray-400'}`}>
-                                            {formatBytes(storageUsage.used)} / {(storageUsage.limit === 0 && authData) ? (authData.currentLevel >= 4 ? "500 Go" : authData.currentLevel >= 2 ? "50 Go" : "15 Go") : formatBytes(storageUsage.limit)}
+                                            {formatBytes(storageUsage.used)} / {(storageUsage.limit === 0 && authData) ? (authData.currentLevel >= 4 ? "500 Mo" : authData.currentLevel >= 2 ? "250 Mo" : "100 Mo") : formatBytes(storageUsage.limit)}
                                         </span>
                                     </div>
                                     <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/5">
@@ -419,7 +436,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.display_title')}</h3>
                         <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                             <div className="flex items-center gap-3">
-                                <Type className="w-5 h-5 text-gray-400" />
+                                <IconFontSize className="w-5 h-5 text-gray-400" />
                                 <span className="text-sm font-medium text-gray-200">{t('settings.large_text')}</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
@@ -461,7 +478,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.updates', 'Mises à jour')}</h3>
                         <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                             <div className="flex items-center gap-3">
-                                <Download className="w-5 h-5 text-gray-400" />
+                                <IconDownload className="w-5 h-5 text-gray-400" />
                                 <span className="text-sm font-medium text-gray-200">{t('settings.auto_update', 'Mises à jour automatiques')}</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
@@ -482,7 +499,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                          <div className="bg-black/20 rounded-lg p-3 flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <Cloud className="w-5 h-5 text-blue-400" />
+                                    <IconCloud className="w-5 h-5 text-blue-400" />
                                     <span className="text-sm font-medium text-gray-200">{t('settings.cloud_sync_toggle', 'Activer la synchronisation')}</span>
                                 </div>
                                 <label className="relative inline-flex items-center cursor-pointer">
@@ -523,12 +540,12 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         onClick={handleManualSync}
                                         className="w-full py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded text-xs font-medium flex items-center justify-center gap-2 transition-colors mb-2"
                                     >
-                                        <RefreshCw className="w-3.5 h-3.5" />
+                                        <IconRefresh className="w-3.5 h-3.5" />
                                         {t('settings.manual_sync', "Synchroniser maintenant")}
                                     </button>
                                     {pendingUpdatesCount > 0 && (
                                         <div className="px-2 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded flex items-center gap-2 text-yellow-200 text-xs mb-2">
-                                            <RefreshCw className="w-3 h-3 animate-spin" />
+                                            <IconRefresh className="w-3 h-3 animate-spin" />
                                             <span>{pendingUpdatesCount} modification(s) en attente de connexion...</span>
                                         </div>
                                     )}
@@ -635,7 +652,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 ]}
                                 renderTrigger={(option) => (
                                     <>
-                                        <Mic className="w-4 h-4 text-gray-400" />
+                                        <IconMic className="w-4 h-4 text-gray-400" />
                                         <span className="truncate">{option.label}</span>
                                     </>
                                 )}
@@ -657,7 +674,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 ]}
                                 renderTrigger={(option) => (
                                     <>
-                                        <Volume2 className="w-4 h-4 text-gray-400" />
+                                        <IconVolume className="w-4 h-4 text-gray-400" />
                                         <span className="truncate">{option.label}</span>
                                     </>
                                 )}
@@ -672,7 +689,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         {/* Master Toggle */}
                         <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                             <div className="flex items-center gap-3">
-                                <Bot className="w-5 h-5 text-gray-400" />
+                                <IconBot className="w-5 h-5 text-gray-400" />
                                 <span className="text-sm font-medium text-gray-200">{t('settings.ai_toggle')}</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
@@ -720,7 +737,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         ]}
                                         renderTrigger={(option) => (
                                             <>
-                                                <Cpu className="w-4 h-4 text-gray-400" />
+                                                <IconCpu className="w-4 h-4 text-gray-400" />
                                                 <span className="truncate">{option.label}</span>
                                             </>
                                         )}
@@ -743,7 +760,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                                     }}
                                                     className="text-gray-400 hover:text-red-500 transition-colors"
                                                 >
-                                                    <X className="w-3.5 h-3.5" />
+                                                    <IconClose className="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
                                         ))}
@@ -826,7 +843,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     ]}
                                     renderTrigger={(option) => (
                                         <>
-                                            <MessageSquare className="w-4 h-4 text-gray-400" />
+                                            <IconMessage className="w-4 h-4 text-gray-400" />
                                             <span className="truncate">{option.label}</span>
                                         </>
                                     )}
@@ -856,7 +873,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                             }}
                                             className="w-full text-xs bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-2 rounded transition-colors font-medium flex items-center justify-center gap-2"
                                         >
-                                            <RefreshCw className="w-3 h-3" />
+                                            <IconRefresh className="w-3 h-3" />
                                             Installer speech-dispatcher & Redémarrer
                                         </button>
                                     </div>
@@ -887,7 +904,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1.5 transition-colors group"
                             >
                                 <span className="group-hover:underline underline-offset-2 decoration-blue-400/30">{t('settings.download_voices', 'Guide: Installer des langues et voix')}</span>
-                                <Download className="w-3 h-3" />
+                                <IconDownload className="w-3 h-3" />
                             </button>
                         </div>
                     </div>
@@ -943,7 +960,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 onClick={handleRestart}
                                 className="flex-1 h-[32px] px-5 bg-white text-gray-900 rounded-[6px] text-[13px] font-medium hover:opacity-90 transition-opacity duration-[250ms] ease-in-out flex items-center justify-center gap-2"
                             >
-                                <RefreshCw className="w-4 h-4" />
+                                <IconRefresh className="w-4 h-4" />
                                 {t('settings.restart')}
                             </button>
                         </div>
@@ -960,7 +977,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                         onClick={handleApply}
                         className="w-full h-[32px] px-4 rounded-[6px] text-[13px] font-medium transition-all duration-[250ms] ease-in-out flex items-center justify-center gap-2 bg-blue-600 text-white hover:bg-blue-700 shadow-md transform hover:-translate-y-0.5"
                     >
-                        <Check className="w-4 h-4" />
+                        <IconCheck className="w-4 h-4" />
                         {t('settings.apply')}
                     </button>
                 </div>
@@ -970,11 +987,11 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                     <div className="absolute inset-0 z-50 bg-[#2c2c2c] flex flex-col p-6 animate-in fade-in slide-in-from-bottom-4">
                         <div className="flex items-center justify-between mb-4 shrink-0">
                             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <Sparkles className="w-5 h-5 text-blue-400" />
+                                <IconSparkles className="w-5 h-5 text-blue-400" />
                                 {t('settings.update_available')}
                             </h3>
                             <button onClick={() => setUpdateInfo(null)} className="p-1 hover:bg-white/10 rounded-full transition-colors">
-                                <X className="w-5 h-5 text-gray-400" />
+                                <IconClose className="w-5 h-5 text-gray-400" />
                             </button>
                         </div>
 
@@ -984,7 +1001,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                     <span className="text-xs text-gray-500 uppercase tracking-wider">{t('settings.current_version')}</span>
                                     <span className="text-sm font-mono text-gray-400">v{appVersion}</span>
                                 </div>
-                                <MoveRight className="w-4 h-4 text-gray-600 mx-2" />
+                                <IconArrowRight className="w-4 h-4 text-gray-600 mx-2" />
                                 <div className="flex flex-col items-end">
                                     <span className="text-xs text-blue-400 uppercase tracking-wider font-medium">{t('settings.new_version')}</span>
                                     <span className="text-lg font-bold text-green-400 font-mono">v{updateInfo.version}</span>
@@ -1030,7 +1047,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                 }}
                                 className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors shadow-lg flex items-center justify-center gap-2"
                             >
-                                <Download className="w-4 h-4" />
+                                <IconDownload className="w-4 h-4" />
                                 {isCheckingUpdate ? t('settings.installing') : t('settings.install')}
                             </button>
                         </div>

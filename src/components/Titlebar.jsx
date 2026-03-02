@@ -1,7 +1,11 @@
-import { X, Minus, Square } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exit } from '@tauri-apps/plugin-process';
 import { useTranslation } from 'react-i18next';
+
+// Icons Import (Pim's Edition)
+import IconClose from '~icons/mingcute/close-fill';
+import IconMinimize from '~icons/mingcute/minimize-fill';
+import IconMaximize from '~icons/mingcute/square-fill';
 
 export default function Titlebar({ style = 'macos' }) {
     const appWindow = getCurrentWindow();
@@ -84,21 +88,21 @@ export default function Titlebar({ style = 'macos' }) {
                         className="w-12 h-full hover:bg-white/10 flex items-center justify-center transition-colors"
                         title={t('settings.minimize')}
                     >
-                        <Minus className="w-4 h-4 text-gray-300" />
+                        <IconMinimize className="w-4 h-4 text-gray-300" />
                     </button>
                     <button
                         onClick={handleMaximize}
                         className="w-12 h-full hover:bg-white/10 flex items-center justify-center transition-colors"
                         title={t('settings.maximize')}
                     >
-                        <Square className="w-3.5 h-3.5 text-gray-300" />
+                        <IconMaximize className="w-3.5 h-3.5 text-gray-300" />
                     </button>
                     <button
                         onClick={handleClose}
-                        className="w-12 h-full hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors"
+                        className="w-12 h-full hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors group"
                         title={t('settings.close')}
                     >
-                        <X className="w-4 h-4 text-gray-300 group-hover:text-white" />
+                        <IconClose className="w-4 h-4 text-gray-300 group-hover:text-white" />
                     </button>
                 </div>
             </div>

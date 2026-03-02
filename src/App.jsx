@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -17,9 +18,11 @@ import "./App.css";
 
 import { type } from '@tauri-apps/plugin-os';
 import { readFile } from '@tauri-apps/plugin-fs';
+import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { useTranslation } from 'react-i18next';
-import { FileText } from 'lucide-react';
+import IconFileText from '~icons/mingcute/file-fill';
 import { keyAuthService } from "./services/keyauth";
+import { authService, storageService, getStorageLimit } from "./services/supabase";
 import { soundManager } from "./services/soundManager";
 import { calculateTotalUsage } from "./services/fileManager";
 
@@ -33,6 +36,8 @@ import { calculateTotalUsage } from "./services/fileManager";
 //    }
 //    return window.btoa(binary);
 // }
+
+const LICENSE_URL = "https://votre-site-de-licence.com"; // À remplacer par le vrai lien
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -95,7 +100,9 @@ function App() {
   useEffect(() => {
       const updateStorage = async () => {
           const used = await calculateTotalUsage(notes);
-          const limit = keyAuthService.getStorageLimit();
+          const user = await authService.getUser();
+          const level = user?.user_metadata?.subscription_level || 0;
+          const limit = getStorageLimit(level);
           const percent = limit > 0 ? (used / limit) * 100 : 0;
           setStorageUsage({ used, limit, percent });
       };
@@ -114,6 +121,62 @@ function App() {
         });
     }, 7000);
     return () => clearTimeout(safetyTimer);
+  }, []);
+
+  // Configure Deep Link Listener
+  useEffect(() => {
+    const setupDeepLink = async () => {
+      try {
+        const unlisten = await onOpenUrl((urls) => {
+          console.log('Deep link received:', urls);
+          for (const url of urls) {
+            // Check specifically for our protocol and path if needed.
+            // Example URL: fiip://login-callback#access_token=...&refresh_token=...
+            if (url.includes('access_token') && url.includes('refresh_token')) {
+              try {
+                // Parse hash from URL
+                const hashIndex = url.indexOf('#');
+                if (hashIndex !== -1) {
+                  const hash = url.substring(hashIndex + 1);
+                  const params = new URLSearchParams(hash);
+                  const accessToken = params.get('access_token');
+                  const refreshToken = params.get('refresh_token');
+
+                  if (accessToken && refreshToken) {
+                    authService.setSession(accessToken, refreshToken).then(async ({ error }) => {
+                       if (!error) {
+                           const user = await authService.getUser();
+                           if (user) {
+                               const level = user?.user_metadata?.subscription_level || 0;
+                               keyAuthService.setLocalLevel(level);
+                               setIsAuthModalOpen(false);
+                               // Force sync immediately
+                               await performCloudSyncDown(false);
+                           }
+                       }
+                    });
+                  }
+                }
+              } catch (e) {
+                console.error("Deep link parse error", e);
+              }
+            }
+          }
+        });
+        // Cleanup function for unlisten if supported by run-time? 
+        // onOpenUrl returns a Promise<UnlistenFn> usually.
+        return unlisten;
+      } catch (e) {
+        console.error("Deep link setup failed", e);
+      }
+    };
+    
+    let unlistenFn;
+    setupDeepLink().then(fn => unlistenFn = fn);
+    
+    return () => {
+        if (unlistenFn) unlistenFn();
+    };
   }, []);
 
   useEffect(() => {
@@ -156,6 +219,13 @@ function App() {
                 console.warn("KeyAuth initialization skipped or failed:", err);
                 // Continue execution so user isn't stuck
             }
+
+            // Sync Supabase Level to Local
+            const user = await authService.getUser();
+            if (user) {
+                const level = user?.user_metadata?.subscription_level || 0;
+                keyAuthService.setLocalLevel(level);
+            }
             
             setAppLoading({ isLoading: true, status: "Vérification de la licence..." });
             // Force check subscription status
@@ -164,23 +234,7 @@ function App() {
                 // If still not authenticated and not in trial -> show license modal
                 if (!keyAuthService.checkSubscription()) {
                     setIsLicenseModalOpen(true);
-                     // If it's a critical license check, you might want to force the modal and prevent closing
-                     // until a valid key is provided.
                 }
-
-                // Verify specific hardware/session validity if needed
-                // E.g. re-login silently if session expired but key is stored?
-                // init() handles restoreSession() which calls login().
-                
-                // If logged in, double check user status just to be sure
-                if (keyAuthService.isAuthenticated) {
-                     // Check if hwid is mismatch? (Handled by server usually)
-                     // Refresh user data is handled during login
-                     
-                     // Optional: Re-fetch data to ensure up to date license
-                     // But we just logged in via init->restoreSession, so it should be fresh.
-                }
-                
             } catch (e) {
                 console.warn("Subscription check invalid", e);
                 setIsLicenseModalOpen(true); 
@@ -228,9 +282,16 @@ function App() {
               return;
           }
       } catch { /* ignore */ }
+      
+      // Prevent sync for Trial users (Free Trial has no cloud access)
+      if (keyAuthService.isTrialActive) {
+          console.log("Sync disabled for Trial users.");
+          return;
+      }
 
-      // Only sync if user is logged in with account (has username)
-      if (!keyAuthService.isAuthenticated || !keyAuthService.userData?.username) return;
+      // Only sync if user is logged in with account
+      const user = await authService.getUser();
+      if (!user) return;
 
       setIsSyncing(true);
       try {
@@ -303,22 +364,27 @@ function App() {
                                        file = new File([blob], name, { type: blob.type });
                                    }
                                    
-                                   // Upload to KeyAuth
-                                   const uploadRes = await keyAuthService.fileUpload(file, file.name);
+                                   // Upload to Supabase Storage
+                                   const uploadRes = await storageService.uploadFile(user.id, file, `attachments/${Date.now()}_${file.name}`);
+                                   const publicUrl = storageService.getPublicUrl(user.id, uploadRes.path);
                                    
-                                   if (uploadRes.success && uploadRes.url) {
+                                   if (publicUrl) {
                                        processedAttachments.push({
                                            ...att,
-                                           data: uploadRes.url,
+                                           data: publicUrl,
                                            // Keep mimeType and type
                                        });
                                    } else {
-                                       console.warn("Upload failed for " + att.name, uploadRes.message);
-                                       // Keep original local path/content so it works locally at least
-                                       processedAttachments.push({ ...att, syncError: "Upload failed: " + uploadRes.message });
+                                       console.warn("Upload failed for " + att.name);
+                                       processedAttachments.push({ ...att, syncError: "Upload failed" });
                                    }
                                } catch (e) {
                                    console.error("Sync attachment error", e);
+                                   if (e.message === "STORAGE_LIMIT_EXCEEDED") {
+                                        alert(t('storage.limit_exceeded', "Limite de stockage atteinte. Veuillez mettre à niveau votre licence."));
+                                        await open(LICENSE_URL);
+                                        return; // Stop sync
+                                   }
                                    processedAttachments.push({ ...att, syncError: "File processing error" });
                                }
                           } else {
@@ -332,86 +398,107 @@ function App() {
               updates.notes = hydratedNotes;
           }
           
-          await keyAuthService.saveMergedUserData(updates);
+          // Upload data.json to Supabase
+          const blob = new Blob([JSON.stringify(updates)], { type: 'application/json' });
+          const file = new File([blob], 'data.json', { type: 'application/json' });
+          await storageService.uploadFile(user.id, file, 'data.json');
+
       } catch (err) {
           console.error("Cloud sync failed:", err);
+          if (err.message === "STORAGE_LIMIT_EXCEEDED") {
+              alert(t('storage.limit_exceeded', "Limite de stockage atteinte. Veuillez mettre à niveau votre licence."));
+              await open(LICENSE_URL);
+          }
       } finally {
           setIsSyncing(false);
       }
   };
 
   const performCloudSyncDown = async (silent = false) => {
+      // Prevent sync for Trial users (Free Trial has no cloud access)
+      if (keyAuthService.isTrialActive) {
+          console.log("Cloud sync download disabled for Trial users.");
+          return;
+      }
+      
       const currentSettings = settingsRef.current;
 
       // Only sync if enabled
       if (currentSettings.cloudSync === false) return;
 
+      const user = await authService.getUser();
+      if (!user) return;
+
       setIsSyncing(true);
       try {
-          // Try to load data
-          const res = await keyAuthService.loadUserData();
-          if (res.success && res.data) {
-              // Sync Notes - Check preference (default true if undefined)
-              const syncNotesEnabled = !currentSettings.syncPreferences || currentSettings.syncPreferences.notes !== false;
+          // Try to load data from Supabase
+          try {
+              const jsonText = await storageService.downloadFile(user.id, 'data.json');
+              const data = JSON.parse(jsonText);
               
-              if (syncNotesEnabled && res.data.notes && Array.isArray(res.data.notes)) {
-                  const cloudNotes = res.data.notes;
-                  if (cloudNotes.length > 0) {
-                      setNotes(prev => {
-                          const newNotes = [...prev];
-                          cloudNotes.forEach(cNote => {
-                              const idx = newNotes.findIndex(n => n.id === cNote.id);
-                              if (idx === -1) {
-                                  newNotes.push(cNote);
-                              } else {
-                                  // Robust date comparison (handle string vs number timestamps)
-                                  const cloudTime = new Date(cNote.updatedAt || 0).getTime();
-                                  const localTime = new Date(newNotes[idx].updatedAt || 0).getTime();
-                                  
-                                  if (cloudTime > localTime) {
-                                      newNotes[idx] = cNote;
+              if (data) {
+                  // Sync Notes - Check preference (default true if undefined)
+                  const syncNotesEnabled = !currentSettings.syncPreferences || currentSettings.syncPreferences.notes !== false;
+                  
+                  if (syncNotesEnabled && data.notes && Array.isArray(data.notes)) {
+                      const cloudNotes = data.notes;
+                      if (cloudNotes.length > 0) {
+                          setNotes(prev => {
+                              const newNotes = [...prev];
+                              cloudNotes.forEach(cNote => {
+                                  const idx = newNotes.findIndex(n => n.id === cNote.id);
+                                  if (idx === -1) {
+                                      newNotes.push(cNote);
+                                  } else {
+                                      // Robust date comparison (handle string vs number timestamps)
+                                      const cloudTime = new Date(cNote.updatedAt || 0).getTime();
+                                      const localTime = new Date(newNotes[idx].updatedAt || 0).getTime();
+                                      
+                                      if (cloudTime > localTime) {
+                                          newNotes[idx] = cNote;
+                                      }
                                   }
-                              }
+                              });
+                              return newNotes;
                           });
-                          return newNotes;
+                      }
+                  }
+                  
+                  // Sync Settings
+                  if (data.settings) {
+                      const cloudSettings = data.settings;
+                      const currentPrefs = currentSettings.syncPreferences || {}; 
+                      
+                      setSettings(prev => {
+                           const newSettings = { ...prev };
+                           const mergeIfEnabled = (category, keys) => {
+                               if (currentPrefs[category] !== false) {
+                                   keys.forEach(k => {
+                                       if (cloudSettings[k] !== undefined) newSettings[k] = cloudSettings[k];
+                                   });
+                               }
+                           };
+                           
+                           mergeIfEnabled('ai', ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels']);
+                           mergeIfEnabled('appearance', ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText']);
+                           mergeIfEnabled('general', ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound']);
+                           
+                           // Preserve syncPreferences of THIS device (don't overwrite with cloud's)
+                           newSettings.syncPreferences = prev.syncPreferences; 
+                           
+                           return newSettings;
                       });
-                  }
-              }
-              
-              // Sync Settings
-              if (res.data.settings) {
-                  const cloudSettings = res.data.settings;
-                  const currentPrefs = currentSettings.syncPreferences || {}; 
-                  
-                  setSettings(prev => {
-                       const newSettings = { ...prev };
-                       const mergeIfEnabled = (category, keys) => {
-                           if (currentPrefs[category] !== false) {
-                               keys.forEach(k => {
-                                   if (cloudSettings[k] !== undefined) newSettings[k] = cloudSettings[k];
-                               });
-                           }
-                       };
-                       
-                       mergeIfEnabled('ai', ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels']);
-                       mergeIfEnabled('appearance', ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText']);
-                       mergeIfEnabled('general', ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound']);
-                       
-                       // Preserve syncPreferences of THIS device (don't overwrite with cloud's)
-                       newSettings.syncPreferences = prev.syncPreferences; 
-                       
-                       return newSettings;
-                  });
 
-                  // Apply Language
-                  if (cloudSettings.language && currentPrefs.language !== false) {
-                      i18n.changeLanguage(cloudSettings.language);
+                      // Apply Language
+                      if (cloudSettings.language && currentPrefs.language !== false) {
+                          i18n.changeLanguage(cloudSettings.language);
+                      }
+                      
+                      if (!silent) alert("Données synchronisées avec succès !");
                   }
-                  
-                  if (!silent) alert("Données synchronisées avec succès !");
               }
-          } else {
-             if (!silent) handleCloudSync(true);
+          } catch {
+                  if (!silent) handleCloudSync(true); // First sync up
           }
       } catch (err) {
           console.error("Cloud sync down failed:", err);
@@ -556,8 +643,11 @@ function App() {
     setNotes((prevNotes) => prevNotes.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
   };
 
+  /*
   const checkStorageLimit = async (additionalBytes = 0) => {
-      const limit = keyAuthService.getStorageLimit();
+      const user = await authService.getUser();
+      const level = user?.user_metadata?.subscription_level || 0;
+      const limit = getStorageLimit(level);
       if (limit === 0) return true; 
       
       const currentUsage = await calculateTotalUsage(notes);
@@ -567,7 +657,7 @@ function App() {
       }
       return true;
   };
-
+  */
   const handleDeleteNote = (noteId) => {
     const idToDelete = noteId || selectedNoteId;
     if (!idToDelete) return;
@@ -597,159 +687,115 @@ function App() {
   };
 
   const handleEmptyTrash = () => {
-    if (confirm(t('sidebar.empty_trash_confirm') || "Vider la corbeille définitivement ?")) {
-        setNotes(prev => prev.filter(n => !n.deleted));
+    setNotes(prev => prev.filter(n => !n.deleted));
+    if (selectedNoteId && notes.find(n => n.id === selectedNoteId)?.deleted) {
         setSelectedNoteId(null);
     }
   };
 
-  const selectedNote = Array.isArray(notes) ? notes.find((n) => n.id === selectedNoteId) : null;
-
-  // Filter notes based on activeNav
-  const getFilteredNotes = () => {
-      if (!Array.isArray(notes)) return [];
-      switch (activeNav) {
-          case 'favorites':
-              return notes.filter(n => !n.deleted && n.favorite);
-          case 'trash':
-              return notes.filter(n => n.deleted);
-          default: // home
-              return notes.filter(n => !n.deleted);
-      }
-  };
-
-  const visibleNotes = getFilteredNotes();
+  // Find active note
+  const activeNote = notes.find((n) => n.id === selectedNoteId);
 
   return (
-    <div className={`flex flex-col h-screen w-screen overflow-hidden text-gray-100 font-sans transition-colors duration-300 ${settings.largeText ? 'text-lg' : ''} bg-[#1C1C1E]/40`}>
-      {appLoading.isLoading && <LoadingScreen status={appLoading.status} />}
-      <Titlebar style={settings.titlebarStyle} />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          activeNav={activeNav}
-          onNavigate={setActiveNav}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenLicense={() => setIsLicenseModalOpen(true)}
-          onToggleDexter={() => {
-            if (!settings.aiEnabled) {
-                setSettings(prev => ({ ...prev, aiEnabled: true }));
-            }
-            setIsDexterOpen(!isDexterOpen);
-          }}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
-          settings={settings}
-          isSyncing={isSyncing}
-          onSync={() => handleCloudSync(true)}
+    <div className="h-screen w-screen bg-[#1C1C1E] text-white overflow-hidden flex flex-col font-sora select-none">
+      <Titlebar />
+
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Sidebar */}
+        <Sidebar 
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onToggleDexter={() => setIsDexterOpen(!isDexterOpen)}
+            onOpenAuth={() => setIsAuthModalOpen(true)}
+            settings={settings}
+            activeNav={activeNav}
+            onNavigate={setActiveNav}
+            isSyncing={isSyncing}
+            onSync={() => handleCloudSync(true)}
         />
-        <div className="w-[1px] h-full bg-white/5 flex-shrink-0" />
-        
-        {activeNav === 'shared' ? (
-             <CollaborationView 
-                 notes={notes}
-                 onImportNote={(newNote) => {
-                     setNotes(prev => [newNote, ...prev]);
-                     setSelectedNoteId(newNote.id);
-                     setActiveNav('home');
-                     alert("Note partagée importée avec succès !");
-                 }}
-                 onOpenNote={(noteId) => {
-                    setSelectedNoteId(noteId);
-                    setActiveNav('home');
-                 }}
-                 onSync={() => handleCloudSync(true)}
-             />
-        ) : (
-            <>
-                <NoteList
-                  notes={visibleNotes}
-                  selectedNoteId={selectedNoteId}
-                  onSelectNote={setSelectedNoteId}
-                  onCreateNote={handleCreateNote}
-                  onDeleteNote={handleDeleteNote}
-                  onRestoreNote={handleRestoreNote}
-                  onToggleFavorite={handleToggleFavorite}
-                  activeNav={activeNav}
-                  onEmptyTrash={handleEmptyTrash}
-                />
-                <div className="w-[1px] h-full bg-white/5 flex-shrink-0" />
-                {selectedNote ? (
-                  <Editor
-                    note={selectedNote}
-                    onUpdateNote={handleUpdateNote}
-                    onCreateNote={handleCreateNote}
+
+        {/* Note List */}
+        <NoteList 
+            notes={notes} 
+            selectedNoteId={selectedNoteId} 
+            onSelectNote={setSelectedNoteId} 
+            onCreateNote={handleCreateNote}
+            onDeleteNote={handleDeleteNote}
+            onToggleFavorite={handleToggleFavorite}
+            onEmptyTrash={handleEmptyTrash}
+            onRestoreNote={handleRestoreNote}
+            activeNav={activeNav}
+            settings={settings}
+        />
+
+        {/* Editor Area */}
+        <div className="flex-1 flex flex-col h-full bg-[#1C1C1E] relative">
+            {activeNote ? (
+                <Editor 
+                    key={activeNote.id} // Force remount on note switch
+                    note={activeNote} 
+                    onUpdate={handleUpdateNote} 
                     settings={settings}
-                    onOpenLicense={() => setIsLicenseModalOpen(true)}
-                    onOpenShare={() => {
-                        if (keyAuthService.isAuthenticated) {
-                            setIsShareModalOpen(true);
-                        } else {
-                            setIsAuthModalOpen(true);
-                        }
-                    }}
-                    checkStorageLimit={checkStorageLimit}
-                  />
-                ) : (
-                    <div className="flex-1 h-full flex items-center justify-center text-gray-500 select-none bg-[#1C1C1E]/20">
-                        <div className="flex flex-col items-center gap-4">
-                            <FileText className="w-16 h-16 opacity-20" />
-                            <p>{t('editor.select_note') || "Select a note to view"}</p>
-                        </div>
-                    </div>
-                )}
-            </>
-        )}
-        
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          settings={settings}
-          onUpdateSettings={setSettings}
-          storageUsage={storageUsage}
-        />
-        <LicenseModal
-            isOpen={isLicenseModalOpen}
-            onClose={() => {
-              if (keyAuthService.isAuthenticated || keyAuthService.isTrialActive) {
-                setIsLicenseModalOpen(false);
-              }
-            }}
-            onOpenAuth={() => {
-                setIsLicenseModalOpen(false);
-                setIsAuthModalOpen(true);
-            }}
-        />
-        <ChatModal 
-            isOpen={isChatModalOpen}
-            onClose={() => setIsChatModalOpen(false)}
-        />
-        <ShareModal 
-            isOpen={isShareModalOpen}
-            onClose={() => setIsShareModalOpen(false)}
-            note={selectedNote}
-            notes={notes}
-        />
-        <AuthModal
-            isOpen={isAuthModalOpen}
-            onClose={() => {
-              setIsAuthModalOpen(false);
-              // If not authenticated and not in trial mode, show license modal again
-              if (!keyAuthService.isAuthenticated && !keyAuthService.isTrialActive) {
-                setIsLicenseModalOpen(true);
-              }
-            }}
-            onLoginSuccess={handleLoginSuccess}
-        />
-        <Dexter
-          isOpen={isDexterOpen}
-          onClose={() => setIsDexterOpen(false)}
-          settings={settings}
-          onUpdateSettings={setSettings}
-          onCreateNote={handleCreateNote}
-          onUpdateNote={handleUpdateNote}
-          onDeleteNote={handleDeleteNote}
-          currentNote={selectedNote}
+                    onShare={() => setIsShareModalOpen(true)}
+                />
+            ) : (
+                <div className="flex-1 flex items-center justify-center text-gray-500 flex-col gap-4">
+                    <IconFileText className="w-16 h-16 opacity-20" />
+                    <p className="text-sm opacity-50">{t('editor.no_note_selected', "Aucune note sélectionnée")}</p>
+                </div>
+            )}
+        </div>
+
+        {/* Dexter AI Panel */}
+        <Dexter 
+            isOpen={isDexterOpen} 
+            onClose={() => setIsDexterOpen(false)} 
+            currentNote={activeNote}
+            onUpdateNote={handleUpdateNote}
+            settings={settings}
         />
       </div>
+
+      {/* Modals */}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        settings={settings} 
+        onUpdateSettings={setSettings}
+        storageUsage={storageUsage}
+      />
+      
+      <LicenseModal 
+        isOpen={isLicenseModalOpen} 
+        onClose={() => setIsLicenseModalOpen(false)} 
+        onOpenAuth={() => { setIsLicenseModalOpen(false); setIsAuthModalOpen(true); }}
+      />
+      
+      <ChatModal 
+        isOpen={isChatModalOpen} 
+        onClose={() => setIsChatModalOpen(false)} 
+      />
+
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        onLoginSuccess={handleLoginSuccess}
+      />
+
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        note={activeNote}
+      />
+
+      <CollaborationView 
+        note={activeNote} 
+        isOpen={false} // Placeholder for future collab feature
+        onClose={() => {}}
+      />
+
+      {appLoading.isLoading && (
+        <LoadingScreen status={appLoading.status} />
+      )}
     </div>
   );
 }

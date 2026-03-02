@@ -1,11 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Send, RefreshCw, Hash, Smile, User, Settings, PlusCircle } from 'lucide-react';
 import { keyAuthService } from '../services/keyauth';
 import { moderationService } from '../services/moderation';
 import { soundManager } from '../services/soundManager';
 import UserProfileModal from './UserProfileModal';
 import { useTranslation } from 'react-i18next';
 import EmojiPicker, { Theme, EmojiStyle } from 'emoji-picker-react';
+
+// Icons Import (Pim's Edition)
+import IconClose from '~icons/mingcute/close-fill';
+import IconSend from '~icons/mingcute/send-plane-fill';
+import IconRefresh from '~icons/mingcute/refresh-3-fill';
+import IconHashtag from '~icons/mingcute/hashtag-fill';
+import IconEmotion from '~icons/mingcute/emoji-fill';
+import IconUser from '~icons/mingcute/user-4-fill';
+import IconSettings from '~icons/mingcute/settings-3-fill';
+import IconAddCircle from '~icons/mingcute/add-circle-fill';
 
 export default function ChatModal({ isOpen, onClose }) {
     const { t } = useTranslation();
@@ -253,11 +262,6 @@ export default function ChatModal({ isOpen, onClose }) {
                     <div className="h-12 border-b border-[#1F2023] flex items-center px-4 shadow-sm hover:bg-[#35373C] transition-colors cursor-pointer">
                         <h2 className="font-bold text-[#F2F3F5] text-[15px] truncate">{t('chat.community_title', 'Fiip Community')}</h2>
                     </div>
-                    {/* Channel List - Removed flex-1 to allow profile to sit closer if desired, but user asked for "bottom" space fix? */}
-                    {/* Actually, if user wants to remove the huge space between channels and profile, we should use flex-col without flex-1 on channels? */}
-                    {/* But typically discord pushes profile to bottom. If user says "huge space between left thing and bottom of window" */}
-                    {/* Maybe they mean below the profile? */}
-                    {/* Let's try JUSTIFY-BETWEEN approach removal. */}
                     
                     <div className="flex-1 p-2 space-y-0.5 overflow-y-auto scrollbar-thin scrollbar-thumb-[#1A1B1E] scrollbar-track-transparent">
                         {channels.map(channel => (
@@ -270,7 +274,7 @@ export default function ChatModal({ isOpen, onClose }) {
                                         : 'text-[#949BA4] hover:bg-[#35373C] hover:text-[#DBDEE1]'
                                 }`}
                             >
-                                <Hash className="w-5 h-5 opacity-70" />
+                                <IconHashtag className="w-5 h-5 opacity-70" />
                                 <span className={`font-medium text-[15px] ${activeChannel === channel.id ? '' : 'group-hover:text-[#DBDEE1]'}`}>
                                     {channel.name}
                                 </span>
@@ -293,7 +297,7 @@ export default function ChatModal({ isOpen, onClose }) {
                                  currentUserProfile.nickname?.substring(0, 2).toUpperCase() || 
                                  (keyAuthService.isAuthenticated && keyAuthService.userData?.username 
                                     ? keyAuthService.userData.username.substring(0, 2).toUpperCase() 
-                                    : <User className="w-5 h-5" />)
+                                    : <IconUser className="w-5 h-5" />)
                              )}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -308,7 +312,7 @@ export default function ChatModal({ isOpen, onClose }) {
                                     : '#0000'}
                             </div>
                         </div>
-                        <Settings className="w-4 h-4 text-[#B5BAC1] hover:text-white" />
+                        <IconSettings className="w-4 h-4 text-[#B5BAC1] hover:text-white" />
                     </div>
                 </div>
 
@@ -317,7 +321,7 @@ export default function ChatModal({ isOpen, onClose }) {
                     {/* Header */}
                     <div className="h-12 border-b border-[#26272D] flex items-center px-4 shadow-sm bg-[#313338] z-20 shrink-0 justify-between">
                         <div className="flex items-center gap-2 overflow-hidden">
-                            <Hash className="w-6 h-6 text-[#80848E] shrink-0" />
+                            <IconHashtag className="w-6 h-6 text-[#80848E] shrink-0" />
                             <h3 className="font-bold text-[#F2F3F5] text-base tracking-tight truncate">{channels.find(c => c.id === activeChannel)?.name}</h3>
                             <div className="h-4 w-[1px] bg-[#3F4147] mx-2 hidden sm:block shrink-0"></div>
                             <span className="text-[#949BA4] text-xs font-medium truncate hidden sm:block">
@@ -340,7 +344,7 @@ export default function ChatModal({ isOpen, onClose }) {
                                 onClick={onClose}
                                 className="text-[#B5BAC1] hover:text-[#dbdee1] transition-colors ml-2"
                             >
-                                <X className="w-6 h-6" />
+                                <IconClose className="w-6 h-6" />
                             </button>
                         </div>
                     </div>
@@ -351,7 +355,7 @@ export default function ChatModal({ isOpen, onClose }) {
                         {/* Welcome Message at Top */}
                         <div className="px-4 py-8 mt-4 mb-4 border-b border-[#3F4147]/50 mx-4">
                             <div className="w-16 h-16 rounded-full bg-[#41434A] flex items-center justify-center mb-4">
-                                <Hash className="w-10 h-10 text-white" />
+                                <IconHashtag className="w-10 h-10 text-white" />
                             </div>
                             <h1 className="text-3xl font-bold text-white mb-2">{t('chat.welcome_header', "Bienvenue sur le salon officiel de Fiip !")}</h1>
                             <p className="text-[#B5BAC1] text-sm">
@@ -361,7 +365,7 @@ export default function ChatModal({ isOpen, onClose }) {
 
                         {loading && messages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-10 opacity-50">
-                                <RefreshCw className="w-6 h-6 animate-spin text-[#B5BAC1] mb-2" />
+                                <IconRefresh className="w-6 h-6 animate-spin text-[#B5BAC1] mb-2" />
                                 <span className="text-[#949BA4] text-xs uppercase font-bold tracking-widest">{t('chat.loading', 'Chargement...')}</span>
                             </div>
                         ) : (
@@ -438,7 +442,7 @@ export default function ChatModal({ isOpen, onClose }) {
                                     onClick={() => fileInputRef.current?.click()}
                                     className="text-[#B5BAC1] hover:text-[#dbdee1] transition-colors bg-[#484B52] rounded-full p-0.5"
                                 >
-                                    <PlusCircle className="w-5 h-5 fill-[#B5BAC1] text-[#383A40]" />
+                                    <IconAddCircle className="w-5 h-5 fill-[#B5BAC1] text-[#383A40]" />
                                 </button>
                                 <input 
                                     type="file" 
@@ -525,12 +529,12 @@ export default function ChatModal({ isOpen, onClose }) {
                                     onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowGifPicker(false); }}
                                     className={`hover:text-[#dbdee1] ${showEmojiPicker ? 'text-[#DBDEE1]' : ''}`}
                                 >
-                                    <Smile className="w-6 h-6" />
+                                    <IconEmotion className="w-6 h-6" />
                                 </button>
                                  
                                  {newMessage.trim() && (
                                     <button onClick={handleSend} disabled={sending} className="text-[#5865F2] hover:text-white transition-colors">
-                                        <Send className="w-5 h-5" />
+                                        <IconSend className="w-5 h-5" />
                                     </button>
                                  )}
                             </div>

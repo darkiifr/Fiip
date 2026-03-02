@@ -27,6 +27,9 @@
     }
   },
   "plugins": {
+    "deep-link": {
+      "schemes": ["fiip"]
+    },
     "updater": {
       "endpoints": [
         "https://github.com/darkiifr/Fiip/releases/latest/download/latest.json"

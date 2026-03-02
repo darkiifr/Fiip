@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react';
-import { X, Send, User, Share2, Lock, Loader2, Check, FileText } from 'lucide-react';
 import { keyAuthService } from '../services/keyauth';
 import CustomSelect from './CustomSelect';
+
+// Icons Import (Pim's Edition)
+import IconClose from '~icons/mingcute/close-fill';
+import IconSend from '~icons/mingcute/send-plane-fill';
+import IconUser from '~icons/mingcute/user-4-fill';
+import IconShare from '~icons/mingcute/share-2-fill';
+import IconLock from '~icons/mingcute/lock-fill';
+import IconLoading from '~icons/mingcute/loading-fill';
+import IconCheck from '~icons/mingcute/check-fill';
+import IconFileText from '~icons/mingcute/file-fill';
 
 export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
     const [selectedNote, setSelectedNote] = useState(note);
@@ -74,7 +83,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                 <div className="h-14 px-5 border-b border-white/10 flex items-center justify-between bg-[#2C2C2E]/50">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-500/20 rounded-lg">
-                            <Share2 className="w-5 h-5 text-blue-400" />
+                            <IconShare className="w-5 h-5 text-blue-400" />
                         </div>
                         <h2 className="font-semibold text-white">Partager la note</h2>
                     </div>
@@ -82,7 +91,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                         onClick={onClose}
                         className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
                     >
-                        <X className="w-5 h-5" />
+                        <IconClose className="w-5 h-5" />
                     </button>
                 </div>
 
@@ -100,13 +109,13 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                             options={notes.map(n => ({
                                 value: n.id,
                                 label: n.title || "Sans titre",
-                                icon: <FileText className="w-4 h-4 text-gray-400" />
+                                icon: <IconFileText className="w-4 h-4 text-gray-400" />
                             }))}
                             placeholder="Sélectionner une note..."
                         />
                         {selectedNote && (
                             <div className="flex items-center gap-2 px-1">
-                                <Lock className="w-3 h-3 text-gray-500" />
+                                <IconLock className="w-3 h-3 text-gray-500" />
                                 <span className="text-[10px] text-gray-500">Chiffrement de bout en bout activé</span>
                             </div>
                         )}
@@ -118,7 +127,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                             Destinataire (Nom d&apos;utilisateur)
                         </label>
                         <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                            <IconUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                             <input
                                 type="text"
                                 value={targetUsername}
@@ -137,9 +146,9 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                             status.type === 'error' ? 'text-red-400' : 
                             status.type === 'success' ? 'text-green-400' : 'text-blue-400'
                         }`}>
-                            {status.type === 'error' && <X className="w-4 h-4" />}
-                            {status.type === 'success' && <Check className="w-4 h-4" />}
-                            {status.type === 'info' && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {status.type === 'error' && <IconClose className="w-4 h-4" />}
+                            {status.type === 'success' && <IconCheck className="w-4 h-4" />}
+                            {status.type === 'info' && <IconLoading className="w-4 h-4 animate-spin" />}
                             <span>{status.message}</span>
                         </div>
                     )}
@@ -161,12 +170,12 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                         >
                             {isSharing ? (
                                 <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <IconLoading className="w-4 h-4 animate-spin" />
                                     <span>Envoi...</span>
                                 </>
                             ) : (
                                 <>
-                                    <Send className="w-4 h-4" />
+                                    <IconSend className="w-4 h-4" />
                                     <span>Envoyer l&apos;invitation</span>
                                 </>
                             )}

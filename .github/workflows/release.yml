@@ -169,6 +169,8 @@ jobs:
           VITE_KEYAUTH_SECRET: ${{ secrets.VITE_KEYAUTH_SECRET }}
           VITE_KEYAUTH_VERSION: ${{ env.APP_VERSION }}
           VITE_KEYAUTH_APIURL: https://keyauth.win/api/1.2/
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           tagName: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           releaseName: 'App v__VERSION__'

@@ -1,12 +1,22 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 // Import d'icônes plus "pro" / minimalistes
-import {
-    Bot, Send, X, Sparkles,
-    FileText, Check, ChevronDown, RotateCcw,
-    Trash2, Square, Volume2, Calendar, MessageCircle, PenTool, Paperclip
-} from 'lucide-react';
+import IconBot from '~icons/mingcute/robot-fill';
+import IconSend from '~icons/mingcute/send-plane-fill';
+import IconClose from '~icons/mingcute/close-fill';
+import IconSparkles from '~icons/mingcute/sparkles-fill';
+import IconFileText from '~icons/mingcute/file-fill';
+import IconCheck from '~icons/mingcute/check-fill';
+import IconChevronDown from '~icons/mingcute/down-fill';
+import IconRotateCcw from '~icons/mingcute/refresh-3-fill';
+import IconTrash from '~icons/mingcute/delete-2-fill';
+import IconStop from '~icons/mingcute/stop-fill';
+import IconVolume from '~icons/mingcute/volume-fill';
+import IconCalendar from '~icons/mingcute/calendar-fill';
+import IconMessage from '~icons/mingcute/message-3-fill';
+import IconPen from '~icons/mingcute/pen-fill';
+import IconAttachment from '~icons/mingcute/attachment-fill';
+
 import { generateText } from '../services/ai';
 import { extractTextFromPdf } from '../services/pdf';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -497,7 +507,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                             className="text-gray-500 hover:text-white transition-colors"
                             title={t('dexter.retry')}
                         >
-                            <RotateCcw className="w-3.5 h-3.5" />
+                            <IconRotateCcw className="w-3.5 h-3.5" />
                         </button>
                         <button
                             onPointerDown={(e) => e.stopPropagation()}
@@ -505,14 +515,14 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                             className="text-gray-500 hover:text-white transition-colors"
                             title={t('dexter.clear_history')}
                         >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <IconTrash className="w-3.5 h-3.5" />
                         </button>
                         <button
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={onClose}
                             className="text-gray-500 hover:text-white transition-colors"
                         >
-                            <X className="w-3.5 h-3.5" />
+                            <IconClose className="w-3.5 h-3.5" />
                         </button>
                     </div>
                 </div>
@@ -520,10 +530,10 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                 {/* Mode Selector */}
                 <div className="flex bg-black/20 p-0.5 rounded-lg border border-white/5" onPointerDown={(e) => e.stopPropagation()}>
                     {[
-                        { id: 'plan', icon: Calendar, label: t('dexter.mode_plan') },
-                        { id: 'ask', icon: MessageCircle, label: t('dexter.mode_ask') },
-                        { id: 'agent', icon: Bot, label: t('dexter.mode_agent') },
-                        { id: 'edit', icon: PenTool, label: t('dexter.mode_edit') }
+                        { id: 'plan', icon: IconCalendar, label: t('dexter.mode_plan') },
+                        { id: 'ask', icon: IconMessage, label: t('dexter.mode_ask') },
+                        { id: 'agent', icon: IconBot, label: t('dexter.mode_agent') },
+                        { id: 'edit', icon: IconPen, label: t('dexter.mode_edit') }
                     ].map((m) => (
                         <button
                             key={m.id}
@@ -551,7 +561,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                             <div className="flex items-center gap-2 mb-1 px-1">
                                 {msg.role === 'assistant' ? (
                                     <>
-                                        <Bot className="w-3 h-3 text-purple-400" />
+                                        <IconBot className="w-3 h-3 text-purple-400" />
                                         <span className="text-[10px] uppercase font-bold text-purple-400">{t('dexter.dexter_name')}</span>
                                     </>
                                 ) : (
@@ -569,7 +579,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                 <div className={`px-3 py-2 border-b flex items-center justify-between
                                     ${msg.data.action === 'delete' ? 'bg-red-900/20 border-red-500/20' : 'bg-blue-900/20 border-blue-500/20'}`}>
                                     <div className="flex items-center gap-2">
-                                        <Sparkles className={`w-3.5 h-3.5 ${msg.data.action === 'delete' ? 'text-red-400' : 'text-blue-400'}`} />
+                                        <IconSparkles className={`w-3.5 h-3.5 ${msg.data.action === 'delete' ? 'text-red-400' : 'text-blue-400'}`} />
                                         <span className={`text-xs font-bold ${msg.data.action === 'delete' ? 'text-red-100' : 'text-blue-100'}`}>
                                             {msg.data.action === 'create' ? t('dexter.review.create') :
                                                 msg.data.action === 'update' ? t('dexter.review.update') : t('dexter.review.delete')}
@@ -619,7 +629,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                                 ? 'hover:bg-red-900/40 text-red-500 hover:text-red-300'
                                                 : 'hover:bg-green-900/20 text-green-400 hover:text-green-300'} `}
                                     >
-                                        <Check className="w-3 h-3" />
+                                        <IconCheck className="w-3 h-3" />
                                         {msg.data.action === 'delete' ? t('dexter.review.confirm_delete') : t('dexter.review.accept')}
                                     </button>
                                 </div>
@@ -629,10 +639,10 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                             <div className="w-full bg-[#27272a] border border-[#3f3f46] rounded-md overflow-hidden animate-in slide-in-from-left-2 opacity-75">
                                 <div className="bg-[#27272a] px-3 py-2 border-b border-[#3f3f46] flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <FileText className="w-3.5 h-3.5 text-blue-400" />
+                                        <IconFileText className="w-3.5 h-3.5 text-blue-400" />
                                         <span className="text-xs font-medium text-white">{t('dexter.status.note_created')}</span>
                                     </div>
-                                    <Check className="w-3 h-3 text-green-500" />
+                                    <IconCheck className="w-3 h-3 text-green-500" />
                                 </div>
                                 <div className="p-3">
                                     <div className="text-xs text-gray-400 mb-1">Title</div>
@@ -644,10 +654,10 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                             <div className="w-full bg-[#27272a] border border-[#3f3f46] rounded-md overflow-hidden animate-in slide-in-from-left-2 opacity-75">
                                 <div className="bg-[#27272a] px-3 py-2 border-b border-[#3f3f46] flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <FileText className="w-3.5 h-3.5 text-yellow-400" />
+                                        <IconFileText className="w-3.5 h-3.5 text-yellow-400" />
                                         <span className="text-xs font-medium text-white">{t('dexter.status.note_updated')}</span>
                                     </div>
-                                    <Check className="w-3 h-3 text-green-500" />
+                                    <IconCheck className="w-3 h-3 text-green-500" />
                                 </div>
                             </div>
                         ) : msg.type === 'action_delete_done' ? (
@@ -655,7 +665,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                             <div className="w-full bg-[#27272a] border border-red-900/20 rounded-md overflow-hidden animate-in slide-in-from-left-2 opacity-75">
                                 <div className="bg-[#27272a] px-3 py-2 flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <X className="w-3.5 h-3.5 text-red-500" />
+                                        <IconClose className="w-3.5 h-3.5 text-red-500" />
                                         <span className="text-xs font-medium text-red-100">{t('dexter.status.note_deleted')}</span>
                                     </div>
                                 </div>
@@ -664,7 +674,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                             // Action Card: Denied
                             <div className="w-full bg-[#27272a]/50 border border-red-900/30 rounded-md overflow-hidden animate-in slide-in-from-left-2 opacity-60">
                                 <div className="px-3 py-2 flex items-center gap-2 text-red-400">
-                                    <X className="w-3.5 h-3.5" />
+                                    <IconClose className="w-3.5 h-3.5" />
                                     <span className="text-xs font-medium">{t('dexter.status.action_cancelled')}</span>
                                 </div>
                             </div>
@@ -684,7 +694,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         {msg.attachments.map((att, idx) => (
                                             <div key={idx} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded text-xs text-gray-300">
-                                                <Paperclip className="w-3 h-3" />
+                                                <IconAttachment className="w-3 h-3" />
                                                 <span className="truncate max-w-[150px]">{att.name}</span>
                                             </div>
                                         ))}
@@ -696,7 +706,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                         className="absolute -right-6 top-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-gray-500 hover:text-white"
                                         title="Lire"
                                     >
-                                        <Volume2 className="w-3 h-3" />
+                                        <IconVolume className="w-3 h-3" />
                                     </button>
                                 )}
                             </div>
@@ -738,13 +748,13 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                         <div className="flex flex-wrap gap-2 mb-2 px-1">
                             {attachments.map((att, idx) => (
                                 <div key={idx} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded text-xs text-gray-300 group">
-                                    <Paperclip className="w-3 h-3" />
+                                    <IconAttachment className="w-3 h-3" />
                                     <span className="truncate max-w-[150px]">{att.name}</span>
                                     <button 
                                         onClick={() => removeAttachment(idx)}
                                         className="ml-1 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
-                                        <X className="w-3 h-3" />
+                                        <IconClose className="w-3 h-3" />
                                     </button>
                                 </div>
                             ))}
@@ -796,7 +806,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                 className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"
                                 title={t('dexter.attach_file')}
                             >
-                                <Paperclip className="w-3.5 h-3.5" />
+                                <IconAttachment className="w-3.5 h-3.5" />
                             </button>
 
                             <div className="relative">
@@ -810,7 +820,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                             : selectedModel.split('/').pop()
                                         }
                                     </span>
-                                    <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${showModelSelector ? 'rotate-180' : ''}`} />
+                                    <IconChevronDown className={`w-2.5 h-2.5 transition-transform duration-200 ${showModelSelector ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 {/* Custom Dropdown */}
@@ -828,7 +838,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                                 className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between group transition-colors ${selectedModel === 'default' ? 'bg-purple-500/10 text-purple-300' : 'text-gray-300 hover:bg-[#27272a]'}`}
                                             >
                                                 <span className="truncate pr-2">{t('dexter.model_selector')} ({settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})</span>
-                                                {selectedModel === 'default' && <Check className="w-3 h-3 shrink-0" />}
+                                                {selectedModel === 'default' && <IconCheck className="w-3 h-3 shrink-0" />}
                                             </button>
 
                                             <div className="px-3 py-1.5 mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">{t('dexter.model_categories.standard')}</div>
@@ -843,7 +853,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                                     className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between group transition-colors ${selectedModel === model.id ? 'bg-purple-500/10 text-purple-300' : 'text-gray-300 hover:bg-[#27272a]'}`}
                                                 >
                                                     <span>{model.name}</span>
-                                                    {selectedModel === model.id && <Check className="w-3 h-3 shrink-0" />}
+                                                    {selectedModel === model.id && <IconCheck className="w-3 h-3 shrink-0" />}
                                                 </button>
                                             ))}
 
@@ -857,7 +867,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                                             className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between group transition-colors ${selectedModel === model ? 'bg-purple-500/10 text-purple-300' : 'text-gray-300 hover:bg-[#27272a]'}`}
                                                         >
                                                             <span className="truncate pr-2">{model.split('/').pop()}</span>
-                                                            {selectedModel === model && <Check className="w-3 h-3 shrink-0" />}
+                                                            {selectedModel === model && <IconCheck className="w-3 h-3 shrink-0" />}
                                                         </button>
                                                     ))}
                                                 </>
@@ -875,7 +885,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                 className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-all animate-pulse"
                                 title="Stop generating"
                             >
-                                <Square className="w-3.5 h-3.5 fill-current" />
+                                <IconStop className="w-3.5 h-3.5 fill-current" />
                             </button>
                         ) : (
                             <button
@@ -883,7 +893,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                 disabled={!input.trim() && attachments.length === 0}
                                 className="p-1.5 bg-white text-black rounded hover:opacity-90 disabled:opacity-50 transition-all"
                             >
-                                <Send className="w-3.5 h-3.5" />
+                                <IconSend className="w-3.5 h-3.5" />
                             </button>
                         )}
                     </div>

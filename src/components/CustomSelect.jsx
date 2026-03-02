@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import IconChevronDown from '~icons/mingcute/down-fill';
+import IconCheck from '~icons/mingcute/check-fill';
 
 export default function CustomSelect({ 
     value, 
@@ -72,7 +73,7 @@ export default function CustomSelect({
         const menuContent = (
             <div 
                 ref={menuRef}
-                className="fixed z-[9999] bg-black border border-white/10 rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out max-h-60 overflow-y-auto custom-scrollbar"
+                className="fixed z-[9999] bg-[#1C1C1E] border border-white/10 rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out max-h-60 overflow-y-auto custom-scrollbar"
                 style={{
                     top: menuPosition.top,
                     left: menuPosition.left,
@@ -98,7 +99,7 @@ export default function CustomSelect({
                                     </>
                                 )}
                             </div>
-                            {value === option.value && <Check className="w-4 h-4 shrink-0" />}
+                            {value === option.value && <IconCheck className="w-4 h-4 shrink-0" />}
                         </button>
                     ))
                 )}
@@ -128,7 +129,7 @@ export default function CustomSelect({
                         <span className="text-gray-400">{placeholder}</span>
                     )}
                 </div>
-                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                <IconChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             {renderMenu()}
         </>

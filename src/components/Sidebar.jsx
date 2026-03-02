@@ -1,8 +1,21 @@
 import React, { useState } from 'react';
-import { Settings, Bot, UserCircle, Home, Star, Trash2, LogOut, PanelLeft, Users, Cloud, RefreshCw, Check } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
+
+// Icons Import (Pim's Edition)
+import IconHome from '~icons/mingcute/home-4-fill';
+import IconStar from '~icons/mingcute/star-fill';
+import IconShared from '~icons/mingcute/group-3-fill';
+import IconTrash from '~icons/mingcute/delete-2-fill';
+import IconSettings from '~icons/mingcute/settings-3-fill';
+import IconBot from '~icons/mingcute/robot-fill';
+import IconSync from '~icons/mingcute/refresh-3-fill';
+import IconCheck from '~icons/mingcute/check-circle-fill';
+import IconCloud from '~icons/mingcute/cloud-line';
+import IconUser from '~icons/mingcute/user-4-fill';
+import IconLogout from '~icons/mingcute/exit-fill';
+import IconPanelLeft from '~icons/mingcute/menu-fill';
 
 export default function Sidebar({ 
     onOpenSettings, 
@@ -49,10 +62,10 @@ export default function Sidebar({
     }, []);
 
     const navItems = [
-        { id: 'home', icon: Home, label: t('sidebar.all_notes') || "All Notes" },
-        { id: 'favorites', icon: Star, label: t('sidebar.favorites') || "Favorites" },
-        { id: 'shared', icon: Users, label: t('sidebar.shared') || "Shared" },
-        { id: 'trash', icon: Trash2, label: t('sidebar.trash') || "Trash" },
+        { id: 'home', icon: IconHome, label: t('sidebar.all_notes') || "All Notes" },
+        { id: 'favorites', icon: IconStar, label: t('sidebar.favorites') || "Favorites" },
+        { id: 'shared', icon: IconShared, label: t('sidebar.shared') || "Shared" },
+        { id: 'trash', icon: IconTrash, label: t('sidebar.trash') || "Trash" },
     ];
 
     return (
@@ -93,7 +106,7 @@ export default function Sidebar({
                              </div>
                          ) : (
                              <div className="w-8 h-8 rounded-full bg-[#2C2C2E] flex items-center justify-center border border-white/5">
-                                 <UserCircle className="w-5 h-5 text-gray-400" />
+                                 <IconUser className="w-5 h-5 text-gray-400" />
                              </div>
                          )}
                          <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#1C1C1E] transition-opacity ${keyAuthService.isAuthenticated ? 'bg-green-500' : 'bg-gray-500'}`}></div>
@@ -155,7 +168,7 @@ export default function Sidebar({
                     title={isCollapsed ? "Dexter AI" : ''}
                     className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-[12px] px-3'} py-1.5 rounded-md text-[13px] font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all duration-[150ms] ease-out h-[32px] mt-1`}
                 >
-                    <Bot className="w-4 h-4 opacity-80 shrink-0" />
+                    <IconBot className="w-4 h-4 opacity-80 shrink-0" />
                     {!isCollapsed && <span className="truncate">Dexter AI</span>}
                 </button>
             </div>
@@ -171,11 +184,11 @@ export default function Sidebar({
                         className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-[12px] px-3'} py-1.5 rounded-md text-[13px] font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all duration-[150ms] ease-out h-[32px]`}
                     >
                         {isSyncing ? (
-                            <RefreshCw className="w-4 h-4 opacity-80 shrink-0 animate-spin text-blue-400" />
+                            <IconSync className="w-4 h-4 opacity-80 shrink-0 animate-spin text-blue-400" />
                         ) : syncSuccess ? (
-                            <Check className="w-4 h-4 opacity-80 shrink-0 text-green-400" />
+                            <IconCheck className="w-4 h-4 opacity-80 shrink-0 text-green-400" />
                         ) : (
-                            <Cloud className="w-4 h-4 opacity-80 shrink-0" />
+                            <IconCloud className="w-4 h-4 opacity-80 shrink-0" />
                         )}
                         {!isCollapsed && <span className="truncate">{isSyncing ? "Synchronisation..." : syncSuccess ? "Synchronisé" : "Synchroniser"}</span>}
                     </button>
@@ -186,7 +199,7 @@ export default function Sidebar({
                     title={isCollapsed ? (t('sidebar.settings') || "Settings") : ''}
                     className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-[12px] px-3'} py-1.5 rounded-md text-[13px] font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all duration-[150ms] ease-out h-[32px]`}
                 >
-                    <Settings className="w-4 h-4 opacity-80 shrink-0" />
+                    <IconSettings className="w-4 h-4 opacity-80 shrink-0" />
                     {!isCollapsed && <span className="truncate">{t('sidebar.settings') || "Settings"}</span>}
                 </button>
                  {keyAuthService.isAuthenticated && (
@@ -198,7 +211,7 @@ export default function Sidebar({
                         title={isCollapsed ? (t('sidebar.logout') || "Logout") : ''}
                         className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-[12px] px-3'} py-1.5 rounded-md text-[13px] font-medium text-red-400 hover:bg-red-500/10 transition-all duration-[150ms] ease-out h-[32px]`}
                     >
-                        <LogOut className="w-4 h-4 opacity-80 shrink-0" />
+                        <IconLogout className="w-4 h-4 opacity-80 shrink-0" />
                         {!isCollapsed && <span className="truncate">{t('sidebar.logout') || "Logout"}</span>}
                     </button>
                 )}
@@ -209,7 +222,7 @@ export default function Sidebar({
                     title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                     className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-end px-3'} py-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/5 transition-all duration-[150ms] ease-out h-[32px] mt-1`}
                 >
-                    <PanelLeft className={`w-4 h-4 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
+                    <IconPanelLeft className={`w-4 h-4 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
                 </button>
             </div>
         </div>

@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
-import { Plus, Search, Trash2, StarOff, ArchiveRestore, XCircle, Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame } from 'lucide-react';
+import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+
+// Icons Import (Pim's Edition)
+import IconPlus from '~icons/mingcute/add-fill';
+import IconSearch from '~icons/mingcute/search-line';
+import IconTrash from '~icons/mingcute/delete-2-fill';
+import IconStarOff from '~icons/mingcute/star-line';
+import IconStarOn from '~icons/mingcute/star-fill';
+import IconRestore from '~icons/mingcute/back-2-fill';
+import IconDeletePermanent from '~icons/mingcute/close-circle-fill';
 
 const BADGE_ICONS = {
     Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame
@@ -62,7 +71,7 @@ export default function NoteList({
                         className="h-[32px] px-[16px] py-[8px] bg-red-600/10 hover:bg-red-600/20 text-red-400 hover:text-red-300 text-[13px] font-medium rounded-[6px] transition-colors duration-[250ms] ease-in-out flex items-center gap-2 border border-red-500/20"
                         title={t('sidebar.empty_trash') || "Empty Trash"}
                     >
-                        <Trash2 className="w-4 h-4" />
+                        <IconTrash className="w-4 h-4" />
                         <span className="hidden sm:inline">{t('sidebar.empty') || "Vider"}</span>
                     </button>
                 ) : (
@@ -70,7 +79,7 @@ export default function NoteList({
                         onClick={() => onCreateNote({})}
                         className="h-[32px] px-[16px] py-[8px] bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-medium rounded-[6px] transition-colors duration-[250ms] ease-in-out flex items-center gap-2"
                     >
-                        <Plus className="w-4 h-4" />
+                        <IconPlus className="w-4 h-4" />
                         {t('sidebar.new_note') || "New Note"}
                     </button>
                 )}
@@ -79,7 +88,7 @@ export default function NoteList({
             {/* Search */}
             <div className="px-4 pb-[4px]">
                 <div className="relative group">
-                    <Search className="w-4 h-4 absolute left-[12px] top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-blue-400 transition-colors duration-[150ms] ease-out" />
+                    <IconSearch className="w-4 h-4 absolute left-[12px] top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-blue-400 transition-colors duration-[150ms] ease-out" />
                     <input
                         type="text"
                         placeholder={t('sidebar.search_placeholder') || "Search"}
@@ -164,12 +173,12 @@ export default function NoteList({
                     >
                         {notes.find(n => n.id === contextMenu.noteId)?.favorite ? (
                              <>
-                                <StarOff className="w-4 h-4 text-gray-400" />
+                                <IconStarOff className="w-4 h-4 text-gray-400" />
                                 {t('sidebar.unfavorite') || "Unfavorite"}
                              </>
                         ) : (
                              <>
-                                <Star className="w-4 h-4 text-gray-400" />
+                                <IconStarOn className="w-4 h-4 text-gray-400" />
                                 {t('sidebar.favorite') || "Favorite"}
                              </>
                         )}
@@ -184,7 +193,7 @@ export default function NoteList({
                             }}
                             className="w-full text-left px-3 py-2 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors duration-[150ms] ease-out"
                         >
-                            <ArchiveRestore className="w-4 h-4" />
+                            <IconRestore className="w-4 h-4" />
                             {t('sidebar.restore') || "Restore"}
                         </button>
                     ) : null}
@@ -199,12 +208,12 @@ export default function NoteList({
                     >
                         {activeNav === 'trash' ? (
                             <>
-                                <XCircle className="w-4 h-4" />
+                                <IconDeletePermanent className="w-4 h-4" />
                                 {t('sidebar.delete_permanently') || "Delete Permanently"}
                             </>
                         ) : (
                             <>
-                                <Trash2 className="w-4 h-4" />
+                                <IconTrash className="w-4 h-4" />
                                 {t('sidebar.delete') || "Delete"}
                             </>
                         )}

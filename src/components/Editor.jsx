@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import LanguageToolHighlightTextarea from './LanguageToolHighlightTextarea';
 import CanvasDraw from './CanvasDraw';
 import NoteBadges from './NoteBadges';
-import { Sparkles, Mic, MicOff, Image as ImageIcon, StopCircle, Trash2, MoveLeft, MoveRight, Copy, ClipboardPaste, Volume2, Check, X, Paperclip, FileText, Download, Lock, PenTool, Share2 } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
@@ -12,6 +12,26 @@ import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
+
+// Icons Import (Pim's Edition)
+import IconSparkles from '~icons/mingcute/sparkles-fill';
+import IconMic from '~icons/mingcute/mic-fill';
+import IconMicOff from '~icons/mingcute/mic-off-fill';
+import IconImage from '~icons/mingcute/pic-fill';
+import IconStop from '~icons/mingcute/stop-circle-fill';
+import IconTrash from '~icons/mingcute/delete-2-fill';
+import IconLeft from '~icons/mingcute/arrow-left-fill';
+import IconRight from '~icons/mingcute/arrow-right-fill';
+import IconCopy from '~icons/mingcute/copy-2-fill';
+import IconPaste from '~icons/mingcute/clipboard-fill';
+import IconVolume from '~icons/mingcute/volume-fill';
+import IconCheck from '~icons/mingcute/check-fill';
+import IconClose from '~icons/mingcute/close-fill';
+import IconAttachment from '~icons/mingcute/attachment-fill';
+import IconFile from '~icons/mingcute/file-fill';
+import IconDownload from '~icons/mingcute/download-2-fill';
+import IconEdit from '~icons/mingcute/edit-2-fill';
+import IconShare from '~icons/mingcute/share-forward-fill';
 
 const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, resizeAttachment, renameAttachment, handleDownloadAttachment, onAnnotate }) => {
     const { t } = useTranslation();
@@ -79,7 +99,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                             className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors duration-[150ms] ease-out"
                             title={t('editor.move_left')}
                         >
-                            <MoveLeft className="w-3.5 h-3.5" />
+                            <IconLeft className="w-3.5 h-3.5" />
                         </button>
                     )}
                     {/* Move Right */}
@@ -89,7 +109,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                             className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors duration-[150ms] ease-out"
                             title={t('editor.move_right')}
                         >
-                            <MoveRight className="w-3.5 h-3.5" />
+                            <IconRight className="w-3.5 h-3.5" />
                         </button>
                     )}
                     <div className="w-px h-3 bg-white/20 mx-1"></div>
@@ -99,7 +119,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                         className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors duration-[150ms] ease-out"
                         title={t('editor.delete')}
                     >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <IconTrash className="w-3.5 h-3.5" />
                     </button>
                 </div>
             </div>
@@ -112,7 +132,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                         className="p-2 bg-black/60 backdrop-blur-md text-white hover:bg-blue-600 rounded-full shadow-xl border border-white/10 transition-colors"
                         title="Annoter l'image"
                     >
-                        <PenTool className="w-3.5 h-3.5" />
+                        <IconEdit className="w-3.5 h-3.5" />
                     </button>
                 </div>
             )}
@@ -128,7 +148,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     
                     {isError ? (
                         <div className="flex flex-col items-center gap-2 text-red-400 p-4">
-                            <ImageIcon className="w-8 h-8 opacity-50" />
+                            <IconImage className="w-8 h-8 opacity-50" />
                             <span className="text-xs font-medium">{t('editor.loading_error')}</span>
                         </div>
                     ) : att.type === 'image' ? (
@@ -171,7 +191,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
             ) : att.type === 'pdf' ? (
                 <div className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded-xl border border-white/10 group/pdf hover:border-blue-500/30 transition-colors duration-[150ms] ease-out">
                     <div className="p-3 bg-red-500/10 rounded-xl text-red-400 group-hover/pdf:bg-red-500/20 transition-colors duration-[150ms] ease-out">
-                        <FileText className="w-8 h-8" />
+                        <IconFile className="w-8 h-8" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-200 truncate mb-0.5">{att.name}</div>
@@ -182,7 +202,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                         className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors duration-[150ms] ease-out"
                         title={t('editor.download')}
                     >
-                        <Download className="w-5 h-5" />
+                        <IconDownload className="w-5 h-5" />
                     </button>
                 </div>
             ) : (
@@ -840,7 +860,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             {isDragging && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-500/20 backdrop-blur-sm border-2 border-blue-500 border-dashed m-4 rounded-xl pointer-events-none">
                     <div className="text-blue-200 font-bold text-xl flex flex-col items-center gap-2">
-                        <Paperclip className="w-12 h-12" />
+                        <IconAttachment className="w-12 h-12" />
                         <span>Déposer ici</span>
                     </div>
                 </div>
@@ -870,7 +890,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                                 className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center ${isSpeaking ? 'bg-green-500/20 text-green-400 animate-pulse' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
                                 title={isSpeaking ? "Arrêter la lecture" : "Lire la note"}
                             >
-                                {isSpeaking ? <StopCircle className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                                {isSpeaking ? <IconStop className="w-5 h-5" /> : <IconVolume className="w-5 h-5" />}
                             </button>
                         )}
 
@@ -881,7 +901,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                                 className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
                                 title={isListening ? "Arrêter la dictée" : "Dicter"}
                             >
-                                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                                {isListening ? <IconMicOff className="w-5 h-5" /> : <IconMic className="w-5 h-5" />}
                             </button>
                         )}
 
@@ -893,7 +913,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                                 className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center text-blue-400 hover:bg-blue-900/40 hover:text-blue-300`}
                                 title="Assistant AI (Compléter/Améliorer)"
                             >
-                                {isGenerating ? <Sparkles className="w-5 h-5 animate-pulse" /> : <Sparkles className="w-5 h-5" />}
+                                {isGenerating ? <IconSparkles className="w-5 h-5 animate-pulse" /> : <IconSparkles className="w-5 h-5" />}
                             </button>
                         )}
                     </div>
@@ -908,7 +928,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                             : keyAuthService.hasProAccess() ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-600 opacity-50 hover:bg-white/10'}`}
                         title={keyAuthService.hasProAccess() ? (isRecording ? "Arrêter l'enregistrement" : "Enregistrer un mémo vocal") : "Fonctionnalité Pro (Verrouillée)"}
                     >
-                        {isRecording ? <StopCircle className="w-5 h-5 fill-current" /> : <Mic className="w-5 h-5" />}
+                        {isRecording ? <IconStop className="w-5 h-5 fill-current" /> : <IconMic className="w-5 h-5" />}
                         {!keyAuthService.hasProAccess() && (
                             <Lock className="w-2.5 h-2.5 absolute -top-0.5 -right-0.5 text-orange-500 bg-[#1e1e1e] rounded-full" />
                         )}
@@ -924,7 +944,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                             title="Insérer un fichier (Image, Vidéo, Audio, PDF)"
                         />
                         <div className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-full h-full flex items-center justify-center">
-                            <ImageIcon className="w-5 h-5" />
+                            <IconImage className="w-5 h-5" />
                         </div>
                     </div>
 
@@ -934,14 +954,14 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                             className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out w-8 h-8 flex items-center justify-center"
                             title="Dessiner"
                         >
-                            <PenTool className="w-5 h-5" />
+                            <IconEdit className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => setDrawingSession({ type: 'overlay' })}
                             className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out w-8 h-8 flex items-center justify-center"
                             title="Dessiner sur la note"
                         >
-                            <PenTool className="w-5 h-5 opacity-50" />
+                            <IconEdit className="w-5 h-5 opacity-50" />
                         </button>
                     </div>
 
@@ -950,7 +970,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                         className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center"
                         title="Coller (Texte ou Image)"
                     >
-                        <ClipboardPaste className="w-5 h-5" />
+                        <IconPaste className="w-5 h-5" />
                     </button>
                 </div>
 
@@ -961,7 +981,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                     className="p-1.5 rounded-md text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center mr-1"
                     title="Partager / Inviter"
                 >
-                    <Share2 className="w-5 h-5" />
+                    <IconShare className="w-5 h-5" />
                 </button>
 
                 <button
@@ -969,7 +989,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                     className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center"
                     title="Copier la note"
                 >
-                    <Copy className="w-5 h-5" />
+                    <IconCopy className="w-5 h-5" />
                 </button>
             </div>
 
@@ -1041,7 +1061,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                             <div className="absolute inset-0 z-30 bg-[#1e1e1e] flex flex-col animate-in fade-in slide-in-from-bottom-4 rounded-lg border border-blue-500/30 shadow-2xl overflow-hidden min-h-[400px]">
                                 <div className="flex items-center justify-between px-4 py-3 bg-blue-900/20 border-b border-blue-500/20 shrink-0">
                                     <div className="flex items-center gap-2">
-                                        <Sparkles className="w-4 h-4 text-blue-400" />
+                                        <IconSparkles className="w-4 h-4 text-blue-400" />
                                         <span className="text-sm font-bold text-blue-100">{t('editor.ai_suggestion')}</span>
                                     </div>
                                     <div className="flex gap-2">
@@ -1049,7 +1069,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                                             onClick={() => setPendingAiContent(null)}
                                             className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors flex items-center gap-1"
                                         >
-                                            <X className="w-3.5 h-3.5" />
+                                            <IconClose className="w-3.5 h-3.5" />
                                             {t('editor.cancel')}
                                         </button>
                                         <button
@@ -1059,7 +1079,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                                             }}
                                             className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded shadow-lg transition-colors flex items-center gap-1"
                                         >
-                                            <Check className="w-3.5 h-3.5" />
+                                            <IconCheck className="w-3.5 h-3.5" />
                                             {t('editor.accept')}
                                         </button>
                                     </div>
