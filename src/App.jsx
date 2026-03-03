@@ -127,7 +127,7 @@ function App() {
   useEffect(() => {
     const setupDeepLink = async () => {
       try {
-        const unlisten = await onOpenUrl((urls) => {
+        const unlisten = await onOpenUrl(async (urls) => {
           console.log('Deep link received:', urls);
           for (const url of urls) {
             // Handle Supabase OAuth Callback (Implicit & PKCE)

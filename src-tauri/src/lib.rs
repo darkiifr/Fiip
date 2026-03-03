@@ -105,32 +105,42 @@ fn get_hwid() -> Result<String, String> {
 fn register_deep_link() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        use std::process::Command;
-        use std::os::windows::process::CommandExt;
+        // Don't register the deep link in debug mode to prevent launching the debug terminal
+        #[cfg(debug_assertions)]
+        {
+            println!("Skipping deep link registration in debug mode.");
+            return Ok(());
+        }
 
-        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-        let exe_path = exe.to_str().ok_or("Invalid path")?;
+        #[cfg(not(debug_assertions))]
+        {
+            use std::process::Command;
+            use std::os::windows::process::CommandExt;
 
-        // 1. Create Key HKCU\Software\Classes\fiip
-        let _ = Command::new("reg")
-            .args(&["add", "HKCU\\Software\\Classes\\fiip", "/ve", "/d", "URL:Fiip Protocol", "/f"])
-            .creation_flags(0x08000000)
-            .output();
+            let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+            let exe_path = exe.to_str().ok_or("Invalid path")?;
 
-        // 2. Add 'URL Protocol' value
-        let _ = Command::new("reg")
-            .args(&["add", "HKCU\\Software\\Classes\\fiip", "/v", "URL Protocol", "/d", "", "/f"])
-            .creation_flags(0x08000000)
-            .output();
+            // 1. Create Key HKCU\Software\Classes\fiip
+            let _ = Command::new("reg")
+                .args(&["add", "HKCU\\Software\\Classes\\fiip", "/ve", "/d", "URL:Fiip Protocol", "/f"])
+                .creation_flags(0x08000000)
+                .output();
 
-        // 3. Create command key
-        let cmd_val = format!("\"{}\" \"%1\"", exe_path);
-        let _ = Command::new("reg")
-            .args(&["add", "HKCU\\Software\\Classes\\fiip\\shell\\open\\command", "/ve", "/d", &cmd_val, "/f"])
-            .creation_flags(0x08000000)
-            .output();
+            // 2. Add 'URL Protocol' value
+            let _ = Command::new("reg")
+                .args(&["add", "HKCU\\Software\\Classes\\fiip", "/v", "URL Protocol", "/d", "", "/f"])
+                .creation_flags(0x08000000)
+                .output();
 
-        Ok(())
+            // 3. Create command key
+            let cmd_val = format!("\"{}\" \"%1\"", exe_path);
+            let _ = Command::new("reg")
+                .args(&["add", "HKCU\\Software\\Classes\\fiip\\shell\\open\\command", "/ve", "/d", &cmd_val, "/f"])
+                .creation_flags(0x08000000)
+                .output();
+
+            return Ok(());
+        }
     }
     #[cfg(not(target_os = "windows"))]
     {
