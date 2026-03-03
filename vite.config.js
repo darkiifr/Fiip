@@ -50,4 +50,10 @@ export default defineConfig(async () => ({
       },
     },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+    css: true,
+  },
 }));

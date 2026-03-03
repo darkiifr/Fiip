@@ -63,33 +63,40 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
     const handleUpgrade = async (e) => {
         e.preventDefault();
+        
+        let keyToVerify = upgradeKey.trim();
+        if (!keyToVerify) {
+            setError(t('license.error_empty', "La clé de licence ne peut pas être vide."));
+            return;
+        }
+
         setLoading(true);
         setError(null);
         setSuccess(null);
 
         try {
             // 1. Validate with KeyAuth
-            const res = await keyAuthService.validateLicense(upgradeKey);
+            const res = await keyAuthService.validateLicense(keyToVerify);
             
             if (res.success) {
                 // 2. Update Supabase
-                const { error: updateError } = await authService.updateSubscription(res.level, upgradeKey);
+                const { error: updateError } = await authService.updateSubscription(res.level, keyToVerify);
                 
                 if (updateError) {
                     setError("Licence valide mais erreur de sauvegarde: " + updateError.message);
                 } else {
-                    setSuccess(t('auth.success_upgrade', "Licence activée avec succès !"));
+                    setSuccess(t('auth.success_upgrade', "Licence activée et associée au compte avec succès !"));
                     setUpgradeKey('');
                     setShowAddLicense(false);
                     keyAuthService.setLocalLevel(res.level);
                     await checkUser(); // Refresh UI
                 }
             } else {
-                setError(res.message);
+                setError(res.message || "La clé de licence est invalide ou expirée.");
             }
         } catch (e) {
             console.error(e);
-            setError("Erreur lors de l'ajout de la licence.");
+            setError("Erreur lors de l'ajout de la licence. Vérifiez votre connexion.");
         } finally {
             setLoading(false);
         }

@@ -9,6 +9,10 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "tauri": "tauri",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "security-check": "npm audit",
+    "security-fix": "npm audit fix",
     "build:update": "node scripts/sync-version.mjs && npx dotenv -e .env -- npx tauri build && node scripts/generate-latest.mjs",
     "crowdin:push": "crowdin upload sources",
     "crowdin:push:translations": "crowdin upload translations",
@@ -54,7 +58,10 @@
     "@svgr/plugin-jsx": "^8.1.0",
     "@tailwindcss/postcss": "^4.1.17",
     "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^4.6.0",
+    "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.22",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.39.2",
@@ -62,9 +69,11 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.25",
     "globals": "^16.5.0",
+    "jsdom": "^28.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.17",
     "unplugin-icons": "^23.0.1",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^4.0.18"
   }
 }

@@ -19,6 +19,7 @@ import "./App.css";
 import { type } from '@tauri-apps/plugin-os';
 import { readFile } from '@tauri-apps/plugin-fs';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { useTranslation } from 'react-i18next';
 import IconFileText from '~icons/mingcute/file-fill';
 import { keyAuthService } from "./services/keyauth";
@@ -163,9 +164,29 @@ function App() {
                 if (success) {
                     const user = await authService.getUser();
                     if (user) {
-                        const level = user?.user_metadata?.subscription_level || 0;
-                        keyAuthService.setLocalLevel(level);
+                        const savedLevel = user?.user_metadata?.subscription_level || 0;
+                        const savedKey = user?.user_metadata?.license_key;
+                        
+                        if (savedKey) {
+                            // Validation de la clé de l'utilisateur après login Google
+                            const res = await keyAuthService.validateLicense(savedKey);
+                            if (res.success) {
+                                keyAuthService.setLocalLevel(res.level);
+                            } else {
+                                keyAuthService.setLocalLevel(0);
+                            }
+                        } else {
+                            keyAuthService.setLocalLevel(savedLevel);
+                        }
+                        
                         setIsAuthModalOpen(false);
+                        
+                        if (keyAuthService.isAuthenticated || keyAuthService.isTrialActive) {
+                            setIsLicenseModalOpen(false);
+                        } else {
+                            setIsLicenseModalOpen(true);
+                        }
+
                         // Force sync immediately
                         if (typeof performCloudSyncDown === 'function') {
                             await performCloudSyncDown(false);
@@ -194,6 +215,30 @@ function App() {
         if (unlistenFn) unlistenFn();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Configure Auto Updater
+  useEffect(() => {
+    const checkAndInstallUpdates = async () => {
+      // Check if user disabled auto-update
+      if (settingsRef.current?.autoUpdate === false) {
+        return;
+      }
+      try {
+        const { check } = await import('@tauri-apps/plugin-updater');
+        const update = await check();
+        if (update?.available) {
+          console.log(`Update available: ${update.version}`);
+          await update.downloadAndInstall();
+          console.log("Update installed, relaunching...");
+          // Redémarrer l'application pour appliquer les changements
+          await relaunch();
+        }
+      } catch (e) {
+        console.error("Erreur durant la mise à jour automatique :", e);
+      }
+    };
+    checkAndInstallUpdates();
   }, []);
 
   useEffect(() => {
@@ -240,8 +285,22 @@ function App() {
             // Sync Supabase Level to Local
             const user = await authService.getUser();
             if (user) {
-                const level = user?.user_metadata?.subscription_level || 0;
-                keyAuthService.setLocalLevel(level);
+                const savedLevel = user?.user_metadata?.subscription_level || 0;
+                const savedKey = user?.user_metadata?.license_key;
+                
+                if (savedKey) {
+                    setAppLoading({ isLoading: true, status: "Vérification de la licence système..." });
+                    // Validation silencieuse en arrière-plan
+                    const res = await keyAuthService.validateLicense(savedKey);
+                    if (res.success) {
+                        keyAuthService.setLocalLevel(res.level); // Met à jour le niveau réel
+                    } else {
+                        // Clé expirée ou invalide, on remet le niveau à 0
+                        keyAuthService.setLocalLevel(0);
+                    }
+                } else {
+                    keyAuthService.setLocalLevel(savedLevel);
+                }
             }
 
             // Register Deep Link Protocol (Windows Registry)
@@ -253,16 +312,10 @@ function App() {
             }
             
             setAppLoading({ isLoading: true, status: "Vérification de la licence..." });
-            // Force check subscription status
-            try {
-                // If not authenticated, try to restore session first (handled by init)
-                // If still not authenticated and not in trial -> show license modal
-                if (!keyAuthService.checkSubscription()) {
-                    setIsLicenseModalOpen(true);
-                }
-            } catch (e) {
-                console.warn("Subscription check invalid", e);
-                setIsLicenseModalOpen(true); 
+            
+            // If still not authenticated and not in trial -> show license modal
+            if (!keyAuthService.isAuthenticated && !keyAuthService.isTrialActive) {
+                setIsLicenseModalOpen(true);
             }
             
             // If logged in, maybe sync?
