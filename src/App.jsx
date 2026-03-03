@@ -177,6 +177,7 @@ function App() {
     return () => {
         if (unlistenFn) unlistenFn();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -296,37 +297,19 @@ function App() {
       setIsSyncing(true);
       try {
           const settingsToSync = { ...currentSettings };
-          const prefs = currentSettings.syncPreferences || {};
-          
-          // Define groups
-          const groups = {
-            ai: ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels'],
-            appearance: ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText'],
-            general: ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound'],
-          };
 
           // Remove strictly excluded hardware settings
           delete settingsToSync.audioInputId;
           delete settingsToSync.audioOutputId;
 
-          // Filter granularly
-          if (prefs.ai === false) groups.ai.forEach(k => delete settingsToSync[k]);
-          if (prefs.appearance === false) groups.appearance.forEach(k => delete settingsToSync[k]);
-          if (prefs.general === false) groups.general.forEach(k => delete settingsToSync[k]);
-          
-          // Language special handling
-          if (prefs.language !== false) {
-               settingsToSync.language = i18n.language; 
-          } else {
-               delete settingsToSync.language;
-          }
+          settingsToSync.language = i18n.language; 
           
           const updates = {
               settings: settingsToSync
           };
           
-          // Sync Notes only if enabled (default true)
-          if (currentSettings.cloudSync && prefs.notes !== false) {
+          // Sync Notes always when cloudSync is true
+          if (currentSettings.cloudSync !== false) {
               // Deep copy notes to avoid mutating state
               const hydratedNotes = JSON.parse(JSON.stringify(currentNotes));
 
@@ -437,8 +420,7 @@ function App() {
               const data = JSON.parse(jsonText);
               
               if (data) {
-                  // Sync Notes - Check preference (default true if undefined)
-                  const syncNotesEnabled = !currentSettings.syncPreferences || currentSettings.syncPreferences.notes !== false;
+                  const syncNotesEnabled = true; // Always sync notes for iCloud-style
                   
                   if (syncNotesEnabled && data.notes && Array.isArray(data.notes)) {
                       const cloudNotes = data.notes;
@@ -450,7 +432,7 @@ function App() {
                                   if (idx === -1) {
                                       newNotes.push(cNote);
                                   } else {
-                                      // Robust date comparison (handle string vs number timestamps)
+                                      // Merge based on updatedAt. Robust date comparison
                                       const cloudTime = new Date(cNote.updatedAt || 0).getTime();
                                       const localTime = new Date(newNotes[idx].updatedAt || 0).getTime();
                                       
@@ -464,44 +446,30 @@ function App() {
                       }
                   }
                   
-                  // Sync Settings
+                  // Sync Settings (all-or-nothing approach)
                   if (data.settings) {
-                      const cloudSettings = data.settings;
-                      const currentPrefs = currentSettings.syncPreferences || {}; 
-                      
-                      setSettings(prev => {
-                           const newSettings = { ...prev };
-                           const mergeIfEnabled = (category, keys) => {
-                               if (currentPrefs[category] !== false) {
-                                   keys.forEach(k => {
-                                       if (cloudSettings[k] !== undefined) newSettings[k] = cloudSettings[k];
-                                   });
-                               }
-                           };
-                           
-                           mergeIfEnabled('ai', ['aiApiKey', 'aiModel', 'aiEnabled', 'customModels']);
-                           mergeIfEnabled('appearance', ['theme', 'darkMode', 'windowEffect', 'titlebarStyle', 'largeText']);
-                           mergeIfEnabled('general', ['autoSave', 'enableCorrection', 'cloudSync', 'appSound', 'chatSound']);
-                           
-                           // Preserve syncPreferences of THIS device (don't overwrite with cloud's)
-                           newSettings.syncPreferences = prev.syncPreferences; 
-                           
-                           return newSettings;
-                      });
-
-                      // Apply Language
-                      if (cloudSettings.language && currentPrefs.language !== false) {
-                          i18n.changeLanguage(cloudSettings.language);
+                      const newSettings = { ...currentSettings, ...data.settings };
+                      // Ensure local cloudSync preference isn't accidentally overridden if it was false
+                      if (currentSettings.cloudSync === false) {
+                          newSettings.cloudSync = false;
                       }
-                      
-                      if (!silent) alert("Données synchronisées avec succès !");
+                      setSettings(newSettings);
+                      localStorage.setItem('fiip-settings', JSON.stringify(newSettings));
+                      if (newSettings.language && newSettings.language !== i18n.language) {
+                          i18n.changeLanguage(newSettings.language);
+                      }
                   }
               }
-          } catch {
-                  if (!silent) handleCloudSync(true); // First sync up
+              
+              if (!silent) {
+                  console.log("Cloud sync downward complete");
+              }
+          } catch (e) {
+              console.warn("No cloud data found or failed to parse", e);
+              if (!silent) handleCloudSync(true); // First sync up
           }
       } catch (err) {
-          console.error("Cloud sync down failed:", err);
+          console.error("Cloud sync downward failed:", err);
       } finally {
           setIsSyncing(false);
       }

@@ -1,9 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, X, Zap, Trophy, Flame, Plus } from 'lucide-react';
+import { Icon as IconifyIcon } from '@iconify/react';
 
 const PRESET_ICONS = {
     Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame
 };
+
+const SKILL_ICONS = [
+    'react', 'python', 'javascript', 'typescript', 'html', 'css', 'nodejs', 'php', 'rust', 'go', 'java', 'cpp', 'csharp', 'ruby', 'docker'
+];
 
 // Helper to generate IDs (defined outside component to satisfy linter purity rules)
 const generateId = () => Date.now().toString();
@@ -107,7 +112,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
             <div className="flex flex-wrap items-center gap-2 pointer-events-auto" ref={containerRef}>
                 {/* Badges List */}
                 {badges.map(badge => {
-                    const Icon = PRESET_ICONS[badge.icon] || Tag;
+                    const isSkill = badge.icon && badge.icon.startsWith('skill-icons:');
                     const colorStyle = PRESET_COLORS[badge.color] || PRESET_COLORS[0];
                     
                     return (
@@ -115,7 +120,12 @@ export default function NoteBadges({ badges = [], onUpdate }) {
                             key={badge.id}
                             className={`group flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md shadow-sm transition-all duration-200 hover:scale-105 cursor-default ${colorStyle.bg} ${colorStyle.border} ${colorStyle.text}`}
                         >
-                            <Icon className="w-3.5 h-3.5" />
+                            {isSkill ? (
+                                <IconifyIcon icon={badge.icon} className="w-3.5 h-3.5" />
+                            ) : (() => {
+                                const Icon = PRESET_ICONS[badge.icon] || Tag;
+                                return <Icon className="w-3.5 h-3.5" />;
+                            })()}
                             <span className="text-xs font-semibold">{badge.label}</span>
                             <button 
                                 onClick={(e) => { e.stopPropagation(); removeBadge(badge.id); }}
@@ -147,7 +157,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
                                         <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Récents</div>
                                         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar">
                                             {savedBadges.map(b => {
-                                                const Icon = PRESET_ICONS[b.icon] || Tag;
+                                                const isSkill = b.icon && b.icon.startsWith('skill-icons:');
                                                 const colorStyle = PRESET_COLORS[b.color] || PRESET_COLORS[0];
                                                 return (
                                                     <button
@@ -155,7 +165,12 @@ export default function NoteBadges({ badges = [], onUpdate }) {
                                                         onClick={() => handleSelectSaved(b)}
                                                         className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] hover:scale-105 transition-transform ${colorStyle.bg} ${colorStyle.border} ${colorStyle.text}`}
                                                     >
-                                                        <Icon className="w-3 h-3" />
+                                                        {isSkill ? (
+                                                            <IconifyIcon icon={b.icon} className="w-3 h-3" />
+                                                        ) : (() => {
+                                                            const Icon = PRESET_ICONS[b.icon] || Tag;
+                                                            return <Icon className="w-3 h-3" />;
+                                                        })()}
                                                         {b.label}
                                                     </button>
                                                 )
@@ -191,6 +206,26 @@ export default function NoteBadges({ badges = [], onUpdate }) {
                                                     title={iconName}
                                                 >
                                                     <Icon className="w-4 h-4" />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                
+                                {/* Skill Icon Selection */}
+                                <div>
+                                    <div className="text-[10px] text-gray-500 font-bold mb-1.5 mt-1">TECHNOLOGIES</div>
+                                    <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar p-1 bg-black/20 rounded-lg border border-white/5">
+                                        {SKILL_ICONS.map(skill => {
+                                            const iconName = `skill-icons:${skill}`;
+                                            return (
+                                                <button
+                                                    key={iconName}
+                                                    onClick={() => setSelectedIcon(iconName)}
+                                                    className={`p-1.5 rounded-md transition-colors ${selectedIcon === iconName ? 'bg-blue-600 shadow-sm' : 'hover:bg-white/10'}`}
+                                                    title={skill}
+                                                >
+                                                    <IconifyIcon icon={iconName} className="w-4 h-4" />
                                                 </button>
                                             );
                                         })}

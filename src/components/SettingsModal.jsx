@@ -19,7 +19,6 @@ import IconSparkles from '~icons/mingcute/sparkles-fill';
 import IconArrowRight from '~icons/mingcute/arrow-right-fill';
 import IconGlobe from '~icons/mingcute/earth-2-fill';
 import IconCloud from '~icons/mingcute/cloud-fill';
-import IconUpload from '~icons/mingcute/upload-2-fill';
 import IconMic from '~icons/mingcute/mic-fill';
 import IconVolume from '~icons/mingcute/volume-fill';
 import IconCpu from '~icons/mingcute/chip-fill';
@@ -41,7 +40,6 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
     const [updateInfo, setUpdateInfo] = useState(null);
     const [authData, setAuthData] = useState(null);
     const [pendingUpdatesCount, setPendingUpdatesCount] = useState(0);
-    const fileInputRef = useRef(null);
 
     // Helper for formatting bytes
     const formatBytes = (bytes, decimals = 2) => {
@@ -212,32 +210,6 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
         }
     };
 
-    const handleAvatarUpload = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        // Limit size to 2MB for avatar
-        if (file.size > 2 * 1024 * 1024) {
-            alert(t('settings.avatar_too_large', "L'image est trop volumineuse (Max 2Mo)."));
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64 = reader.result;
-            handleUpdate({ ...localSettings, avatarUrl: base64 });
-            
-            // Sync immediately
-            if (keyAuthService.isAuthenticated) {
-                keyAuthService.loadUserData().then(res => {
-                    const currentData = res.data || {};
-                    keyAuthService.saveUserData({ ...currentData, avatarUrl: base64 });
-                });
-            }
-        };
-        reader.readAsDataURL(file);
-    };
-
     const handleManualSync = async () => {
         if (!keyAuthService.isAuthenticated) {
             alert(t('settings.sync_auth_required', "Vous devez être connecté pour synchroniser."));
@@ -268,65 +240,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                     </button>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 custom-scrollbar">
-                    
-                    {/* Profile & Avatar Settings */}
-                    {authData && (
-                        <div className="space-y-3 relative z-20">
-                            <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.profile', 'Profil')}</h3>
-                            <div className="p-4 bg-black/20 border border-white/10 rounded-xl space-y-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5">
-                                        {localSettings.avatarUrl ? (
-                                            <img src={localSettings.avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full rounded-full bg-[#1e1e1e] flex items-center justify-center text-xl font-bold text-white">
-                                                {authData.username.substring(0, 2).toUpperCase()}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1">
-                                         <label className="text-xs text-gray-400 block mb-1">{t('settings.avatar_label', 'Avatar')}</label>
-                                         <div className="flex gap-2">
-                                             <button 
-                                                 onClick={() => fileInputRef.current?.click()}
-                                                 className="flex items-center gap-2 px-3 py-1.5 bg-[#1e1e1e] hover:bg-white/10 border border-white/10 rounded text-xs text-white transition-colors"
-                                             >
-                                                 <IconUpload className="w-3.5 h-3.5" />
-                                                 {t('settings.upload_avatar', 'Choisir une image')}
-                                             </button>
-                                             {localSettings.avatarUrl && (
-                                                 <button 
-                                                     onClick={() => {
-                                                         handleUpdate({ ...localSettings, avatarUrl: '' });
-                                                          if (keyAuthService.isAuthenticated) {
-                                                              keyAuthService.loadUserData().then(res => {
-                                                                  const currentData = res.data || {};
-                                                                  keyAuthService.saveUserData({ ...currentData, avatarUrl: '' });
-                                                              });
-                                                          }
-                                                     }}
-                                                     className="p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-colors"
-                                                     title={t('settings.remove_avatar', 'Supprimer')}
-                                                 >
-                                                     <IconClose className="w-3.5 h-3.5" />
-                                                 </button>
-                                             )}
-                                         </div>
-                                         <input 
-                                            type="file" 
-                                            ref={fileInputRef}
-                                            onChange={handleAvatarUpload}
-                                            accept="image/*"
-                                            className="hidden"
-                                         />
-                                         <p className="text-[10px] text-gray-500 mt-1">Max 2 Mo. Formats : JPG, PNG, GIF</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Language */}
                     <div className="space-y-3 relative z-20">
@@ -541,7 +455,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                         className="w-full py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded text-xs font-medium flex items-center justify-center gap-2 transition-colors mb-2"
                                     >
                                         <IconRefresh className="w-3.5 h-3.5" />
-                                        {t('settings.manual_sync', "Synchroniser maintenant")}
+                                        {t('settings.manual_sync', "Synchroniser maintenant avec Supabase")}
                                     </button>
                                     {pendingUpdatesCount > 0 && (
                                         <div className="px-2 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded flex items-center gap-2 text-yellow-200 text-xs mb-2">
@@ -549,36 +463,12 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                             <span>{pendingUpdatesCount} modification(s) en attente de connexion...</span>
                                         </div>
                                     )}
-                                    <p className="text-[10px] text-gray-400 px-1 mb-2 font-medium">Choisir les éléments à synchroniser :</p>
-                                    
-                                    {[
-                                        { key: 'notes', label: 'Mes Notes (Docs, Mémos)' },
-                                        { key: 'ai', label: 'IA (Modèles, Clés API)' },
-                                        { key: 'appearance', label: 'Apparence (Thème, Effets)' },
-                                        { key: 'language', label: 'Langue' },
-                                        { key: 'general', label: 'Général (Sons, Préférences)' }
-                                    ].map(item => (
-                                        <div key={item.key} className="flex items-center justify-between px-1 hover:bg-white/5 rounded py-1 transition-colors">
-                                            <span className="text-xs text-gray-300">{item.label}</span>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={localSettings.syncPreferences?.[item.key] !== false}
-                                                onChange={(e) => handleUpdate({ 
-                                                    ...localSettings, 
-                                                    syncPreferences: { 
-                                                        ...(localSettings.syncPreferences || { notes: true, ai: true, appearance: true, language: true, general: true }), 
-                                                        [item.key]: e.target.checked 
-                                                    }
-                                                })}
-                                                className="accent-blue-600 w-3.5 h-3.5 rounded bg-gray-700 border-gray-600 cursor-pointer"
-                                            />
-                                        </div>
-                                    ))}
                                 </div>
                             )}
 
-                            <p className="text-[10px] text-gray-400 px-1 pt-1 border-t border-white/5 mt-1">
-                                {t('settings.cloud_sync_desc', "Synchronise vos notes avec le cloud à chaque démarrage.")}
+                            <p className="text-[10px] text-gray-400 px-1 pt-2 border-t border-white/5 mt-1 flex flex-col gap-1">
+                                <span>{t('settings.cloud_sync_desc', "Synchronisez toutes vos données en temps réel comme Apple iCloud. Sauvegarde vos notes, votre profil, l'apparence et les paramètres d'IA.")}</span>
+                                <span className="text-blue-400 flex items-center gap-1"><IconCloud className="w-3 h-3" /> Propulsé par Supabase Cloud</span>
                             </p>
                          </div>
                     </div>

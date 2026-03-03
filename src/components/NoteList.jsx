@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Icon as IconifyIcon } from '@iconify/react';
 
 // Icons Import (Pim's Edition)
 import IconPlus from '~icons/mingcute/add-fill';
@@ -136,11 +137,16 @@ export default function NoteList({
                                 {note.badges && note.badges.length > 0 && (
                                     <div className="flex items-center -space-x-1">
                                         {note.badges.slice(0, 3).map((badge, idx) => {
-                                            const Icon = BADGE_ICONS[badge.icon] || Tag;
+                                            const isSkill = badge.icon && badge.icon.startsWith('skill-icons:');
                                             const colorClass = BADGE_COLORS[badge.color] || 'text-gray-400';
                                             return (
                                                 <div key={idx} className={`w-4 h-4 rounded-full flex items-center justify-center bg-[#2C2C2E] border border-[#1C1C1E] ring-1 ring-[#1C1C1E] relative z-${10-idx}`} title={badge.label}>
-                                                    <Icon className={`w-2.5 h-2.5 ${colorClass}`} />
+                                                    {isSkill ? (
+                                                        <IconifyIcon icon={badge.icon} className="w-2.5 h-2.5" />
+                                                    ) : (() => {
+                                                        const Icon = BADGE_ICONS[badge.icon] || Tag;
+                                                        return <Icon className={`w-2.5 h-2.5 ${colorClass}`} />;
+                                                    })()}
                                                 </div>
                                             );
                                         })}

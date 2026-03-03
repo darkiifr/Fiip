@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react';
 import { X, User, Shield, CreditCard, Save, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
+import { Icon as IconifyIcon } from '@iconify/react';
+
+const SKILL_ICONS = [
+    'react', 'python', 'javascript', 'typescript', 'html', 'css', 'nodejs', 'php', 'rust', 'go', 'java', 'c', 'cpp', 'csharp', 'ruby', 'docker', 'linux', 'git', 'github', 'mysql', 'postgresql', 'mongodb', 'firebase', 'aws', 'azure', 'figma'
+];
 
 export default function UserProfileModal({ isOpen, onClose }) {
   const { t } = useTranslation();
@@ -10,7 +15,8 @@ export default function UserProfileModal({ isOpen, onClose }) {
     nickname: '',
     bio: '',
     accentColor: '#5865F2',
-    avatar: null
+    avatar: null,
+    skills: []
   });
 
   useEffect(() => {
@@ -184,6 +190,40 @@ export default function UserProfileModal({ isOpen, onClose }) {
                       placeholder="Dites quelque chose sur vous..."
                    />
                 </div>
+
+                {/* Skills Section */}
+                <div>
+                    <label className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">Compétences & Technologies</label>
+                    <div className="flex flex-wrap gap-2 mb-2 p-2 bg-[#1E1F22] rounded min-h-[44px]">
+                        {(publicProfile.skills || []).length === 0 ? (
+                            <span className="text-gray-500 text-sm italic py-1">Aucune compétence sélectionnée...</span>
+                        ) : (
+                            (publicProfile.skills || []).map(skill => (
+                                <button 
+                                    key={skill}
+                                    onClick={() => setPublicProfile({...publicProfile, skills: publicProfile.skills.filter(s => s !== skill)})}
+                                    className="relative group transition-transform hover:scale-110"
+                                    title={`Retirer ${skill}`}
+                                >
+                                    <IconifyIcon icon={`skill-icons:${skill}`} className="w-6 h-6" />
+                                    <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center opacity-0 group-hover:opacity-100 text-[8px] font-bold">×</div>
+                                </button>
+                            ))
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar p-2 border border-[#1E1F22] rounded">
+                        {SKILL_ICONS.filter(s => !(publicProfile.skills || []).includes(s)).map(skill => (
+                            <button
+                                key={skill}
+                                onClick={() => setPublicProfile({...publicProfile, skills: [...(publicProfile.skills || []), skill]})}
+                                className="p-1 rounded hover:bg-[#1E1F22] transition-colors"
+                                title={`Ajouter ${skill}`}
+                            >
+                                <IconifyIcon icon={`skill-icons:${skill}`} className="w-5 h-5 opacity-50 hover:opacity-100 transition-opacity" />
+                            </button>
+                        ))}
+                    </div>
+                </div>
               </div>
             )}
 
@@ -205,6 +245,24 @@ export default function UserProfileModal({ isOpen, onClose }) {
                       </div>
                       <div className="text-white font-medium">
                         {keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : 'Aucun'}
+                      </div>
+                  </div>
+
+                  <div className="bg-[#2B2D31] p-4 rounded-lg border border-[#1F2023]">
+                      <div className="flex justify-between items-center mb-2">
+                          <span className="text-[#B5BAC1] text-xs font-bold uppercase">Statut Cloud Supabase</span>
+                          {(() => {
+                              const settings = JSON.parse(localStorage.getItem('fiip-settings') || '{}');
+                              const isCloudActive = keyAuthService.isAuthenticated && settings.cloudSync !== false;
+                              return isCloudActive ? (
+                                  <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1"><IconifyIcon icon="mingcute:cloud-fill" className="w-3 h-3" /> Actif</span>
+                              ) : (
+                                  <span className="bg-gray-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1"><IconifyIcon icon="mingcute:cloud-off-fill" className="w-3 h-3" /> Désactivé</span>
+                              );
+                          })()}
+                      </div>
+                      <div className="text-[#949BA4] text-xs mt-1 leading-relaxed">
+                        Lorsque le Cloud est actif, toutes vos notes, paramètres, IA et profils sont synchronisés en temps réel et sauvegardés de manière sécurisée via Supabase.
                       </div>
                   </div>
 

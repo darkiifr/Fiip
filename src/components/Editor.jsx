@@ -12,6 +12,7 @@ import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
+import { Icon as IconifyIcon } from '@iconify/react';
 
 // Icons Import (Pim's Edition)
 import IconSparkles from '~icons/mingcute/sparkles-fill';
@@ -236,6 +237,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
     const isListeningRef = useRef(false); // Track intent to listen
     const lastSpeechStartRef = useRef(0);
     const [interimTranscript, setInterimTranscript] = useState('');
+    const [detectedLanguage, setDetectedLanguage] = useState('');
     const recognitionRef = useRef(null);
     const noteRef = useRef(note);
     const mediaRecorderRef = useRef(null);
@@ -1026,7 +1028,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                     />
 
                     <div className="relative w-full min-h-[500px]">
-                        <LanguageToolHighlightTextarea
+                            <LanguageToolHighlightTextarea
                             ref={textareaRef}
                             value={note.content}
                             onChange={handleContentChange}
@@ -1036,6 +1038,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                             style={{ minHeight: '500px' }}
                             language="auto"
                             enabled={settings?.enableCorrection !== false}
+                            onLanguageDetected={setDetectedLanguage}
                         />
                         {/* Suggestion Overlay */}
                         {suggestion && (
@@ -1121,6 +1124,14 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             {/* Note Badges (Fixed Bottom Left) */}
             {!drawingSession && (
                 <NoteBadges badges={note.badges || []} onUpdate={handleUpdateBadges} />
+            )}
+
+            {/* Detected Language Indicator (Fixed Bottom Right) */}
+            {!drawingSession && detectedLanguage && (
+                 <div className="absolute bottom-6 right-6 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-[#1e1e1e]/80 backdrop-blur-md shadow-sm pointer-events-none transition-all duration-300">
+                     <IconifyIcon icon="formkit:translate" className="w-3.5 h-3.5 text-blue-400" />
+                     <span className="text-xs font-medium text-gray-300 tracking-wide">{detectedLanguage}</span>
+                 </div>
             )}
 
             {drawingSession && (

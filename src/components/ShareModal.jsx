@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { keyAuthService } from '../services/keyauth';
 import CustomSelect from './CustomSelect';
+import { Icon as IconifyIcon } from '@iconify/react';
 
 // Icons Import (Pim's Edition)
 import IconClose from '~icons/mingcute/close-fill';
@@ -180,6 +181,25 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                                 </>
                             )}
                         </button>
+                    </div>
+
+                    {/* Social Share Options */}
+                    <div className="flex flex-col items-center gap-3 pt-4 border-t border-white/10 mt-2">
+                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Ou partager sur d&apos;autres réseaux</span>
+                        <div className="flex justify-center gap-4">
+                            <button type="button" className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur Twitter">
+                                <IconifyIcon icon="logos:twitter" className="w-4 h-4" />
+                            </button>
+                            <button type="button" className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur Reddit">
+                                <IconifyIcon icon="logos:reddit-icon" className="w-4 h-4" />
+                            </button>
+                            <button type="button" className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur Discord">
+                                <IconifyIcon icon="logos:discord-icon" className="w-4 h-4" />
+                            </button>
+                            <button type="button" className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur LinkedIn">
+                                <IconifyIcon icon="logos:linkedin-icon" className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

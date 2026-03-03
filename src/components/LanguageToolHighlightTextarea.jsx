@@ -25,11 +25,10 @@ function getDecoratedText(value, errors) {
     return result;
 }
 
-export default function LanguageToolHighlightTextarea({ value, onChange, className, language = 'auto', enabled = true, ...props }) {
+export default function LanguageToolHighlightTextarea({ value, onChange, className, language = 'auto', enabled = true, onLanguageDetected, ...props }) {
     const textareaRef = useRef(null);
     const [errors, setErrors] = useState([]);
     const [checking, setChecking] = useState(false);
-    const [lang, setLang] = useState('');
 
     const handleInput = (e) => {
         if (onChange) onChange(e);
@@ -40,7 +39,9 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
             // Utiliser setTimeout pour éviter la mise à jour synchrone dans useEffect
             setTimeout(() => {
                 setErrors(prev => prev.length > 0 ? [] : prev);
-                setLang(prev => prev !== '' ? '' : prev);
+                if (onLanguageDetected) {
+                     onLanguageDetected('');
+                }
             }, 0);
             return;
         }
@@ -58,13 +59,16 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
                 .then(res => res.json())
                 .then(data => {
                     setErrors(data.matches || []);
-                    setLang(data.language?.detected || '');
+                    const detectedLang = data.language?.detected || '';
+                    if (onLanguageDetected) {
+                        onLanguageDetected(detectedLang.name || detectedLang.code || detectedLang);
+                    }
                 })
                 .catch(() => setErrors([]))
                 .finally(() => setChecking(false));
         }, 800);
         return () => clearTimeout(handler);
-    }, [value, language, enabled]);
+    }, [value, language, enabled, onLanguageDetected]);
 
     // Correction par clic
     const handleSuggestionClick = (err, replacement) => {
@@ -145,7 +149,6 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
                     </div>
                 </div>
             )}
-            {lang && <span className="absolute top-2 right-2 text-xs bg-blue-900/80 text-blue-200 px-2 py-0.5 rounded-full z-20">{lang.toUpperCase()}</span>}
         </div>
     );
 }

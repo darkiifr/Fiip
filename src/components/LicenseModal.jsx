@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
 import { open } from '@tauri-apps/plugin-shell';
-import { check } from '@tauri-apps/plugin-updater';
 import { relaunch, exit } from '@tauri-apps/plugin-process';
 import { type } from '@tauri-apps/plugin-os';
+import { Icon } from '@iconify/react';
 
 // Icons Import (Pim's Edition)
 import IconClose from '~icons/mingcute/close-fill';
@@ -40,6 +40,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
   const handleCheckUpdate = async () => {
       setUpdateStatus('checking');
       try {
+          const { check } = await import('@tauri-apps/plugin-updater');
           const update = await check();
           if (update?.available) {
               setUpdateInfo(update);
@@ -270,6 +271,19 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                   >
                     {t('license.get_license', 'OU OBTENIR UNE LICENCE')}
                   </button>
+
+                  {/* Moyens de paiement acceptés */}
+                  <div className="flex flex-col items-center gap-2 mt-4 opacity-50 hover:opacity-100 transition-opacity duration-300">
+                      <div className="flex justify-center items-center gap-4">
+                          <Icon icon="logos:paypal" className="w-6 h-6 grayscale hover:grayscale-0 transition-all duration-300 cursor-help" title="PayPal" />
+                          <div className="w-px h-6 bg-gray-700"></div>
+                          <div className="flex items-center gap-2" title="Cartes bancaires acceptées via PayPal">
+                              <Icon icon="logos:visa" className="w-8 h-auto grayscale hover:grayscale-0 transition-all duration-300 cursor-help" />
+                              <Icon icon="logos:mastercard" className="w-6 h-auto grayscale hover:grayscale-0 transition-all duration-300 cursor-help" />
+                          </div>
+                      </div>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">PayPal & CB via PayPal</span>
+                  </div>
 
                   {/* Update Section */}
                   <div className="pt-3 border-t border-gray-800/50 mt-2">
