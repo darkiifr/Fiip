@@ -130,36 +130,52 @@ function App() {
         const unlisten = await onOpenUrl((urls) => {
           console.log('Deep link received:', urls);
           for (const url of urls) {
-            // Check specifically for our protocol and path if needed.
-            // Example URL: fiip://login-callback#access_token=...&refresh_token=...
-            if (url.includes('access_token') && url.includes('refresh_token')) {
-              try {
-                // Parse hash from URL
-                const hashIndex = url.indexOf('#');
-                if (hashIndex !== -1) {
-                  const hash = url.substring(hashIndex + 1);
-                  const params = new URLSearchParams(hash);
-                  const accessToken = params.get('access_token');
-                  const refreshToken = params.get('refresh_token');
+            // Handle Supabase OAuth Callback (Implicit & PKCE)
+            let success = false;
+            try {
+                const urlObj = new URL(url);
+                const hashParams = new URLSearchParams(urlObj.hash.substring(1)); // remove #
+                const queryParams = urlObj.searchParams;
 
-                  if (accessToken && refreshToken) {
-                    authService.setSession(accessToken, refreshToken).then(async ({ error }) => {
-                       if (!error) {
-                           const user = await authService.getUser();
-                           if (user) {
-                               const level = user?.user_metadata?.subscription_level || 0;
-                               keyAuthService.setLocalLevel(level);
-                               setIsAuthModalOpen(false);
-                               // Force sync immediately
-                               await performCloudSyncDown(false);
-                           }
-                       }
-                    });
-                  }
+                // 1. Implicit Grant (Access Token in Hash)
+                const accessToken = hashParams.get('access_token');
+                const refreshToken = hashParams.get('refresh_token');
+
+                // 2. PKCE Flow (Code in Query)
+                const code = queryParams.get('code');
+                const error = queryParams.get('error') || hashParams.get('error');
+                const errorDesc = queryParams.get('error_description') || hashParams.get('error_description');
+
+                if (error) {
+                    console.error("Auth Error:", error, errorDesc);
+                    // Optionally show error to user
+                    continue;
                 }
-              } catch (e) {
+
+                if (accessToken && refreshToken) {
+                    const { error } = await authService.setSession(accessToken, refreshToken);
+                    if (!error) success = true;
+                } else if (code) {
+                    const { error } = await authService.exchangeCodeForSession(code);
+                    if (!error) success = true;
+                }
+
+                if (success) {
+                    const user = await authService.getUser();
+                    if (user) {
+                        const level = user?.user_metadata?.subscription_level || 0;
+                        keyAuthService.setLocalLevel(level);
+                        setIsAuthModalOpen(false);
+                        // Force sync immediately
+                        if (typeof performCloudSyncDown === 'function') {
+                            await performCloudSyncDown(false);
+                        } else {
+                            console.warn("performCloudSyncDown not available yet");
+                        }
+                    }
+                }
+            } catch (e) {
                 console.error("Deep link parse error", e);
-              }
             }
           }
         });
@@ -226,6 +242,14 @@ function App() {
             if (user) {
                 const level = user?.user_metadata?.subscription_level || 0;
                 keyAuthService.setLocalLevel(level);
+            }
+
+            // Register Deep Link Protocol (Windows Registry)
+            try {
+                await invoke('register_deep_link');
+                console.log("Deep link protocol registered.");
+            } catch (e) {
+                console.warn("Failed to register deep link:", e);
             }
             
             setAppLoading({ isLoading: true, status: "Vérification de la licence..." });

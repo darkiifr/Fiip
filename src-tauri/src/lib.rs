@@ -101,6 +101,43 @@ fn get_hwid() -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+fn register_deep_link() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        use std::os::windows::process::CommandExt;
+
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_path = exe.to_str().ok_or("Invalid path")?;
+
+        // 1. Create Key HKCU\Software\Classes\fiip
+        let _ = Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\fiip", "/ve", "/d", "URL:Fiip Protocol", "/f"])
+            .creation_flags(0x08000000)
+            .output();
+
+        // 2. Add 'URL Protocol' value
+        let _ = Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\fiip", "/v", "URL Protocol", "/d", "", "/f"])
+            .creation_flags(0x08000000)
+            .output();
+
+        // 3. Create command key
+        let cmd_val = format!("\"{}\" \"%1\"", exe_path);
+        let _ = Command::new("reg")
+            .args(&["add", "HKCU\\Software\\Classes\\fiip\\shell\\open\\command", "/ve", "/d", &cmd_val, "/f"])
+            .creation_flags(0x08000000)
+            .output();
+
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -117,7 +154,7 @@ pub fn run() {
         // .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
         //    let _ = app.get_webview_window("main").expect("no main window").set_focus();
         // }))
-        .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, get_hwid])
+        .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, get_hwid, register_deep_link])
         .setup(|_app| {
             println!("App setup starting...");
             

@@ -92,14 +92,17 @@ class KeyAuthService {
 
     async _request(data) {
         try {
-            const formData = new FormData();
+            const params = new URLSearchParams();
             for (const key in data) {
-                formData.append(key, data[key]);
+                params.append(key, data[key]);
             }
 
             const response = await fetch(KA_CONFIG.apiUrl || "https://keyauth.win/api/1.2/", {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: params.toString()
             });
 
             if (!response.ok) {
@@ -109,7 +112,7 @@ class KeyAuthService {
             return await response.json();
         } catch (error) {
             console.error("KeyAuth Request Error:", error);
-            return { success: false, message: "Connection error" };
+            return { success: false, message: "Connection error: " + error.message };
         }
     }
 

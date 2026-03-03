@@ -88,6 +88,11 @@ export const authService = {
       refresh_token
     });
     return { data, error };
+  },
+
+  async exchangeCodeForSession(code) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    return { data, error };
   }
 };
 
