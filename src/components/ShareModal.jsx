@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { keyAuthService } from '../services/keyauth';
+import { authService, storageService } from '../services/supabase';
 import CustomSelect from './CustomSelect';
 import { Icon as IconifyIcon } from '@iconify/react';
+import { open } from '@tauri-apps/plugin-shell';
 
 // Icons Import (Pim's Edition)
 import IconClose from '~icons/mingcute/close-fill';
-import IconSend from '~icons/mingcute/send-plane-fill';
-import IconUser from '~icons/mingcute/user-4-fill';
 import IconShare from '~icons/mingcute/share-2-fill';
 import IconLock from '~icons/mingcute/lock-fill';
 import IconLoading from '~icons/mingcute/loading-fill';
@@ -15,7 +14,6 @@ import IconFileText from '~icons/mingcute/file-fill';
 
 export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
     const [selectedNote, setSelectedNote] = useState(note);
-    const [targetUsername, setTargetUsername] = useState('');
     const [isSharing, setIsSharing] = useState(false);
     const [status, setStatus] = useState({ type: '', message: '' });
 
@@ -25,50 +23,72 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
 
     if (!isOpen) return null;
 
+    const handleSocialShare = (platform) => {
+        if (!selectedNote) return;
+        const text = `Je partage cette note depuis Fiip: ${selectedNote.title || 'Sans titre'}`;
+        const contentPreview = (selectedNote.content?.substring(0, 100) || '') + '...';
+        const contentToShare = `${text}\n\n${contentPreview}`;
+        
+        let url = '';
+        switch (platform) {
+            case 'twitter':
+                url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(contentToShare)}`;
+                break;
+            case 'reddit':
+                url = `https://www.reddit.com/submit?title=${encodeURIComponent(text)}&text=${encodeURIComponent(contentToShare)}`;
+                break;
+            case 'discord':
+                navigator.clipboard.writeText(contentToShare);
+                setStatus({ type: 'success', message: 'Texte copié pour Discord !' });
+                return;
+            case 'linkedin':
+                url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fiip.app')}`;
+                break;
+        }
+
+        if (url) {
+            open(url).catch(e => {
+                console.error("Failed to open URL in browser", e);
+                window.open(url, '_blank', 'noopener,noreferrer');
+            });
+        }
+    };
+
     const handleShare = async (e) => {
         e.preventDefault();
-        if (!targetUsername.trim() || !selectedNote) return;
+        if (!selectedNote) return;
 
         setIsSharing(true);
-        setStatus({ type: 'info', message: "Génération du lien de partage..." });
+        setStatus({ type: 'info', message: "Génération du lien de partage public..." });
 
         try {
+            // Get user session
+            const user = await authService.getUser();
+            if (!user) {
+                throw new Error("Vous devez être connecté avec votre profil pour partager.");
+            }
+
             // 1. Create file from note
             const noteContent = JSON.stringify(selectedNote);
             const blob = new Blob([noteContent], { type: 'application/json' });
             const file = new File([blob], `${selectedNote.title || 'note'}.json`, { type: 'application/json' });
 
-            // 2. Upload to KeyAuth
-            const uploadRes = await keyAuthService.fileUpload(file, file.name);
+            // 2. Upload to Supabase Storage in shared/ folder
+            const sharePath = `shared/${Date.now()}_${file.name}`;
+            await storageService.uploadFile(user.id, file, sharePath);
 
-            if (!uploadRes.success) {
-                throw new Error(uploadRes.message || "Erreur lors de l'upload");
-            }
+            // 3. Get public URL
+            const downloadUrl = storageService.getPublicUrl(user.id, sharePath);
 
-            const downloadUrl = uploadRes.url;
+            // Copy to clipboard
+            await navigator.clipboard.writeText(downloadUrl);
 
-            // 3. Notify user via KeyAuth Chat
-            const invitePayload = {
-                type: 'shared_note',
-                to: targetUsername.trim(),
-                from: keyAuthService.userData.username,
-                noteId: selectedNote.id,
-                noteTitle: selectedNote.title,
-                downloadUrl: downloadUrl,
-                sentAt: Date.now(),
-                message: "Je t'ai partagé une note. Télécharge-la ici."
-            };
-
-            // Send to global/invites channel
-            await keyAuthService.sendChatMessage(JSON.stringify(invitePayload), 'invites');
+            setStatus({ type: 'success', message: `Lien copié dans le presse-papiers !` });
             
-            setStatus({ type: 'success', message: `Note partagée avec ${targetUsername} !` });
             setTimeout(() => {
                 onClose();
-                setTargetUsername('');
                 setStatus({ type: '', message: '' });
-            }, 2000);
-
+            }, 3000);
         } catch (e) {
             console.error(e);
             setStatus({ type: 'error', message: e.message || "Une erreur est survenue" });
@@ -79,7 +99,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-            <div className="w-full max-w-md bg-[#1C1C1E] rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-scale-in">
+            <div className="w-full max-w-md bg-[#1C1C1E] font-dexter rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col animate-scale-in">
                 {/* Header */}
                 <div className="h-14 px-5 border-b border-white/10 flex items-center justify-between bg-[#2C2C2E]/50">
                     <div className="flex items-center gap-3">
@@ -101,7 +121,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                     
                     {/* Note Selection */}
                     <div className="space-y-2">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider ml-1">
+                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">
                             Note à partager
                         </label>
                         <CustomSelect 
@@ -120,25 +140,6 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                                 <span className="text-[10px] text-gray-500">Chiffrement de bout en bout activé</span>
                             </div>
                         )}
-                    </div>
-
-                    {/* Input */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider ml-1">
-                            Destinataire (Nom d&apos;utilisateur)
-                        </label>
-                        <div className="relative">
-                            <IconUser className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                            <input
-                                type="text"
-                                value={targetUsername}
-                                onChange={(e) => setTargetUsername(e.target.value)}
-                                placeholder="Entrez le nom d'utilisateur exact..."
-                                className="w-full h-11 pl-10 pr-4 bg-black/20 border border-white/10 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 focus:bg-black/40 transition-all"
-                                autoFocus
-                                disabled={isSharing}
-                            />
-                        </div>
                     </div>
 
                     {/* Status Message */}
@@ -166,18 +167,18 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                         </button>
                         <button
                             type="submit"
-                            disabled={!targetUsername.trim() || isSharing}
+                            disabled={!selectedNote || isSharing}
                             className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                         >
                             {isSharing ? (
                                 <>
                                     <IconLoading className="w-4 h-4 animate-spin" />
-                                    <span>Envoi...</span>
+                                    <span>Génération...</span>
                                 </>
                             ) : (
                                 <>
-                                    <IconSend className="w-4 h-4" />
-                                    <span>Envoyer l&apos;invitation</span>
+                                    <IconShare className="w-4 h-4" />
+                                    <span>Générer un lien public</span>
                                 </>
                             )}
                         </button>
@@ -187,16 +188,16 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                     <div className="flex flex-col items-center gap-3 pt-4 border-t border-white/10 mt-2">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Ou partager sur d&apos;autres réseaux</span>
                         <div className="flex justify-center gap-4">
-                            <button type="button" className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur Twitter">
+                            <button type="button" onClick={() => handleSocialShare('twitter')} className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur Twitter">
                                 <IconifyIcon icon="logos:twitter" className="w-4 h-4" />
                             </button>
-                            <button type="button" className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur Reddit">
+                            <button type="button" onClick={() => handleSocialShare('reddit')} className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur Reddit">
                                 <IconifyIcon icon="logos:reddit-icon" className="w-4 h-4" />
                             </button>
-                            <button type="button" className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur Discord">
+                            <button type="button" onClick={() => handleSocialShare('discord')} className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Copier pour Discord">
                                 <IconifyIcon icon="logos:discord-icon" className="w-4 h-4" />
                             </button>
-                            <button type="button" className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur LinkedIn">
+                            <button type="button" onClick={() => handleSocialShare('linkedin')} className="p-2.5 bg-black/20 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-full transition-all duration-300 hover:scale-110" title="Partager sur LinkedIn">
                                 <IconifyIcon icon="logos:linkedin-icon" className="w-4 h-4" />
                             </button>
                         </div>

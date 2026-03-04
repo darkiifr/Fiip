@@ -35,7 +35,20 @@ export default function NoteList({
     const [searchTerm, setSearchTerm] = useState('');
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
 
-    const filteredNotes = (notes || []).filter(note =>
+    const getNavFilteredNotes = () => {
+        const baseNotes = notes || [];
+        if (activeNav === 'trash') {
+            return baseNotes.filter(n => n.deleted);
+        } else if (activeNav === 'favorites') {
+            return baseNotes.filter(n => n.favorite && !n.deleted);
+        } else if (activeNav === 'shared') {
+            return baseNotes.filter(n => n.shared && !n.deleted);
+        }
+        // home or other
+        return baseNotes.filter(n => !n.deleted);
+    };
+
+    const filteredNotes = getNavFilteredNotes().filter(note =>
         (note.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (note.content || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -137,7 +150,7 @@ export default function NoteList({
                                 {note.badges && note.badges.length > 0 && (
                                     <div className="flex items-center -space-x-1">
                                         {note.badges.slice(0, 3).map((badge, idx) => {
-                                            const isSkill = badge.icon && badge.icon.startsWith('skill-icons:');
+                                            const isSkill = badge.icon && (badge.icon.startsWith('skill-icons:') || badge.icon.startsWith('logos:') || badge.icon.startsWith('devicon:') || badge.icon.startsWith('vscode-icons:') || badge.icon.startsWith('formkit:'));
                                             const colorClass = BADGE_COLORS[badge.color] || 'text-gray-400';
                                             return (
                                                 <div key={idx} className={`w-4 h-4 rounded-full flex items-center justify-center bg-[#2C2C2E] border border-[#1C1C1E] ring-1 ring-[#1C1C1E] relative z-${10-idx}`} title={badge.label}>

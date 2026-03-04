@@ -7,7 +7,15 @@ const PRESET_ICONS = {
 };
 
 const SKILL_ICONS = [
-    'react', 'python', 'javascript', 'typescript', 'html', 'css', 'nodejs', 'php', 'rust', 'go', 'java', 'cpp', 'csharp', 'ruby', 'docker'
+    // Web / JS
+    'skill-icons:react-dark', 'skill-icons:python-dark', 'skill-icons:javascript', 'skill-icons:typescript', 'skill-icons:html', 'skill-icons:css', 'skill-icons:nodejs-dark', 'skill-icons:php-dark', 'skill-icons:rust', 'skill-icons:golang', 'skill-icons:java-dark', 'skill-icons:cpp', 'skill-icons:cs', 'skill-icons:ruby', 'skill-icons:docker', 'skill-icons:vuejs-dark', 'skill-icons:angular-dark', 'skill-icons:tailwindcss-dark', 'skill-icons:sass', 'skill-icons:git', 'skill-icons:github-dark', 'skill-icons:linux-dark', 'skill-icons:bash-dark', 'skill-icons:mysql-dark', 'skill-icons:postgresql-dark', 'skill-icons:mongodb', 'skill-icons:redis-dark', 'skill-icons:aws-dark', 'skill-icons:azure-dark', 'skill-icons:gcp-dark', 'skill-icons:kubernetes', 'skill-icons:discord', 'skill-icons:figma-dark', 'skill-icons:vercel-dark',
+    'skill-icons:nextjs-dark', 'skill-icons:vite-dark', 'skill-icons:svelte', 'skill-icons:nuxtjs-dark', 'skill-icons:expressjs-dark', 'skill-icons:nestjs-dark', 'skill-icons:django', 'skill-icons:laravel-dark', 'skill-icons:spring-dark', 'skill-icons:flask-dark',
+    // Logos
+    'logos:supabase-icon', 'logos:firebase', 'logos:google-cloud', 'logos:aws', 'logos:microsoft-azure', 'logos:stripe', 'logos:auth0', 'logos:netlify-icon',
+    // VSCode
+    'vscode-icons:file-type-reactts', 'vscode-icons:file-type-js', 'vscode-icons:file-type-python', 'vscode-icons:file-type-html', 'vscode-icons:file-type-css', 'vscode-icons:file-type-json', 'vscode-icons:file-type-markdown', 'vscode-icons:folder-type-src', 'vscode-icons:folder-type-components', 'vscode-icons:folder-type-api',
+    // Formkit
+    'formkit:github', 'formkit:twitter', 'formkit:apple', 'formkit:google', 'formkit:android', 'formkit:windows', 'formkit:youtube', 'formkit:linkedin', 'formkit:twitch'
 ];
 
 // Helper to generate IDs (defined outside component to satisfy linter purity rules)
@@ -32,6 +40,7 @@ const SOLID_COLORS = [
 export default function NoteBadges({ badges = [], onUpdate }) {
     const [isAdding, setIsAdding] = useState(false);
     const [newLabel, setNewLabel] = useState('');
+    const [iconSearch, setIconSearch] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('Tag');
     const [selectedColor, setSelectedColor] = useState(4); // Default Blue
     const containerRef = useRef(null);
@@ -112,7 +121,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
             <div className="flex flex-wrap items-center gap-2 pointer-events-auto" ref={containerRef}>
                 {/* Badges List */}
                 {badges.map(badge => {
-                    const isSkill = badge.icon && badge.icon.startsWith('skill-icons:');
+                    const isSkill = badge.icon && (badge.icon.startsWith('skill-icons:') || badge.icon.startsWith('logos:') || badge.icon.startsWith('devicon:') || badge.icon.startsWith('vscode-icons:') || badge.icon.startsWith('formkit:'));
                     const colorStyle = PRESET_COLORS[badge.color] || PRESET_COLORS[0];
                     
                     return (
@@ -157,7 +166,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
                                         <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Récents</div>
                                         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar">
                                             {savedBadges.map(b => {
-                                                const isSkill = b.icon && b.icon.startsWith('skill-icons:');
+                                                const isSkill = b.icon && (b.icon.startsWith('skill-icons:') || b.icon.startsWith('logos:') || b.icon.startsWith('devicon:') || b.icon.startsWith('vscode-icons:') || b.icon.startsWith('formkit:'));
                                                 const colorStyle = PRESET_COLORS[b.color] || PRESET_COLORS[0];
                                                 return (
                                                     <button
@@ -214,16 +223,25 @@ export default function NoteBadges({ badges = [], onUpdate }) {
                                 
                                 {/* Skill Icon Selection */}
                                 <div>
-                                    <div className="text-[10px] text-gray-500 font-bold mb-1.5 mt-1">TECHNOLOGIES</div>
-                                    <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar p-1 bg-black/20 rounded-lg border border-white/5">
-                                        {SKILL_ICONS.map(skill => {
-                                            const iconName = `skill-icons:${skill}`;
-                                            return (
-                                                <button
-                                                    key={iconName}
-                                                    onClick={() => setSelectedIcon(iconName)}
-                                                    className={`p-1.5 rounded-md transition-colors ${selectedIcon === iconName ? 'bg-blue-600 shadow-sm' : 'hover:bg-white/10'}`}
-                                                    title={skill}
+                                      <div className="flex items-center justify-between mb-1.5 mt-1">
+                                          <div className="text-[10px] text-gray-500 font-bold">TECHNOLOGIES & LOGOS</div>
+                                          <input
+                                              type="text"
+                                              placeholder="Rechercher..."
+                                              value={iconSearch}
+                                              onChange={(e) => setIconSearch(e.target.value)}
+                                              className="bg-black/30 border border-white/10 rounded px-2 py-0.5 text-[10px] text-white outline-none focus:border-blue-500/50 w-24"
+                                              onClick={(e) => e.stopPropagation()}
+                                          />
+                                      </div>
+                                      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar p-1 bg-black/20 rounded-lg border border-white/5">
+                                            {SKILL_ICONS.filter(icon => icon.toLowerCase().includes(iconSearch.toLowerCase())).map(iconName => {
+                                              return (
+                                                  <button
+                                                      key={iconName}
+                                                      onClick={() => setSelectedIcon(iconName)}
+                                                      className={`p-1.5 rounded-md transition-colors ${selectedIcon === iconName ? 'bg-blue-600 shadow-sm' : 'hover:bg-white/10'}`}
+                                                      title={iconName}
                                                 >
                                                     <IconifyIcon icon={iconName} className="w-4 h-4" />
                                                 </button>

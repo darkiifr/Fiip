@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, forwardRef } from "react";
 import { twMerge } from "tailwind-merge";
 
 const API_URL = "https://api.languagetoolplus.com/v2/check";
@@ -13,7 +13,7 @@ function getDecoratedText(value, errors) {
             result.push(value.slice(lastIndex, offset));
         }
         result.push(
-            <span key={i} className="bg-red-700/30 underline decoration-red-500 cursor-pointer" title={err.message}>
+            <span key={i} className="bg-red-700/30 text-transparent border-b border-b-red-500 rounded-sm" title={err.message}>
                 {value.slice(offset, offset + length)}
             </span>
         );
@@ -22,28 +22,32 @@ function getDecoratedText(value, errors) {
     if (lastIndex < value.length) {
         result.push(value.slice(lastIndex));
     }
+    if (value.endsWith('\n')) result.push(<br key="trailing" />);
     return result;
 }
 
-export default function LanguageToolHighlightTextarea({ value, onChange, className, language = 'auto', enabled = true, onLanguageDetected, ...props }) {
-    const textareaRef = useRef(null);
+const LanguageToolHighlightTextarea = forwardRef(({ value, onChange, className, language = 'auto', enabled = true, onLanguageDetected, ...props }, ref) => {
+    const localRef = useRef(null);
+    const overlayRef = useRef(null);
     const [errors, setErrors] = useState([]);
     const [checking, setChecking] = useState(false);
+
+    useEffect(() => {
+        if (typeof ref === 'function') ref(localRef.current);
+        else if (ref) ref.current = localRef.current;
+    }, [ref]);
 
     const handleInput = (e) => {
         if (onChange) onChange(e);
     };
 
     useEffect(() => {
-        if (!enabled || !value || value.length < 3) {
-            // Utiliser setTimeout pour éviter la mise à jour synchrone dans useEffect
-            setTimeout(() => {
+        if (!enabled || !value || value.trim().length < 3) {
+            const timer = setTimeout(() => {
                 setErrors(prev => prev.length > 0 ? [] : prev);
-                if (onLanguageDetected) {
-                     onLanguageDetected('');
-                }
+                if (onLanguageDetected) onLanguageDetected('');
             }, 0);
-            return;
+            return () => clearTimeout(timer);
         }
 
         const handler = setTimeout(() => {
@@ -60,9 +64,7 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
                 .then(data => {
                     setErrors(data.matches || []);
                     const detectedLang = data.language?.detected || '';
-                    if (onLanguageDetected) {
-                        onLanguageDetected(detectedLang.name || detectedLang.code || detectedLang);
-                    }
+                    if (onLanguageDetected) onLanguageDetected(detectedLang.name || detectedLang.code || detectedLang);
                 })
                 .catch(() => setErrors([]))
                 .finally(() => setChecking(false));
@@ -70,45 +72,52 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
         return () => clearTimeout(handler);
     }, [value, language, enabled, onLanguageDetected]);
 
-    // Correction par clic
     const handleSuggestionClick = (err, replacement) => {
         if (!replacement) return;
-        const before = value.slice(0, err.offset);
-        const after = value.slice(err.offset + err.length);
-        onChange({ target: { value: before + replacement + after } });
-    };
-
-    const handleScroll = (e) => {
-        const backdrop = textareaRef.current.previousSibling;
-        if (backdrop) {
-            backdrop.scrollTop = e.target.scrollTop;
-            backdrop.scrollLeft = e.target.scrollLeft;
+        const textarea = localRef.current;
+        if (textarea) {
+            textarea.focus();
+            textarea.setSelectionRange(err.offset, err.offset + err.length);
+            document.execCommand('insertText', false, replacement);
+        } else {
+            const before = value.slice(0, err.offset);
+            const after = value.slice(err.offset + err.length);
+            if (onChange) onChange({ target: { value: before + replacement + after } });
         }
     };
 
-    const sharedStyles = "w-full h-full p-6 text-lg leading-relaxed font-sans outline-none border-0 m-0 resize-none font-medium tracking-wide whitespace-pre-wrap break-words [scrollbar-gutter:stable]";
-    
-    // Merge sharedStyles with passed className
+    const handleScroll = (e) => {
+        if (overlayRef.current) {
+            overlayRef.current.scrollTop = e.target.scrollTop;
+            overlayRef.current.scrollLeft = e.target.scrollLeft;
+        }
+    };
+
+    const sharedStyles = "w-full h-full p-6 text-[16px] leading-7 font-sans outline-none border-0 m-0 resize-none font-medium tracking-wide whitespace-pre-wrap break-words";
     const baseClass = twMerge(sharedStyles, className);
-    // Ensure overlay is strictly transparent and properly positioned/disabled
-    const overlayClass = twMerge(baseClass, "absolute inset-0 z-0 text-transparent select-none pointer-events-none bg-transparent overflow-hidden");
-    // Ensure textarea is visible and positioned above overlay
+    
+    const overlayClass = twMerge(
+        baseClass,
+        "absolute inset-0 z-0 text-transparent select-none pointer-events-none bg-transparent [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+    );
+
     const textareaClass = twMerge(
-        "text-gray-100 transition-[filter] duration-100 ease-out", 
-        baseClass, 
+        "text-gray-100 transition-[filter] duration-100 ease-out",
+        baseClass,
         "relative z-10 bg-transparent"
     );
 
-    return ( 
-        <div className="relative w-full h-full transition-all duration-700 ease-out rounded-xl overflow-hidden">
-            <div 
+    return (
+        <div className="relative w-full h-full transition-all duration-700 ease-out rounded-xl overflow-hidden group">
+            <div
+                ref={overlayRef}
                 className={overlayClass}
                 aria-hidden="true"
             >
                 {getDecoratedText(value, errors)}
             </div>
             <textarea
-                ref={textareaRef}
+                ref={localRef}
                 value={value}
                 onChange={handleInput}
                 onScroll={handleScroll}
@@ -118,31 +127,37 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
                 style={{ background: 'transparent' }}
                 {...props}
             />
-            {checking && <div className="absolute bottom-2 right-2 text-xs text-blue-400 font-medium px-2 py-1 bg-[#1C1C1E] rounded-md border border-blue-500/20 shadow-lg animate-pulse z-20">Vérification...</div>}
+            
+            {checking && (
+                <div className="absolute bottom-4 right-4 text-xs text-blue-400/70 font-medium px-2 py-1 bg-[#1C1C1E]/80 backdrop-blur rounded-md shadow z-20 pointer-events-none">
+                    Vérification...
+                </div>
+            )}
+            
             {errors.length > 0 && (
-                <div className="absolute bottom-2 left-2 z-20 max-w-md">
-                     <div className="bg-[#1C1C1E]/90 backdrop-blur-md border border-red-500/20 rounded-lg p-2 shadow-xl">
-                        <div className="text-[10px] text-gray-400 mb-1 uppercase tracking-wider font-bold px-1">Corrections</div>
-                        <ul className="text-xs space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
-                            {errors.slice(0, 5).map((err, i) => (
-                                <li key={i} className="group flex items-start gap-2 p-1 hover:bg-white/5 rounded transition-colors">
-                                    <span className="text-red-400 shrink-0 mt-0.5">•</span>
-                                    <div className="flex flex-col">
-                                        <span className="text-gray-300">{err.message}</span>
-                                        {err.replacements?.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mt-0.5">
-                                                {err.replacements.slice(0, 3).map((rep, j) => (
-                                                    <button 
-                                                        key={j} 
-                                                        className="px-1.5 py-0.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 rounded text-[10px] transition-colors border border-blue-500/20" 
-                                                        onClick={() => handleSuggestionClick(err, rep.value)}
-                                                    >
-                                                        {rep.value}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                <div className="absolute top-4 right-4 z-20 max-w-sm opacity-50 focus-within:opacity-100 hover:opacity-100 transition-opacity">
+                    <div className="bg-[#1C1C1E]/95 backdrop-blur-xl border border-red-500/20 rounded-xl p-3 shadow-2xl">
+                        <div className="text-[10px] text-gray-400 mb-2 uppercase tracking-wider font-bold px-1">
+                            Corrections ({errors.length})
+                        </div>
+                        <ul className="text-xs space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+                            {errors.slice(0, 8).map((err, i) => (
+                                <li key={i} className="flex flex-col gap-1 p-2 bg-white/5 rounded-lg">
+                                    <span className="text-gray-300 font-medium text-[13px]">{err.message}</span>
+                                    {err.replacements?.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {err.replacements.slice(0, 4).map((rep, j) => (
+                                                <button
+                                                    key={j}
+                                                    title={`Remplacer par "${rep.value}"`}
+                                                    className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-300 hover:text-red-200 rounded text-xs transition-colors border border-red-500/20 cursor-pointer"
+                                                    onClick={() => handleSuggestionClick(err, rep.value)}
+                                                >
+                                                    {rep.value}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </li>
                             ))}
                         </ul>
@@ -151,4 +166,8 @@ export default function LanguageToolHighlightTextarea({ value, onChange, classNa
             )}
         </div>
     );
-}
+});
+
+LanguageToolHighlightTextarea.displayName = "LanguageToolHighlightTextarea";
+
+export default LanguageToolHighlightTextarea;

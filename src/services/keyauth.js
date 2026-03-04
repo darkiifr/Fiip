@@ -9,7 +9,7 @@ const KA_CONFIG = {
     name: import.meta.env.VITE_KEYAUTH_NAME, // Nom de votre application
     ownerid: import.meta.env.VITE_KEYAUTH_OWNERID, // Owner ID
     secret: import.meta.env.VITE_KEYAUTH_SECRET, // Application Secret
-    version: import.meta.env.VITE_KEYAUTH_VERSION, // Version de votre application
+    version: "1.0", // Version fixée à 1.0 pour éviter les conflits KeyAuth
     apiUrl: import.meta.env.VITE_KEYAUTH_APIURL // URL de l'API
 };
 
@@ -224,11 +224,11 @@ class KeyAuthService {
     }
 
     getCurrentSubscriptionName() {
+        if (this.isAuthenticated && this.currentLevel >= 4) return "Developer";
+        if (this.isAuthenticated && this.currentLevel >= 2) return "Pro";
+        if (this.isAuthenticated && this.currentLevel >= 1.5) return "AI Plus";
+        if (this.isAuthenticated && this.currentLevel >= 1) return "Basic";
         if (this.isTrialActive) return "Essai Gratuit";
-        if (this.currentLevel >= 4) return "Developer";
-        if (this.currentLevel >= 2) return "Pro";
-        if (this.currentLevel >= 1.5) return "AI Plus";
-        if (this.currentLevel >= 1) return "Basic";
         return "Free";
     }
 

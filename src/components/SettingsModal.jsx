@@ -26,7 +26,7 @@ import IconMessage from '~icons/mingcute/message-3-fill';
 import IconShieldCheck from '~icons/mingcute/shield-shape-fill';
 import IconShieldAlert from '~icons/mingcute/warning-fill';
 
-export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdateSettings, storageUsage }) {
+export default function SettingsModal({ isOpen, onClose, settings, onUpdateSettings, storageUsage, onSync }) {
     const { t, i18n } = useTranslation();
     const [localSettings, setLocalSettings] = useState(settings);
     const [hasChanges, setHasChanges] = useState(false);
@@ -217,8 +217,11 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
         }
 
         try {
-            const notes = JSON.parse(localStorage.getItem('fiip-notes') || '[]');
-            await keyAuthService.saveUserData({ notes: notes });
+            if (onSync) {
+                await onSync();
+            } else {
+                throw new Error("La fonction de synchronisation n'est pas disponible.");
+            }
             alert(t('settings.sync_success', "Synchronisation effectuée avec succès !"));
             setPendingUpdatesCount(0);
         } catch (error) {
@@ -428,8 +431,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
                                             if (window.confirm("L'application va synchroniser vos données et redémarrer pour appliquer les changements. Voulez-vous continuer ?")) {
                                                  // Force save local first just in case
                                                  if (keyAuthService.isAuthenticated && enabled) {
-                                                     const notes = JSON.parse(localStorage.getItem('fiip-notes') || '[]');
-                                                     await keyAuthService.saveUserData({ notes: notes }); // Sync notes now
+                                                     if (onSync) await onSync(); // Sync notes now
                                                  }
                                                  localStorage.setItem('fiip-settings', JSON.stringify({ ...localSettings, cloudSync: enabled }));
                                                  try {
@@ -468,7 +470,7 @@ export default function SettingsModal({ isOpen, onClose, settings = {}, onUpdate
 
                             <p className="text-[10px] text-gray-400 px-1 pt-2 border-t border-white/5 mt-1 flex flex-col gap-1">
                                 <span>{t('settings.cloud_sync_desc', "Synchronisez toutes vos données en temps réel comme Apple iCloud. Sauvegarde vos notes, votre profil, l'apparence et les paramètres d'IA.")}</span>
-                                <span className="text-blue-400 flex items-center gap-1"><IconCloud className="w-3 h-3" /> Propulsé par Supabase Cloud</span>
+                                <span className="text-blue-400 flex items-center gap-1">Propulsé par Supabase Cloud</span>
                             </p>
                          </div>
                     </div>

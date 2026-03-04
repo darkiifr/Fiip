@@ -588,7 +588,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                     {msg.data.action !== 'delete' && (
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] text-gray-400 hidden sm:inline-block">
-                                                Press <kbd className="font-sans bg-white/10 px-1 rounded text-white">Tab</kbd> to accept
+                                                Press <kbd className="bg-white/10 px-1 rounded text-white">Tab</kbd> to accept
                                             </span>
                                             <span className="text-[10px] font-mono bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">
                                                 {msg.data.lines} {msg.data.action === 'create' ? t('dexter.review.lines_created') : t('dexter.review.lines_added')}

@@ -220,6 +220,11 @@ function App() {
   // Configure Auto Updater
   useEffect(() => {
     const checkAndInstallUpdates = async () => {
+      // Désactiver les mises à jour automatiques en mode développement
+      if (import.meta.env.DEV) {
+        return;
+      }
+      
       // Check if user disabled auto-update
       if (settingsRef.current?.autoUpdate === false) {
         return;
@@ -778,9 +783,9 @@ function App() {
                 <Editor 
                     key={activeNote.id} // Force remount on note switch
                     note={activeNote} 
-                    onUpdate={handleUpdateNote} 
+                    onUpdateNote={handleUpdateNote} 
                     settings={settings}
-                    onShare={() => setIsShareModalOpen(true)}
+                    onOpenShare={() => setIsShareModalOpen(true)}
                 />
             ) : (
                 <div className="flex-1 flex items-center justify-center text-gray-500 flex-col gap-4">
@@ -830,13 +835,17 @@ function App() {
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         note={activeNote}
+        notes={notes}
       />
 
+      {/* 
       <CollaborationView 
         note={activeNote} 
         isOpen={false} // Placeholder for future collab feature
         onClose={() => {}}
+        onImportNote={handleCreateNote}
       />
+      */}
 
       {appLoading.isLoading && (
         <LoadingScreen status={appLoading.status} />

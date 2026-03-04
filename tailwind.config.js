@@ -19,7 +19,8 @@ export default {
                     'sans-serif',
                 ],
                 'sora': ['"Sora"', 'sans-serif'],
-                'dexter': ['"Inter"', 'sans-serif'],
+                'host': ['"Host Grotesk"', 'sans-serif'],
+                'dexter': ['"Host Grotesk"', 'sans-serif'],
                 'dexter-mono': ['"JetBrains Mono"', 'monospace'],
             },
             colors: {

@@ -312,7 +312,25 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
     };
 
     const handleSave = () => {
-        canvasRef.current.toBlob((blob) => {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        
+        // Créer un canvas temporaire pour fusionner le fond et le dessin
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        if (!isOverlay && !initialImage) {
+            // Dessiner un vrai fond transparent propre
+            tempCtx.fillStyle = '#1e1e1e'; // Mettre la couleur par défaut ? Non on veut que ça soit transparent.
+            // On le laisse transparent pour que la note l'affiche bien dans la pièce jointe sans fond noir moche
+        }
+        
+        // Dessiner le contenu original par dessus
+        tempCtx.drawImage(canvas, 0, 0);
+
+        tempCanvas.toBlob((blob) => {
             if (onSave) onSave(blob);
         }, 'image/png');
     };

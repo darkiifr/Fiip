@@ -10,12 +10,11 @@ import IconShared from '~icons/mingcute/group-3-fill';
 import IconTrash from '~icons/mingcute/delete-2-fill';
 import IconSettings from '~icons/mingcute/settings-3-fill';
 import IconBot from '~icons/mingcute/robot-fill';
-import IconSync from '~icons/mingcute/refresh-3-fill';
-import IconCheck from '~icons/mingcute/check-circle-fill';
-import IconCloud from '~icons/mingcute/cloud-line';
 import IconUser from '~icons/mingcute/user-4-fill';
 import IconLogout from '~icons/mingcute/exit-fill';
 import IconPanelLeft from '~icons/mingcute/menu-fill';
+
+import { authService } from '../services/supabase';
 
 export default function Sidebar({ 
     onOpenSettings, 
@@ -23,29 +22,13 @@ export default function Sidebar({
     onOpenAuth, 
     settings,
     activeNav = 'home',
-    onNavigate,
-    isSyncing = false,
-    onSync
+    onNavigate
 }) {
     const { t } = useTranslation();
     const appWindow = getCurrentWindow();
     const [isCollapsed, setIsCollapsed] = useState(false);
-    
-    // Sync Feedback
-    const [syncSuccess, setSyncSuccess] = useState(false);
-    const prevSyncing = React.useRef(isSyncing);
-
-    React.useEffect(() => {
-        if (prevSyncing.current && !isSyncing) {
-            setSyncSuccess(true);
-            const timer = setTimeout(() => setSyncSuccess(false), 2000);
-            return () => clearTimeout(timer);
-        }
-        prevSyncing.current = isSyncing;
-    }, [isSyncing]);
-
-    // Local Profile Sync
     const [localProfile, setLocalProfile] = useState(null);
+    const [supabaseUser, setSupabaseUser] = useState(null);
 
     React.useEffect(() => {
         const loadProfile = () => {
@@ -58,6 +41,19 @@ export default function Sidebar({
         };
         loadProfile();
         window.addEventListener('storage', loadProfile);
+        
+        const fetchUser = async () => {
+            try {
+                const user = await authService.getUser();
+                if (user) {
+                    setSupabaseUser(user);
+                }
+            } catch (e) {
+                console.error('Failed to fetch supabase user', e);
+            }
+        };
+        fetchUser();
+
         return () => window.removeEventListener('storage', loadProfile);
     }, []);
 
@@ -91,16 +87,16 @@ export default function Sidebar({
                 <button 
                     onClick={onOpenAuth} 
                     className={`flex items-center ${isCollapsed ? 'justify-center w-10 h-10 p-0' : 'gap-3 p-2 w-full text-left'} rounded-lg hover:bg-white/5 transition-all duration-[150ms] ease-out group`}
-                    title={isCollapsed ? (keyAuthService.isAuthenticated ? (localProfile?.nickname || keyAuthService.userData?.username) : 'Guest') : ''}
+                    title={isCollapsed ? (keyAuthService.isAuthenticated ? (supabaseUser?.user_metadata?.full_name || supabaseUser?.user_metadata?.name || localProfile?.nickname || keyAuthService.userData?.username) : 'Guest') : ''}
                 >
                     <div className="relative shrink-0">
-                        {keyAuthService.isAuthenticated && keyAuthService.userData?.username ? (
+                        {keyAuthService.isAuthenticated && (keyAuthService.userData?.username || supabaseUser) ? (
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-sm group-hover:shadow-blue-500/20 transition-all duration-[250ms]">
-                                 {localProfile?.avatar || settings?.avatarUrl ? (
-                                     <img src={localProfile?.avatar || settings?.avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                 {localProfile?.avatar || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl ? (
+                                     <img src={localProfile?.avatar || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
                                  ) : (
                                     <div className="w-full h-full rounded-full bg-[#2C2C2E] flex items-center justify-center text-[10px] font-bold text-white uppercase">
-                                        {keyAuthService.userData.username.substring(0, 2)}
+                                        {((supabaseUser?.user_metadata?.full_name || supabaseUser?.user_metadata?.name || localProfile?.nickname || keyAuthService.userData?.username) || 'U').substring(0, 2)}
                                     </div>
                                  )}
                              </div>
@@ -115,7 +111,7 @@ export default function Sidebar({
                     {!isCollapsed && (
                         <div className="flex-1 min-w-0 transition-opacity duration-200">
                             <div className="text-[13px] font-semibold text-white leading-tight truncate">
-                                {keyAuthService.isAuthenticated ? (localProfile?.nickname || keyAuthService.userData?.username) : 'Guest'}
+                                {keyAuthService.isAuthenticated ? (supabaseUser?.user_metadata?.full_name || supabaseUser?.user_metadata?.name || localProfile?.nickname || keyAuthService.userData?.username) : 'Guest'}
                             </div>
                             <div className="text-[11px] text-gray-400 truncate">
                                  {keyAuthService.isAuthenticated ? (keyAuthService.getCurrentSubscriptionName() || 'Member') : 'Not connected'}
@@ -175,25 +171,6 @@ export default function Sidebar({
 
             {/* Footer Actions */}
             <div className={`p-2 border-t border-white/10 space-y-1 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
-                {/* Cloud Sync Button */}
-                {keyAuthService.isAuthenticated && settings?.cloudSync !== false && (
-                    <button
-                        onClick={onSync}
-                        title={isCollapsed ? (isSyncing ? "Synchronisation en cours..." : "Synchroniser") : ''}
-                        disabled={isSyncing}
-                        className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-[12px] px-3'} py-1.5 rounded-md text-[13px] font-medium text-gray-300 hover:bg-white/5 hover:text-white transition-all duration-[150ms] ease-out h-[32px]`}
-                    >
-                        {isSyncing ? (
-                            <IconSync className="w-4 h-4 opacity-80 shrink-0 animate-spin text-blue-400" />
-                        ) : syncSuccess ? (
-                            <IconCheck className="w-4 h-4 opacity-80 shrink-0 text-green-400" />
-                        ) : (
-                            <IconCloud className="w-4 h-4 opacity-80 shrink-0" />
-                        )}
-                        {!isCollapsed && <span className="truncate">{isSyncing ? "Synchronisation..." : syncSuccess ? "Synchronisé" : "Synchroniser"}</span>}
-                    </button>
-                )}
-
                 <button
                     onClick={onOpenSettings}
                     title={isCollapsed ? (t('sidebar.settings') || "Settings") : ''}

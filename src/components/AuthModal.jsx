@@ -80,23 +80,37 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             
             if (res.success) {
                 // 2. Update Supabase
-                const { error: updateError } = await authService.updateSubscription(res.level, keyToVerify);
-                
-                if (updateError) {
-                    setError("Licence valide mais erreur de sauvegarde: " + updateError.message);
+                if (user) {
+                    const { data, error: updateError } = await authService.updateSubscription(res.level, keyToVerify);
+                    
+                    if (updateError) {
+                        setError(t('license.error_save', "Licence valide mais erreur de sauvegarde: ") + updateError.message);
+                    } else {
+                        setSuccess(t('auth.success_upgrade', "Licence activée et associée au compte avec succès !"));
+                        setUpgradeKey('');
+                        setShowAddLicense(false);
+                        keyAuthService.setLocalLevel(res.level);
+                        keyAuthService.licenseKey = keyToVerify;
+                        if (data && data.user) {
+                            setUser(data.user);
+                        } else {
+                            await checkUser(); // Refresh UI fallback
+                        }
+                    }
                 } else {
-                    setSuccess(t('auth.success_upgrade', "Licence activée et associée au compte avec succès !"));
+                    localStorage.setItem('saved_license_key', keyToVerify);
+                    setSuccess(t('auth.success_upgrade', "Licence activée localement avec succès !"));
                     setUpgradeKey('');
                     setShowAddLicense(false);
                     keyAuthService.setLocalLevel(res.level);
-                    await checkUser(); // Refresh UI
+                    keyAuthService.licenseKey = keyToVerify;
                 }
             } else {
-                setError(res.message || "La clé de licence est invalide ou expirée.");
+                setError(res.message || t('license.error_invalid', "La clé de licence est invalide ou expirée."));
             }
         } catch (e) {
             console.error(e);
-            setError("Erreur lors de l'ajout de la licence. Vérifiez votre connexion.");
+            setError(t('license.error_network', "Erreur lors de l'ajout de la licence. Vérifiez votre connexion."));
         } finally {
             setLoading(false);
         }
@@ -137,18 +151,31 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     };
 
     const handleLogout = async () => {
-        await authService.signOut();
-        keyAuthService.isAuthenticated = false;
-        keyAuthService.currentLevel = 0;
-        setMode('login');
-        setUser(null);
-        setFormData({ email: '', password: '', username: '' });
-        if (onLoginSuccess) onLoginSuccess();
+        try {
+            setLoading(true);
+            await authService.signOut();
+        } catch (e) {
+            console.error("Logout error", e);
+        } finally {
+            keyAuthService.isAuthenticated = false;
+            keyAuthService.currentLevel = 0;
+            keyAuthService.licenseKey = null;
+            localStorage.removeItem('saved_license_key');
+            
+            setMode('login');
+            setUser(null);
+            setFormData({ email: '', password: '', username: '' });
+            setLoading(false);
+            // Optionally remove or keep onLoginSuccess if we decide it's a general onClose trigger
+            // if (onLoginSuccess) onLoginSuccess();
+        }
     };
 
-    const currentLevel = user?.user_metadata?.subscription_level || 0;
-    const licenseKey = user?.user_metadata?.license_key || "Aucune";
+    const currentLevel = user?.user_metadata?.subscription_level || keyAuthService.currentLevel || 0;
+    const licenseKey = user?.user_metadata?.license_key || keyAuthService.licenseKey || "Aucune";
     const username = user?.user_metadata?.username || user?.email?.split('@')[0] || "Utilisateur";
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md font-sora animate-in fade-in duration-300">

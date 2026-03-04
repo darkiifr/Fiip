@@ -157,7 +157,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                             src={src} 
                             alt={att.name} 
                             onError={handleLoadError}
-                            className="w-full object-cover transition-opacity duration-[250ms] ease-in-out"
+                            className={`w-full transition-opacity duration-[250ms] ease-in-out ${att.name?.startsWith('drawing-') ? 'object-contain' : 'object-cover'}`}
                             style={{ maxHeight: '600px', opacity: isLoading ? 0 : 1 }}
                         />
                     ) : (
