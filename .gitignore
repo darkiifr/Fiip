@@ -42,3 +42,9 @@ keys.txt
 
 
 Untitled-1.ipynb
+
+PublicLinksite/node_modules/
+PublicLinksite/dist/
+PublicLinksite/.env
+
+supabase/

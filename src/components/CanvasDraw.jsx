@@ -313,7 +313,7 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
 
     const handleSave = () => {
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
+        // const ctx = canvas.getContext('2d');
         
         // Créer un canvas temporaire pour fusionner le fond et le dessin
         const tempCanvas = document.createElement('canvas');

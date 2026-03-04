@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
 import { Icon as IconifyIcon } from '@iconify/react';
 
+import { dataService } from '../services/supabase';
+
 const SKILL_ICONS = [
     'react', 'python', 'javascript', 'typescript', 'html', 'css', 'nodejs', 'php', 'rust', 'go', 'java', 'c', 'cpp', 'csharp', 'ruby', 'docker', 'linux', 'git', 'github', 'mysql', 'postgresql', 'mongodb', 'firebase', 'aws', 'azure', 'figma'
 ];
@@ -22,41 +24,9 @@ export default function UserProfileModal({ isOpen, onClose }) {
   useEffect(() => {
     if (isOpen) {
       const loadProfile = async () => {
-          let profile = null;
-          
-          // Try loading from KeyAuth first
-          if (keyAuthService.isAuthenticated) {
-              const cloudData = await keyAuthService.loadUserData();
-              if (cloudData.success && cloudData.data) {
-                  try {
-                      const rawData = typeof cloudData.data === 'string' ? JSON.parse(cloudData.data) : cloudData.data;
-                      // Handle nested structure vs legacy
-                      if (rawData.profile) {
-                          profile = rawData.profile;
-                      } else {
-                          // Check if it looks like a profile (has fields we expect)
-                          if (rawData.nickname || rawData.avatar) {
-                              profile = rawData;
-                          }
-                      }
-                  } catch (e) { console.error("Parse error", e); }
-              }
-          }
-
-          // Fallback to local storage
-          if (!profile) {
-              const saved = localStorage.getItem('fiip_public_profile');
-              if (saved) profile = JSON.parse(saved);
-          }
-
-          // Initialize defaults
-          if (profile) {
-            setPublicProfile(prev => ({ ...prev, ...profile }));
-          } else if (keyAuthService.isAuthenticated && keyAuthService.userData) {
-             setPublicProfile(prev => ({
-                ...prev,
-                nickname: keyAuthService.userData.username || ''
-             }));
+          const { data } = await dataService.fetchProfile();
+           if (data) {
+              setPublicProfile(prev => ({ ...prev, ...data }));
           }
       };
       loadProfile();
@@ -64,12 +34,14 @@ export default function UserProfileModal({ isOpen, onClose }) {
   }, [isOpen]);
 
   const handleSave = async () => {
-    // Save Local
+    // Save Local for Sidebar updates
     localStorage.setItem('fiip_public_profile', JSON.stringify(publicProfile));
-    
+
     // Save Cloud
-    if (keyAuthService.isAuthenticated) {
-        await keyAuthService.saveMergedUserData({ profile: publicProfile });
+    try {
+        await dataService.saveProfile(publicProfile);
+    } catch (e) {
+        console.error("Save profile error", e);
     }
     
     onClose();

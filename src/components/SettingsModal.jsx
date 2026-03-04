@@ -210,25 +210,6 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
         }
     };
 
-    const handleManualSync = async () => {
-        if (!keyAuthService.isAuthenticated) {
-            alert(t('settings.sync_auth_required', "Vous devez être connecté pour synchroniser."));
-            return;
-        }
-
-        try {
-            if (onSync) {
-                await onSync();
-            } else {
-                throw new Error("La fonction de synchronisation n'est pas disponible.");
-            }
-            alert(t('settings.sync_success', "Synchronisation effectuée avec succès !"));
-            setPendingUpdatesCount(0);
-        } catch (error) {
-            console.error('Sync failed:', error);
-            alert(t('settings.sync_failed', "Échec de la synchronisation : ") + error.message);
-        }
-    };
 
     if (!isOpen) return null;
 
@@ -452,13 +433,38 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
 
                             {localSettings.cloudSync !== false && (
                                 <div className="mt-2 pt-2 border-t border-white/5 space-y-2 animate-in fade-in slide-in-from-top-1">
-                                    <button 
-                                        onClick={handleManualSync}
-                                        className="w-full py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 rounded text-xs font-medium flex items-center justify-center gap-2 transition-colors mb-2"
-                                    >
-                                        <IconRefresh className="w-3.5 h-3.5" />
-                                        {t('settings.manual_sync', "Synchroniser maintenant avec Supabase")}
-                                    </button>
+                                    <div className="bg-[#1C1C1E]/50 border border-white/5 rounded-lg p-3 space-y-2">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-gray-400">{t('settings.sync_status', "État de la synchronisation")}</span>
+                                            <span className="text-green-400 font-medium flex items-center gap-1.5">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                                {t('settings.status_active', "Active")}
+                                            </span>
+                                        </div>
+                                        
+                                        {storageUsage ? (
+                                            <div>
+                                                <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+                                                    <span>{t('settings.storage_used', "Espace utilisé")}</span>
+                                                    <span>{Math.round(storageUsage.percent || 0)}%</span>
+                                                </div>
+                                                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className={`h-full transition-all duration-500 ${storageUsage.percent > 90 ? 'bg-red-500' : 'bg-blue-500'}`} 
+                                                        style={{ width: `${storageUsage.percent || 0}%` }}
+                                                    />
+                                                </div>
+                                                <div className="text-[10px] text-gray-400 mt-1 text-right font-mono">
+                                                    {((storageUsage.used || 0) / 1024 / 1024).toFixed(1)}MB / {((storageUsage.limit || 0) / 1024 / 1024).toFixed(0)}MB
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-[10px] text-gray-500 animate-pulse">
+                                                {t('settings.calculating_storage', "Calcul de l'espace...")}
+                                            </div>
+                                        )}
+                                    </div>
+
                                     {pendingUpdatesCount > 0 && (
                                         <div className="px-2 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded flex items-center gap-2 text-yellow-200 text-xs mb-2">
                                             <IconRefresh className="w-3 h-3 animate-spin" />

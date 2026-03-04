@@ -6,13 +6,14 @@ import { Lock } from 'lucide-react';
 import { generateText } from '../services/ai';
 import AudioPlayer from './AudioPlayer';
 import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
-import { writeFile, mkdir, exists, readFile } from '@tauri-apps/plugin-fs';
+import { writeFile, readFile } from '@tauri-apps/plugin-fs';
 import { save } from '@tauri-apps/plugin-dialog';
-import { appDataDir, join } from '@tauri-apps/api/path';
+// import { appDataDir, join } from '@tauri-apps/api/path';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
 import { Icon as IconifyIcon } from '@iconify/react';
+import { dataService, authService } from '../services/supabase';
 
 // Icons Import (Pim's Edition)
 import IconSparkles from '~icons/mingcute/sparkles-fill';
@@ -40,16 +41,19 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
     const [isError, setIsError] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
+
     useEffect(() => {
         let active = true;
         const loadSrc = async () => {
             setIsLoading(true);
             setIsError(false);
             try {
-                if (att.data && (att.data.startsWith('data:') || att.data.startsWith('blob:'))) {
+                if (!att.data) return;
+
+                if (att.data.startsWith('data:') || att.data.startsWith('blob:') || att.data.startsWith('http://') || att.data.startsWith('https://')) {
                     if (active) setSrc(att.data);
                 } else {
-                    // Try standard convertFileSrc first
+                    // Try standard convertFileSrc first for local files
                     const assetUrl = convertFileSrc(att.data);
                     if (active) setSrc(assetUrl);
                 }
@@ -480,29 +484,39 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
 
     // --- Media Handlers ---
 
-    const saveAttachmentToDisk = async (file) => {
-        try {
-            const appDataDirPath = await appDataDir();
-            const attachmentsDir = await join(appDataDirPath, 'attachments');
-            
-            // Check if directory exists
-            const dirExists = await exists(attachmentsDir);
-            if (!dirExists) {
-                await mkdir(attachmentsDir, { recursive: true });
-            }
+    const saveAttachmentToCloud = async (file) => {
+        const user = await authService.getUser();
+        if (!user) throw new Error("Authentication required");
 
-            const ext = file.name.split('.').pop();
-            const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`;
-            const filePath = await join(attachmentsDir, fileName);
-
-            const buffer = await file.arrayBuffer();
-            await writeFile(filePath, new Uint8Array(buffer));
-
-            return filePath;
-        } catch (error) {
-            console.error("Failed to save attachment to disk:", error);
+        // const ext = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        // Path matches RLS: attachments/userId/...
+        // But dataService.uploadAttachment puts in 'attachments' bucket.
+        // It takes 'path' and uploads to that path.
+        // My previous attempt to modify supabase.js failed to clean up `uploadAttachment`.
+        // So I assume `dataService.uploadAttachment(file, path)` is available and works as per my `create_file` (if it worked in clean slate).
+        
+        // I need to know exactly how `dataService.uploadAttachment` is implemented now.
+        // I successfully created `supabase.js` via `delete` then `create`.
+        // It implemented: `const path = noteId ? ...` NO. It implemented:
+        /*
+        async uploadAttachment(file, path) {
+            // ... check usage ...
+            const { data, error } = await supabase.storage.from('attachments').upload(path, file, ...);
+            ...
+        }
+        */
+        // So I must provide full path inside bucket.
+        // And consistent with RLS policy: `(storage.foldername(name))[1]` = auth.uid()
+        // So path MUST start with `userId/`.
+        
+        const path = `${user.id}/${note.id}/${fileName}`;
+        const { data, error } = await dataService.uploadAttachment(file, path);
+        if (error) {
+            if (error.message === "STORAGE_LIMIT_EXCEEDED") throw new Error("Quota exceeded");
             throw error;
         }
+        return data.publicUrl;
     };
 
     const handleSaveDrawing = async (blob) => {
@@ -510,9 +524,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             const fileName = `drawing-${Date.now()}.png`;
             const file = new File([blob], fileName, { type: 'image/png' });
             
-            const filePath = await saveAttachmentToDisk(file);
-            
-            // Create the new attachment object
+            const filePath = await saveAttachmentToCloud(file);
             const newAttachment = {
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                 type: 'image',
@@ -542,7 +554,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
 
     const handleAnnotate = async (att) => {
         let src = att.data;
-        if (!src.startsWith('data:') && !src.startsWith('blob:')) {
+        if (!src.startsWith('data:') && !src.startsWith('blob:') && !src.startsWith('http')) {
              src = convertFileSrc(src);
         }
         setDrawingSession({ type: 'image', data: src });
@@ -552,17 +564,8 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
         if (!file) return;
         
         try {
-            // Save to disk to avoid localStorage quota and performance issues
-            // Check limits first
-            if (checkStorageLimit) {
-                const canAdd = await checkStorageLimit(file.size);
-                if (!canAdd) {
-                    alert(t('storage.limit_exceeded', "Espace de stockage insuffisant pour votre abonnement."));
-                    return;
-                }
-            }
-
-            const filePath = await saveAttachmentToDisk(file);
+            // Upload to Supabase
+            const filePath = await saveAttachmentToCloud(file);
             
             if (file.type.startsWith('image/')) {
                 addAttachment('image', filePath, file.name, file.type);
@@ -1006,7 +1009,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 ref={editorContainerRef}
                 className="flex-1 overflow-y-auto animate-fade-in scroll-pt-4 relative custom-scrollbar"
             >
-                <div className="w-full max-w-5xl mx-0 px-6 py-5 lg:px-10 lg:py-8 pb-20"> {/* Responsive Padding: 20px 24px (tablet) -> 32px 40px (desktop) */}
+                <div className="w-full mx-auto px-6 py-5 lg:px-10 lg:py-8 pb-20"> {/* Responsive Padding: 20px 24px (tablet) -> 32px 40px (desktop) */}
                     {/* Metadata (Date) */}
                     <div className="text-[11px] text-gray-500 mb-6 font-medium tracking-wide">
                         {(() => {

@@ -13,17 +13,17 @@ import ShareModal from "./components/ShareModal";
 import LoadingScreen from "./components/LoadingScreen";
 import Dexter from "./components/Dexter";
 import Titlebar from "./components/Titlebar";
-import CollaborationView from "./components/CollaborationView";
+// import CollaborationView from "./components/CollaborationView";
 import "./App.css";
 
 import { type } from '@tauri-apps/plugin-os';
-import { readFile } from '@tauri-apps/plugin-fs';
+// import { readFile } from '@tauri-apps/plugin-fs';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { useTranslation } from 'react-i18next';
 import IconFileText from '~icons/mingcute/file-fill';
 import { keyAuthService } from "./services/keyauth";
-import { authService, storageService, getStorageLimit } from "./services/supabase";
+import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
 import { soundManager } from "./services/soundManager";
 import { calculateTotalUsage } from "./services/fileManager";
 
@@ -38,7 +38,7 @@ import { calculateTotalUsage } from "./services/fileManager";
 //    return window.btoa(binary);
 // }
 
-const LICENSE_URL = "https://votre-site-de-licence.com"; // À remplacer par le vrai lien
+// const LICENSE_URL = "https://votre-site-de-licence.com"; // À remplacer par le vrai lien
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -92,6 +92,7 @@ function App() {
   
   // Refs for stable access in callbacks/listeners
   const notesRef = useRef(notes);
+  const saveTimeoutRef = useRef(null);
   const settingsRef = useRef(settings);
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
@@ -100,7 +101,15 @@ function App() {
   // Update storage info whenever notes change or modal opens
   useEffect(() => {
       const updateStorage = async () => {
-          const used = await calculateTotalUsage(notes);
+          let used = 0;
+          // Only fetch real cloud usage if settings are open to save API calls
+          if (isSettingsOpen) {
+             used = await dataService.getUsage();
+          } else {
+             // Otherwise use local estimation
+             used = await calculateTotalUsage(notes);
+          }
+          
           const user = await authService.getUser();
           const level = user?.user_metadata?.subscription_level || 0;
           const limit = getStorageLimit(level);
@@ -188,10 +197,8 @@ function App() {
                         }
 
                         // Force sync immediately
-                        if (typeof performCloudSyncDown === 'function') {
-                            await performCloudSyncDown(false);
-                        } else {
-                            console.warn("performCloudSyncDown not available yet");
+                        if (typeof loadDataFromSupabase === 'function') {
+                            await loadDataFromSupabase();
                         }
                     }
                 }
@@ -327,7 +334,7 @@ function App() {
             if (keyAuthService.isAuthenticated) {
                  setAppLoading({ isLoading: true, status: "Synchronisation des notes..." });
                  // Auto-sync down silently on startup
-                 await performCloudSyncDown(true);
+                 await loadDataFromSupabase();
             }
 
             setAppLoading({ isLoading: true, status: "Prêt" });
@@ -345,221 +352,100 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Cloud Sync Logic
-  // Using Refs to ensure latest state access even in async callbacks/listeners
-  const handleCloudSync = async (force = false) => {
-      const currentSettings = settingsRef.current;
-      const currentNotes = notesRef.current;
+  // --- Supabase Data Sync & Realtime ---
+  const loadDataFromSupabase = async () => {
+    const user = await authService.getUser();
+    if (!user) return;
 
-      // Security check: Never sync if disabled in settings
-      if (currentSettings.cloudSync === false && !force) {
-          console.log("Cloud sync disabled by user.");
-          return;
-      }
-
-      // Check portability (don't sync if portable)
-      try {
-          const isPortable = await invoke('is_portable');
-          if (isPortable) {
-              console.log("Portable mode: Sync disabled.");
-              return;
-          }
-      } catch { /* ignore */ }
+    setIsSyncing(true);
+    try {
+      // 1. Fetch Notes with Migration Logic
+      const { data: remoteNotes, error: notesError } = await dataService.fetchNotes();
       
-      // Prevent sync for Trial users (Free Trial has no cloud access)
-      if (keyAuthService.isTrialActive) {
-          console.log("Sync disabled for Trial users.");
-          return;
-      }
-
-      // Only sync if user is logged in with account
-      const user = await authService.getUser();
-      if (!user) return;
-
-      setIsSyncing(true);
-      try {
-          const settingsToSync = { ...currentSettings };
-
-          // Remove strictly excluded hardware settings
-          delete settingsToSync.audioInputId;
-          delete settingsToSync.audioOutputId;
-
-          settingsToSync.language = i18n.language; 
-          
-          const updates = {
-              settings: settingsToSync
-          };
-          
-          // Sync Notes always when cloudSync is true
-          if (currentSettings.cloudSync !== false) {
-              // Deep copy notes to avoid mutating state
-              const hydratedNotes = JSON.parse(JSON.stringify(currentNotes));
-
-              // Process attachments: Upload local files to cloud
-              for (const note of hydratedNotes) {
-                  if (note.attachments && Array.isArray(note.attachments)) {
-                      const processedAttachments = [];
+      if (!notesError && remoteNotes) {
+          const localNotes = notesRef.current;
+          // Check for migration needed: Local has data, Remote is empty
+          if (remoteNotes.length === 0 && localNotes && localNotes.length > 0) {
+              // Check if only default note
+              const isDefault = localNotes.length === 1 && localNotes[0].id === '1';
+              
+              if (!isDefault) {
+                  // Migrate local notes to cloud
+                  console.log("Migrating local notes to Supabase...");
+                  for (const note of localNotes) {
+                      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id);
+                      let noteToSave = { ...note };
                       
-                      for (const att of note.attachments) {
-                          // Check if it's a local file path (string not starting with http/data/blob)
-                          // OR if it's a large Base64 string (> 100KB)
-                          const isLocalFile = att.data && typeof att.data === 'string' && !att.data.startsWith('data:') && !att.data.startsWith('http') && !att.data.startsWith('blob:');
-                          const isLargeBase64 = att.data && typeof att.data === 'string' && att.data.startsWith('data:') && att.data.length > 100000;
-
-                          if (isLocalFile || isLargeBase64) {
-                               try {
-                                   let file;
-                                   if (isLocalFile) {
-                                       // Verify file exists and read it
-                                       const content = await readFile(att.data);
-                                       // Prepare file object
-                                       const mime = att.mimeType || 'application/octet-stream';
-                                       const blob = new Blob([content], { type: mime });
-                                       file = new File([blob], att.name, { type: mime });
-                                   } else {
-                                       // Convert Base64 (Data URI) to Blob
-                                       const fetchRes = await fetch(att.data);
-                                       const blob = await fetchRes.blob();
-                                       // Ensure filename has extension
-                                       let name = att.name;
-                                       if (!name.includes('.')) {
-                                           const ext = blob.type.split('/')[1] || 'bin';
-                                           name = `${name}.${ext}`;
-                                       }
-                                       file = new File([blob], name, { type: blob.type });
-                                   }
-                                   
-                                   // Upload to Supabase Storage
-                                   const uploadRes = await storageService.uploadFile(user.id, file, `attachments/${Date.now()}_${file.name}`);
-                                   const publicUrl = storageService.getPublicUrl(user.id, uploadRes.path);
-                                   
-                                   if (publicUrl) {
-                                       processedAttachments.push({
-                                           ...att,
-                                           data: publicUrl,
-                                           // Keep mimeType and type
-                                       });
-                                   } else {
-                                       console.warn("Upload failed for " + att.name);
-                                       processedAttachments.push({ ...att, syncError: "Upload failed" });
-                                   }
-                               } catch (e) {
-                                   console.error("Sync attachment error", e);
-                                   if (e.message === "STORAGE_LIMIT_EXCEEDED") {
-                                        alert(t('storage.limit_exceeded', "Limite de stockage atteinte. Veuillez mettre à niveau votre licence."));
-                                        await open(LICENSE_URL);
-                                        return; // Stop sync
-                                   }
-                                   processedAttachments.push({ ...att, syncError: "File processing error" });
-                               }
-                          } else {
-                              // Already Cloud URL or small Data URI
-                              processedAttachments.push(att);
-                          }
+                      if (!isValidUUID) {
+                          noteToSave.id = crypto.randomUUID();
                       }
-                      note.attachments = processedAttachments;
+                      
+                      await dataService.saveNote(noteToSave);
                   }
+                  // Re-fetch after migration
+                  const { data: migratedNotes, error: fetchErr } = await dataService.fetchNotes();
+                  if (!fetchErr && migratedNotes) setNotes(migratedNotes);
               }
-              updates.notes = hydratedNotes;
+          } else if (remoteNotes.length > 0) {
+              setNotes(remoteNotes);
           }
-          
-          // Upload data.json to Supabase
-          const blob = new Blob([JSON.stringify(updates)], { type: 'application/json' });
-          const file = new File([blob], 'data.json', { type: 'application/json' });
-          await storageService.uploadFile(user.id, file, 'data.json');
-
-      } catch (err) {
-          console.error("Cloud sync failed:", err);
-          if (err.message === "STORAGE_LIMIT_EXCEEDED") {
-              alert(t('storage.limit_exceeded', "Limite de stockage atteinte. Veuillez mettre à niveau votre licence."));
-              await open(LICENSE_URL);
-          }
-      } finally {
-          setIsSyncing(false);
       }
+
+      // 2. Fetch Settings
+      const { data: remoteSettings, error: settingsError } = await dataService.fetchSettings();
+      if (!settingsError && remoteSettings && Object.keys(remoteSettings).length > 0) {
+         setSettings(prev => ({ ...prev, ...remoteSettings }));
+         // Apply language if changed
+         if (remoteSettings.language && remoteSettings.language !== i18n.language) {
+             i18n.changeLanguage(remoteSettings.language);
+         }
+      }
+
+      console.log("Supabase data loaded successfully");
+    } catch (e) {
+      console.error("Error loading data from Supabase:", e);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
-  const performCloudSyncDown = async (silent = false) => {
-      // Prevent sync for Trial users (Free Trial has no cloud access)
-      if (keyAuthService.isTrialActive) {
-          console.log("Cloud sync download disabled for Trial users.");
-          return;
-      }
-      
-      const currentSettings = settingsRef.current;
-
-      // Only sync if enabled
-      if (currentSettings.cloudSync === false) return;
-
+  useEffect(() => {
+    let subscription;
+    const setupRealtime = async () => {
       const user = await authService.getUser();
       if (!user) return;
 
-      setIsSyncing(true);
-      try {
-          // Try to load data from Supabase
-          try {
-              const jsonText = await storageService.downloadFile(user.id, 'data.json');
-              const data = JSON.parse(jsonText);
-              
-              if (data) {
-                  const syncNotesEnabled = true; // Always sync notes for iCloud-style
-                  
-                  if (syncNotesEnabled && data.notes && Array.isArray(data.notes)) {
-                      const cloudNotes = data.notes;
-                      if (cloudNotes.length > 0) {
-                          setNotes(prev => {
-                              const newNotes = [...prev];
-                              cloudNotes.forEach(cNote => {
-                                  const idx = newNotes.findIndex(n => n.id === cNote.id);
-                                  if (idx === -1) {
-                                      newNotes.push(cNote);
-                                  } else {
-                                      // Merge based on updatedAt. Robust date comparison
-                                      const cloudTime = new Date(cNote.updatedAt || 0).getTime();
-                                      const localTime = new Date(newNotes[idx].updatedAt || 0).getTime();
-                                      
-                                      if (cloudTime > localTime) {
-                                          newNotes[idx] = cNote;
-                                      }
-                                  }
-                              });
-                              return newNotes;
-                          });
-                      }
-                  }
-                  
-                  // Sync Settings (all-or-nothing approach)
-                  if (data.settings) {
-                      const newSettings = { ...currentSettings, ...data.settings };
-                      // Ensure local cloudSync preference isn't accidentally overridden if it was false
-                      if (currentSettings.cloudSync === false) {
-                          newSettings.cloudSync = false;
-                      }
-                      setSettings(newSettings);
-                      localStorage.setItem('fiip-settings', JSON.stringify(newSettings));
-                      if (newSettings.language && newSettings.language !== i18n.language) {
-                          i18n.changeLanguage(newSettings.language);
-                      }
-                  }
-              }
-              
-              if (!silent) {
-                  console.log("Cloud sync downward complete");
-              }
-          } catch (e) {
-              console.warn("No cloud data found or failed to parse", e);
-              if (!silent) handleCloudSync(true); // First sync up
+      subscription = dataService.subscribeToNotes((payload) => {
+          console.log('Realtime change:', payload);
+          if (payload.eventType === 'INSERT') {
+             setNotes(prev => {
+                const exists = prev.find(n => n.id === payload.new.id);
+                if (exists) return prev;
+                return [payload.new, ...prev];
+             });
+          } else if (payload.eventType === 'UPDATE') {
+             setNotes(prev => prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } : n));
+          } else if (payload.eventType === 'DELETE') {
+             setNotes(prev => prev.filter(n => n.id !== payload.old.id));
           }
-      } catch (err) {
-          console.error("Cloud sync downward failed:", err);
-      } finally {
-          setIsSyncing(false);
-      }
-  };
+      });
+    };
+    setupRealtime();
+
+    return () => {
+        if (subscription) supabase.removeChannel(subscription);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyAuthService.isAuthenticated]); // Re-run when auth changes
+
+  // Keep local storage in sync
+  useEffect(() => {
+      if (notes) localStorage.setItem("fiip-notes", JSON.stringify(notes));
+  }, [notes]);
 
   const handleLoginSuccess = async () => {
       setIsAuthModalOpen(false);
-      await performCloudSyncDown(false);
+      await loadDataFromSupabase();
   };
 
   // Detect OS for default settings
@@ -617,18 +503,35 @@ function App() {
       return () => { if (unlisten) unlisten(); };
   }, [settings.cloudSync]);
 
-  // Persist Notes & Cloud Sync
+  // Persist Settings
   useEffect(() => {
-    localStorage.setItem("fiip-notes", JSON.stringify(notes));
-    // Trigger Cloud Sync (debounced)
-    if (settings.cloudSync) {
-        const timeoutId = setTimeout(() => {
-            handleCloudSync();
-        }, 2000); // Reduced to 2s for faster sync
-        return () => clearTimeout(timeoutId);
+    localStorage.setItem("fiip-settings", JSON.stringify(settings));
+    
+    // Apply Settings Effects locally
+    document.documentElement.classList.add('dark'); // Force dark
+    if (settings.largeText) document.documentElement.classList.add('text-lg');
+    else document.documentElement.classList.remove('text-lg');
+    
+    const effect = settings.windowEffect || 'none';
+    document.documentElement.classList.remove('effect-none', 'effect-mica', 'effect-acrylic', 'effect-blur');
+    document.documentElement.classList.add(`effect-${effect}`);
+    
+    if (effect === 'none') {
+        document.body.style.backgroundColor = '#1C1C1E';
+    } else {
+        document.body.style.backgroundColor = 'transparent';
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes, settings]); // Re-run when notes OR settings change
+    
+    invoke('set_window_effect', { effect })
+      .catch(err => console.error("Failed to set window effect:", err));
+
+    // Save to Supabase (Debounced)
+    const timeoutId = setTimeout(() => {
+        dataService.saveSettings(settings);
+    }, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [settings]);
+
 
   // Close Dexter if AI is disabled
   useEffect(() => {
@@ -668,29 +571,39 @@ function App() {
 
   }, [settings]);
 
-  const handleCreateNote = (initialData = {}) => {
+  const handleCreateNote = async (initialData = {}) => {
+    // Generating UUID locally to match Supabase schema
     // If initialData already has an id, it's a complete note (from import)
     if (initialData.id) {
       setNotes([initialData, ...notes]);
       setSelectedNoteId(initialData.id);
+      await dataService.saveNote(initialData);
       return;
     }
 
     // Otherwise, create a new empty note
     const newNote = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title: initialData.title || "",
       content: initialData.content || "",
-      updatedAt: Date.now(),
+      updatedAt: Date.now(), // Local timestamp, Supabase will use its own or this one
       deleted: false,
       favorite: false,
     };
     setNotes([newNote, ...notes]);
     setSelectedNoteId(newNote.id);
+    await dataService.saveNote(newNote);
   };
 
   const handleUpdateNote = (updatedNote) => {
     setNotes((prevNotes) => prevNotes.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
+    // Debounce Save to Supabase
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+        setIsSyncing(true);
+        await dataService.saveNote(updatedNote);
+        setIsSyncing(false);
+    }, 1000);
   };
 
   /*
@@ -719,9 +632,15 @@ function App() {
         if (selectedNoteId === idToDelete) {
             setSelectedNoteId(newNotes[0]?.id || null);
         }
+        dataService.deleteNote(idToDelete);
     } else {
         // Soft delete
-        setNotes(prev => prev.map(n => n.id === idToDelete ? { ...n, deleted: true } : n));
+        setNotes(prev => {
+            const newNotes = prev.map(n => n.id === idToDelete ? { ...n, deleted: true } : n);
+            const note = newNotes.find(n => n.id === idToDelete);
+            if (note) dataService.saveNote(note);
+            return newNotes;
+        });
         if (selectedNoteId === idToDelete) {
              setSelectedNoteId(null);
         }
@@ -729,14 +648,27 @@ function App() {
   };
 
   const handleRestoreNote = (noteId) => {
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, deleted: false } : n));
+      setNotes(prev => {
+          const newNotes = prev.map(n => n.id === noteId ? { ...n, deleted: false } : n);
+          const note = newNotes.find(n => n.id === noteId);
+          if (note) dataService.saveNote(note);
+          return newNotes;
+      });
   };
 
   const handleToggleFavorite = (noteId) => {
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, favorite: !n.favorite } : n));
+      setNotes(prev => {
+          const newNotes = prev.map(n => n.id === noteId ? { ...n, favorite: !n.favorite } : n);
+          const note = newNotes.find(n => n.id === noteId);
+          if (note) dataService.saveNote(note);
+          return newNotes;
+      });
   };
 
   const handleEmptyTrash = () => {
+    const toDelete = notes.filter(n => n.deleted);
+    toDelete.forEach(n => dataService.deleteNote(n.id));
+
     setNotes(prev => prev.filter(n => !n.deleted));
     if (selectedNoteId && notes.find(n => n.id === selectedNoteId)?.deleted) {
         setSelectedNoteId(null);
@@ -746,9 +678,13 @@ function App() {
   // Find active note
   const activeNote = notes.find((n) => n.id === selectedNoteId);
 
+  const handleCloudSync = async () => {
+      await loadDataFromSupabase();
+  };
+
   return (
-    <div className="h-screen w-screen bg-[#1C1C1E] text-white overflow-hidden flex flex-col font-sora select-none">
-      <Titlebar />
+    <div className="h-screen w-screen bg-transparent text-white overflow-hidden flex flex-col font-sora select-none">
+      <Titlebar style={settings.titlebarStyle} />
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Sidebar */}
@@ -775,10 +711,11 @@ function App() {
             onRestoreNote={handleRestoreNote}
             activeNav={activeNav}
             settings={settings}
+            isSyncing={isSyncing}
         />
 
         {/* Editor Area */}
-        <div className="flex-1 flex flex-col h-full bg-[#1C1C1E] relative">
+        <div className="flex-1 flex flex-col h-full bg-transparent relative">
             {activeNote ? (
                 <Editor 
                     key={activeNote.id} // Force remount on note switch
@@ -812,6 +749,7 @@ function App() {
         settings={settings} 
         onUpdateSettings={setSettings}
         storageUsage={storageUsage}
+        onSync={() => handleCloudSync(true)}
       />
       
       <LicenseModal 

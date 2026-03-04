@@ -41,6 +41,15 @@ export const authService = {
         }
       }
     });
+
+    if (!error && data.user) {
+        // Create initial profile if trigger fails or delayed
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({ id: data.user.id, username, updated_at: new Date() }, { onConflict: 'id' });
+            
+        if (profileError) console.error("Error creating profile:", profileError);
+    }
     return { data, error };
   },
 
@@ -68,8 +77,8 @@ export const authService = {
   },
 
   async getUser() {
-    const { data } = await supabase.auth.getUser();
-    return data.user;
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
   },
 
   async updateSubscription(level, licenseKey) {
@@ -93,92 +102,320 @@ export const authService = {
   async exchangeCodeForSession(code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     return { data, error };
+  },
+
+  onAuthStateChange(callback) {
+      return supabase.auth.onAuthStateChange(callback);
   }
 };
 
-// Storage Services
-export const storageService = {
-  async getUsage(userId) {
-    // Note: Supabase Storage doesn't have a direct "folder size" API without listing.
-    // We will estimate or rely on a database tracker if available.
-    // For now, we'll list files in the user's folder and sum size.
-    // This assumes a structure: 'user_files/{userId}/*'
+// Data Services
+export const dataService = {
+  // --- Notes ---
+  async fetchNotes() {
+    const user = await authService.getUser();
+    if (!user) return { data: [], error: 'Not authenticated' };
+
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching notes:', error);
+        // Fallback to local storage if offline/error
+        const local = localStorage.getItem('fiip-notes');
+        return { data: local ? JSON.parse(local) : [], error };
+    }
+
+    // Update local cache
+    localStorage.setItem('fiip-notes', JSON.stringify(data));
+    return { data, error };
+  },
+
+  async saveNote(note) {
+    const user = await authService.getUser();
+    if (!user) return { error: 'Not authenticated' };
+
+    // Format note for DB (remove local-only constructs if any)
+    const dbNote = {
+      id: note.id,
+      user_id: user.id,
+      title: note.title,
+      content: note.content,
+      attachments: note.attachments || [],
+      is_favorite: note.favorite || false,
+      tags: note.tags || [],
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('notes')
+      .upsert(dbNote, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) {
+        console.error('Error saving note:', error);
+        return { error };
+    }
+
+    return { data, error };
+  },
+
+  async deleteNote(noteId) {
+      const user = await authService.getUser();
+      if (!user) return { error: 'Not authenticated' };
+
+      const { error } = await supabase
+          .from('notes')
+          .delete()
+          .eq('id', noteId);
+
+      return { error };
+  },
+
+  // --- Public Sharing ---
+  async publishNote(noteId) {
+    const user = await authService.getUser();
+    if (!user) return { error: 'Not authenticated' };
+
+    // Generate a random slug
+    const slug = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+
+    const { data, error } = await supabase
+      .from('notes')
+      .update({ public_slug: slug, updated_at: new Date() })
+      .eq('id', noteId)
+      .eq('user_id', user.id) // Ensure ownership
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  async unpublishNote(noteId) {
+    const user = await authService.getUser();
+    if (!user) return { error: 'Not authenticated' };
+
+    const { data, error } = await supabase
+      .from('notes')
+      .update({ public_slug: null, updated_at: new Date() })
+      .eq('id', noteId)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    return { data, error };
+  },
+
+  async getPublicNote(slug) {
+    const { data, error } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('public_slug', slug)
+      .single();
     
-    if (!userId) return 0;
+    return { data, error };
+  },
+
+  // --- Profile ---
+  async fetchProfile() {
+      const user = await authService.getUser();
+      if (!user) return { data: null, error: 'Not authenticated' };
+
+      const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+      
+      return { data, error };
+  },
+
+  async saveProfile(profile) {
+      const user = await authService.getUser();
+      if (!user) return { error: 'Not authenticated' };
+
+      const { error } = await supabase
+          .from('profiles')
+          .upsert({ id: user.id, ...profile, updated_at: new Date() }, { onConflict: 'id' });
+
+      return { error };
+  },
+
+  // --- Realtime Subscriptions ---
+  subscribeToNotes(callback) {
+      const channel = supabase
+          .channel('public:notes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
+              callback(payload);
+          })
+          .subscribe();
+      return channel;
+  },
+
+  // --- Settings ---
+  async fetchSettings() {
+      const user = await authService.getUser();
+      if (!user) return { data: {}, error: 'Not authenticated' };
+
+      const { data, error } = await supabase
+          .from('user_settings')
+          .select('config')
+          .eq('user_id', user.id)
+          .single();
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "Row not found"
+           console.error('Error fetching settings:', error);
+      }
+
+      const settings = data?.config || {};
+      localStorage.setItem('fiip-settings', JSON.stringify(settings));
+      return { data: settings, error };
+  },
+
+  async saveSettings(settings) {
+      const user = await authService.getUser();
+      if (!user) return { error: 'Not authenticated' };
+
+      const { error } = await supabase
+          .from('user_settings')
+          .upsert({ user_id: user.id, config: settings, updated_at: new Date() }, { onConflict: 'user_id' });
+      
+      return { error };
+  },
+
+  async getUsage(userId) {
+    if (!userId) {
+        if (typeof authService !== 'undefined' && authService.getUser) {
+             const user = await authService.getUser();
+             if (user) userId = user.id;
+        }
+        if (!userId) return 0;
+    }
 
     let totalSize = 0;
     let page = 0;
-    let pageSize = 100;
+    const pageSize = 100;
     let hasMore = true;
 
     try {
       while (hasMore) {
-        const { data, error } = await supabase
+        const { data: rootItems, error: rootError } = await supabase
           .storage
-          .from('user_files')
+          .from('attachments')
           .list(`${userId}`, {
             limit: pageSize,
             offset: page * pageSize,
             sortBy: { column: 'name', order: 'asc' }
           });
 
-        if (error) throw error;
+        if (rootError) throw rootError;
 
-        if (data.length === 0) {
+        if (!rootItems || rootItems.length === 0) {
           hasMore = false;
         } else {
-          totalSize += data.reduce((acc, file) => acc + (file.metadata?.size || 0), 0);
-          page++;
-          // Safety break for very large folders to avoid freezing
-          if (page > 50) hasMore = false; 
+            // Parallel fetch for folder contents
+            const sizePromises = rootItems.map(async (item) => {
+                // Check if folder (no metadata or size 0 usually indicates folder in Supabase storage list)
+                if (!item.metadata || !item.metadata.size) {
+                    // It's a folder (Note ID) -> List contents
+                    const { data: folderFiles, error: folderError } = await supabase
+                        .storage
+                        .from('attachments')
+                        .list(`${userId}/${item.name}`, {
+                            limit: 1000,
+                            sortBy: { column: 'name', order: 'asc' }
+                        });
+                    
+                    if (!folderError && folderFiles) {
+                         return folderFiles.reduce((acc, file) => acc + (file.metadata ? file.metadata.size : 0), 0);
+                    }
+                    return 0;
+                } else {
+                    // It's a file at root level
+                    return (item.metadata ? item.metadata.size : 0);
+                }
+            });
+
+            const sizes = await Promise.all(sizePromises);
+            totalSize += sizes.reduce((acc, s) => acc + s, 0);
+
+            page++;
+            if (page > 50) hasMore = false; 
         }
       }
     } catch (e) {
       console.error("Error calculating usage:", e);
-      return 0; // Fail safe
+      return totalSize; // Return what we found so far
     }
 
     return totalSize;
   },
 
-  async uploadFile(userId, file, path) {
+  // --- Storage (Attachments) ---
+  async uploadAttachment(file, path) {
     // 1. Check Usage
-    const currentUsage = await this.getUsage(userId);
     const user = await authService.getUser();
+    if (!user) return { error: 'Not authenticated' };
+    
+    const currentUsage = await this.getUsage(user.id);
     const level = user?.user_metadata?.subscription_level || 0;
     const limit = getStorageLimit(level);
 
     if (currentUsage + file.size > limit) {
-      throw new Error("STORAGE_LIMIT_EXCEEDED");
+      return { error: new Error("STORAGE_LIMIT_EXCEEDED") };
     }
-
-    // 2. Upload
+    
+    // Path should be: {userId}/{noteId}/{filename}
+    // We should use 'attachments' bucket
     const { data, error } = await supabase
-      .storage
-      .from('user_files')
-      .upload(`${userId}/${path}`, file, {
-        upsert: true
-      });
+        .storage
+        .from('attachments')
+        .upload(path, file, {
+            upsert: true
+        });
 
-    if (error) throw error;
-    return data;
+    if (error) return { error };
+
+    const { data: publicUrlData } = supabase
+        .storage
+        .from('attachments')
+        .getPublicUrl(path);
+
+    return { data: { path: data.path, publicUrl: publicUrlData.publicUrl }, error: null };
+  }
+};
+
+// Storage Services (Legacy/Helper wrapper around dataService)
+export const storageService = {
+  async getUsage(userId) {
+      return dataService.getUsage(userId);
+  },
+
+  async uploadFile(userId, file, path) {
+      // Legacy paths might not include userId, so ensure consistency if needed
+      // But path arg here usually expects relative. 
+      // dataService expects full path.
+      // Let's assume path passed here is relative to userId folder.
+      return dataService.uploadAttachment(file, `${userId}/${path}`);
   },
 
   async downloadFile(userId, path) {
-    const { data, error } = await supabase
-      .storage
-      .from('user_files')
-      .download(`${userId}/${path}`);
-
-    if (error) throw error;
-    return await data.text(); // Assuming text/json for data.json
+      const finalPath = path.startsWith(userId) ? path : `${userId}/${path}`;
+      const { data, error } = await supabase
+        .storage
+        .from('attachments')
+        .download(finalPath);
+  
+      if (error) throw error;
+      return await data.text();
   },
 
   getPublicUrl(userId, path) {
-    // If path starts with userId, it's already full path (from upload response)
-    // Otherwise prepend userId (relative path)
     const finalPath = path.startsWith(userId) ? path : `${userId}/${path}`;
-    const { data } = supabase.storage.from('user_files').getPublicUrl(finalPath);
+    const { data } = supabase.storage.from('attachments').getPublicUrl(finalPath);
     return data.publicUrl;
   }
 };

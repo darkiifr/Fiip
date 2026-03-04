@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { authService, storageService } from '../services/supabase';
+import { dataService } from '../services/supabase';
 import CustomSelect from './CustomSelect';
 import { Icon as IconifyIcon } from '@iconify/react';
 import { open } from '@tauri-apps/plugin-shell';
@@ -8,18 +8,69 @@ import { open } from '@tauri-apps/plugin-shell';
 import IconClose from '~icons/mingcute/close-fill';
 import IconShare from '~icons/mingcute/share-2-fill';
 import IconLock from '~icons/mingcute/lock-fill';
+import IconGlobe from '~icons/mingcute/earth-2-fill'; // New icon for public
 import IconLoading from '~icons/mingcute/loading-fill';
 import IconCheck from '~icons/mingcute/check-fill';
 import IconFileText from '~icons/mingcute/file-fill';
+import IconCopy from '~icons/mingcute/copy-fill';
 
 export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
     const [selectedNote, setSelectedNote] = useState(note);
-    const [isSharing, setIsSharing] = useState(false);
+    const [isSharing, setIsSharing] = useState(false); // For loading state
+    const [isPublic, setIsPublic] = useState(false);
+    const [publicUrl, setPublicUrl] = useState('');
     const [status, setStatus] = useState({ type: '', message: '' });
 
     useEffect(() => {
-        if (note) setSelectedNote(note);
+        if (note) {
+            setSelectedNote(note);
+            // Check if already public
+            if (note.public_slug) {
+                setIsPublic(true);
+                setPublicUrl(`https://fiip-app.netlify.app/n/${note.public_slug}`);
+            } else {
+                setIsPublic(false);
+                setPublicUrl('');
+            }
+        }
     }, [note]);
+
+    const handleTogglePublic = async () => {
+        if (!selectedNote) return;
+        setIsSharing(true);
+        setStatus({ type: '', message: '' });
+
+        try {
+            if (isPublic) {
+                // Unpublish
+                const { error } = await dataService.unpublishNote(selectedNote.id);
+                if (error) throw error;
+                setIsPublic(false);
+                setPublicUrl('');
+                setStatus({ type: 'success', message: 'Note rendue privée.' });
+            } else {
+                // Publish
+                const { data, error } = await dataService.publishNote(selectedNote.id);
+                if (error) throw error;
+                setIsPublic(true);
+                setPublicUrl(`https://fiip-app.netlify.app/n/${data.public_slug}`);
+                setStatus({ type: 'success', message: 'Note publiée avec succès !' });
+            }
+        } catch (error) {
+            console.error(error);
+            setStatus({ type: 'error', message: 'Erreur lors de la mise à jour.' });
+        } finally {
+            setIsSharing(false);
+        }
+    };
+
+    const copyLink = () => {
+        if (publicUrl) {
+            navigator.clipboard.writeText(publicUrl);
+            setStatus({ type: 'success', message: 'Lien copié !' });
+            setTimeout(() => setStatus({ type: '', message: '' }), 2000);
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -27,22 +78,35 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
         if (!selectedNote) return;
         const text = `Je partage cette note depuis Fiip: ${selectedNote.title || 'Sans titre'}`;
         const contentPreview = (selectedNote.content?.substring(0, 100) || '') + '...';
-        const contentToShare = `${text}\n\n${contentPreview}`;
+        
+        let shareUrl = '';
+        if (isPublic && publicUrl) {
+            shareUrl = publicUrl;
+        } else {
+            // Fallback to homepage if not public
+            shareUrl = 'https://fiip.app'; 
+        }
+
+        const encodedText = encodeURIComponent(text);
+        const encodedUrl = encodeURIComponent(shareUrl);
+        // const encodedPreview = encodeURIComponent(contentPreview);
         
         let url = '';
         switch (platform) {
             case 'twitter':
-                url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(contentToShare)}`;
+                url = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
                 break;
             case 'reddit':
-                url = `https://www.reddit.com/submit?title=${encodeURIComponent(text)}&text=${encodeURIComponent(contentToShare)}`;
+                url = `https://www.reddit.com/submit?title=${encodedText}&url=${encodedUrl}`;
                 break;
-            case 'discord':
-                navigator.clipboard.writeText(contentToShare);
+            case 'discord': {
+                const discordContent = `${text}\n${shareUrl}\n\n${contentPreview}`;
+                navigator.clipboard.writeText(discordContent);
                 setStatus({ type: 'success', message: 'Texte copié pour Discord !' });
                 return;
+            }
             case 'linkedin':
-                url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fiip.app')}`;
+                url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
                 break;
         }
 
@@ -54,48 +118,8 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
         }
     };
 
-    const handleShare = async (e) => {
-        e.preventDefault();
-        if (!selectedNote) return;
+    // handleShare implementation details removed as we are using handleTogglePublic now
 
-        setIsSharing(true);
-        setStatus({ type: 'info', message: "Génération du lien de partage public..." });
-
-        try {
-            // Get user session
-            const user = await authService.getUser();
-            if (!user) {
-                throw new Error("Vous devez être connecté avec votre profil pour partager.");
-            }
-
-            // 1. Create file from note
-            const noteContent = JSON.stringify(selectedNote);
-            const blob = new Blob([noteContent], { type: 'application/json' });
-            const file = new File([blob], `${selectedNote.title || 'note'}.json`, { type: 'application/json' });
-
-            // 2. Upload to Supabase Storage in shared/ folder
-            const sharePath = `shared/${Date.now()}_${file.name}`;
-            await storageService.uploadFile(user.id, file, sharePath);
-
-            // 3. Get public URL
-            const downloadUrl = storageService.getPublicUrl(user.id, sharePath);
-
-            // Copy to clipboard
-            await navigator.clipboard.writeText(downloadUrl);
-
-            setStatus({ type: 'success', message: `Lien copié dans le presse-papiers !` });
-            
-            setTimeout(() => {
-                onClose();
-                setStatus({ type: '', message: '' });
-            }, 3000);
-        } catch (e) {
-            console.error(e);
-            setStatus({ type: 'error', message: e.message || "Une erreur est survenue" });
-        } finally {
-            setIsSharing(false);
-        }
-    };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -117,7 +141,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                 </div>
 
                 {/* Body */}
-                <form onSubmit={handleShare} className="p-6 flex flex-col gap-6">
+                <div className="p-6 flex flex-col gap-6">
                     
                     {/* Note Selection */}
                     <div className="space-y-2">
@@ -142,6 +166,60 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                         )}
                     </div>
 
+                    {/* Public Sharing Section */}
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${isPublic ? 'bg-green-500/20 text-green-400' : 'bg-gray-700/50 text-gray-400'}`}>
+                                    <IconGlobe className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-white">Lien Public</h3>
+                                    <p className="text-xs text-gray-400">
+                                        {isPublic ? "Accessible via le lien ci-dessous" : "La note est actuellement privée"}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleTogglePublic}
+                                disabled={!selectedNote || isSharing}
+                                className={`px-4 py-1.5 text-xs font-medium rounded-lg transition-colors border ${
+                                    isPublic 
+                                        ? 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20' 
+                                        : 'bg-blue-600 border-transparent text-white hover:bg-blue-500'
+                                }`}
+                            >
+                                {isSharing ? (
+                                    <IconLoading className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    isPublic ? "Arrêter le partage" : "Publier"
+                                )}
+                            </button>
+                        </div>
+
+                        {isPublic && (
+                            <div className="flex items-center gap-2 bg-[#121212] p-2 rounded-lg border border-white/10">
+                                <span className="flex-1 text-xs text-gray-300 font-mono truncate px-2 selection:bg-blue-500/30">
+                                    {publicUrl}
+                                </span>
+                                <button 
+                                    onClick={copyLink}
+                                    className="p-1.5 hover:bg-white/10 rounded-md text-gray-400 hover:text-white transition-colors"
+                                    title="Copier le lien"
+                                >
+                                    <IconCopy className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => open(publicUrl)}
+                                    className="p-1.5 hover:bg-white/10 rounded-md text-gray-400 hover:text-white transition-colors"
+                                    title="Ouvrir dans le navigateur"
+                                >
+                                    <IconShare className="w-4 h-4" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Status Message */}
                     {status.message && (
                         <div className={`text-sm flex items-center gap-2 ${
@@ -155,34 +233,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                         </div>
                     )}
 
-                    {/* Footer Actions */}
-                    <div className="flex justify-end gap-3 pt-2">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-                            disabled={isSharing}
-                        >
-                            Annuler
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={!selectedNote || isSharing}
-                            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                        >
-                            {isSharing ? (
-                                <>
-                                    <IconLoading className="w-4 h-4 animate-spin" />
-                                    <span>Génération...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <IconShare className="w-4 h-4" />
-                                    <span>Générer un lien public</span>
-                                </>
-                            )}
-                        </button>
-                    </div>
+
 
                     {/* Social Share Options */}
                     <div className="flex flex-col items-center gap-3 pt-4 border-t border-white/10 mt-2">
@@ -202,7 +253,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                             </button>
                         </div>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Icon as IconifyIcon } from '@iconify/react';
@@ -29,11 +30,16 @@ export default function NoteList({
     onRestoreNote,
     onToggleFavorite,
     activeNav,
-    onEmptyTrash
+    onEmptyTrash,
+    settings,
+    isSyncing
 }) {
     const { t, i18n } = useTranslation();
     const [searchTerm, setSearchTerm] = useState('');
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
+
+    const isTransparent = settings?.windowEffect && settings.windowEffect !== 'none';
+    const bgClass = isTransparent ? 'bg-[#1C1C1E]/60 backdrop-blur-md' : 'bg-[#1C1C1E]/95';
 
     const getNavFilteredNotes = () => {
         const baseNotes = notes || [];
@@ -42,7 +48,7 @@ export default function NoteList({
         } else if (activeNav === 'favorites') {
             return baseNotes.filter(n => n.favorite && !n.deleted);
         } else if (activeNav === 'shared') {
-            return baseNotes.filter(n => n.shared && !n.deleted);
+            return baseNotes.filter(n => (n.shared || n.public_slug) && !n.deleted);
         }
         // home or other
         return baseNotes.filter(n => !n.deleted);
@@ -55,10 +61,34 @@ export default function NoteList({
 
     const handleContextMenu = (e, noteId) => {
         e.preventDefault();
+        e.stopPropagation();
+        onSelectNote(noteId);
+        
+        // Prevent menu from going off screen
+        const menuWidth = 192; // w-48
+        const menuHeight = 160; // Approx height
+
+        let x = e.clientX;
+        let y = e.clientY;
+
+        // If passing right edge, move left of cursor
+        if (x + menuWidth > window.innerWidth) {
+            x = x - menuWidth;
+        }
+        
+        // If passing bottom edge, move up
+        if (y + menuHeight > window.innerHeight) {
+            y = y - menuHeight;
+        }
+
+        // Ensure it doesn't got off top/left
+        x = Math.max(0, x);
+        y = Math.max(0, y);
+
         setContextMenu({
             visible: true,
-            x: e.clientX,
-            y: e.clientY,
+            x,
+            y,
             noteId
         });
     };
@@ -70,14 +100,19 @@ export default function NoteList({
     }, [contextMenu]);
 
     return (
-        <div className="flex flex-col h-full bg-[#1C1C1E]/95 border-r border-white/10" style={{ width: '320px', minWidth: '280px', maxWidth: '320px' }}>
+        <div className={`flex flex-col h-full ${bgClass} border-r border-white/10`} style={{ width: '320px', minWidth: '280px', maxWidth: '320px' }}>
             {/* Header */}
             <div className="flex items-center justify-between px-[16px] h-[52px] box-border shrink-0">
-                <span className="text-sm font-semibold text-white/90 px-2">{
-                    activeNav === 'favorites' ? (t('sidebar.favorites') || "Favorites") :
-                    activeNav === 'trash' ? (t('sidebar.trash') || "Trash") :
-                    (t('sidebar.all_notes') || "Notes")
-                }</span>
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-white/90 px-2">{
+                        activeNav === 'favorites' ? (t('sidebar.favorites') || "Favorites") :
+                        activeNav === 'trash' ? (t('sidebar.trash') || "Trash") :
+                        (t('sidebar.all_notes') || "Notes")
+                    }</span>
+                    {isSyncing && (
+                         <div className="w-3 h-3 rounded-full border-2 border-blue-500 border-t-transparent animate-spin ml-2" title="Syncing..."></div>
+                    )}
+                </div>
                 
                 {activeNav === 'trash' ? (
                     <button 
@@ -177,10 +212,11 @@ export default function NoteList({
             </div>
 
             {/* Context Menu */}
-            {contextMenu.visible && (
+            {contextMenu.visible && createPortal(
                 <div
-                    className="fixed z-50 w-48 bg-[#2C2C2E] border border-white/10 rounded-lg shadow-xl py-1"
+                    className="fixed z-[99999] w-48 bg-[#2C2C2E] border border-white/10 rounded-lg shadow-xl py-1 text-white font-sans"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
+                    onContextMenu={(e) => e.preventDefault()}
                 >
                     <button
                         onClick={(e) => {
@@ -237,7 +273,8 @@ export default function NoteList({
                             </>
                         )}
                     </button>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
