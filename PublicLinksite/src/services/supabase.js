@@ -7,10 +7,17 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn("Supabase URL or Key missing in environment variables.");
 }
 
-export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
+export const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY) 
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
+  : null;
 
 export const dataService = {
   async getPublicNote(slug) {
+    if (!supabase) {
+      console.error("Supabase client not initialized due to missing environment variables.");
+      return { data: null, error: "Configuration missing" };
+    }
+
     const { data, error } = await supabase
       .from('notes')
       .select('*')
