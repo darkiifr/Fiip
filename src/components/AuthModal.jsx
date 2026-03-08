@@ -46,7 +46,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             setMode('profile');
             // Sync KeyAuth level locally
             const level = currentUser.user_metadata?.subscription_level || 0;
-            keyAuthService.setLocalLevel(level);
+            const username = currentUser.user_metadata?.username || currentUser.email;
+            keyAuthService.setLocalLevel(level, username);
         } else {
             setUser(null);
             setMode('login');
@@ -89,7 +90,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                         setSuccess(t('auth.success_upgrade', "Licence activée et associée au compte avec succès !"));
                         setUpgradeKey('');
                         setShowAddLicense(false);
-                        keyAuthService.setLocalLevel(res.level);
+                        const username = user?.user_metadata?.username || user?.email;
+                        keyAuthService.setLocalLevel(res.level, username);
                         keyAuthService.licenseKey = keyToVerify;
                         if (data && data.user) {
                             setUser(data.user);

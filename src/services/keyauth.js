@@ -158,14 +158,14 @@ class KeyAuthService {
     /**
      * Allow app to set level from Supabase data
      */
-    setLocalLevel(level) {
+    setLocalLevel(level, overrideUsername) {
         this.currentLevel = Number(level) || 0;
         if (this.currentLevel > 0) {
             this.isAuthenticated = true;
             // Mock userData for UI compatibility if missing
             if (!this.userData) {
                 this.userData = {
-                    username: "Utilisateur",
+                    username: overrideUsername || "Utilisateur",
                     subscriptions: [
                         {
                             subscription: this.getCurrentSubscriptionName(),

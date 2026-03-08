@@ -102,8 +102,20 @@ export default function PublicNoteView() {
                     <div className="flex items-center gap-4 text-sm text-gray-500 mb-8 border-b border-white/5 pb-6">
                         <span className="flex items-center gap-1">
                             <IconifyIcon icon="mingcute:calendar-fill" />
-                            {new Date(note.created_at).toLocaleDateString()}
+                            {new Date(note.updatedAt || note.created_at).toLocaleDateString()}
                         </span>
+
+                        {note.badges && note.badges.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {note.badges.map((badge, idx) => (
+                                    <span key={idx} className={`px-2 py-0.5 text-white border rounded-full text-xs font-medium`} style={{ backgroundColor: badge.color + '40', borderColor: badge.color, color: badge.color }}>
+                                        {badge.icon && <IconifyIcon icon={badge.icon} className="inline-block mr-1" />}
+                                        {badge.name}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
                         {note.tags && note.tags.length > 0 && (
                             <div className="flex gap-2">
                                 {note.tags.map(tag => (

@@ -24,6 +24,11 @@ export const dataService = {
       .eq('public_slug', slug)
       .single();
     
+    if (data) {
+       data.updatedAt = data.updated_at ? new Date(data.updated_at).getTime() : Date.now();
+       data.badges = data.badges || [];
+    }
+
     return { data, error };
   }
 };

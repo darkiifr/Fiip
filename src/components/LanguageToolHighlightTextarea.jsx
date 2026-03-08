@@ -45,7 +45,7 @@ const LanguageToolHighlightTextarea = forwardRef(({ value, onChange, className, 
         if (!enabled || !value || value.trim().length < 3) {
             const timer = setTimeout(() => {
                 setErrors(prev => prev.length > 0 ? [] : prev);
-                if (onLanguageDetected) onLanguageDetected('');
+                if (onLanguageDetected) onLanguageDetected(null);
             }, 0);
             return () => clearTimeout(timer);
         }
@@ -63,8 +63,13 @@ const LanguageToolHighlightTextarea = forwardRef(({ value, onChange, className, 
                 .then(res => res.json())
                 .then(data => {
                     setErrors(data.matches || []);
-                    const detectedLang = data.language?.detected || '';
-                    if (onLanguageDetected) onLanguageDetected(detectedLang.name || detectedLang.code || detectedLang);
+                    const detectedLang = data.language?.detectedLanguage || data.language || '';
+                    if (onLanguageDetected) {
+                        onLanguageDetected({
+                            code: detectedLang.code || 'fr-FR',
+                            name: detectedLang.name || detectedLang.code || ''
+                        });
+                    }
                 })
                 .catch(() => setErrors([]))
                 .finally(() => setChecking(false));

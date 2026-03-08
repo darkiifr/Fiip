@@ -77,6 +77,9 @@ export const authService = {
   },
 
   async getUser() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) return session.user;
+
     const { data: { user } } = await supabase.auth.getUser();
     return user;
   },
@@ -128,9 +131,18 @@ export const dataService = {
         return { data: local ? JSON.parse(local) : [], error };
     }
 
+    // Map DB fields back to what the frontend expects
+    const mappedData = data.map(n => ({
+      ...n,
+      favorite: n.is_favorite,
+      updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : Date.now(),
+      badges: n.badges || [],
+      deleted: n.deleted || false
+    }));
+
     // Update local cache
-    localStorage.setItem('fiip-notes', JSON.stringify(data));
-    return { data, error };
+    localStorage.setItem('fiip-notes', JSON.stringify(mappedData));
+    return { data: mappedData, error };
   },
 
   async saveNote(note) {
@@ -146,7 +158,9 @@ export const dataService = {
       attachments: note.attachments || [],
       is_favorite: note.favorite || false,
       tags: note.tags || [],
-      updated_at: new Date().toISOString()
+      badges: note.badges || [],
+      deleted: note.deleted || false,
+      updated_at: new Date(note.updatedAt || Date.now()).toISOString()
     };
 
     const { data, error } = await supabase

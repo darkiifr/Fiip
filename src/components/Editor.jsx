@@ -241,7 +241,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
     const isListeningRef = useRef(false); // Track intent to listen
     const lastSpeechStartRef = useRef(0);
     const [interimTranscript, setInterimTranscript] = useState('');
-    const [detectedLanguage, setDetectedLanguage] = useState('');
+    const [detectedLanguage, setDetectedLanguage] = useState(null);
     const recognitionRef = useRef(null);
     const noteRef = useRef(note);
     const mediaRecorderRef = useRef(null);
@@ -267,7 +267,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             recognitionRef.current = new SpeechRecognition();
             recognitionRef.current.continuous = true;
             recognitionRef.current.interimResults = true;
-            recognitionRef.current.lang = 'fr-FR';
+            recognitionRef.current.lang = detectedLanguage?.code || 'fr-FR';
 
             recognitionRef.current.onstart = () => {
                 lastSpeechStartRef.current = Date.now();
@@ -336,6 +336,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 }
             };
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const toggleListening = () => {
@@ -350,6 +351,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             setIsListening(false);
         } else {
             isListeningRef.current = true;
+            recognitionRef.current.lang = detectedLanguage?.code || 'fr-FR';
             try {
                 recognitionRef.current.start();
                 setIsListening(true);
@@ -367,7 +369,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
         } else {
             if (!note.content) return;
             const utterance = new SpeechSynthesisUtterance(note.content);
-            utterance.lang = 'fr-FR';
+            utterance.lang = detectedLanguage?.code || 'fr-FR';
             utterance.onend = () => setIsSpeaking(false);
             window.speechSynthesis.speak(utterance);
             setIsSpeaking(true);
@@ -1130,10 +1132,10 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             )}
 
             {/* Detected Language Indicator (Fixed Bottom Right) */}
-            {!drawingSession && detectedLanguage && (
+            {!drawingSession && detectedLanguage?.name && (
                  <div className="absolute bottom-6 right-6 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-[#1e1e1e]/80 backdrop-blur-md shadow-sm pointer-events-none transition-all duration-300">
                      <IconifyIcon icon="formkit:translate" className="w-3.5 h-3.5 text-blue-400" />
-                     <span className="text-xs font-medium text-gray-300 tracking-wide">{detectedLanguage}</span>
+                     <span className="text-xs font-medium text-gray-300 tracking-wide">{detectedLanguage.name}</span>
                  </div>
             )}
 

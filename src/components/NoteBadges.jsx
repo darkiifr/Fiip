@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, X, Zap, Trophy, Flame, Plus } from 'lucide-react';
 import { Icon as IconifyIcon } from '@iconify/react';
+import { dataService } from '../services/supabase';
 
 const PRESET_ICONS = {
     Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame
@@ -45,11 +46,16 @@ export default function NoteBadges({ badges = [], onUpdate }) {
     const [selectedColor, setSelectedColor] = useState(4); // Default Blue
     const containerRef = useRef(null);
     const [savedBadges, setSavedBadges] = useState(() => {
+        const settingsRaw = localStorage.getItem('fiip-settings');
+        if (settingsRaw) {
+            try {
+                const settings = JSON.parse(settingsRaw);
+                if (settings.saved_custom_badges) return settings.saved_custom_badges;
+            } catch (e) { console.error(e); }
+        }
         const saved = localStorage.getItem('saved_custom_badges');
         if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) { console.error(e); }
+            try { return JSON.parse(saved); } catch (e) { console.error(e); }
         }
         return [];
     });
@@ -85,6 +91,16 @@ export default function NoteBadges({ badges = [], onUpdate }) {
             const newSaved = [...savedBadges, { ...newBadge, id: `saved-${generateId()}` }];
             setSavedBadges(newSaved);
             localStorage.setItem('saved_custom_badges', JSON.stringify(newSaved));
+            
+            // Save to Supabase settings for cross-device sync
+            const settingsRaw = localStorage.getItem('fiip-settings');
+            let currentSettings = {};
+            if (settingsRaw) {
+                try { currentSettings = JSON.parse(settingsRaw); } catch { /* ignore */ }
+            }
+            currentSettings.saved_custom_badges = newSaved;
+            localStorage.setItem('fiip-settings', JSON.stringify(currentSettings));
+            dataService.saveSettings(currentSettings);
         }
 
         onUpdate([...badges, newBadge]);

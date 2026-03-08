@@ -119,20 +119,6 @@ function App() {
       updateStorage();
   }, [notes, isSettingsOpen]);
 
-  // Safety Net: Force app to load after 7 seconds no matter what
-  useEffect(() => {
-    const safetyTimer = setTimeout(() => {
-        setAppLoading(prev => {
-            if (prev.isLoading) {
-                console.warn("Safety net triggered: Force loading app");
-                return { isLoading: false, status: "" };
-            }
-            return prev;
-        });
-    }, 7000);
-    return () => clearTimeout(safetyTimer);
-  }, []);
-
   // Configure Deep Link Listener
   useEffect(() => {
     const setupDeepLink = async () => {
@@ -175,17 +161,18 @@ function App() {
                     if (user) {
                         const savedLevel = user?.user_metadata?.subscription_level || 0;
                         const savedKey = user?.user_metadata?.license_key;
+                        const username = user?.user_metadata?.username || user?.email;
                         
                         if (savedKey) {
                             // Validation de la clé de l'utilisateur après login Google
                             const res = await keyAuthService.validateLicense(savedKey);
                             if (res.success) {
-                                keyAuthService.setLocalLevel(res.level);
+                                keyAuthService.setLocalLevel(res.level, username);
                             } else {
-                                keyAuthService.setLocalLevel(0);
+                                keyAuthService.setLocalLevel(0, username);
                             }
                         } else {
-                            keyAuthService.setLocalLevel(savedLevel);
+                            keyAuthService.setLocalLevel(savedLevel, username);
                         }
                         
                         setIsAuthModalOpen(false);
@@ -273,12 +260,8 @@ function App() {
   useEffect(() => {
     const initApp = async () => {
         try {
-            // Fake sequence for UX
             setAppLoading({ isLoading: true, status: "Démarrage des services..." });
-            await new Promise(r => setTimeout(r, 800));
 
-            setAppLoading({ isLoading: true, status: "Connexion au serveur..." });
-            
             // Timeout wrapper for KeyAuth init to prevent blocking
             const initWithTimeout = async () => {
                 const timeout = new Promise((_, reject) => 
@@ -299,19 +282,20 @@ function App() {
             if (user) {
                 const savedLevel = user?.user_metadata?.subscription_level || 0;
                 const savedKey = user?.user_metadata?.license_key;
+                const username = user?.user_metadata?.username || user?.email;
                 
                 if (savedKey) {
                     setAppLoading({ isLoading: true, status: "Vérification de la licence système..." });
                     // Validation silencieuse en arrière-plan
                     const res = await keyAuthService.validateLicense(savedKey);
                     if (res.success) {
-                        keyAuthService.setLocalLevel(res.level); // Met à jour le niveau réel
+                        keyAuthService.setLocalLevel(res.level, username); // Met à jour le niveau réel
                     } else {
                         // Clé expirée ou invalide, on remet le niveau à 0
-                        keyAuthService.setLocalLevel(0);
+                        keyAuthService.setLocalLevel(0, username);
                     }
                 } else {
-                    keyAuthService.setLocalLevel(savedLevel);
+                    keyAuthService.setLocalLevel(savedLevel, username);
                 }
             }
 
@@ -349,6 +333,37 @@ function App() {
         }
     };
     initApp();
+
+    // Set up auth state listener
+    const authListener = authService.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+            const level = session.user.user_metadata?.subscription_level || 0;
+            const username = session.user.user_metadata?.username || session.user.email;
+            keyAuthService.setLocalLevel(level, username);
+            if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+                await loadDataFromSupabase();
+            }
+        } else if (event === 'SIGNED_OUT') {
+            keyAuthService.isAuthenticated = false;
+            keyAuthService.currentLevel = 0;
+            setNotes([{ id: '1', title: 'Bienvenue', content: 'Connectez-vous pour synchroniser...', favorite: false, badges: [], tags: [] }]);
+        }
+    });
+
+    // Sync on window focus
+    const handleFocus = () => {
+        if (keyAuthService.isAuthenticated) {
+            loadDataFromSupabase();
+        }
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+        if (authListener?.data?.subscription) {
+            authListener.data.subscription.unsubscribe();
+        }
+        window.removeEventListener('focus', handleFocus);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

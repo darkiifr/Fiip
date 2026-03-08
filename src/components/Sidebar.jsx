@@ -22,8 +22,7 @@ export default function Sidebar({
     onOpenAuth, 
     settings,
     activeNav = 'home',
-    onNavigate,
-    isSyncing
+    onNavigate
 }) {
     const { t } = useTranslation();
     const appWindow = getCurrentWindow();

@@ -27,7 +27,6 @@ export default function PublicNoteView() {
     useEffect(() => {
         // Extract slug from URL: /n/:slug (case insensitive split)
         const path = window.location.pathname;
-        const parts = path.toLowerCase().split('/n/');
         // If the split fails due to casing mismatch not handled by toLowerCase (e.g. mixed path parts?), 
         // we rely on lowercasing the whole path which is safe for the keyword '/n/' but might affect the slug casing?
         // Slugs should generally be case-insensitive or handled carefully.
@@ -158,8 +157,20 @@ export default function PublicNoteView() {
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-10 border-b border-white/5 pb-6">
                         <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
                             <IconifyIcon icon="mingcute:calendar-fill" className="text-gray-400" />
-                            {new Date(note.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                            {new Date(note.updatedAt || note.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                         </span>
+                        
+                        {note.badges && note.badges.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {note.badges.map((badge, idx) => (
+                                    <span key={idx} className={`px-3 py-1 text-white border rounded-full text-xs font-medium`} style={{ backgroundColor: badge.color + '40', borderColor: badge.color, color: badge.color }}>
+                                        {badge.icon && <IconifyIcon icon={badge.icon} className="inline-block mr-1" />}
+                                        {badge.name}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
                         {note.tags && note.tags.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {note.tags.map(tag => (
