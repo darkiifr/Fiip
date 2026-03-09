@@ -126,6 +126,16 @@ function App() {
         const unlisten = await onOpenUrl(async (urls) => {
           console.log('Deep link received:', urls);
           for (const url of urls) {
+
+            // Handle Import Note
+            if (url.startsWith('fiip://note/')) {
+                const slug = url.split('fiip://note/')[1];
+                if (slug) {
+                    window.dispatchEvent(new CustomEvent('import-note', { detail: slug }));
+                    continue; // Skip the rest for this URL
+                }
+            }
+
             // Handle Supabase OAuth Callback (Implicit & PKCE)
             let success = false;
             try {
@@ -211,6 +221,50 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for 'import-note' events safely
+  useEffect(() => {
+    const handleImportNoteEvent = async (e) => {
+        const slug = e.detail;
+        if (!slug) return;
+        
+        try {
+            setAppLoading({ isLoading: true, status: "Importation de la note..." });
+            const { data, error } = await dataService.getPublicNote(slug);
+            
+            if (error || !data) {
+                console.error("Failed to fetch public note", error);
+                alert("Erreur lors de l'importation de la note partagée.");
+                return;
+            }
+
+            const newId = crypto.randomUUID();
+            const importedNote = {
+                ...data,
+                id: newId,
+                public_slug: null, // Don't steal original's slug
+                shared: true,      // Pre-add to shared list/category
+                created_at: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+
+            setNotes(prev => [importedNote, ...prev]);
+            setSelectedNoteId(newId);
+            setActiveNav('shared');
+            
+            // Save to DB
+            await dataService.saveNote(importedNote);
+        } catch (err) {
+            console.error("Error importing note:", err);
+            alert("Erreur lors de l'importation de la note partagée.");
+        } finally {
+            setAppLoading({ isLoading: false, status: "" });
+        }
+    };
+
+    window.addEventListener('import-note', handleImportNoteEvent);
+    return () => window.removeEventListener('import-note', handleImportNoteEvent);
+  }, []); // notes are accessed correctly via functional update prev => ...
+
   // Configure Auto Updater
   useEffect(() => {
     const checkAndInstallUpdates = async () => {
@@ -262,23 +316,26 @@ function App() {
         try {
             setAppLoading({ isLoading: true, status: "Démarrage des services..." });
 
-            // Timeout wrapper for KeyAuth init to prevent blocking
-            const initWithTimeout = async () => {
-                const timeout = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error("Connection timed out")), 5000)
-                );
-                return Promise.race([keyAuthService.init(), timeout]);
+            // Helper function to prevent any await from blocking infinitely
+            const withGlobalTimeout = (promise, ms, name) => {
+                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout: ${name}`)), ms));
+                return Promise.race([promise, timeout]);
             };
 
             try {
-                await initWithTimeout();
+                await withGlobalTimeout(keyAuthService.init(), 5000, "KeyAuth Init");
             } catch (err) {
                 console.warn("KeyAuth initialization skipped or failed:", err);
-                // Continue execution so user isn't stuck
             }
 
             // Sync Supabase Level to Local
-            const user = await authService.getUser();
+            let user = null;
+            try {
+                user = await withGlobalTimeout(authService.getUser(), 5000, "Supabase GetUser");
+            } catch (err) {
+                console.warn("Supabase auth check failed or timed out:", err);
+            }
+            
             if (user) {
                 const savedLevel = user?.user_metadata?.subscription_level || 0;
                 const savedKey = user?.user_metadata?.license_key;
@@ -286,13 +343,16 @@ function App() {
                 
                 if (savedKey) {
                     setAppLoading({ isLoading: true, status: "Vérification de la licence système..." });
-                    // Validation silencieuse en arrière-plan
-                    const res = await keyAuthService.validateLicense(savedKey);
-                    if (res.success) {
-                        keyAuthService.setLocalLevel(res.level, username); // Met à jour le niveau réel
-                    } else {
-                        // Clé expirée ou invalide, on remet le niveau à 0
-                        keyAuthService.setLocalLevel(0, username);
+                    try {
+                        const res = await withGlobalTimeout(keyAuthService.validateLicense(savedKey), 5000, "KeyAuth Validate");
+                        if (res && res.success) {
+                            keyAuthService.setLocalLevel(res.level, username);
+                        } else {
+                            keyAuthService.setLocalLevel(0, username);
+                        }
+                    } catch (err) {
+                        console.warn("License validation timed out or failed:", err);
+                        keyAuthService.setLocalLevel(savedLevel, username); // fallback to saved level
                     }
                 } else {
                     keyAuthService.setLocalLevel(savedLevel, username);
@@ -301,7 +361,7 @@ function App() {
 
             // Register Deep Link Protocol (Windows Registry)
             try {
-                await invoke('register_deep_link');
+                await withGlobalTimeout(invoke('register_deep_link'), 3000, "Register Deep Link");
                 console.log("Deep link protocol registered.");
             } catch (e) {
                 console.warn("Failed to register deep link:", e);
@@ -318,7 +378,11 @@ function App() {
             if (keyAuthService.isAuthenticated) {
                  setAppLoading({ isLoading: true, status: "Synchronisation des notes..." });
                  // Auto-sync down silently on startup
-                 await loadDataFromSupabase();
+                 try {
+                     await withGlobalTimeout(loadDataFromSupabase(), 8000, "Supabase Sync");
+                 } catch (err) {
+                     console.warn("Supabase loadDataFromSupabase timeout or failed:", err);
+                 }
             }
 
             setAppLoading({ isLoading: true, status: "Prêt" });
@@ -789,6 +853,7 @@ function App() {
         onClose={() => setIsShareModalOpen(false)}
         note={activeNote}
         notes={notes}
+        onUpdateNote={handleUpdateNote}
       />
 
       {/* 

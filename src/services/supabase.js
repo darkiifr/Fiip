@@ -46,7 +46,7 @@ export const authService = {
         // Create initial profile if trigger fails or delayed
         const { error: profileError } = await supabase
             .from('profiles')
-            .upsert({ id: data.user.id, username, updated_at: new Date() }, { onConflict: 'id' });
+            .upsert({ id: data.user.id, username, updated_at: new Date().toISOString() }, { onConflict: 'id' });
             
         if (profileError) console.error("Error creating profile:", profileError);
     }
@@ -199,7 +199,7 @@ export const dataService = {
 
     const { data, error } = await supabase
       .from('notes')
-      .update({ public_slug: slug, updated_at: new Date() })
+      .update({ public_slug: slug, updated_at: new Date().toISOString() })
       .eq('id', noteId)
       .eq('user_id', user.id) // Ensure ownership
       .select()
@@ -214,7 +214,7 @@ export const dataService = {
 
     const { data, error } = await supabase
       .from('notes')
-      .update({ public_slug: null, updated_at: new Date() })
+      .update({ public_slug: null, updated_at: new Date().toISOString() })
       .eq('id', noteId)
       .eq('user_id', user.id)
       .select()
@@ -253,7 +253,7 @@ export const dataService = {
 
       const { error } = await supabase
           .from('profiles')
-          .upsert({ id: user.id, ...profile, updated_at: new Date() }, { onConflict: 'id' });
+          .upsert({ id: user.id, ...profile, updated_at: new Date().toISOString() }, { onConflict: 'id' });
 
       return { error };
   },
@@ -295,7 +295,7 @@ export const dataService = {
 
       const { error } = await supabase
           .from('user_settings')
-          .upsert({ user_id: user.id, config: settings, updated_at: new Date() }, { onConflict: 'user_id' });
+          .upsert({ user_id: user.id, config: settings, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
       
       return { error };
   },

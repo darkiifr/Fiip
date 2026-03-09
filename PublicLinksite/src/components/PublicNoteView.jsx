@@ -54,7 +54,15 @@ export default function PublicNoteView() {
             setNote(data);
         } catch (err) {
             console.error(err);
-            setError("Note introuvable ou privée.");
+            if (err === "Configuration missing") {
+                 setError("Erreur : Clés Supabase manquantes dans l'environnement.");
+            } else if (err?.code === 'PGRST116') {
+                 setError("Note introuvable ou privée."); // Standard Supabase "0 rows returned"
+            } else if (err?.message) {
+                 setError(`Erreur technique : ${err.message}`);
+            } else {
+                 setError("Note introuvable ou privée.");
+            }
         } finally {
             setLoading(false);
         }
@@ -102,9 +110,6 @@ export default function PublicNoteView() {
             <header className="sticky top-0 z-50 bg-[#1C1C1E]/80 backdrop-blur-xl border-b border-white/10 px-6 py-4">
                 <div className="max-w-5xl mx-auto flex items-center justify-between">
                     <a href="https://fiip.netlify.app" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
-                            F
-                        </div>
                         <span className="font-semibold text-lg tracking-tight text-white">Fiip</span>
                     </a>
                     
@@ -152,8 +157,13 @@ export default function PublicNoteView() {
                 </div>
 
                 <article className="prose prose-invert max-w-none">
-                    <h1 className="text-4xl sm:text-5xl font-bold mb-4 text-white tracking-tight">{note.title || "Sans titre"}</h1>
-                    
+                    <div className="flex items-center gap-3 mb-4">
+                        <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">{note.title || "Sans titre"}</h1>
+                        {(note.is_favorite || note.favorite) && (
+                            <IconifyIcon icon="mingcute:star-fill" className="text-yellow-500 w-8 h-8 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
+                        )}
+                    </div>
+
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-10 border-b border-white/5 pb-6">
                         <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
                             <IconifyIcon icon="mingcute:calendar-fill" className="text-gray-400" />
@@ -188,18 +198,49 @@ export default function PublicNoteView() {
                     />
                 </article>
 
+                {/* Media Attachments Inline */}
+                {note.attachments && note.attachments.some(att => ['image', 'video', 'audio'].includes(att.type)) && (
+                    <div className="mt-8 space-y-6">
+                        {note.attachments.filter(att => ['image', 'video', 'audio'].includes(att.type)).map((att, index) => {
+                            const src = att.url || att.data;
+                            if (!src) return null;
+                            
+                            return (
+                                <div key={index} className="flex flex-col items-center">
+                                    {att.type === 'image' && (
+                                        <img src={src} alt={att.name} className="max-w-full max-h-[600px] rounded-xl shadow-lg border border-white/10 object-contain" loading="lazy" />
+                                    )}
+                                    {att.type === 'video' && (
+                                        <video src={src} controls className="max-w-full max-h-[600px] rounded-xl shadow-lg border border-white/10" />
+                                    )}
+                                    {att.type === 'audio' && (
+                                        <div className="w-full max-w-md bg-[#2C2C2E] p-4 rounded-xl shadow-md border border-white/5">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <IconifyIcon icon="mingcute:music-fill" className="text-blue-400 w-5 h-5" />
+                                                <span className="text-sm font-medium text-white truncate">{att.name || "Mémo vocal"}</span>
+                                            </div>
+                                            <audio src={src} controls className="w-full outline-none" />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
                 {/* Attachments Section */}
                 {note.attachments && note.attachments.length > 0 && (
                     <div className="mt-16 pt-8 border-t border-white/10">
                         <h3 className="text-lg font-semibold mb-6 flex items-center gap-2 text-white">
                             <IconifyIcon icon="mingcute:attachment-fill" className="text-blue-500" />
-                            Pièces jointes ({note.attachments.length})
+                            Fichiers joints ({note.attachments.length})
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {note.attachments.map((att, index) => (
                                 <a 
                                     key={index}
-                                    href={att.url || '#'}
+                                    href={att.url || att.data || '#'}
+                                    download={att.name || 'Fichier'}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-4 p-4 bg-[#2C2C2E] hover:bg-[#3A3A3C] rounded-xl border border-white/5 transition-all group hover:scale-[1.02] hover:shadow-lg hover:shadow-black/20"
@@ -222,9 +263,6 @@ export default function PublicNoteView() {
             {/* Footer */}
             <footer className="border-t border-white/10 py-12 mt-12 bg-[#1C1C1E]">
                 <div className="max-w-4xl mx-auto px-6 text-center">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20 mx-auto mb-6">
-                        F
-                    </div>
                     <h2 className="text-2xl font-bold text-white mb-2">Vos idées. Instantanément.</h2>
                     <p className="text-gray-400 mb-8 max-w-sm mx-auto">Fiip est l&apos;outil de prise de notes conçu pour la simplicité et la performance.</p>
                     <a 

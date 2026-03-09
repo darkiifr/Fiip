@@ -14,7 +14,7 @@ import IconCheck from '~icons/mingcute/check-fill';
 import IconFileText from '~icons/mingcute/file-fill';
 import IconCopy from '~icons/mingcute/copy-fill';
 
-export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
+export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdateNote }) {
     const [selectedNote, setSelectedNote] = useState(note);
     const [isSharing, setIsSharing] = useState(false); // For loading state
     const [isPublic, setIsPublic] = useState(false);
@@ -41,6 +41,11 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
         setStatus({ type: '', message: '' });
 
         try {
+            // S'assurer que la note est bien sauvegardée sur les serveurs de Supabase avant de vouloir la publier
+            // Cela évite un bug où une note locale toute neuve n'a pas encore de ligne correspondante en BDD
+            const saveRes = await dataService.saveNote(selectedNote);
+            if (saveRes && saveRes.error) throw saveRes.error;
+
             if (isPublic) {
                 // Unpublish
                 const { error } = await dataService.unpublishNote(selectedNote.id);
@@ -48,6 +53,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                 setIsPublic(false);
                 setPublicUrl('');
                 setStatus({ type: 'success', message: 'Note rendue privée.' });
+                if (onUpdateNote) onUpdateNote({ ...selectedNote, public_slug: null, shared: false });
             } else {
                 // Publish
                 const { data, error } = await dataService.publishNote(selectedNote.id);
@@ -55,9 +61,10 @@ export default function ShareModal({ isOpen, onClose, note, notes = [] }) {
                 setIsPublic(true);
                 setPublicUrl(`https://fiip-app.netlify.app/n/${data.public_slug}`);
                 setStatus({ type: 'success', message: 'Note publiée avec succès !' });
+                if (onUpdateNote) onUpdateNote({ ...selectedNote, public_slug: data.public_slug, shared: true });
             }
         } catch (error) {
-            console.error(error);
+            console.error('Erreur Publish:', error);
             setStatus({ type: 'error', message: 'Erreur lors de la mise à jour.' });
         } finally {
             setIsSharing(false);
