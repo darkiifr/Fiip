@@ -119,30 +119,65 @@ export const dataService = {
     const user = await authService.getUser();
     if (!user) return { data: [], error: 'Not authenticated' };
 
-    const { data, error } = await supabase
+    // Fetch owned notes
+    const { data: ownedData, error: ownedError } = await supabase
       .from('notes')
       .select('*')
-      .order('updated_at', { ascending: false });
+      .eq('user_id', user.id);
 
-    if (error) {
-        console.error('Error fetching notes:', error);
+    // Fetch collaborative notes
+    const { data: collabData, error: collabError } = await supabase
+      .from('note_collaborators')
+      .select('notes(*)')
+      .eq('user_id', user.id);
+
+    if (ownedError || collabError) {
+        console.error('Error fetching notes:', ownedError || collabError);
         // Fallback to local storage if offline/error
         const local = localStorage.getItem('fiip-notes');
-        return { data: local ? JSON.parse(local) : [], error };
+        return { data: local ? JSON.parse(local) : [], error: ownedError || collabError };
     }
 
+    // Combine and deduplicate
+    const allNotesMap = new Map();
+    ownedData.forEach(n => allNotesMap.set(n.id, { ...n, shared: false }));
+    if (collabData) {
+        collabData.forEach(c => {
+             if (c.notes && c.notes.id) {
+                 allNotesMap.set(c.notes.id, { ...c.notes, shared: true });
+             }
+        });
+    }
+    
+    let combinedData = Array.from(allNotesMap.values());
+    combinedData.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+
     // Map DB fields back to what the frontend expects
-    const mappedData = data.map(n => ({
+    const mappedData = combinedData.map(n => ({
       ...n,
       favorite: n.is_favorite,
       updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : Date.now(),
       badges: n.badges || [],
-      deleted: n.deleted || false
+      deleted: n.deleted || false,
+      shared: n.shared || false
     }));
 
+    // Preserve local trashed notes
+    const localStr = localStorage.getItem('fiip-notes');
+    let localNotes = [];
+    if (localStr) {
+        try { localNotes = JSON.parse(localStr); } catch (e) {
+            console.warn('Failed to parse local trashed notes', e);
+        }
+    }
+    const trashedNotes = localNotes.filter(n => n.deleted);
+    
+    // Combine fetched DB notes and local trashed notes
+    const finalData = [...mappedData, ...trashedNotes];
+
     // Update local cache
-    localStorage.setItem('fiip-notes', JSON.stringify(mappedData));
-    return { data: mappedData, error };
+    localStorage.setItem('fiip-notes', JSON.stringify(finalData));
+    return { data: finalData, error: null };
   },
 
   async saveNote(note) {
@@ -159,9 +194,24 @@ export const dataService = {
       is_favorite: note.favorite || false,
       tags: note.tags || [],
       badges: note.badges || [],
-      deleted: note.deleted || false,
+      deleted: false, // In DB it is always false, we don't store trashed notes in cloud
       updated_at: new Date(note.updatedAt || Date.now()).toISOString()
     };
+
+    if (note.deleted) {
+      // If note is deleted (in trash), we actually remove it from cloud
+      const { error } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', note.id)
+        .eq('user_id', user.id);
+        
+      if (error) {
+          console.error('Error soft-deleting note from cloud:', error);
+          return { error };
+      }
+      return { data: { ...dbNote, deleted: true }, error: null };
+    }
 
     const { data, error } = await supabase
       .from('notes')
@@ -233,6 +283,50 @@ export const dataService = {
     return { data, error };
   },
 
+  // --- Collaboration ---
+  async getCollaborators(noteId) {
+      const { data, error } = await supabase
+          .from('note_collaborators')
+          .select('*, profiles(username, avatar_url)')
+          .eq('note_id', noteId);
+      return { data, error };
+  },
+
+  async addCollaborator(noteId, username, role = 'viewer') {
+      // 1. Find user by username
+      const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', username)
+          .single();
+          
+      if (profileError || !profile) {
+          return { error: 'Utilisateur introuvable.' };
+      }
+
+      // 2. Add to collaborators table
+      const { data, error } = await supabase
+          .from('note_collaborators')
+          .insert({
+              note_id: noteId,
+              user_id: profile.id,
+              role: role
+          })
+          .select()
+          .single();
+          
+      return { data, error: error ? 'Erreur lors de l\'ajout du collaborateur.' : null };
+  },
+
+  async removeCollaborator(noteId, userId) {
+      const { error } = await supabase
+          .from('note_collaborators')
+          .delete()
+          .eq('note_id', noteId)
+          .eq('user_id', userId);
+      return { error };
+  },
+
   // --- Profile ---
   async fetchProfile() {
       const user = await authService.getUser();
@@ -267,6 +361,35 @@ export const dataService = {
           })
           .subscribe();
       return channel;
+  },
+
+  joinNoteCollaboration(noteId, userId, username, onUpdate, onPresenceSync) {
+      if (!noteId) return null;
+      const room = supabase.channel(`note-${noteId}`, {
+          config: { presence: { key: userId } }
+      });
+
+      room.on('broadcast', { event: 'edit' }, (payload) => {
+          if (payload.payload && payload.payload.userId !== userId) {
+              onUpdate(payload.payload.note);
+          }
+      });
+
+      room.on('presence', { event: 'sync' }, () => {
+          const state = room.presenceState();
+          if (onPresenceSync) onPresenceSync(state);
+      });
+
+      room.subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+              await room.track({
+                  user: username || 'Anonyme',
+                  online_at: new Date().toISOString(),
+              });
+          }
+      });
+
+      return room;
   },
 
   // --- Settings ---

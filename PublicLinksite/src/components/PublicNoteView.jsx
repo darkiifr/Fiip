@@ -165,6 +165,12 @@ export default function PublicNoteView() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-10 border-b border-white/5 pb-6">
+                        {note.author_username && (
+                            <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                                <IconifyIcon icon="mingcute:user-3-fill" className="text-gray-400" />
+                                {note.author_username}
+                            </span>
+                        )}
                         <span className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
                             <IconifyIcon icon="mingcute:calendar-fill" className="text-gray-400" />
                             {new Date(note.updatedAt || note.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}

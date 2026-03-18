@@ -108,7 +108,13 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                     keyAuthService.licenseKey = keyToVerify;
                 }
             } else {
-                setError(res.message || t('license.error_invalid', "La clé de licence est invalide ou expirée."));
+                let errorMsg = res.message || '';
+                if (errorMsg.toLowerCase().includes('password')) {
+                    errorMsg = t('license.error_invalid', "La clé de licence est invalide ou expirée.");
+                } else if (!errorMsg) {
+                    errorMsg = t('license.error_invalid', "La clé de licence est invalide ou expirée.");
+                }
+                setError(errorMsg);
             }
         } catch (e) {
             console.error(e);
@@ -273,12 +279,22 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => { setShowAddLicense(false); setUpgradeKey(''); setError(null); }}
+                                                        onClick={() => { setShowAddLicense(false); setUpgradeKey(''); setError(null); setSuccess(null); }}
                                                         className="px-3 bg-white/5 hover:bg-white/10 text-gray-400 text-[10px] rounded-md transition-colors duration-[150ms] ease-out"
                                                     >
                                                         Annuler
                                                     </button>
                                                 </div>
+                                                {error && (
+                                                    <div className="mt-2 text-xs text-red-400 bg-red-400/10 border border-red-500/20 p-2 rounded-md animate-in slide-in-from-top-2">
+                                                        {error}
+                                                    </div>
+                                                )}
+                                                {success && (
+                                                    <div className="mt-2 text-xs text-green-400 bg-green-400/10 border border-green-500/20 p-2 rounded-md animate-in slide-in-from-top-2">
+                                                        {success}
+                                                    </div>
+                                                )}
                                             </form>
                                         )}
                                     </div>

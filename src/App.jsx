@@ -234,6 +234,14 @@ function App() {
             if (error || !data) {
                 console.error("Failed to fetch public note", error);
                 alert("Erreur lors de l'importation de la note partagée.");
+                setAppLoading({ isLoading: false, status: '' });
+                return;
+            }
+
+            // Demander confirmation avant d'importer la note copiée
+            const confirmImport = window.confirm(`Voulez-vous importer la note partagée "${data.title || 'Sans titre'}" dans votre espace ?\nElle sera ajoutée à vos notes partagées.`);
+            if (!confirmImport) {
+                setAppLoading({ isLoading: false, status: '' });
                 return;
             }
 

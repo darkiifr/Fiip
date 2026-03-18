@@ -23,10 +23,22 @@ export const dataService = {
       .select('*')
       .eq('public_slug', slug)
       .single();
-    
+
     if (data) {
        data.updatedAt = data.updated_at ? new Date(data.updated_at).getTime() : Date.now();
        data.badges = data.badges || [];
+       
+       // Récupérer le pseudo du créateur
+       if (data.user_id) {
+           const { data: profileData } = await supabase
+               .from('profiles')
+               .select('username')
+               .eq('id', data.user_id)
+               .single();
+           if (profileData) {
+               data.author_username = profileData.username;
+           }
+       }
     }
 
     return { data, error };

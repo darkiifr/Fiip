@@ -247,13 +247,76 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
 
+    // Collaboration State
+    const [onlineUsers, setOnlineUsers] = useState([]);
+    const realtimeChannelRef = useRef(null);
+
     // Keep note ref updated, but respect local optimistic updates
     useEffect(() => { 
         if (!note) return;
-        if (!noteRef.current || note.id !== noteRef.current.id || note.updatedAt >= noteRef.current.updatedAt) {
+        // Accept update if from another user or if no noteRef exists
+        if (!noteRef.current || note.id !== noteRef.current.id || note.updatedAt > (noteRef.current.updatedAt || 0)) {
             noteRef.current = note; 
         }
     }, [note]);
+
+    // Setup Collaboration Channel
+    useEffect(() => {
+        if (!note || !note.id) {
+            if (realtimeChannelRef.current) {
+                realtimeChannelRef.current.unsubscribe();
+                realtimeChannelRef.current = null;
+            }
+            setOnlineUsers([]);
+            return;
+        }
+
+        const setupCollab = async () => {
+            const user = await authService.getUser();
+            if (!user) return;
+
+            const username = keyAuthService.userData?.username || 'Anonyme';
+            
+            if (realtimeChannelRef.current) {
+                realtimeChannelRef.current.unsubscribe();
+            }
+
+            const channel = dataService.joinNoteCollaboration(
+                note.id,
+                user.id,
+                username,
+                (payloadNote) => {
+                    // Update note implicitly without overriding active cursor (handled carefully by LanguageTool component)
+                    noteRef.current = { ...noteRef.current, ...payloadNote };
+                    // Let the parent know as we received a broadcast
+                    if (onUpdateNoteRef.current) {
+                        onUpdateNoteRef.current(noteRef.current);
+                    }
+                },
+                (presenceState) => {
+                    const users = [];
+                    for (const id in presenceState) {
+                        if (String(id) !== String(user.id) && presenceState[id][0]) {
+                            users.push({ id, user: presenceState[id][0].user });
+                        }
+                    }
+                    setOnlineUsers(users);
+                }
+            );
+
+            realtimeChannelRef.current = channel;
+        };
+
+        setupCollab();
+
+        return () => {
+            if (realtimeChannelRef.current) {
+                realtimeChannelRef.current.unsubscribe();
+                realtimeChannelRef.current = null;
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [note?.id, note?.shared]);
 
     const onUpdateNoteRef = useRef(onUpdateNote);
     useEffect(() => {
@@ -382,6 +445,18 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
         const updatedNote = { ...note, title: newTitle, updatedAt: Date.now() };
         noteRef.current = updatedNote;
         onUpdateNote(updatedNote);
+        
+        if (realtimeChannelRef.current) {
+            authService.getUser().then(user => {
+                if (user) {
+                    realtimeChannelRef.current.send({
+                        type: 'broadcast',
+                        event: 'edit',
+                        payload: { userId: user.id, note: updatedNote }
+                    });
+                }
+            });
+        }
     };
 
     const handleContentChange = (e) => {
@@ -389,7 +464,19 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
         const updatedNote = { ...note, content: newContent, updatedAt: Date.now() };
         noteRef.current = updatedNote;
         onUpdateNote(updatedNote);
-        
+
+        if (realtimeChannelRef.current) {
+            authService.getUser().then(user => {
+                if (user) {
+                    realtimeChannelRef.current.send({
+                        type: 'broadcast',
+                        event: 'edit',
+                        payload: { userId: user.id, note: updatedNote }
+                    });
+                }
+            });
+        }
+
         // Clear suggestion if typing
         if (suggestion) setSuggestion(null);
     };
@@ -982,6 +1069,19 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 </div>
 
                 <div className="flex-1" />
+
+                {/* Online Users Indicator */}
+                {onlineUsers.length > 0 && (
+                    <div className="flex items-center mr-3" title={`${onlineUsers.length} utilisateur(s) en ligne`}>
+                        <div className="flex -space-x-2">
+                            {onlineUsers.map((u, i) => (
+                                <div key={u.id || i} className="w-6 h-6 rounded-full bg-blue-600 border border-[#1e1e1e] flex items-center justify-center text-[10px] font-bold text-white uppercase" title={u.user}>
+                                    {u.user.substring(0, 2)}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <button
                     onClick={onOpenShare}

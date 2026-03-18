@@ -3,7 +3,24 @@ import { Icon as IconifyIcon } from '@iconify/react';
 
 function App() {
   const path = window.location.pathname;
-  
+
+  // Supabase Auth Redirection Callback
+  if (path && (path.toLowerCase().startsWith('/auth/callback') || path.toLowerCase() === '/auth/callback')) {
+      const hash = window.location.hash;
+      const search = window.location.search;
+      setTimeout(() => {
+          window.location.replace(`fiip://login-callback${hash || search}`);
+      }, 500);
+
+      return (
+        <div className="min-h-screen bg-[#1C1C1E] text-white flex flex-col items-center justify-center font-sora">
+            <h2 className="text-3xl font-bold mb-4">Authentification en cours !</h2>
+            <p className="text-gray-400">Redirection vers l&apos;application Fiip...</p>
+            <p className="text-gray-500 mt-8 text-sm">Vous pouvez fermer cette page une fois l&apos;application ouverte.</p>
+        </div>
+      );
+  }
+
   // Case-insensitive check for note path
   if (path && (path.toLowerCase().startsWith('/n/') || path.toLowerCase() === '/n')) {
       return <PublicNoteView />;

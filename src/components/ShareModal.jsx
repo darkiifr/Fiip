@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { dataService } from '../services/supabase';
+import { dataService, authService } from '../services/supabase';
 import CustomSelect from './CustomSelect';
 import { Icon as IconifyIcon } from '@iconify/react';
 import { open } from '@tauri-apps/plugin-shell';
@@ -21,6 +21,19 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
     const [publicUrl, setPublicUrl] = useState('');
     const [status, setStatus] = useState({ type: '', message: '' });
 
+    // Collaboration state
+    const [collaborators, setCollaborators] = useState([]);
+    const [newCollabUsername, setNewCollabUsername] = useState('');
+    const [isLoadingCollab, setIsLoadingCollab] = useState(false);
+    
+    // User validation 
+    const [currentUser, setCurrentUser] = useState(null);
+    const isOwner = selectedNote ? (currentUser?.id === (selectedNote.user_id || selectedNote.userId)) : false;
+
+    useEffect(() => {
+        authService.getUser().then(user => setCurrentUser(user));
+    }, []);
+
     useEffect(() => {
         if (note) {
             setSelectedNote(note);
@@ -32,8 +45,46 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                 setIsPublic(false);
                 setPublicUrl('');
             }
+            fetchCollaborators(note.id);
         }
     }, [note]);
+
+    const fetchCollaborators = async (id) => {
+        setIsLoadingCollab(true);
+        const { data, error } = await dataService.getCollaborators(id);
+        if (!error && data) {
+            setCollaborators(data);
+        }
+        setIsLoadingCollab(false);
+    };
+
+    const handleAddCollaborator = async (e) => {
+        if (e) e.preventDefault();
+        if (!newCollabUsername.trim() || !selectedNote) return;
+        setIsLoadingCollab(true);
+        setStatus({ type: '', message: '' });
+        
+        try {
+            await dataService.saveNote(selectedNote); // ensure it's saved
+            const res = await dataService.addCollaborator(selectedNote.id, newCollabUsername.trim());
+            if (res.error) throw new Error(res.error);
+            setStatus({ type: 'success', message: 'Collaborateur ajouté !' });
+            setNewCollabUsername('');
+            fetchCollaborators(selectedNote.id);
+        } catch (err) {
+            setStatus({ type: 'error', message: err.message || 'Erreur lors de l\'ajout' });
+        } finally {
+            setIsLoadingCollab(false);
+        }
+    };
+
+    const handleRemoveCollaborator = async (userId) => {
+        if (!selectedNote) return;
+        setIsLoadingCollab(true);
+        const { error } = await dataService.removeCollaborator(selectedNote.id, userId);
+        if (!error) fetchCollaborators(selectedNote.id);
+        setIsLoadingCollab(false);
+    };
 
     const handleTogglePublic = async () => {
         if (!selectedNote) return;
@@ -173,7 +224,18 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                         )}
                     </div>
 
-                    {/* Public Sharing Section */}
+                    {!isOwner && selectedNote && (
+                         <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm flex items-start gap-3">
+                             <IconLock className="w-5 h-5 shrink-0 mt-0.5" />
+                             <p>
+                                 Vous n&apos;êtes pas le propriétaire de cette note. Seul le créateur peut modifier les options de partage ou ajouter des collaborateurs.
+                             </p>
+                         </div>
+                    )}
+
+                    {isOwner && (
+                        <>
+                            {/* Public Sharing Section */}
                     <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -226,6 +288,71 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                             </div>
                         )}
                     </div>
+
+                    {/* Collaborators Section */}
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-purple-500/20 text-purple-400">
+                                    <IconLock className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-medium text-white">Collaborateurs</h3>
+                                    <p className="text-xs text-gray-400">
+                                        Partage privé avec d&apos;autres utilisateurs
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* List of collaborators */}
+                        {collaborators.length > 0 && (
+                            <div className="space-y-2 mb-3 max-h-32 overflow-y-auto pr-2">
+                                {collaborators.map(collab => (
+                                    <div key={collab.user_id} className="flex flex-row items-center justify-between bg-[#121212] p-2 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-2">
+                                            {collab.profiles?.avatar_url ? (
+                                                <img src={collab.profiles.avatar_url} alt="avatar" className="w-6 h-6 rounded-full" />
+                                            ) : (
+                                                <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs text-gray-300">
+                                                    {collab.profiles?.username?.[0] || '?'}
+                                                </div>
+                                            )}
+                                            <span className="text-sm text-gray-200">{collab.profiles?.username || 'Utilisateur'}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => handleRemoveCollaborator(collab.user_id)}
+                                            className="text-red-400 hover:text-red-300 p-1 rounded-md hover:bg-red-500/10 transition-colors"
+                                            title="Retirer"
+                                        >
+                                            <IconClose className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Add collaborator form */}
+                        <form onSubmit={handleAddCollaborator} className="flex gap-2">
+                            <input
+                                type="text"
+                                placeholder="Nom d'utilisateur"
+                                value={newCollabUsername}
+                                onChange={(e) => setNewCollabUsername(e.target.value)}
+                                className="flex-1 bg-[#121212] border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500/50"
+                                disabled={isLoadingCollab}
+                            />
+                            <button
+                                type="submit"
+                                disabled={!newCollabUsername.trim() || isLoadingCollab}
+                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                            >
+                                {isLoadingCollab ? <IconLoading className="w-4 h-4 animate-spin" /> : 'Ajouter'}
+                            </button>
+                        </form>
+                    </div>
+                        </>
+                    )}
 
                     {/* Status Message */}
                     {status.message && (
