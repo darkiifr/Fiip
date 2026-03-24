@@ -2,11 +2,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exit } from '@tauri-apps/plugin-process';
 import { useTranslation } from 'react-i18next';
 
-// Icons Import (Pim's Edition)
-import IconClose from '~icons/mingcute/close-fill';
-import IconMinimize from '~icons/mingcute/minimize-fill';
-import IconMaximize from '~icons/mingcute/square-fill';
-
 export default function Titlebar({ style = 'macos' }) {
     const appWindow = getCurrentWindow();
     const { t } = useTranslation();
@@ -37,38 +32,28 @@ export default function Titlebar({ style = 'macos' }) {
                 {/* Left Drag Region (Padding) */}
                 <div className="w-[12px] h-full" data-tauri-drag-region />
 
-                <div className="flex gap-2 z-10">
+                <div className="flex gap-2 z-10 hover:*:brightness-110">
                     <button
                         onClick={handleClose}
-                        className="w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:bg-[#FF4A42] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#FF5F57] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                         title={t('settings.close')}
                     />
                     <button
                         onClick={handleMinimize}
-                        className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E] hover:bg-[#FEAE1C] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#FEBC2E] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                         title={t('settings.minimize')}
                     />
                     <button
                         onClick={handleMaximize}
-                        className="w-3.5 h-3.5 rounded-full bg-[#28C840] hover:bg-[#1EB332] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#28C840] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                         title={t('settings.maximize')}
                     />
                 </div>
-                
-                {/* Middle Drag Region - 32px central height effectively covered by full height drag region usually, but user asked for "Zone de drag : 32px de hauteur centrale"
-                    In Tauri, data-tauri-drag-region makes the element draggable. 
-                    If I put it on the full height container, it works. 
-                    If I put it on a specific div, only that div is draggable.
-                    I will make the central spacer draggable.
-                */}
-                <div className="flex-1 h-full flex items-center" data-tauri-drag-region>
-                    {/* Optional: if they meant the drag area is vertically centered 32px, 
-                        but usually the whole bar is draggable. I'll stick to standard behavior but ensure the layout is correct.
-                    */}
-                </div>
-                
-                {/* Title (with Right Padding) */}
-                <div className="text-sm font-medium text-gray-300 pr-[16px] h-full flex items-center" data-tauri-drag-region>Fiip</div>
+
+                <div className="flex-1 h-full flex items-center" data-tauri-drag-region />
+
+                {/* Title */}
+                <div className="text-sm font-medium text-gray-300 pr-[16px] h-full flex items-center pointer-events-none">Fiip</div>
             </div>
         );
     }
@@ -80,29 +65,36 @@ export default function Titlebar({ style = 'macos' }) {
                 className="h-8 w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
             >
                 <div className="flex-1 px-4 h-full flex items-center" data-tauri-drag-region>
-                    <div className="text-sm font-medium text-gray-300">Fiip</div>
+                    <div className="text-[12px] font-medium text-gray-400 pointer-events-none">Fiip</div>
                 </div>
                 <div className="flex h-full">
                     <button
                         onClick={handleMinimize}
-                        className="w-12 h-full hover:bg-white/10 flex items-center justify-center transition-colors"
+                        className="window-btn w-12 h-full hover:bg-white/10 flex items-center justify-center transition-none"
                         title={t('settings.minimize')}
                     >
-                        <IconMinimize className="w-4 h-4 text-gray-300" />
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="0" y="4.5" width="10" height="1" fill="#A1A1AA" />
+                        </svg>
                     </button>
                     <button
                         onClick={handleMaximize}
-                        className="w-12 h-full hover:bg-white/10 flex items-center justify-center transition-colors"
+                        className="window-btn w-12 h-full hover:bg-white/10 flex items-center justify-center transition-none"
                         title={t('settings.maximize')}
                     >
-                        <IconMaximize className="w-3.5 h-3.5 text-gray-300" />
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="0.5" y="0.5" width="9" height="9" stroke="#A1A1AA" />
+                        </svg>
                     </button>
                     <button
                         onClick={handleClose}
-                        className="w-12 h-full hover:bg-red-600 hover:text-white flex items-center justify-center transition-colors group"
+                        className="window-btn w-12 h-full hover:bg-[#E81123] flex items-center justify-center transition-none group"
                         title={t('settings.close')}
                     >
-                        <IconClose className="w-4 h-4 text-gray-300 group-hover:text-white" />
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M0.853553 0.146447L9.85355 9.14645C10.0488 9.34171 10.0488 9.65829 9.85355 9.85355C9.65829 10.0488 9.34171 10.0488 9.14645 9.85355L0.146447 0.853553C-0.0488155 0.658291 -0.0488155 0.341709 0.146447 0.146447C0.341709 -0.0488155 0.658291 -0.0488155 0.853553 0.146447Z" fill="#A1A1AA" className="group-hover:fill-white" />
+                            <path d="M9.85355 0.146447L0.853553 9.14645C0.658291 9.34171 0.341709 9.34171 0.146447 9.14645C-0.0488155 8.95118 -0.0488155 8.6346 0.146447 8.43934L9.14645 -0.56066C9.34171 -0.755923 9.65829 -0.755923 9.85355 -0.56066C10.0488 -0.365398 10.0488 -0.0488155 9.85355 0.146447Z" fill="#A1A1AA" className="group-hover:fill-white" />
+                        </svg>
                     </button>
                 </div>
             </div>

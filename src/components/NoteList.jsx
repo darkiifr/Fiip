@@ -31,8 +31,7 @@ export default function NoteList({
     onToggleFavorite,
     activeNav,
     onEmptyTrash,
-    settings,
-    isSyncing
+    settings
 }) {
     const { t, i18n } = useTranslation();
     const [searchTerm, setSearchTerm] = useState('');
@@ -109,9 +108,6 @@ export default function NoteList({
                         activeNav === 'trash' ? (t('sidebar.trash') || "Trash") :
                         (t('sidebar.all_notes') || "Notes")
                     }</span>
-                    {isSyncing && (
-                         <div className="w-3 h-3 rounded-full border-2 border-blue-500 border-t-transparent animate-spin ml-2" title="Syncing..."></div>
-                    )}
                 </div>
                 
                 {activeNav === 'trash' ? (

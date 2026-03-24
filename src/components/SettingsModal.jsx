@@ -23,13 +23,12 @@ import IconMic from '~icons/mingcute/mic-fill';
 import IconVolume from '~icons/mingcute/volume-fill';
 import IconCpu from '~icons/mingcute/chip-fill';
 import IconMessage from '~icons/mingcute/message-3-fill';
-import IconShieldCheck from '~icons/mingcute/shield-shape-fill';
-import IconShieldAlert from '~icons/mingcute/warning-fill';
 
 export default function SettingsModal({ isOpen, onClose, settings, onUpdateSettings, storageUsage, onSync }) {
     const { t, i18n } = useTranslation();
     const [localSettings, setLocalSettings] = useState(settings);
     const [hasChanges, setHasChanges] = useState(false);
+
     const [audioDevices, setAudioDevices] = useState({ inputs: [], outputs: [] });
     const originalSettingsRef = useRef(settings);
     const [platformName, setPlatformName] = useState('');
@@ -38,18 +37,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
     const [voices, setVoices] = useState([]);
     const [isLinux, setIsLinux] = useState(false);
     const [updateInfo, setUpdateInfo] = useState(null);
-    const [authData, setAuthData] = useState(null);
     const [pendingUpdatesCount, setPendingUpdatesCount] = useState(0);
-
-    // Helper for formatting bytes
-    const formatBytes = (bytes, decimals = 2) => {
-        if (!+bytes) return '0 Octets';
-        const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['Octets', 'Ko', 'Mo', 'Go', 'To'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-    };
 
     const languages = [
         { code: 'fr', label: 'Français', flag: '🇫🇷' },
@@ -127,29 +115,6 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
             originalSettingsRef.current = settings;
             setLocalSettings(settings);
             setHasChanges(false);
-            
-            // Construct Auth Data with Trial Logic
-            const authInfo = keyAuthService.isAuthenticated ? { ...keyAuthService.userData } : {};
-            if (keyAuthService.isTrialActive) {
-                authInfo.isTrialActive = true;
-                authInfo.subscription = 'Essai Gratuit';
-                authInfo.expiry = keyAuthService.trialExpiry;
-                authInfo.username = authInfo.username || 'Invité'; 
-            } else if (!keyAuthService.isAuthenticated) {
-                // Not authenticated and not trial
-                setAuthData(null);
-            }
-            
-            if (keyAuthService.isAuthenticated || keyAuthService.isTrialActive) {
-                 // Refresh level info from service to ensure UI reflects real capabilities
-                 if (keyAuthService.isAuthenticated) {
-                     authInfo.currentLevel = keyAuthService.currentLevel;
-                     authInfo.subscription = keyAuthService.getCurrentSubscriptionName();
-                 }
-                setAuthData(authInfo);
-            } else {
-                setAuthData(null);
-            }
 
             // Load Audio Devices
             if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
@@ -186,7 +151,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
         onUpdateSettings(newSettings);
     };
 
-    const handleApply = () => {
+    const handleApply = async () => {
         // Save the current settings as the new baseline
         originalSettingsRef.current = localSettings;
         setHasChanges(false);
@@ -265,70 +230,6 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                         </div>
                     </div>
 
-                    {/* License Section */}
-                    <div className="space-y-3" style={{ fontFamily: 'Sora, sans-serif' }}>
-                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('license.title', 'Licence & Abonnement')}</h3>
-                        <div className={`p-4 rounded-lg border flex flex-col gap-3 ${authData ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
-                            <div className="flex items-start gap-3">
-                                {authData ? (
-                                    <IconShieldCheck className="w-5 h-5 text-green-400 mt-0.5" />
-                                ) : (
-                                    <IconShieldAlert className="w-5 h-5 text-red-400 mt-0.5" />
-                                )}
-                                <div>
-                                    <h4 className={`text-sm font-medium ${authData ? 'text-green-400' : 'text-red-400'}`}>
-                                        {authData ? t('license.status_active', 'Licence Active') : t('license.status_inactive', 'Licence Inactive')}
-                                    </h4>
-                                    {authData ? (
-                                        <div className="mt-1 space-y-0.5">
-                                            <p className="text-xs text-gray-400">
-                                                {t('license.level', 'Niveau')}: <span className="text-gray-200 font-medium capitalize">{authData.subscription || (authData.isTrialActive ? 'Essai' : 'Standard')} (Niv. {authData.currentLevel || keyAuthService.currentLevel})</span>
-                                            </p>
-                                            {authData.expiry && (
-                                                <p className="text-xs text-gray-400">
-                                                    {t('license.expiry', 'Expire le')}: <span className="text-gray-200">{authData.expiry}</span>
-                                                </p>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <p className="text-xs text-gray-400 mt-1">
-                                            {t('license.features_locked', 'Certaines fonctionnalités comme l\'IA sont restreintes.')}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Storage Usage Bar */}
-                            {storageUsage && !authData?.isTrialActive && (
-                                <div className="mt-2 pt-3 border-t border-white/5">
-                                    <div className="flex justify-between items-center mb-1.5">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                            <IconCloud className="w-3 h-3" />
-                                            {t('settings.storage_usage', 'Stockage Cloud')}
-                                        </span>
-                                        <span className={`text-[10px] font-mono ${storageUsage.percent > 90 ? 'text-red-400' : 'text-gray-400'}`}>
-                                            {formatBytes(storageUsage.used)} / {(storageUsage.limit === 0 && authData) ? (authData.currentLevel >= 4 ? "500 Mo" : authData.currentLevel >= 2 ? "250 Mo" : "100 Mo") : formatBytes(storageUsage.limit)}
-                                        </span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                        <div 
-                                            className={`h-full rounded-full transition-all duration-500 ${
-                                                storageUsage.percent > 90 ? 'bg-red-500' : 
-                                                storageUsage.percent > 70 ? 'bg-yellow-500' : 'bg-blue-500'
-                                            }`}
-                                            style={{ width: `${storageUsage.limit === 0 ? 0 : storageUsage.percent}%` }}
-                                        />
-                                    </div>
-                                    {storageUsage.limit === 0 && (
-                                        <p className="text-[9px] text-gray-500 mt-1 italic text-right">
-                                            Synchronisation en attente...
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
                     {/* Typography */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.display_title')}</h3>
@@ -350,6 +251,29 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                     </div>
 
                     {/* Titlebar Style */}
+                    
+                    {/* UI Theme Style */}
+                    <div className="space-y-3">
+                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.ui_theme', 'Thème de l\'interface')}</h3>
+                        <div className="bg-black/20 rounded-lg p-1 flex gap-1 flex-wrap">
+                            {[
+                                { id: 'default', label: 'Classique' },
+                                  { id: 'liquid-glass-original', label: 'Liquid Glass' }
+                            ].map((style) => (
+                                <button
+                                    key={style.id}
+                                    onClick={() => handleUpdate({ ...localSettings, uiTheme: style.id })}
+                                    className={`flex-1 min-w-[30%] py-1.5 px-3 rounded-md text-[11px] font-medium transition-all ${localSettings.uiTheme === style.id || (!localSettings.uiTheme && style.id === 'default') ? 'bg-gray-700 text-blue-400 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`}
+                                >
+                                    {style.label}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[10px] text-gray-400 px-1">
+                            {t('settings.ui_theme_desc', 'Applique le flou liquide expérimental.')}
+                        </p>
+                    </div>
+
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.titlebar_style')}</h3>
                         <div className="bg-black/20 rounded-lg p-1 flex gap-1">
@@ -955,3 +879,8 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
         </div>
     );
 }
+
+
+
+
+

@@ -20,6 +20,9 @@ i18n
   .init({
     resources,
     fallbackLng: 'fr',
+    supportedLngs: Object.keys(resources),
+    nonExplicitSupportedLngs: true, // Auto fallback "en-US" to "en" si existant
+    load: 'all',
     interpolation: {
       escapeValue: false // react already safes from xss
     },

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
 import { Icon as IconifyIcon } from '@iconify/react';
 
-import { dataService } from '../services/supabase';
+import { authService, dataService } from '../services/supabase';
 
 const SKILL_ICONS = [
     'react', 'python', 'javascript', 'typescript', 'html', 'css', 'nodejs', 'php', 'rust', 'go', 'java', 'c', 'cpp', 'csharp', 'ruby', 'docker', 'linux', 'git', 'github', 'mysql', 'postgresql', 'mongodb', 'firebase', 'aws', 'azure', 'figma'
@@ -20,6 +20,11 @@ export default function UserProfileModal({ isOpen, onClose }) {
     avatar: null,
     skills: []
   });
+  const [originalNickname, setOriginalNickname] = useState('');
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -27,6 +32,9 @@ export default function UserProfileModal({ isOpen, onClose }) {
           const { data } = await dataService.fetchProfile();
            if (data) {
               setPublicProfile(prev => ({ ...prev, ...data }));
+              if (data.nickname) {
+                  setOriginalNickname(data.nickname);
+              }
           }
       };
       loadProfile();
@@ -34,17 +42,75 @@ export default function UserProfileModal({ isOpen, onClose }) {
   }, [isOpen]);
 
   const handleSave = async () => {
+    // Si le pseudo a changé, on demande le mot de passe
+    if (publicProfile.nickname !== originalNickname && originalNickname !== '') {
+        setShowPasswordPrompt(true);
+        return;
+    }
+    
+    await executeSave();
+  };
+
+  const executeSave = async () => {
+    setIsSaving(true);
     // Save Local for Sidebar updates
     localStorage.setItem('fiip_public_profile', JSON.stringify(publicProfile));
+
+    // Dispatch event so Sidebar picks it up immediately
+    window.dispatchEvent(new Event('storage'));
 
     // Save Cloud
     try {
         await dataService.saveProfile(publicProfile);
+        setOriginalNickname(publicProfile.nickname);
     } catch (e) {
         console.error("Save profile error", e);
     }
+
+    setIsSaving(false);
+    handleClose();
+  };
+
+  const handlePasswordConfirm = async () => {
+    if (!password) {
+        setPasswordError('Veuillez entrer votre mot de passe.');
+        return;
+    }
+    setIsSaving(true);
+    setPasswordError('');
     
+    const user = await authService.getUser();
+    if (!user?.email) {
+        setPasswordError('Utilisateur non trouvé.');
+        setIsSaving(false);
+        return;
+    }
+    
+    // Tentative de connexion avec le mot de passe pour vérifier
+    const { error } = await authService.signIn(user.email, password);
+    if (error) {
+        setPasswordError('Mot de passe incorrect.');
+        setIsSaving(false);
+        return;
+    }
+    
+    setShowPasswordPrompt(false);
+    setPassword('');
+    await executeSave();
+  };
+
+  const handleClose = () => {
+    setShowPasswordPrompt(false);
+    setPassword('');
+    setPasswordError('');
     onClose();
+  };
+
+  const handleCancelPassword = () => {
+    setShowPasswordPrompt(false);
+    setPassword('');
+    setPasswordError('');
+    setPublicProfile(prev => ({ ...prev, nickname: originalNickname }));
   };
 
   const handleBioChange = (e) => {
@@ -207,12 +273,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
                           {keyAuthService.isAuthenticated && <span className="bg-[#248046] text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Vérifié</span>}
                       </div>
                       <div className="text-white font-medium">
-                        {keyAuthService.isAuthenticated ? keyAuthService.userData?.username : 'Invité'}
-                      </div>
-                  </div>
-                  
-                  <div className="bg-[#2B2D31] p-4 rounded-lg border border-[#1F2023]">
-                      <div className="flex justify-between items-center mb-2">
+                          {keyAuthService.isAuthenticated ? (publicProfile.nickname || keyAuthService.userData?.username) : 'Invité'}
                           <span className="text-[#B5BAC1] text-xs font-bold uppercase">Abonnement</span>
                       </div>
                       <div className="text-white font-medium">
@@ -279,24 +340,63 @@ export default function UserProfileModal({ isOpen, onClose }) {
           <div className="bg-[#2B2D31] p-4 flex justify-end gap-3 shrink-0">
              {activeTab === 'profile' ? (
                 <>
-                  <button onClick={onClose} className="px-4 py-2 text-white hover:underline text-sm font-medium">Annuler</button>
+                  <button onClick={handleClose} className="px-4 py-2 text-white hover:underline text-sm font-medium">Annuler</button>
                   <button onClick={handleSave} className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors flex items-center gap-2">
                     <Save className="w-4 h-4" />
                     Enregistrer
                   </button>
                 </>
              ) : (
-                <button onClick={onClose} className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors">
+                <button onClick={handleClose} className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors">
                   Fermer
                 </button>
              )}
           </div>
         </div>
-        
-        <button onClick={onClose} className="absolute top-4 right-4 text-[#B5BAC1] hover:text-white">
-           <X className="w-6 h-6" />
+        <button onClick={handleClose} className="absolute top-4 right-4 text-[#B5BAC1] hover:text-white">
+             <X className="w-6 h-6" />
         </button>
       </div>
+
+        {/* Password Prompt Overlay */}
+        {showPasswordPrompt && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md bg-[#313338] rounded-md shadow-2xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Confirmation requise</h3>
+              <p className="text-[#B5BAC1] text-sm mb-4">Veuillez entrer votre mot de passe pour valider le changement de pseudo.</p>
+              
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mot de passe"
+                onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordConfirm(); }}
+                className="w-full bg-[#1E1F22] text-white p-3 rounded mb-2 focus:outline-none focus:ring-1 focus:ring-[#5865F2]"
+              />
+              
+              {passwordError && (
+                <p className="text-red-400 text-xs mb-4">{passwordError}</p>
+              )}
+              
+              <div className="flex justify-end gap-3 mt-6">
+                <button 
+                  onClick={handleCancelPassword}
+                  disabled={isSaving}
+                  className="px-4 py-2 text-white hover:underline text-sm font-medium"
+                >
+                  Annuler
+                </button>
+                <button 
+                  onClick={handlePasswordConfirm}
+                  disabled={isSaving}
+                  className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {isSaving ? 'Vérification...' : 'Confirmer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

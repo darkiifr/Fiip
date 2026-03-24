@@ -20,6 +20,7 @@ import { type } from '@tauri-apps/plugin-os';
 // import { readFile } from '@tauri-apps/plugin-fs';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { useTranslation } from 'react-i18next';
 import IconFileText from '~icons/mingcute/file-fill';
 import { keyAuthService } from "./services/keyauth";
@@ -290,10 +291,18 @@ function App() {
         const update = await check();
         if (update?.available) {
           console.log(`Update available: ${update.version}`);
-          await update.downloadAndInstall();
-          console.log("Update installed, relaunching...");
-          // Redémarrer l'application pour appliquer les changements
-          await relaunch();
+            const yes = await ask(`Une nouvelle version de Fiip vous attend (v${update.version}).\n\nVoulez-vous la télécharger et l'installer maintenant ?`, {
+              title: 'Mise à jour disponible',
+              kind: 'info',
+              okLabel: 'Mettre à jour',
+              cancelLabel: 'Plus tard'
+            });
+            if (yes) {
+              await update.downloadAndInstall();
+              console.log("Update installed, relaunching...");
+              // Redémarrer l'application pour appliquer les changements
+              await relaunch();
+            }
         }
       } catch (e) {
         console.error("Erreur durant la mise à jour automatique :", e);
@@ -646,6 +655,10 @@ function App() {
     document.documentElement.classList.remove('effect-none', 'effect-mica', 'effect-acrylic', 'effect-blur');
     document.documentElement.classList.add(`effect-${effect}`);
 
+    // Apply UI Theme
+    document.body.classList.remove('theme-default', 'theme-liquid-glass-original', 'theme-liquid-glass-op');
+    document.body.classList.add(`theme-${settings.uiTheme || 'default'}`);
+
     // If effect is 'none', ensure we have a background color
     if (effect === 'none') {
         document.body.style.backgroundColor = '#1C1C1E';
@@ -659,10 +672,12 @@ function App() {
   }, [settings]);
 
   const handleCreateNote = async (initialData = {}) => {
+    const user = await authService.getUser();
+    
     // Generating UUID locally to match Supabase schema
     // If initialData already has an id, it's a complete note (from import)
     if (initialData.id) {
-      setNotes([initialData, ...notes]);
+      setNotes(prevNotes => [initialData, ...prevNotes]);
       setSelectedNoteId(initialData.id);
       await dataService.saveNote(initialData);
       return;
@@ -676,10 +691,14 @@ function App() {
       updatedAt: Date.now(), // Local timestamp, Supabase will use its own or this one
       deleted: false,
       favorite: false,
+      user_id: user ? user.id : undefined
     };
-    setNotes([newNote, ...notes]);
+    setNotes(prevNotes => [newNote, ...prevNotes]);
     setSelectedNoteId(newNote.id);
     await dataService.saveNote(newNote);
+
+    // Once saved, if it was successful and returned data, we could potentially update the note with DB defaults, e.g., user_id.
+    // By adding it directly above, we solve the owner UI bug immediately.
   };
 
   const handleUpdateNote = (updatedNote) => {
