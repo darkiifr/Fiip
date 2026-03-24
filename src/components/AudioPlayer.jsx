@@ -130,11 +130,11 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
     };
 
     return (
-        <div className="w-full h-full flex flex-col justify-center p-4 bg-white dark:bg-[#27272a] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm transition-all hover:shadow-md hover:border-blue-500/20 group">
-            <audio 
-                ref={audioRef} 
-                src={src} 
-                preload="metadata" 
+        <div className="w-full h-full flex flex-col justify-center p-4 bg-[#2B2D31] rounded-xl border border-[#1E1F22] shadow-sm transition-all hover:shadow-md hover:border-[#5865F2]/50 group">
+            <audio
+                ref={audioRef}
+                src={src}
+                preload="metadata"
                 onEnded={() => setIsPlaying(false)}
                 onError={(e) => {
                     console.error("Audio Load Error in Player:", e);
@@ -145,7 +145,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
             <div className="flex items-center gap-3 mb-2">
                 <button
                     onClick={togglePlay}
-                    className="w-10 h-10 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/20 transition-all hover:scale-105 active:scale-95 shrink-0"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-black/20 transition-all hover:scale-105 active:scale-95 shrink-0"
                 >
                     {isPlaying ? <IconPause className="w-4 h-4 fill-current" /> : <IconPlay className="w-4 h-4 fill-current ml-0.5" />}
                 </button>
@@ -162,7 +162,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
                                     if (e.key === 'Enter') saveRename();
                                     if (e.key === 'Escape') cancelRename();
                                 }}
-                                className="w-full text-xs font-semibold bg-gray-100 dark:bg-black/20 border border-blue-500 rounded px-1 py-0.5 text-gray-900 dark:text-gray-100 outline-none"
+                                className="w-full text-xs font-semibold bg-[#1E1F22] border border-[#5865F2] rounded px-1 py-0.5 text-white outline-none"
                             />
                             <div className="flex items-center gap-1">
                                 <button onClick={saveRename} className="p-0.5 text-green-500 hover:bg-green-500/10 rounded"><IconCheck className="w-3 h-3" /></button>
@@ -173,30 +173,30 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
                         <div className="flex items-center gap-2 mb-1 group/title">
                             <div
                                 onDoubleClick={startEditing}
-                                className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate cursor-text"
+                                className="text-xs font-semibold text-[#F2F3F5] truncate cursor-text"
                                 title={t('editor.double_click_rename')}
                             >
                                 {name || t('editor.voice_memo')}
                             </div>
                             <button
                                 onClick={startEditing}
-                                className="opacity-0 group-hover/title:opacity-100 text-gray-400 hover:text-blue-500 transition-opacity"
+                                className="opacity-0 group-hover/title:opacity-100 text-[#949BA4] hover:text-[#DBDEE1] transition-opacity"
                             >
                                 <IconEdit className="w-3 h-3" />
                             </button>
                         </div>
                     )}
 
-                    <div className="flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400 font-mono">
+                    <div className="flex items-center justify-between text-[10px] text-[#949BA4] font-mono">
                         <span>{formatTime((progress / 100) * duration)}</span>
                         <span>{formatTime(duration)}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="relative w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden group-hover:h-1.5 transition-all">
+            <div className="relative w-full h-1 bg-[#1E1F22] rounded-full overflow-hidden group-hover:h-1.5 transition-all">
                 <div
-                    className="absolute top-0 left-0 h-full bg-blue-500 rounded-full transition-all duration-100"
+                    className="absolute top-0 left-0 h-full bg-[#5865F2] rounded-full transition-all duration-100"
                     style={{ width: `${progress}%` }}
                 />
                 <input

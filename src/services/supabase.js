@@ -53,7 +53,18 @@ export const authService = {
     return { data, error };
   },
 
-  async signIn(email, password) {
+  async signIn(identifier, password) {
+    let email = identifier;
+    
+    // S'il n'y a pas d'@, on considère que c'est un pseudo
+    if (identifier && !identifier.includes('@')) {
+        const { data: foundEmail, error: rpcError } = await supabase.rpc('get_email_by_pseudo', { p_pseudo: identifier });
+        if (rpcError || !foundEmail) {
+            return { error: { message: "Ce pseudo n'existe pas ou l'identifiant est incorrect." } };
+        }
+        email = foundEmail;
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -77,11 +88,66 @@ export const authService = {
   },
 
   async getUser() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) return session.user;
+    try {
+      // Wrapped in a 5-second timeout to prevent infinite loading screens everywhere
+      const getUserLogic = async () => {
+        // 1. First fast check locally (avoids slow network request when offline)
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.user) {
+           return sessionData.session.user;
+        }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
+        // 2. Only if needed
+        const { data: userData } = await supabase.auth.getUser();
+        return userData?.user || null;
+      };
+
+      let timeoutId;
+      const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Timeout')), 5000);
+      });
+      
+      const user = await Promise.race([getUserLogic(), timeoutPromise]);
+      clearTimeout(timeoutId); // Nettoyage de la promesse pour éviter le unhandled rejection
+
+      return user;
+    } catch (e) {
+      console.warn("Could not get user (offline or timeout):", e);
+      return null;
+    }
+  },
+
+  async validateSession() {
+    const user = await this.getUser();
+    if (!user) return false;
+    
+    try {
+      const validateLogic = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('last_session_validated')
+          .eq('id', user.id)
+          .single();
+          
+        if (!data?.last_session_validated) return false;
+        
+        const lastValidated = new Date(data.last_session_validated);
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        return lastValidated > thirtyDaysAgo;
+      };
+
+      let timeoutId;
+      const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Timeout')), 5000);
+      });
+
+      const isValid = await Promise.race([validateLogic(), timeoutPromise]);
+      clearTimeout(timeoutId);
+      return isValid;
+    } catch (e) {
+      console.warn("Session validation failed or timed out:", e);
+      return false;
+    }
   },
 
   async updateSubscription(level, licenseKey) {

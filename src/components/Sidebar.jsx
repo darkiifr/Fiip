@@ -47,6 +47,12 @@ export default function Sidebar({
                 const user = await authService.getUser();
                 if (user) {
                     setSupabaseUser(user);
+                    // Fetch real profile to get nickname instead of relying only on what was cached
+                    const { data: profile } = await dataService.fetchProfile();
+                    if (profile) {
+                        setLocalProfile(profile);
+                        localStorage.setItem('fiip_public_profile', JSON.stringify(profile));
+                    }
                 }
             } catch (e) {
                 console.error('Failed to fetch supabase user', e);

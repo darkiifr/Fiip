@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { keyAuthService } from '../services/keyauth';
-import { authService } from '../services/supabase';
+import { authService, supabase } from '../services/supabase';
 import { useTranslation } from 'react-i18next';
 import { open } from '@tauri-apps/plugin-shell';
 
@@ -32,11 +32,50 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [user, setUser] = useState(null);
+    const [isChecking, setIsChecking] = useState(false);
 
     useEffect(() => {
+        let isMounted = true;
+
         if (isOpen) {
-            checkUser();
+            setIsChecking(true);
+            
+            // Check cache dynamically to avoid long network hangs
+            const performCheck = async () => {
+                const currentUser = await authService.getUser();
+                if (isMounted) {
+                    if (currentUser) {
+                        setUser(currentUser);
+                        setMode('profile');
+                        const level = currentUser.user_metadata?.subscription_level || 0;
+                        const username = currentUser.user_metadata?.username || currentUser.email;
+                        keyAuthService.setLocalLevel(level, username);
+                    } else {
+                        setUser(null);
+                        setMode('login');
+                    }
+                    setError(null);
+                    setSuccess(null);
+                    setShowAddLicense(false);
+                    setUpgradeKey('');
+                    setIsChecking(false);
+                }
+            };
+            performCheck();
         }
+
+        // Listen for auth state changes (e.g. from deep link OAuth callback)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_IN' && isMounted) {
+                setLoading(false);
+                checkUser();
+            }
+        });
+
+        return () => {
+            isMounted = false;
+            subscription?.unsubscribe();
+        };
     }, [isOpen]);
 
     const checkUser = async () => {
@@ -44,7 +83,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         if (currentUser) {
             setUser(currentUser);
             setMode('profile');
-            // Sync KeyAuth level locally
             const level = currentUser.user_metadata?.subscription_level || 0;
             const username = currentUser.user_metadata?.username || currentUser.email;
             keyAuthService.setLocalLevel(level, username);
@@ -206,7 +244,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
                 {/* Content */}
                 <div className="p-[24px] overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(90vh - 96px)' }}>
-                    {mode === 'profile' ? (
+                    {isChecking ? (
+                        <div className="flex flex-col items-center justify-center py-10 opacity-70">
+                            <span className="w-8 h-8 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin mb-4" />
+                            <p className="text-sm font-medium">Validation de session...</p>
+                        </div>
+                    ) : mode === 'profile' ? (
                         <div className="animate-fade-in text-center relative">
                             <div className="flex flex-col items-center mb-6">
                                 <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-lg shadow-purple-900/20 mb-3">
@@ -312,17 +355,18 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in">
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Email</label>
-                                <div className="relative">
-                                    <IconMail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all duration-[250ms] ease-in-out placeholder-gray-600 h-[40px]"
-                                        placeholder="votre@email.com"
-                                        required
+                                  <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
+                                    {mode === 'login' ? 'Email ou Pseudo' : 'Email'}
+                                  </label>
+                                  <div className="relative">
+                                      <IconMail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                      <input
+                                          type={mode === 'login' ? "text" : "email"}
+                                          name="email"
+                                          value={formData.email}
+                                          onChange={handleChange}
+                                          className="w-full bg-black/20 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all duration-[250ms] ease-in-out placeholder-gray-600 h-[40px]"
+                                          placeholder={mode === 'login' ? "votre@email.com ou pseudo" : "votre@email.com"}
                                     />
                                 </div>
                             </div>

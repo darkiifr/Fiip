@@ -28,26 +28,47 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
     
     // User validation 
     const [currentUser, setCurrentUser] = useState(null);
-    const isOwner = selectedNote ? (currentUser?.id === (selectedNote.user_id || selectedNote.userId)) : false;
+    const [isUserLoaded, setIsUserLoaded] = useState(false);
+
+    const isOwner = selectedNote && currentUser 
+        ? (selectedNote.user_id || selectedNote.userId) === currentUser.id
+        : false;
 
     useEffect(() => {
-        authService.getUser().then(user => setCurrentUser(user));
-    }, []);
+        if (isOpen) {
+            setIsUserLoaded(false);
+            authService.getUser()
+                .then(user => {
+                    setCurrentUser(user);
+                })
+                .catch(err => {
+                    console.error("Error loading user in ShareModal:", err);
+                })
+                .finally(() => {
+                    setIsUserLoaded(true);
+                });
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (note) {
             setSelectedNote(note);
+        }
+    }, [note]);
+
+    useEffect(() => {
+        if (selectedNote) {
             // Check if already public
-            if (note.public_slug) {
+            if (selectedNote.public_slug) {
                 setIsPublic(true);
-                setPublicUrl(`https://fiip-app.netlify.app/n/${note.public_slug}`);
+                setPublicUrl(`https://fiip-app.netlify.app/n/${selectedNote.public_slug}`);
             } else {
                 setIsPublic(false);
                 setPublicUrl('');
             }
-            fetchCollaborators(note.id);
+            fetchCollaborators(selectedNote.id);
         }
-    }, [note]);
+    }, [selectedNote]);
 
     const fetchCollaborators = async (id) => {
         setIsLoadingCollab(true);
@@ -224,7 +245,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                         )}
                     </div>
 
-                    {!isOwner && selectedNote && (
+                    {!isOwner && isUserLoaded && selectedNote && (
                          <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-sm flex items-start gap-3">
                              <IconLock className="w-5 h-5 shrink-0 mt-0.5" />
                              <p>
@@ -233,7 +254,14 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                          </div>
                     )}
 
-                    {isOwner && (
+                    {!isUserLoaded && (
+                         <div className="p-4 flex items-center justify-center text-gray-500 text-sm">
+                             <IconLoading className="w-5 h-5 animate-spin mr-2" />
+                             Vérification des droits...
+                         </div>
+                    )}
+
+                    {isOwner && isUserLoaded && (
                         <>
                             {/* Public Sharing Section */}
                     <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-4">
