@@ -695,8 +695,8 @@ function App() {
     };
     setNotes(prevNotes => [newNote, ...prevNotes]);
     setSelectedNoteId(newNote.id);
-    const saved = await dataService.saveNote(newNote);
-    
+    await dataService.saveNote(newNote);
+
     // Once saved, if it was successful and returned data, we could potentially update the note with DB defaults, e.g., user_id.
     // By adding it directly above, we solve the owner UI bug immediately.
   };

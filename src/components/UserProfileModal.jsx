@@ -38,9 +38,6 @@ export default function UserProfileModal({ isOpen, onClose }) {
           }
       };
       loadProfile();
-      setShowPasswordPrompt(false);
-      setPassword('');
-      setPasswordError('');
     }
   }, [isOpen]);
 
@@ -71,7 +68,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
     }
 
     setIsSaving(false);
-    onClose();
+    handleClose();
   };
 
   const handlePasswordConfirm = async () => {
@@ -100,6 +97,13 @@ export default function UserProfileModal({ isOpen, onClose }) {
     setShowPasswordPrompt(false);
     setPassword('');
     await executeSave();
+  };
+
+  const handleClose = () => {
+    setShowPasswordPrompt(false);
+    setPassword('');
+    setPasswordError('');
+    onClose();
   };
 
   const handleCancelPassword = () => {
@@ -336,20 +340,20 @@ export default function UserProfileModal({ isOpen, onClose }) {
           <div className="bg-[#2B2D31] p-4 flex justify-end gap-3 shrink-0">
              {activeTab === 'profile' ? (
                 <>
-                  <button onClick={onClose} className="px-4 py-2 text-white hover:underline text-sm font-medium">Annuler</button>
+                  <button onClick={handleClose} className="px-4 py-2 text-white hover:underline text-sm font-medium">Annuler</button>
                   <button onClick={handleSave} className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors flex items-center gap-2">
                     <Save className="w-4 h-4" />
                     Enregistrer
                   </button>
                 </>
              ) : (
-                <button onClick={onClose} className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors">
+                <button onClick={handleClose} className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors">
                   Fermer
                 </button>
              )}
           </div>
         </div>
-        <button onClick={onClose} className="absolute top-4 right-4 text-[#B5BAC1] hover:text-white">
+        <button onClick={handleClose} className="absolute top-4 right-4 text-[#B5BAC1] hover:text-white">
              <X className="w-6 h-6" />
         </button>
       </div>

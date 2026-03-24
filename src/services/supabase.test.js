@@ -46,12 +46,17 @@ describe('Supabase authService', () => {
     });
 
     it('validateSession should handle offline gracefully with a timeout', async () => {
+        // Suppress console.warn for this expected error test
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
         // Mock validateSession hanging timeout scenario by rejecting immediately or resolving slowly
         // Here we just test standard error handling.
         supabase.auth.getSession.mockRejectedValueOnce(new Error('Fetch failed'));
 
         const user = await authService.validateSession();
         expect(user).toBeFalsy();
+
+        consoleSpy.mockRestore();
     });
 
     it('signIn should call supabase.auth.signInWithPassword', async () => {

@@ -14,7 +14,7 @@ import IconUser from '~icons/mingcute/user-4-fill';
 import IconLogout from '~icons/mingcute/exit-fill';
 import IconPanelLeft from '~icons/mingcute/menu-fill';
 
-import { authService } from '../services/supabase';
+import { authService, dataService } from '../services/supabase';
 
 export default function Sidebar({ 
     onOpenSettings, 

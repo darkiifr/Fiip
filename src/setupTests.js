@@ -20,6 +20,15 @@ if (typeof window !== 'undefined') {
 vi.stubEnv('VITE_SUPABASE_URL', 'https://mock.supabase.co');
 vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'mock-anon-key');
 
+// Suppress known pdfjs-dist warning in Node environment
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  if (args[0] && typeof args[0] === 'string' && args[0].includes('legacy` build in Node.js')) {
+    return;
+  }
+  originalWarn(...args);
+};
+
 // Basic Mock for window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
