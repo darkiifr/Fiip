@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** 2025-12-16
+**Last Updated:** 2026-03-28
 
 ## Introduction
 
@@ -10,6 +10,7 @@ Fiip ("we", "our", or "us") respects your privacy. This Privacy Policy explains 
 
 Fiip is designed to respect user privacy.
 - **Local Data:** Most data created or processed by Fiip resides locally on your device.
+- **Cloud Data:** Some user data may be stored and processed securely in the cloud using Supabase to enable synchronization and cloud-related features. This data is used solely to provide the functionality of the application and is not sold to third parties.
 - **AI Features:** If you use AI-powered features (like Dexter), data sent to the AI provider is subject to their privacy policy. We do not store this data on our own servers.
 
 ## Data Usage
