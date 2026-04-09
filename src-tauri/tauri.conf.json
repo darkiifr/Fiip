@@ -50,6 +50,20 @@
     "resources": [
       ".portable"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["fiin"],
+        "name": "Fiip Note File",
+        "description": "Fiip Note file",
+        "role": "Editor"
+      },
+      {
+        "ext": ["fiif"],
+        "name": "Fiip Font File",
+        "description": "Fiip Font resource",
+        "role": "Viewer"
+      }
+    ],
     "windows": {
       "wix": {
         "language": "en-US"

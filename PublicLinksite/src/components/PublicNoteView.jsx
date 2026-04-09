@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { dataService } from '../services/supabase';
 import { marked } from 'marked';
+import html2pdf from 'html2pdf.js';
+import TurndownService from 'turndown';
 import DOMPurify from 'dompurify';
 import { Icon as IconifyIcon } from '@iconify/react';
 import 'katex/dist/katex.min.css';
@@ -14,7 +16,9 @@ const renderMarkdown = (text) => {
     // marked.setOptions({ ... });
 
     const rawHtml = marked.parse(text);
-    const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+    const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
+        ALLOWED_ATTR: ['style', 'class', 'href', 'target', 'rel', 'src', 'alt', 'width', 'height', 'align'],
+    });
     return { __html: sanitizedHtml };
 };
 
@@ -66,6 +70,51 @@ export default function PublicNoteView() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDownloadFiip = () => {
+        if (!note) return;
+        const blob = new Blob([JSON.stringify(note, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${note.title || 'note'}.fiip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleDownloadMd = () => {
+        if (!note) return;
+        const turndownService = new TurndownService({ headingStyle: 'atx' });
+        let mdContent = `# ${note.title || 'Nouvelle Note'}\n\n`;
+        mdContent += turndownService.turndown(note.content || '');
+        const blob = new Blob([mdContent], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${note.title || 'note'}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleDownloadPdf = () => {
+        if (!note) return;
+        const element = document.getElementById('note-print-area');
+        if (!element) return;
+        const opt = {
+            margin: [0.5, 0.5, 0.5, 0.5],
+            filename: `${note.title || 'note'}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+        // Ensure element is styled for light mode during PDF generation if we want standard PDF
+        // Let's just generate the PDF with its current styles.
+        html2pdf().set(opt).from(element).save();
     };
 
     const handleOpenInFiip = () => {
@@ -156,11 +205,27 @@ export default function PublicNoteView() {
                     </button>
                 </div>
 
-                <article className="prose prose-invert max-w-none">
-                    <div className="flex items-center gap-3 mb-4">
+                <div className="flex flex-wrap items-center gap-3 mb-8">
+                    <button onClick={handleDownloadFiip} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-sm font-medium rounded-lg border border-indigo-500/20 transition-colors">
+                        <IconifyIcon icon="mingcute:file-download-fill" />
+                        .fiip
+                    </button>
+                    <button onClick={handleDownloadMd} className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-sm font-medium rounded-lg border border-yellow-500/20 transition-colors">
+                        <IconifyIcon icon="mingcute:markdown-fill" />
+                        .md
+                    </button>
+                    <button onClick={handleDownloadPdf} className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg border border-red-500/20 transition-colors">
+                        <IconifyIcon icon="mingcute:pdf-fill" />
+                        .pdf
+                    </button>
+                </div>
+
+                <div id="note-print-area" className="bg-[#1C1C1E] p-4 sm:p-8 rounded-xl">
+                    <article className="prose prose-invert max-w-none">
+                        <div className="flex items-center gap-3 mb-4">
                         <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">{note.title || "Sans titre"}</h1>
                         {(note.is_favorite || note.favorite) && (
-                            <IconifyIcon icon="mingcute:star-fill" className="text-yellow-500 w-8 h-8 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
+                            <IconifyIcon icon="mingcute:bookmark-fill" className="text-yellow-500/80 w-7 h-7 drop-shadow-[0_0_8px_rgba(234,179,8,0.3)] ml-2 transition-transform hover:scale-105" title="Note Favorite" />
                         )}
                     </div>
 
@@ -179,9 +244,12 @@ export default function PublicNoteView() {
                         {note.badges && note.badges.length > 0 && (
                             <div className="flex flex-wrap gap-2">
                                 {note.badges.map((badge, idx) => (
-                                    <span key={idx} className={`px-3 py-1 text-white border rounded-full text-xs font-medium`} style={{ backgroundColor: badge.color + '40', borderColor: badge.color, color: badge.color }}>
-                                        {badge.icon && <IconifyIcon icon={badge.icon} className="inline-block mr-1" />}
-                                        {badge.name}
+                                    <span key={idx} className="group relative flex items-center justify-center p-2 rounded-full border transition-all hover:scale-110 cursor-help" style={{ backgroundColor: badge.color + '20', borderColor: badge.color, color: badge.color }}>
+                                        {badge.icon ? <IconifyIcon icon={badge.icon} className="w-4 h-4" /> : <span className="w-4 h-4 text-[10px] flex items-center justify-center font-bold">B</span>}
+                                        {/* Tooltip */}
+                                        <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/90 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 shadow-xl border border-white/10 z-50">
+                                            {badge.name}
+                                        </span>
                                     </span>
                                 ))}
                             </div>
@@ -233,7 +301,7 @@ export default function PublicNoteView() {
                         })}
                     </div>
                 )}
-
+                </div>
                 {/* Attachments Section */}
                 {note.attachments && note.attachments.length > 0 && (
                     <div className="mt-16 pt-8 border-t border-white/10">

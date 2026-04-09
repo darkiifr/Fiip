@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { keyAuthService } from '../services/keyauth';
-import { authService, supabase } from '../services/supabase';
+import { authService, supabase, dataService } from '../services/supabase';
 import { useTranslation } from 'react-i18next';
 import { open } from '@tauri-apps/plugin-shell';
 
@@ -16,6 +16,7 @@ import IconUserAdd from '~icons/mingcute/user-add-fill';
 import IconAward from '~icons/mingcute/trophy-fill';
 import IconPlus from '~icons/mingcute/add-fill';
 import IconLogout from '~icons/mingcute/exit-door-fill';
+import IconUpload from '~icons/mingcute/upload-2-fill';
 import IconGoogle from '~icons/logos/google-icon';
 
 export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
@@ -33,6 +34,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     const [success, setSuccess] = useState(null);
     const [user, setUser] = useState(null);
     const [isChecking, setIsChecking] = useState(false);
+    const [isEditingPseudo, setIsEditingPseudo] = useState(false);
+    const [tempPseudo, setTempPseudo] = useState('');
 
     useEffect(() => {
         let isMounted = true;
@@ -48,7 +51,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                         setUser(currentUser);
                         setMode('profile');
                         const level = currentUser.user_metadata?.subscription_level || 0;
-                        const username = currentUser.user_metadata?.username || currentUser.email;
+                        const username = currentUser.user_metadata?.username || currentUser.user_metadata?.nickname || currentUser.email;
                         keyAuthService.setLocalLevel(level, username);
                     } else {
                         setUser(null);
@@ -59,6 +62,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                     setShowAddLicense(false);
                     setUpgradeKey('');
                     setIsChecking(false);
+                    setIsEditingPseudo(false);
                 }
             };
             performCheck();
@@ -217,9 +221,75 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         }
     };
 
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 2 * 1024 * 1024) {
+                alert("L'image est trop volumineuse (Max 2MB)");
+                return;
+            }
+            try {
+                const { url, error } = await dataService.uploadAvatar(file);
+                if (error) {
+                    alert("Erreur lors de l'upload de l'avatar: " + error.message);
+                    return;
+                }
+                if (url) {
+                    const { data: { user: updatedUser }, error: updateError } = await supabase.auth.updateUser({
+                        data: { avatar_url: url }
+                    });
+                    if (!updateError && updatedUser) {
+                        setUser(updatedUser);
+                        
+                        const saved = localStorage.getItem('fiip_public_profile');
+                        let pubProfile = saved ? JSON.parse(saved) : {};
+                        pubProfile.avatar = url;
+                        localStorage.setItem('fiip_public_profile', JSON.stringify(pubProfile));
+                        window.dispatchEvent(new Event('storage'));
+                        
+                        await dataService.saveProfile(pubProfile);
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    };
+
+    const handlePseudoEditStart = () => {
+        setTempPseudo(user?.user_metadata?.nickname || user?.user_metadata?.username || user?.email?.split('@')[0] || "Utilisateur");
+        setIsEditingPseudo(true);
+    };
+
+    const handlePseudoEditSave = async () => {
+        const val = tempPseudo.trim();
+        const currentName = user?.user_metadata?.nickname || user?.user_metadata?.username || user?.email?.split('@')[0] || "Utilisateur";
+        if (!val || val === currentName) {
+            setIsEditingPseudo(false);
+            return;
+        }
+        try {
+            const { data: { user: updatedUser }, error } = await supabase.auth.updateUser({
+                data: { nickname: val, username: val }
+            });
+            if (!error && updatedUser) {
+                setUser(updatedUser);
+                const saved = localStorage.getItem('fiip_public_profile');
+                let pubProfile = saved ? JSON.parse(saved) : {};
+                pubProfile.nickname = val;
+                localStorage.setItem('fiip_public_profile', JSON.stringify(pubProfile));
+                window.dispatchEvent(new Event('storage'));
+                await dataService.saveProfile(pubProfile);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        setIsEditingPseudo(false);
+    };
+
     const currentLevel = user?.user_metadata?.subscription_level || keyAuthService.currentLevel || 0;
     const licenseKey = user?.user_metadata?.license_key || keyAuthService.licenseKey || "Aucune";
-    const username = user?.user_metadata?.username || user?.email?.split('@')[0] || "Utilisateur";
+    const username = user?.user_metadata?.nickname || user?.user_metadata?.username || user?.email?.split('@')[0] || "Utilisateur";
 
     if (!isOpen) return null;
 
@@ -252,14 +322,48 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                     ) : mode === 'profile' ? (
                         <div className="animate-fade-in text-center relative">
                             <div className="flex flex-col items-center mb-6">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-lg shadow-purple-900/20 mb-3">
-                                    <div className="w-full h-full rounded-full bg-[#1C1C1E] flex items-center justify-center">
-                                        <IconUser className="w-8 h-8 text-white" />
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-lg shadow-purple-900/20 mb-3 relative group">
+                                    {user?.user_metadata?.avatar_url ? (
+                                        <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full rounded-full object-cover border-2 border-[#1C1C1E]" />
+                                    ) : (
+                                        <div className="w-full h-full rounded-full bg-[#1C1C1E] flex items-center justify-center">
+                                            <IconUser className="w-8 h-8 text-white" />
+                                        </div>
+                                    )}
+                                    <div 
+                                        className="absolute inset-0 m-0.5 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                                        onClick={() => document.getElementById('auth-avatar-upload').click()}
+                                    >
+                                        <IconUpload className="w-6 h-6 text-white" />
                                     </div>
+                                    <input type="file" id="auth-avatar-upload" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                                 </div>
-                                <h2 className="text-xl font-bold text-white mb-1 px-4 text-center break-all">
-                                    {username}
-                                </h2>
+                                {isEditingPseudo ? (
+                                    <div className="flex items-center gap-2 mb-1 px-4">
+                                        <input 
+                                            type="text"
+                                            value={tempPseudo}
+                                            onChange={(e) => setTempPseudo(e.target.value)}
+                                            onKeyDown={(e) => { if(e.key === 'Enter') handlePseudoEditSave(); if(e.key === 'Escape') setIsEditingPseudo(false); }}
+                                            onBlur={handlePseudoEditSave}
+                                            autoFocus
+                                            className="bg-[#1C1C1E] text-white text-center text-xl font-bold rounded px-2 w-full outline-none focus:ring-2 focus:ring-blue-500 border border-white/10"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div 
+                                        className="mb-1 px-4 flex items-center justify-center gap-2 group cursor-pointer"
+                                        onClick={handlePseudoEditStart}
+                                        title="Modifier le pseudo"
+                                    >
+                                        <h2 className="text-xl font-bold text-white text-center break-all group-hover:text-blue-400 transition-colors">
+                                            {username}
+                                        </h2>
+                                        <svg className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                    </div>
+                                )}
                                 <p className="text-[10px] text-gray-500 font-mono mb-2 truncate max-w-[200px] opacity-60">
                                     {user?.email}
                                 </p>

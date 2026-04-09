@@ -27,6 +27,7 @@ import { keyAuthService } from "./services/keyauth";
 import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
 import { soundManager } from "./services/soundManager";
 import { calculateTotalUsage } from "./services/fileManager";
+import { initializeFonts } from "./services/fontStore";
 
 // Helper to convert buffer to base64
 // function arrayBufferToBase64(buffer) {
@@ -383,6 +384,14 @@ function App() {
             } catch (e) {
                 console.warn("Failed to register deep link:", e);
             }
+
+            // Initialize Fonts
+            try {
+                setAppLoading({ isLoading: true, status: "Chargement des polices .fiif..." });
+                await withGlobalTimeout(initializeFonts(), 5000, "Font Initialization");
+            } catch (e) {
+                console.warn("Failed to load fonts:", e);
+            }
             
             setAppLoading({ isLoading: true, status: "Vérification de la licence..." });
             
@@ -605,8 +614,17 @@ function App() {
     
     // Apply Settings Effects locally
     document.documentElement.classList.add('dark'); // Force dark
-    if (settings.largeText) document.documentElement.classList.add('text-lg');
-    else document.documentElement.classList.remove('text-lg');
+    const fontSize = settings.fontSize || (settings.largeText ? 'large' : 'normal');
+    document.documentElement.classList.remove('text-sm', 'text-base', 'text-lg', 'text-xl');
+    if (fontSize === 'small') {
+        document.documentElement.classList.add('text-sm');
+    } else if (fontSize === 'large') {
+        document.documentElement.classList.add('text-lg');
+    } else if (fontSize === 'xlarge') {
+        document.documentElement.classList.add('text-xl');
+    } else {
+        document.documentElement.classList.add('text-base');
+    }
     
     const effect = settings.windowEffect || 'none';
     document.documentElement.classList.remove('effect-none', 'effect-mica', 'effect-acrylic', 'effect-blur');
@@ -644,10 +662,16 @@ function App() {
     document.documentElement.classList.add('dark');
 
     // Apply Font Size
-    if (settings.largeText) {
-      document.documentElement.classList.add('text-lg');
+    const fontSize = settings.fontSize || (settings.largeText ? 'large' : 'normal');
+    document.documentElement.classList.remove('text-sm', 'text-base', 'text-lg', 'text-xl');
+    if (fontSize === 'small') {
+        document.documentElement.classList.add('text-sm');
+    } else if (fontSize === 'large') {
+        document.documentElement.classList.add('text-lg');
+    } else if (fontSize === 'xlarge') {
+        document.documentElement.classList.add('text-xl');
     } else {
-      document.documentElement.classList.remove('text-lg');
+        document.documentElement.classList.add('text-base');
     }
 
     // Apply Window Effect

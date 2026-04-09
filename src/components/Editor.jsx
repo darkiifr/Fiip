@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import LanguageToolHighlightTextarea from './LanguageToolHighlightTextarea';
+import RichTextEditor from './RichTextEditor';
 import CanvasDraw from './CanvasDraw';
 import NoteBadges from './NoteBadges';
 import { Lock } from 'lucide-react';
@@ -87,11 +87,11 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
 
     return (
         <div
-            className={`relative group rounded-xl transition-all duration-[250ms] ease-in-out animate-scale-in ${att.type === 'image' || att.type === 'video' ? '' : 'w-72'}`}
+            className={`relative group rounded-xl transition-all duration-[250ms] ease-in-out animate-scale-in ${((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video' ? '' : 'w-72'}`}
             style={{
-                width: (att.type === 'image' || att.type === 'video') ? (att.width || 100) + '%' : undefined,
-                maxWidth: (att.type === 'image' || att.type === 'video') ? '100%' : '320px',
-                flexBasis: (att.type === 'image' || att.type === 'video') ? (att.width || 100) + '%' : 'auto'
+                width: (((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video') ? (att.width || 100) + '%' : undefined,
+                maxWidth: (((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video') ? '100%' : '320px',
+                flexBasis: (((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video') ? (att.width || 100) + '%' : 'auto'
             }}
         >
             {/* --- Hover Controls (Glassmorphism) --- */}
@@ -130,7 +130,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
             </div>
 
             {/* Annotate Button for Images */}
-            {att.type === 'image' && !isError && (
+            {((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') && !isError && (
                 <div className="absolute top-2 left-2 z-30 opacity-0 group-hover:opacity-100 transition-all duration-[150ms] ease-out scale-95 group-hover:scale-100">
                      <button
                         onClick={() => onAnnotate(att)}
@@ -143,7 +143,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
             )}
 
 
-            {att.type === 'image' || att.type === 'video' ? (
+            {((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video' ? (
                 <div className="relative rounded-2xl overflow-hidden shadow-sm border border-white/10 bg-black/20 min-h-[200px] flex items-center justify-center">
                     {isLoading && (
                         <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -156,7 +156,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                             <IconImage className="w-8 h-8 opacity-50" />
                             <span className="text-xs font-medium">{t('editor.loading_error')}</span>
                         </div>
-                    ) : att.type === 'image' ? (
+                    ) : ((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') ? (
                         <img 
                             src={src} 
                             alt={att.name} 
@@ -210,6 +210,23 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                         <IconDownload className="w-5 h-5" />
                     </button>
                 </div>
+            ) : att.type === 'libreoffice' ? (
+                <div className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded-xl border border-white/10 group/libre hover:border-blue-500/30 transition-colors duration-[150ms] ease-out">
+                    <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 group-hover/libre:bg-blue-500/20 transition-colors duration-[150ms] ease-out">
+                        <IconFile className="w-8 h-8" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-200 truncate mb-0.5">{att.name}</div>
+                        <div className="text-xs text-gray-500 uppercase">{att.name.split('.').pop()} Document</div>
+                    </div>
+                    <button 
+                        onClick={() => handleDownloadAttachment(att)}
+                        className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors duration-[150ms] ease-out"
+                        title={t('editor.download')}
+                    >
+                        <IconDownload className="w-5 h-5" />
+                    </button>
+                </div>
             ) : (
                 <AudioPlayer
                     src={src}
@@ -231,7 +248,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
     const [suggestion, setSuggestion] = useState(null);
     const [isDragging, setIsDragging] = useState(false); // Drag & Drop state
     const [drawingSession, setDrawingSession] = useState(null); // { type: 'standard' | 'overlay' | 'image', data: string | null }
-    const textareaRef = useRef(null);
+    
     const editorContainerRef = useRef(null);
     const dragCounter = useRef(0);
 
@@ -241,7 +258,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
     const isListeningRef = useRef(false); // Track intent to listen
     const lastSpeechStartRef = useRef(0);
     const [interimTranscript, setInterimTranscript] = useState('');
-    const [detectedLanguage, setDetectedLanguage] = useState(null);
+    const [detectedLanguage] = useState(null);
     const recognitionRef = useRef(null);
     const noteRef = useRef(note);
     const mediaRecorderRef = useRef(null);
@@ -616,7 +633,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             const filePath = await saveAttachmentToCloud(file);
             const newAttachment = {
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                type: 'image',
+                type: drawingSession && drawingSession.type === 'overlay' ? 'overlay' : 'image',
                 data: filePath,
                 name: fileName,
                 width: 100,
@@ -664,6 +681,8 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 addAttachment('audio', filePath, file.name, file.type);
             } else if (file.type === 'application/pdf') {
                 addAttachment('pdf', filePath, file.name, file.type);
+            } else if (file.name.endsWith('.odt') || file.name.endsWith('.odp') || file.type.includes('opendocument')) {
+                addAttachment('libreoffice', filePath, file.name, file.type || 'application/vnd.oasis.opendocument.text');
             }
         } catch (e) {
             console.error("Error processing file:", e);
@@ -839,16 +858,9 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             // 2. Try to read Text
             const text = await readText();
             if (text) {
-                const textarea = textareaRef.current;
-                if (textarea) {
-                    const start = textarea.selectionStart || 0;
-                    const end = textarea.selectionEnd || 0;
-                    const currentContent = note.content || "";
-                    
-                    const newContent = currentContent.substring(0, start) + text + currentContent.substring(end);
-                    
-                    onUpdateNote({ ...note, content: newContent, updatedAt: Date.now() });
-                }
+                const currentContent = note.content || "";
+                const newContent = currentContent + "\n" + text;
+                onUpdateNote({ ...note, content: newContent, updatedAt: Date.now() });
                 return;
             }
 
@@ -1032,7 +1044,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                         <input
                             type="file"
                             multiple
-                            accept="image/*,video/*,audio/*,application/pdf"
+                            accept="image/*,video/*,audio/*,application/pdf,.odt,.odp"
                             onChange={handleFileUpload}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                             title="Insérer un fichier (Image, Vidéo, Audio, PDF)"
@@ -1069,6 +1081,26 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 </div>
 
                 <div className="flex-1" />
+
+                {/* Boutons de Dessin Overlay Actions */}
+                {(note.attachments || []).filter(a => a.type === 'overlay').length > 0 && (
+                    <div className="flex items-center gap-1 mr-3 bg-red-500/10 border border-red-500/20 rounded-md p-0.5 px-2">
+                        <span className="text-xs text-red-400 font-medium whitespace-nowrap ml-1 opacity-80">
+                            {(note.attachments || []).filter(a => a.type === 'overlay').length} Dessin(s)
+                        </span>
+                        <div className="w-px h-3 bg-red-500/30 mx-1"></div>
+                        {(note.attachments || []).filter(a => a.type === 'overlay').map((att, i) => (
+                            <button
+                                key={att.id}
+                                onClick={() => removeAttachment(att.id)}
+                                className="p-1 rounded text-red-500 hover:text-white hover:bg-red-600 transition-colors w-6 h-6 flex items-center justify-center"
+                                title={`Effacer le dessin ${i+1}`}
+                            >
+                                <IconTrash className="w-3.5 h-3.5" />
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 {/* Online Users Indicator */}
                 {onlineUsers.length > 0 && (
@@ -1133,22 +1165,46 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                     />
 
                     <div className="relative w-full min-h-[500px]">
-                            <LanguageToolHighlightTextarea
-                            ref={textareaRef}
+                        {/* Overlays existants */}
+                        {note.attachments && note.attachments.filter(a => a.type === 'overlay').map((att, index) => {
+                            let src = att.data;
+                            if (!src.startsWith('data:') && !src.startsWith('blob:') && !src.startsWith('http')) {
+                                src = convertFileSrc(src);
+                            }
+                            return (
+                                <div key={att.id} className="absolute top-0 left-0 w-full h-full z-10 pointer-events-none group">
+                                    <img
+                                        src={src}
+                                        alt={`Drawing overlay ${index + 1}`}
+                                        className="w-full h-full pointer-events-none mix-blend-normal opacity-95 object-cover object-top"
+                                    />
+                                </div>
+                            );
+                        })}
+
+                        {/* Zone de dessin Overlay en cours */}
+                        {drawingSession && drawingSession.type === 'overlay' && (
+                            <div className="absolute inset-0 z-30 pointer-events-auto h-full w-full">
+                                <CanvasDraw
+                                    onSave={handleSaveDrawing}
+                                    onClose={() => setDrawingSession(null)}
+                                    initialImage={null}
+                                    isOverlay={true}
+                                />
+                            </div>
+                        )}
+
+                        <RichTextEditor
                             value={note.content}
                             onChange={handleContentChange}
                             onKeyDown={handleKeyDown}
                             placeholder={suggestion ? "" : t('editor.placeholder')}
-                            className="w-full h-auto overflow-y-auto custom-scrollbar resize-none bg-transparent outline-none text-[16px] leading-7 text-gray-200 placeholder-gray-600 font-sans transition-colors duration-200 selection:bg-blue-900 relative z-10"
-                            style={{ minHeight: '500px' }}
-                            language="auto"
-                            enabled={settings?.enableCorrection !== false}
-                            onLanguageDetected={setDetectedLanguage}
                         />
                         {/* Suggestion Overlay */}
                         {suggestion && (
-                            <div className="absolute top-0 left-0 pointer-events-none z-0 whitespace-pre-wrap text-[16px] leading-7 font-sans text-transparent w-full">
-                                {note.content}
+                            <div className="absolute top-0 left-0 pointer-events-none z-0 whitespace-pre-wrap text-[16px] leading-7 font-sans text-transparent w-full mt-10">
+                                {/* Invisible content text simply pushes suggestion down, not perfect for HTML but gives simple indication if needed */}
+                                {note.content.replace(/<[^>]*>?/gm, '')}
                                 <span className="text-gray-500 opacity-60">{suggestion}</span>
                             </div>
                         )}
@@ -1202,11 +1258,11 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                     </div>
 
                     {/* Attachments Section */}
-                    {(note.attachments && note.attachments.length > 0) && (
+                    {(note.attachments && note.attachments.filter(a => a.type !== 'overlay').length > 0) && (
                         <div className="border-t border-white/5 pt-6 pb-20 mt-12">
-                            <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">{t('editor.attachments')} ({note.attachments.length})</h3>
+                            <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">{t('editor.attachments')} ({note.attachments.filter(a => a.type !== 'overlay').length})</h3>
                             <div className="flex flex-wrap items-start gap-6">
-                                {note.attachments.map((att, index) => (
+                                {note.attachments.filter(a => a.type !== 'overlay').map((att, index) => (
                                     <MediaAttachment
                                         key={att.id}
                                         att={att}
@@ -1239,30 +1295,20 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                  </div>
             )}
 
-            {drawingSession && (
-                <div className={`absolute left-0 right-0 bottom-0 animate-in fade-in duration-200 ${drawingSession.type === 'overlay' ? 'top-[44px] z-30 pointer-events-none' : 'top-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8'}`}>
-                    {drawingSession.type === 'overlay' ? (
-                        <div className="w-full h-full pointer-events-auto">
-                            <CanvasDraw 
-                                onSave={handleSaveDrawing} 
-                                onClose={() => setDrawingSession(null)}
-                                initialImage={null}
-                                isOverlay={true}
-                            />
-                        </div>
-                    ) : (
-                        <ResizableModal
-                            initialSize={{ width: 1200, height: 800 }}
+            {/* Dessin standard/image */}
+            {drawingSession && drawingSession.type !== 'overlay' && (
+                <div className="absolute top-0 left-0 right-0 bottom-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200">
+                    <ResizableModal
+                        initialSize={{ width: 1200, height: 800 }}
+                        onClose={() => setDrawingSession(null)}
+                    >
+                        <CanvasDraw 
+                            onSave={handleSaveDrawing} 
                             onClose={() => setDrawingSession(null)}
-                        >
-                            <CanvasDraw 
-                                onSave={handleSaveDrawing} 
-                                onClose={() => setDrawingSession(null)}
-                                initialImage={drawingSession.type === 'image' ? drawingSession.data : null}
-                                isOverlay={false}
-                            />
-                        </ResizableModal>
-                    )}
+                            initialImage={drawingSession.type === 'image' ? drawingSession.data : null}
+                            isOverlay={false}
+                        />
+                    </ResizableModal>
                 </div>
             )}
         </div>
@@ -1331,3 +1377,6 @@ const ResizableModal = ({ children, initialSize }) => {
         </div>
     );
 };
+
+
+

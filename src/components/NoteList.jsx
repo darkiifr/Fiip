@@ -166,7 +166,12 @@ export default function NoteList({
                                 {note.title || t('sidebar.new_note') || "Untitled"}
                             </h3>
                             <div className={`text-[13px] leading-[18px] line-clamp-2 ${selectedNoteId === note.id ? 'text-blue-100' : 'text-gray-400'}`}>
-                                {note.content || t('sidebar.no_content') || "No content"}
+                                {(() => {
+                                    if (!note.content) return t('sidebar.no_content') || "No content";
+                                    const tempDiv = document.createElement('div');
+                                    tempDiv.innerHTML = note.content;
+                                    return tempDiv.textContent || tempDiv.innerText || "";
+                                })() || t('sidebar.no_content') || "No content"}
                             </div>
                             <div className="flex items-center justify-between mt-[8px]">
                                 <span className={`text-[11px] ${selectedNoteId === note.id ? 'text-blue-200' : 'text-gray-500'}`}>

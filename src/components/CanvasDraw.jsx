@@ -171,12 +171,16 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
                     canvas.height = 600;
                 }
             } else if (isOverlay) {
-                // Overlay mode: Match container size
-                const rect = containerRef.current.getBoundingClientRect();
-                canvas.width = rect.width;
-                canvas.height = rect.height;
-                // Transparent background
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Overlay mode: Match container size after mount animation
+                const setSize = () => {
+                    if (!containerRef.current || !canvas) return;
+                    const rect = containerRef.current.getBoundingClientRect();
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                };
+                setSize();
+                setTimeout(setSize, 250); // Fallback after animation
             } else {
                 // Standard mode
                 canvas.width = 1920;
@@ -351,12 +355,10 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
                 
                 <canvas
                     ref={canvasRef}
-                    className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 shadow-2xl touch-none"
+                    className={isOverlay ? "absolute inset-0 shadow-2xl touch-none w-full h-full" : "absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 shadow-2xl touch-none"}
                     style={{ 
                         maxWidth: '100%', 
-                        maxHeight: '100%',
-                        width: isOverlay ? '100%' : undefined,
-                        height: isOverlay ? '100%' : undefined
+                        maxHeight: '100%'
                     }}
                     onMouseDown={handleMouseDown}
                     onTouchStart={handleMouseDown}
@@ -369,7 +371,7 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
             </div>
 
             {/* Toolbar - Floating at Bottom if Overlay */}
-            <div className={`pointer-events-auto flex items-center justify-between gap-2 px-3 py-1.5 ${isOverlay ? 'absolute bottom-1 left-1/2 -translate-x-1/2 bg-[#252525]/90 backdrop-blur-md rounded-full border border-white/10 shadow-2xl scale-90 z-50' : 'bg-[#252525] border-t border-white/5'}`}>
+            <div className={`pointer-events-auto flex items-center justify-between gap-2 px-3 py-1.5 ${isOverlay ? 'fixed bottom-4 left-1/2 -translate-x-1/2 bg-[#252525]/90 backdrop-blur-md rounded-full border border-white/10 shadow-2xl scale-90 z-50' : 'bg-[#252525] border-t border-white/5'}`}>
                 
                 {/* Tools Group */}
                 <div className="flex items-center gap-2">
@@ -469,3 +471,5 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
         </div>
     );
 }
+
+
