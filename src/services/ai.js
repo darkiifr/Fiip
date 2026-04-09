@@ -1,6 +1,6 @@
 import { keyAuthService } from './keyauth';
 
-const DEFAULT_OPENROUTER_KEY = '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';
+const DEFAULT_OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
 const DEFAULT_OPENROUTER_MODEL = 'openai/gpt-oss-20b:free';
 
 export const generateText = async ({ apiKey, model, messages, signal, jsonMode }) => {
@@ -10,6 +10,11 @@ export const generateText = async ({ apiKey, model, messages, signal, jsonMode }
     }
 
     const finalKey = apiKey && apiKey.trim() ? apiKey : DEFAULT_OPENROUTER_KEY;
+
+    if (!finalKey) {
+        throw new Error("Clé API OpenRouter manquante. Veuillez la configurer dans les paramètres ou via un fichier .env");
+    }
+
     const finalModel = model || DEFAULT_OPENROUTER_MODEL;
 
     const maxRetries = 3;
