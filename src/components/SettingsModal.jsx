@@ -7,6 +7,7 @@ import { getPlatformDisplayName } from '../services/platform';
 import { keyAuthService } from '../services/keyauth';
 import { useTranslation } from 'react-i18next';
 import CustomSelect from './CustomSelect';
+import FontManager from './FontManager';
 
 // Icons Import (Pim's Edition)
 import IconClose from '~icons/mingcute/close-fill';
@@ -231,22 +232,32 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                     </div>
 
                     {/* Typography */}
+                    {/* Typography */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.display_title')}</h3>
                         <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
                             <div className="flex items-center gap-3">
                                 <IconFontSize className="w-5 h-5 text-gray-400" />
-                                <span className="text-sm font-medium text-gray-200">{t('settings.large_text')}</span>
+                                <span className="text-sm font-medium text-gray-200">Taille du texte</span>
                             </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={localSettings.largeText}
-                                    onChange={(e) => handleUpdate({ ...localSettings, largeText: e.target.checked })}
-                                    className="sr-only peer"
+                            <div className="w-[140px]">
+                                <CustomSelect 
+                                    value={localSettings.fontSize || (localSettings.largeText ? 'large' : 'normal')}
+                                    onChange={(val) => handleUpdate({ ...localSettings, fontSize: val })}
+                                    options={[
+                                        { value: 'small', label: 'Petite' },
+                                        { value: 'normal', label: 'Normale' },
+                                        { value: 'large', label: 'Grande' },
+                                        { value: 'xlarge', label: 'Très Grande' }
+                                    ]}
+                                    renderOption={(option) => (
+                                        <span className="font-medium truncate">{option.label}</span>
+                                    )}
+                                    renderTrigger={(option) => (
+                                        <span className="truncate">{option.label}</span>
+                                    )}
                                 />
-                                <div className="w-[40px] h-[24px] bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-[16px] peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-gray-600 peer-checked:bg-blue-600"></div>
-                            </label>
+                            </div>
                         </div>
                     </div>
 
@@ -405,6 +416,9 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                          </div>
                     </div>
 
+                    {/* Font Manager */}
+                    <FontManager />
+
                     {/* Window Effects */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.window_effects_title')}</h3>
@@ -525,7 +539,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                             </label>
                         </div>
 
-                        {localSettings.aiEnabled !== false && (
+                        {keyAuthService.hasAIAccess() && localSettings.aiEnabled !== false && (
                             <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div>
                                     <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.api_key_label')}</label>
@@ -533,7 +547,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                                         type="password"
                                         value={localSettings.aiApiKey || ''}
                                         onChange={(e) => handleUpdate({ ...localSettings, aiApiKey: e.target.value })}
-                                        placeholder="sk-or-..."
+                                        placeholder="Clé par défaut activée. Entrez la vôtre pour remplacer."
                                         className="w-full bg-black/20 border border-white/10 rounded-md px-3.5 py-2.5 text-sm text-gray-100 focus:ring-2 focus:ring-blue-500/50 outline-none transition-all"
                                     />
                                     <button
@@ -547,9 +561,10 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                                 <div>
                                     <label className="block text-xs font-medium text-gray-300 mb-1">{t('settings.ai_model_label')}</label>
                                     <CustomSelect
-                                        value={localSettings.aiModel || 'openai/gpt-4o-mini'}
+                                        value={localSettings.aiModel || 'openai/gpt-oss-20b:free'}
                                         onChange={(val) => handleUpdate({ ...localSettings, aiModel: val })}
                                         options={[
+                                            { value: "openai/gpt-oss-20b:free", label: "GPT-OSS 20B (Défaut)" },
                                             { value: "openai/gpt-4o-mini", label: `GPT-4o Mini ${t('settings.model_desc_fast') || ''}` },
                                             { value: "openai/gpt-4o", label: `GPT-4o ${t('settings.model_desc_powerful') || ''}` },
                                             { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },

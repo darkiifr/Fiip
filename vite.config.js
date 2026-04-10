@@ -37,7 +37,7 @@ export default defineConfig(async () => ({
     },
   },
   build: {
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -46,6 +46,7 @@ export default defineConfig(async () => ({
           ui: ['lucide-react', 'marked', 'dompurify', 'clsx', 'tailwind-merge'],
           i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
           emoji: ['emoji-picker-react'],
+          tiptap: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/extension-text-style', '@tiptap/extension-color', '@tiptap/extension-highlight', '@tiptap/extension-underline', '@tiptap/extension-text-align'],
         },
       },
     },

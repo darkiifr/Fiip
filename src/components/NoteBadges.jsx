@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, X, Zap, Trophy, Flame, Plus } from 'lucide-react';
+import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, X, Zap, Trophy, Flame, Plus, Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search } from 'lucide-react';
 import { Icon as IconifyIcon } from '@iconify/react';
 import { dataService } from '../services/supabase';
 
 const PRESET_ICONS = {
-    Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame
+    Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame,
+    Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search
 };
 
 const SKILL_ICONS = [

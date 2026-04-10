@@ -27,7 +27,8 @@ export default function Titlebar({ style = 'macos' }) {
     if (style === 'macos') {
         return (
             <div
-                className="h-[52px] w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
+                className="h-[52px] w-full bg-[#1e1e1e] border-b border-white/10 flex items-center select-none"
+                style={{ willChange: 'transform' }}
             >
                 {/* Left Drag Region (Padding) */}
                 <div className="w-[12px] h-full" data-tauri-drag-region />
@@ -62,7 +63,8 @@ export default function Titlebar({ style = 'macos' }) {
     if (style === 'windows') {
         return (
             <div
-                className="h-8 w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
+                className="h-8 w-full bg-[#1e1e1e] border-b border-white/10 flex items-center select-none"
+                style={{ willChange: 'transform' }}
             >
                 <div className="flex-1 px-4 h-full flex items-center" data-tauri-drag-region>
                     <div className="text-[12px] font-medium text-gray-400 pointer-events-none">Fiip</div>

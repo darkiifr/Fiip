@@ -1,14 +1,21 @@
 import { keyAuthService } from './keyauth';
 
+const DEFAULT_OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
+const DEFAULT_OPENROUTER_MODEL = 'openai/gpt-oss-20b:free';
+
 export const generateText = async ({ apiKey, model, messages, signal, jsonMode }) => {
     // Vérification de la licence (Abonnement requis pour l'IA)
     if (!keyAuthService.hasAIAccess()) {
         throw new Error("Cette fonctionnalité nécessite un abonnement actif. Veuillez activer votre licence.");
     }
 
-    if (!apiKey) {
-        throw new Error("Clé API manquante. Veuillez la configurer dans les paramètres.");
+    const finalKey = apiKey && apiKey.trim() ? apiKey : DEFAULT_OPENROUTER_KEY;
+
+    if (!finalKey) {
+        throw new Error("Clé API OpenRouter manquante. Veuillez la configurer dans les paramètres ou via un fichier .env");
     }
+
+    const finalModel = model || DEFAULT_OPENROUTER_MODEL;
 
     const maxRetries = 3;
     let attempt = 0;
@@ -16,7 +23,7 @@ export const generateText = async ({ apiKey, model, messages, signal, jsonMode }
     while (attempt < maxRetries) {
         try {
             const body = {
-                model: model || "openai/gpt-4o-mini",
+                model: finalModel,
                 messages: messages,
                 temperature: 0.7,
             };
@@ -28,7 +35,7 @@ export const generateText = async ({ apiKey, model, messages, signal, jsonMode }
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${apiKey}`,
+                    "Authorization": `Bearer ${finalKey}`,
                     "Content-Type": "application/json",
                     // "HTTP-Referer": "https://fiip-notes.app", // Optional
                     // "X-Title": "Fiip Notes" // Optional

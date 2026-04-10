@@ -31,7 +31,12 @@ export default function UserProfileModal({ isOpen, onClose }) {
       const loadProfile = async () => {
           const { data } = await dataService.fetchProfile();
            if (data) {
-              setPublicProfile(prev => ({ ...prev, ...data }));
+              setPublicProfile(prev => ({ 
+                  ...prev, 
+                  ...data,
+                  avatar: data.avatar_url || data.avatar,
+                  accentColor: data.accent_color || data.accentColor
+              }));
               if (data.nickname) {
                   setOriginalNickname(data.nickname);
               }
@@ -126,18 +131,22 @@ export default function UserProfileModal({ isOpen, onClose }) {
   };
 
 
-  const handleAvatarChange = (e) => {
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // 2MB limit
         alert("L'image est trop volumineuse (Max 2MB)");
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPublicProfile(prev => ({ ...prev, avatar: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      
+      const { url, error } = await dataService.uploadAvatar(file);
+      if (error) {
+        alert("Erreur lors de l'upload de l'avatar: " + error.message);
+        return;
+      }
+      if (url) {
+        setPublicProfile(prev => ({ ...prev, avatar: url }));
+      }
     }
   };
 

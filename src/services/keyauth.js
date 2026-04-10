@@ -180,6 +180,12 @@ class KeyAuthService {
 
     _processUserData(info) {
         if (!info) return info;
+        
+        // Empêcher la clé de licence d'être utilisée comme nom d'utilisateur
+        if (info.username === this.licenseKey) {
+            delete info.username;
+        }
+        
         if (info.subscriptions && Array.isArray(info.subscriptions)) {
             info.subscriptions = info.subscriptions.map(sub => {
                 let subName = (sub.subscription || "").toLowerCase();

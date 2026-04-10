@@ -93,16 +93,16 @@ export default function Sidebar({
                 <button 
                     onClick={onOpenAuth} 
                     className={`flex items-center ${isCollapsed ? 'justify-center w-10 h-10 p-0' : 'gap-3 p-2 w-full text-left'} rounded-lg hover:bg-white/5 transition-all duration-[150ms] ease-out group`}
-                    title={isCollapsed ? (keyAuthService.isAuthenticated ? (supabaseUser?.user_metadata?.full_name || supabaseUser?.user_metadata?.name || localProfile?.nickname || keyAuthService.userData?.username) : 'Guest') : ''}
+                    title={isCollapsed ? (keyAuthService.isAuthenticated ? (localProfile?.nickname || supabaseUser?.user_metadata?.nickname || supabaseUser?.user_metadata?.username || supabaseUser?.user_metadata?.full_name || keyAuthService.userData?.username || 'Utilisateur') : 'Guest') : ''}
                 >
                     <div className="relative shrink-0">
-                        {keyAuthService.isAuthenticated && (keyAuthService.userData?.username || supabaseUser) ? (
+                        {keyAuthService.isAuthenticated ? (
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-sm group-hover:shadow-blue-500/20 transition-all duration-[250ms]">
-                                 {localProfile?.avatar || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl ? (
-                                     <img src={localProfile?.avatar || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                  {localProfile?.avatar || localProfile?.avatar_url || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl ? (
+                                      <img src={localProfile?.avatar || localProfile?.avatar_url || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
                                  ) : (
                                     <div className="w-full h-full rounded-full bg-[#2C2C2E] flex items-center justify-center text-[10px] font-bold text-white uppercase">
-                                        {((supabaseUser?.user_metadata?.full_name || supabaseUser?.user_metadata?.name || localProfile?.nickname || keyAuthService.userData?.username) || 'U').substring(0, 2)}
+                                        {((localProfile?.nickname || supabaseUser?.user_metadata?.nickname || supabaseUser?.user_metadata?.username || supabaseUser?.user_metadata?.full_name || keyAuthService.userData?.username) || 'U').substring(0, 2)}
                                     </div>
                                  )}
                              </div>
@@ -117,7 +117,7 @@ export default function Sidebar({
                     {!isCollapsed && (
                         <div className="flex-1 min-w-0 transition-opacity duration-200">
                             <div className="text-[13px] font-semibold text-white leading-tight truncate">
-                                {keyAuthService.isAuthenticated ? (supabaseUser?.user_metadata?.full_name || supabaseUser?.user_metadata?.name || localProfile?.nickname || keyAuthService.userData?.username) : 'Guest'}
+                                {keyAuthService.isAuthenticated ? (localProfile?.nickname || supabaseUser?.user_metadata?.nickname || supabaseUser?.user_metadata?.username || supabaseUser?.user_metadata?.full_name || keyAuthService.userData?.username || 'Utilisateur') : 'Guest'}
                             </div>
                             <div className="text-[11px] text-gray-400 truncate">
                                  {keyAuthService.isAuthenticated ? (keyAuthService.getCurrentSubscriptionName() || 'Member') : 'Not connected'}

@@ -411,11 +411,53 @@ export const dataService = {
       const user = await authService.getUser();
       if (!user) return { error: 'Not authenticated' };
 
+      // Update auth user metadata so it drops down smoothly
+      const { error: authError } = await supabase.auth.updateUser({
+          data: {
+              username: profile.nickname,
+              full_name: profile.nickname,
+              name: profile.nickname,
+              avatar_url: profile.avatar || profile.avatar_url
+          }
+      });
+
+      // Format profile data exactly to database schema
+      const profileData = {
+          id: user.id,
+          nickname: profile.nickname,
+          bio: profile.bio || '',
+          avatar_url: profile.avatar || profile.avatar_url,
+          accent_color: profile.accentColor || profile.accent_color || '#5865F2',
+          skills: profile.skills || [],
+          updated_at: new Date().toISOString()
+      };
+
       const { error } = await supabase
           .from('profiles')
-          .upsert({ id: user.id, ...profile, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+          .upsert(profileData, { onConflict: 'id' });
 
-      return { error };
+      return { error: authError || error };
+  },
+
+  async uploadAvatar(file) {
+      const user = await authService.getUser();
+      if (!user) return { error: new Error('Not authenticated') };
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file, { upsert: true });
+
+      if (uploadError) return { error: uploadError };
+
+      const { data } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+      return { url: data.publicUrl, error: null };
   },
 
   // --- Realtime Subscriptions ---
