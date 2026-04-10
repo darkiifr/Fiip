@@ -105,7 +105,7 @@ export default function PublicNoteView() {
         }, 100);
     };
 
-    const handleDownloadPdf = async () => {
+    const handleDownloadPdf = () => {
         if (!note) return;
         const element = document.getElementById('note-print-area');
         if (!element) return;
@@ -113,24 +113,15 @@ export default function PublicNoteView() {
             margin: [0.5, 0.5, 0.5, 0.5],
             filename: `${note.title || 'note'}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+            html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
-        try {
-            await html2pdf().set(opt).from(element).save();
-        } catch (error) {
-            console.error("Erreur génération PDF:", error);
-        }
-    };
-
-    const handleOpenInFiip = () => {
-        if (!slug) return;
-        const url = `fiip://note/${slug}`;
-        const a = document.createElement('a');
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        
+        // Use standard promesified html2pdf without awaiting it to avoid blocking React
+        html2pdf().set(opt).from(element).save().catch(err => {
+            console.error('Erreur PDF:', err);
+            alert("Erreur lors de la génération du PDF.");
+        });
     };
 
     if (loading) {
@@ -169,13 +160,13 @@ export default function PublicNoteView() {
                     </a>
                     
                     <div className="flex items-center gap-3">
-                         <button 
-                            onClick={handleOpenInFiip}
+                        <a 
+                            href={`fiip://note/${slug}`}
                             className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-sm font-medium rounded-lg border border-white/5 transition-all"
                         >
                             <IconifyIcon icon="mingcute:external-link-line" />
                             Ouvrir dans l&apos;app
-                        </button>
+                        </a>
                         <a 
                             href="https://fiip.netlify.app" 
                             target="_blank" 
@@ -203,12 +194,12 @@ export default function PublicNoteView() {
                             <p className="text-xs text-gray-400 mt-1">Ouvrez cette note directement dans l&apos;application pour une meilleure expérience.</p>
                         </div>
                     </div>
-                    <button 
-                        onClick={handleOpenInFiip}
+                    <a 
+                        href={`fiip://note/${slug}`}
                         className="w-full sm:w-auto px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-sm font-medium rounded-lg transition-colors text-center"
                     >
                         Ouvrir maintenant
-                    </button>
+                    </a>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 mb-8">
