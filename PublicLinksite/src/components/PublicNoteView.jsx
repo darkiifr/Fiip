@@ -109,18 +109,28 @@ export default function PublicNoteView() {
         if (!note) return;
         const element = document.getElementById('note-print-area');
         if (!element) return;
+
+        // Ensure we clone the element safely and strip tags that crash html2canvas/html2pdf
+        const clone = element.cloneNode(true);
+        clone.querySelectorAll('video, audio, iframe').forEach(el => el.remove());
+
+        const safeTitle = (note.title || 'note').replace(/[\\/:*?"<>|]/g, '_');
+
         const opt = {
             margin: [0.5, 0.5, 0.5, 0.5],
-            filename: `${note.title || 'note'}.pdf`,
+            filename: `${safeTitle}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true },
             jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
         
         // Use standard promesified html2pdf without awaiting it to avoid blocking React
-        html2pdf().set(opt).from(element).save().catch(err => {
+        html2pdf().set(opt).from(clone).save().catch(err => {
             console.error('Erreur PDF:', err);
             alert("Erreur lors de la génération du PDF.");
+            // If an error happens, html2pdf leaves a transparent overlay that makes the page unclickable,
+            // and sometimes modifies the URL making it invalid. We force a clean reload to fix this.
+            window.location.replace(`/n/${slug}`);
         });
     };
 
