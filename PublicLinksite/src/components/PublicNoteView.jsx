@@ -72,17 +72,19 @@ export default function PublicNoteView() {
         }
     };
 
-    const handleDownloadFiip = () => {
+    const handleDownloadFiin = () => {
         if (!note) return;
         const blob = new Blob([JSON.stringify(note, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${note.title || 'note'}.fiip`;
+        a.download = `${note.title || 'note'}.fiin`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
     };
 
     const handleDownloadMd = () => {
@@ -97,11 +99,13 @@ export default function PublicNoteView() {
         a.download = `${note.title || 'note'}.md`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
     };
 
-    const handleDownloadPdf = () => {
+    const handleDownloadPdf = async () => {
         if (!note) return;
         const element = document.getElementById('note-print-area');
         if (!element) return;
@@ -112,19 +116,21 @@ export default function PublicNoteView() {
             html2canvas: { scale: 2, useCORS: true, letterRendering: true },
             jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
-        // Ensure element is styled for light mode during PDF generation if we want standard PDF
-        // Let's just generate the PDF with its current styles.
-        html2pdf().set(opt).from(element).save();
+        try {
+            await html2pdf().set(opt).from(element).save();
+        } catch (error) {
+            console.error("Erreur génération PDF:", error);
+        }
     };
 
     const handleOpenInFiip = () => {
         if (!slug) return;
-        // Attempt to open custom protocol
-        window.location.href = `fiip://note/${slug}`;
-        
-        // Optional: Set a timeout to check if it failed? 
-        // Browsers make this hard to detect reliably.
-        // Usually we just let the user click "Download" if nothing happens.
+        const url = `fiip://note/${slug}`;
+        const a = document.createElement('a');
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     };
 
     if (loading) {
@@ -206,15 +212,15 @@ export default function PublicNoteView() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 mb-8">
-                    <button onClick={handleDownloadFiip} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-sm font-medium rounded-lg border border-indigo-500/20 transition-colors">
+                    <button type="button" onClick={handleDownloadFiin} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-sm font-medium rounded-lg border border-indigo-500/20 transition-colors">
                         <IconifyIcon icon="mingcute:file-download-fill" />
-                        .fiip
+                        .fiin
                     </button>
-                    <button onClick={handleDownloadMd} className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-sm font-medium rounded-lg border border-yellow-500/20 transition-colors">
+                    <button type="button" onClick={handleDownloadMd} className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-sm font-medium rounded-lg border border-yellow-500/20 transition-colors">
                         <IconifyIcon icon="mingcute:markdown-fill" />
                         .md
                     </button>
-                    <button onClick={handleDownloadPdf} className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg border border-red-500/20 transition-colors">
+                    <button type="button" onClick={handleDownloadPdf} className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm font-medium rounded-lg border border-red-500/20 transition-colors">
                         <IconifyIcon icon="mingcute:pdf-fill" />
                         .pdf
                     </button>
