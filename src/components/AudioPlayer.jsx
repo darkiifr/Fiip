@@ -49,14 +49,11 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
         };
 
         const onLoadedMetadata = () => {
-            if (audio.duration === Infinity) {
-                isFixingDuration = true;
+            if (!audio.duration || audio.duration === Infinity) {
                 audio.currentTime = 1e101;
-                
                 const onTimeUpdateTemp = () => {
                     audio.removeEventListener('timeupdate', onTimeUpdateTemp);
                     audio.currentTime = 0;
-                    isFixingDuration = false;
                     if (isFinite(audio.duration)) {
                         setDuration(audio.duration);
                     }
@@ -130,7 +127,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
     };
 
     return (
-        <div className="w-full h-full flex flex-col justify-center p-4 bg-[#2B2D31] rounded-xl border border-[#1E1F22] shadow-sm transition-all hover:shadow-md hover:border-[#5865F2]/50 group">
+        <div className="w-full h-full flex flex-col justify-center p-4 bg-gradient-to-br from-blue-500/20 to-purple-600/20 backdrop-blur-md rounded-xl border border-white/10 shadow-sm transition-all hover:shadow-lg hover:border-white/20 group text-white">
             <audio
                 ref={audioRef}
                 src={src}
@@ -145,7 +142,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
             <div className="flex items-center gap-3 mb-2">
                 <button
                     onClick={togglePlay}
-                    className="w-10 h-10 flex items-center justify-center rounded-full bg-[#5865F2] hover:bg-[#4752C4] text-white shadow-lg shadow-black/20 transition-all hover:scale-105 active:scale-95 shrink-0"
+                    className="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-400 hover:to-purple-500 text-white shadow-lg shadow-black/20 transition-all hover:scale-105 active:scale-95 shrink-0"
                 >
                     {isPlaying ? <IconPause className="w-4 h-4 fill-current" /> : <IconPlay className="w-4 h-4 fill-current ml-0.5" />}
                 </button>

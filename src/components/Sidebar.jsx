@@ -15,6 +15,7 @@ import IconLogout from '~icons/mingcute/exit-fill';
 import IconPanelLeft from '~icons/mingcute/menu-fill';
 
 import { authService, dataService } from '../services/supabase';
+import { type } from '@tauri-apps/plugin-os';
 
 export default function Sidebar({ 
     onOpenSettings, 
@@ -29,6 +30,25 @@ export default function Sidebar({
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [localProfile, setLocalProfile] = useState(null);
     const [supabaseUser, setSupabaseUser] = useState(null);
+    const osType = type();
+
+    const getSafeUsername = () => {
+        const candidates = [
+            localProfile?.nickname,
+            supabaseUser?.user_metadata?.nickname,
+            supabaseUser?.user_metadata?.username,
+            supabaseUser?.user_metadata?.full_name,
+            keyAuthService.userData?.username
+        ];
+
+        for (const candidate of candidates) {
+            if (candidate && typeof candidate === 'string' && !candidate.match(/^[A-Za-z0-9-]{20,}$/)) {
+                return candidate;
+            }
+        }
+        
+        return t('sidebar.guest_user') || 'Utilisateur';
+    };
 
     React.useEffect(() => {
         const loadProfile = () => {
@@ -80,8 +100,13 @@ export default function Sidebar({
         >
             {/* Header : User Profile & Traffic Lights */}
             <div className={`flex flex-col ${isCollapsed ? 'items-center px-0' : 'px-3'} pt-3 pb-2 select-none transition-all duration-250`}>
-                {/* Traffic Lights (if integrated) */}
-                {(!settings?.titlebarStyle || settings.titlebarStyle === 'none') && (
+                
+                {/* Traffic Lights Spacer for macOS native or 'none' layout */}
+                {osType === 'macos' && (!settings?.titlebarStyle || settings.titlebarStyle === 'none' || settings.titlebarStyle === 'native') && (
+                     <div className="w-[60px] h-[32px] mb-2" data-tauri-drag-region />
+                )}
+
+                {osType !== 'macos' && (!settings?.titlebarStyle || settings.titlebarStyle === 'none') && (
                     <div className={`flex gap-2 mb-4 ${isCollapsed ? 'flex-col items-center gap-2 mb-2' : 'px-1'}`}>
                         <button onClick={() => appWindow.close()} className="w-3 h-3 rounded-full bg-[#FF5F57] hover:bg-[#FF4A42] border border-black/10 transition-colors duration-[150ms] ease-out" />
                         <button onClick={() => appWindow.minimize()} className="w-3 h-3 rounded-full bg-[#FEBC2E] hover:bg-[#FEAE1C] border border-black/10 transition-colors duration-[150ms] ease-out" />
@@ -93,7 +118,7 @@ export default function Sidebar({
                 <button 
                     onClick={onOpenAuth} 
                     className={`flex items-center ${isCollapsed ? 'justify-center w-10 h-10 p-0' : 'gap-3 p-2 w-full text-left'} rounded-lg hover:bg-white/5 transition-all duration-[150ms] ease-out group`}
-                    title={isCollapsed ? (keyAuthService.isAuthenticated ? (localProfile?.nickname || supabaseUser?.user_metadata?.nickname || supabaseUser?.user_metadata?.username || supabaseUser?.user_metadata?.full_name || keyAuthService.userData?.username || 'Utilisateur') : 'Guest') : ''}
+                    title={isCollapsed ? (keyAuthService.isAuthenticated ? getSafeUsername() : 'Guest') : ''}
                 >
                     <div className="relative shrink-0">
                         {keyAuthService.isAuthenticated ? (
@@ -102,7 +127,7 @@ export default function Sidebar({
                                       <img src={localProfile?.avatar || localProfile?.avatar_url || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
                                  ) : (
                                     <div className="w-full h-full rounded-full bg-[#2C2C2E] flex items-center justify-center text-[10px] font-bold text-white uppercase">
-                                        {((localProfile?.nickname || supabaseUser?.user_metadata?.nickname || supabaseUser?.user_metadata?.username || supabaseUser?.user_metadata?.full_name || keyAuthService.userData?.username) || 'U').substring(0, 2)}
+                                        {(getSafeUsername() || 'U').substring(0, 2)}
                                     </div>
                                  )}
                              </div>
@@ -117,7 +142,7 @@ export default function Sidebar({
                     {!isCollapsed && (
                         <div className="flex-1 min-w-0 transition-opacity duration-200">
                             <div className="text-[13px] font-semibold text-white leading-tight truncate">
-                                {keyAuthService.isAuthenticated ? (localProfile?.nickname || supabaseUser?.user_metadata?.nickname || supabaseUser?.user_metadata?.username || supabaseUser?.user_metadata?.full_name || keyAuthService.userData?.username || 'Utilisateur') : 'Guest'}
+                                {keyAuthService.isAuthenticated ? getSafeUsername() : 'Guest'}
                             </div>
                             <div className="text-[11px] text-gray-400 truncate">
                                  {keyAuthService.isAuthenticated ? (keyAuthService.getCurrentSubscriptionName() || 'Member') : 'Not connected'}

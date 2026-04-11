@@ -1,5 +1,5 @@
 import { Extension } from '@tiptap/core';
-import { grammarPlugin } from 'prosemirror-languagetool';
+import { grammarPlugin } from './LanguageToolPlugin';
 
 export const LanguageToolExtension = Extension.create({
   name: 'languageTool',

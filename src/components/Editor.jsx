@@ -100,7 +100,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                     {/* Move Left */}
                     {index > 0 && (
                         <button
-                            onClick={() => moveAttachment(index, 'left')}
+                            onClick={(e) => { e.stopPropagation(); moveAttachment(att.id, 'left'); }}
                             className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors duration-[150ms] ease-out"
                             title={t('editor.move_left')}
                         >
@@ -108,9 +108,9 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                         </button>
                     )}
                     {/* Move Right */}
-                    {index < note.attachments.length - 1 && (
+                    {index < (note.attachments || []).filter(a => a.type !== 'overlay').length - 1 && (
                         <button
-                            onClick={() => moveAttachment(index, 'right')}
+                            onClick={(e) => { e.stopPropagation(); moveAttachment(att.id, 'right'); }}
                             className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors duration-[150ms] ease-out"
                             title={t('editor.move_right')}
                         >
@@ -256,6 +256,34 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
     // TTS & STT State
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const [languageToolMenu, setLanguageToolMenu] = useState(null);
+
+    useEffect(() => {
+        const handleContextMenu = (e) => {
+            const replacements = e.detail.replacementsStr ? JSON.parse(e.detail.replacementsStr) : [];
+            setLanguageToolMenu({
+                x: e.detail.x,
+                y: e.detail.y,
+                replacements,
+                message: e.detail.message,
+                from: e.detail.from,
+                to: e.detail.to,
+                view: e.detail.view
+            });
+        };
+        const handleCloseMenu = () => setLanguageToolMenu(null);
+
+        window.addEventListener("languagetool:contextmenu", handleContextMenu);
+        window.addEventListener("click", handleCloseMenu);
+        window.addEventListener("scroll", handleCloseMenu, true);
+
+        return () => {
+            window.removeEventListener("languagetool:contextmenu", handleContextMenu);
+            window.removeEventListener("click", handleCloseMenu);
+            window.removeEventListener("scroll", handleCloseMenu, true);
+        };
+    }, []);
+
     const isListeningRef = useRef(false); // Track intent to listen
     const lastSpeechStartRef = useRef(0);
     const [interimTranscript, setInterimTranscript] = useState('');
@@ -600,14 +628,26 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
         onUpdateNote({ ...note, attachments, updatedAt: Date.now() });
     };
 
-    const moveAttachment = (index, direction) => {
-        const attachments = [...(note.attachments || [])];
-        if (direction === 'left' && index > 0) {
-            [attachments[index - 1], attachments[index]] = [attachments[index], attachments[index - 1]];
-        } else if (direction === 'right' && index < attachments.length - 1) {
-            [attachments[index + 1], attachments[index]] = [attachments[index], attachments[index + 1]];
+    const moveAttachment = (id, direction) => {
+        const copy = [...(note.attachments || [])];
+        const oldIndex = copy.findIndex(a => a.id === id);
+        if (oldIndex === -1) return;
+
+        let swapIndex = -1;
+        if (direction === 'left') {
+            for (let i = oldIndex - 1; i >= 0; i--) {
+                if (copy[i].type !== 'overlay') { swapIndex = i; break; }
+            }
+        } else {
+            for (let i = oldIndex + 1; i < copy.length; i++) {
+                if (copy[i].type !== 'overlay') { swapIndex = i; break; }
+            }
         }
-        onUpdateNote({ ...note, attachments, updatedAt: Date.now() });
+
+        if (swapIndex !== -1) {
+            [copy[oldIndex], copy[swapIndex]] = [copy[swapIndex], copy[oldIndex]];
+            onUpdateNote({ ...note, attachments: copy, updatedAt: Date.now() });
+        }
     };
 
     const renameAttachment = (id, newName) => {
@@ -999,6 +1039,50 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
         >
+            {/* LanguageTool Context Menu */}
+            {languageToolMenu && (
+                <div 
+                    className="fixed z-[9999] bg-[#1e1e1e] border border-white/10 rounded-lg shadow-2xl overflow-hidden py-1 min-w-[150px] font-sans"
+                    style={{
+                        top: Math.min(languageToolMenu.y, window.innerHeight - 200),
+                        left: Math.min(languageToolMenu.x, window.innerWidth - 200)
+                    }}
+                >
+                    {languageToolMenu.replacements.length > 0 ? (
+                        <>
+                            <div className="px-3 py-1.5 text-xs text-white/50 border-b border-white/5 uppercase tracking-wider font-semibold">
+                                {languageToolMenu.message || "Suggestions"}
+                            </div>
+                            <div className="max-h-[300px] overflow-y-auto">
+                                {languageToolMenu.replacements.map((replacement, idx) => (
+                                    <button
+                                        key={idx}
+                                        className="w-full text-left px-4 py-2 text-sm text-white/90 hover:bg-blue-500 hover:text-white transition-colors cursor-pointer"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const textToInsert = replacement.value || replacement;
+                                            const { view, from, to } = languageToolMenu;
+                                            if (view && view.state) {
+                                                view.dispatch(view.state.tr.insertText(textToInsert, from, to));
+                                                view.focus();
+                                            }
+                                            setLanguageToolMenu(null);
+                                        }}
+                                    >
+                                        {replacement.value || replacement}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="px-4 py-2 text-sm text-white/50">
+                            {languageToolMenu.message || "Erreur"}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Drag Overlay */}
             {isDragging && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-500/20 backdrop-blur-sm border-2 border-blue-500 border-dashed m-4 rounded-xl pointer-events-none">

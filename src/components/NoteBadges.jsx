@@ -3,7 +3,8 @@ import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash,
 import { Icon as IconifyIcon } from '@iconify/react';
 import { dataService } from '../services/supabase';
 
-const PRESET_ICONS = {
+// eslint-disable-next-line react-refresh/only-export-components
+export const PRESET_ICONS = {
     Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame,
     Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search,
     Bell, Brush, Gamepad, Globe, Laptop, Lightbulb, Music, PenTool, Plane, Palette, Wifi, Cpu, Database, Shield, Server, Box, Terminal, MessageSquare, Monitor, ImageIcon

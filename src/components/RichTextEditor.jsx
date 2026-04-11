@@ -247,7 +247,7 @@ const MenuBar = ({ editor }) => {
 };
 
 
-export default function RichTextEditor({ value, onChange, onKeyDown }) {
+export default function RichTextEditor({ value, onChange, onKeyDown, spellcheck = true }) {
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -258,7 +258,7 @@ export default function RichTextEditor({ value, onChange, onKeyDown }) {
             Highlight.configure({ multicolor: true }),
             FontFamily,
             FontSize,
-            LanguageToolExtension,
+            ...(spellcheck ? [LanguageToolExtension] : []),
         ],
         content: value,
         onUpdate: ({ editor }) => {
@@ -269,7 +269,9 @@ export default function RichTextEditor({ value, onChange, onKeyDown }) {
         },
         editorProps: {
             attributes: {
-                class: 'prose prose-invert max-w-none focus:outline-none min-h-[500px] text-gray-200 tiptap px-2 py-1'
+                class: 'prose prose-invert max-w-none focus:outline-none min-h-[500px] text-gray-200 tiptap px-2 py-1',
+                spellcheck: spellcheck ? 'true' : 'false',
+                lang: 'fr-FR'
             },
             handleKeyDown: (view, event) => {
                 if (onKeyDown) {

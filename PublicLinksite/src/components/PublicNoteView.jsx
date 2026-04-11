@@ -22,11 +22,19 @@ const renderMarkdown = (text) => {
     return { __html: sanitizedHtml };
 };
 
+// We redefine BADGE_ICONS in the public linksite as it operates independently
+import * as LucideIcons from 'lucide-react';
+const PRESET_ICONS = {
+    Star: LucideIcons.Star, Heart: LucideIcons.Heart, Flag: LucideIcons.Flag, Bookmark: LucideIcons.Bookmark, Tag: LucideIcons.Tag, AlertCircle: LucideIcons.AlertCircle, Info: LucideIcons.Info, CheckCircle: LucideIcons.CheckCircle, Hash: LucideIcons.Hash, Zap: LucideIcons.Zap, Trophy: LucideIcons.Trophy, Flame: LucideIcons.Flame,
+    Briefcase: LucideIcons.Briefcase, Camera: LucideIcons.Camera, Calendar: LucideIcons.Calendar, Clock: LucideIcons.Clock, Code: LucideIcons.Code, FileText: LucideIcons.FileText, Gift: LucideIcons.Gift, Key: LucideIcons.Key, Layers: LucideIcons.Layers, Lock: LucideIcons.Lock, Mail: LucideIcons.Mail, MapPin: LucideIcons.MapPin, Search: LucideIcons.Search,
+    Bell: LucideIcons.Bell, Brush: LucideIcons.Brush, Gamepad: LucideIcons.Gamepad, Globe: LucideIcons.Globe, Laptop: LucideIcons.Laptop, Lightbulb: LucideIcons.Lightbulb, Music: LucideIcons.Music, PenTool: LucideIcons.PenTool, Plane: LucideIcons.Plane, Palette: LucideIcons.Palette, Wifi: LucideIcons.Wifi, Cpu: LucideIcons.Cpu, Database: LucideIcons.Database, Shield: LucideIcons.Shield, Server: LucideIcons.Server, Box: LucideIcons.Box, Terminal: LucideIcons.Terminal, MessageSquare: LucideIcons.MessageSquare, Monitor: LucideIcons.Monitor, ImageIcon: LucideIcons.ImageIcon
+};
+
 export default function PublicNoteView() {
-    const [slug, setSlug] = useState('');
     const [note, setNote] = useState(null);
+    const [slug, setSlug] = useState('');
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         // Extract slug from URL: /n/:slug (case insensitive split)
@@ -250,25 +258,27 @@ export default function PublicNoteView() {
                         
                         {note.badges && note.badges.length > 0 && (
                             <div className="flex flex-wrap gap-2">
-                                {note.badges.map((badge, idx) => (
+                                {note.badges.map((badge, idx) => {
+                                    const isSkill = badge.icon && (badge.icon.startsWith('skill-icons:') || badge.icon.startsWith('logos:') || badge.icon.startsWith('devicon:') || badge.icon.startsWith('vscode-icons:') || badge.icon.startsWith('formkit:'));
+                                    const isKnownLucide = badge.icon && PRESET_ICONS[badge.icon];
+                                    return (
                                     <span key={idx} className="group relative flex items-center justify-center p-2 rounded-full border transition-all hover:scale-110 cursor-help" style={{ backgroundColor: badge.color + '20', borderColor: badge.color, color: badge.color }}>
-                                        {badge.icon ? <IconifyIcon icon={badge.icon} className="w-4 h-4" /> : <span className="w-4 h-4 text-[10px] flex items-center justify-center font-bold">B</span>}
+                                        {isSkill ? (
+                                            <IconifyIcon icon={badge.icon} className="w-4 h-4" />
+                                        ) : isKnownLucide ? (
+                                            (() => {
+                                                const Icon = PRESET_ICONS[badge.icon];
+                                                return <Icon className="w-4 h-4" />;
+                                            })()
+                                        ) : (
+                                            <span className="w-4 h-4 text-[10px] flex items-center justify-center font-bold">B</span>
+                                        )}
                                         {/* Tooltip */}
                                         <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/90 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100 shadow-xl border border-white/10 z-50">
                                             {badge.name}
                                         </span>
                                     </span>
-                                ))}
-                            </div>
-                        )}
-
-                        {note.tags && note.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {note.tags.map(tag => (
-                                    <span key={tag} className="px-3 py-1 bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded-full text-xs font-medium">
-                                        #{tag}
-                                    </span>
-                                ))}
+                                )})}
                             </div>
                         )}
                     </div>
