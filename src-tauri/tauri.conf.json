@@ -16,9 +16,12 @@
         "width": 1400,
         "height": 900,
         "resizable": true,
-        "maximized": true,
+        "maximized": false,
         "decorations": false,
-        "transparent": true
+        "transparent": true,
+        "center": true,
+        "label": "main",
+        "visible": true
       }
     ],
     "macOSPrivateApi": true,
@@ -28,7 +31,9 @@
   },
   "plugins": {
     "deep-link": {
-      "schemes": ["fiip"]
+      "schemes": [
+        "fiip"
+      ]
     },
     "updater": {
       "endpoints": [
@@ -52,13 +57,17 @@
     ],
     "fileAssociations": [
       {
-        "ext": ["fiin"],
+        "ext": [
+          "fiin"
+        ],
         "name": "Fiip Note File",
         "description": "Fiip Note file",
         "role": "Editor"
       },
       {
-        "ext": ["fiif"],
+        "ext": [
+          "fiif"
+        ],
         "name": "Fiip Font File",
         "description": "Fiip Font resource",
         "role": "Viewer"

@@ -458,6 +458,11 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in">
+                            <div className="bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs p-3 rounded-lg flex gap-2 items-start text-left leading-relaxed">
+                                <IconLock className="w-4 h-4 shrink-0 text-blue-400 mt-0.5" />
+                                <span>Créez un compte gratuitement pour synchroniser vos notes en toute sécurité et débloquer les fonctionnalités de partage et de collaboration.</span>
+                            </div>
+
                             <div>
                                   <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wide">
                                     {mode === 'login' ? 'Email ou Pseudo' : 'Email'}

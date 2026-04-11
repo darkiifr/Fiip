@@ -131,7 +131,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
     const handleAccept = useCallback((index, msg) => {
         const { data } = msg;
 
-        if (data.action === 'create') {
+        if (data.action === 'create' || data.action === 'create_note') {
             onCreateNote({ title: data.title, content: data.content });
             setMessages(prev => prev.map((m, i) =>
                 i === index ? { ...m, type: 'action_create', data: { ...data } } : m
@@ -385,8 +385,8 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
             ];
 
             const modelToSend = selectedModel === 'default' 
-                ? (settings?.aiModel || 'openai/gpt-4o-mini') 
-                : selectedModel;
+                    ? (settings?.aiModel || 'openai/gpt-oss-20b:free') 
+                    : selectedModel;
 
             const responseText = await generateText({
                 apiKey: settings.aiApiKey,
@@ -816,7 +816,7 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                 >
                                     <span className="truncate max-w-[140px]">
                                         {selectedModel === 'default'
-                                            ? `${t('dexter.model_selector')} (${settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})`
+                                            ? `${t('dexter.model_selector')} (${settings?.aiModel?.split('/').pop() || 'GPT-OSS 20B'})`
                                             : selectedModel.split('/').pop()
                                         }
                                     </span>
@@ -837,15 +837,18 @@ export default function Dexter({ isOpen, onClose, settings, onCreateNote, onUpda
                                                 onClick={() => { setSelectedModel('default'); setShowModelSelector(false); }}
                                                 className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between group transition-colors ${selectedModel === 'default' ? 'bg-purple-500/10 text-purple-300' : 'text-gray-300 hover:bg-[#27272a]'}`}
                                             >
-                                                <span className="truncate pr-2">{t('dexter.model_selector')} ({settings?.aiModel?.split('/').pop() || 'GPT-4o Mini'})</span>
+                                                <span className="truncate pr-2">{t('dexter.model_selector')} ({settings?.aiModel?.split('/').pop() || 'GPT-OSS 20B'})</span>
                                                 {selectedModel === 'default' && <IconCheck className="w-3 h-3 shrink-0" />}
                                             </button>
 
                                             <div className="px-3 py-1.5 mt-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-[#27272a]/50">{t('dexter.model_categories.standard')}</div>
                                             {[
-                                                { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
-                                                { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku' },
-                                                { id: 'google/gemini-flash-1.5', name: 'Gemini Flash 1.5' }
+                                                { id: 'openai/gpt-oss-20b:free', name: 'GPT-OSS 20B (Free)' },
+                                                ...(settings?.aiApiKey ? [
+                                                    { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
+                                                    { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku' },
+                                                    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' }
+                                                ] : [])
                                             ].map(model => (
                                                 <button
                                                     key={model.id}

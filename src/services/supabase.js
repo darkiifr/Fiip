@@ -8,7 +8,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn("Supabase URL or Key missing in environment variables.");
 }
 
-export const supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
+export const supabase = createClient(SUPABASE_URL && SUPABASE_URL.trim() !== '' ? SUPABASE_URL : 'https://placeholder.supabase.co', SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.trim() !== '' ? SUPABASE_ANON_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx');
 
 // Storage Limits (in Bytes) - Adjusted for Supabase Free Tier (Max Project Size ~1GB)
 export const STORAGE_LIMITS = {
@@ -37,6 +37,7 @@ export const authService = {
       options: {
         data: {
           username,
+          nickname: username,
           subscription_level: 0 // Default to Free
         }
       }
@@ -46,7 +47,7 @@ export const authService = {
         // Create initial profile if trigger fails or delayed
         const { error: profileError } = await supabase
             .from('profiles')
-            .upsert({ id: data.user.id, username, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+            .upsert({ id: data.user.id, nickname: username, avatar_url: '', bio: '', accent_color: '#5865F2', updated_at: new Date().toISOString() }, { onConflict: 'id' });
             
         if (profileError) console.error("Error creating profile:", profileError);
     }
@@ -260,24 +261,11 @@ export const dataService = {
       is_favorite: note.favorite || false,
       tags: note.tags || [],
       badges: note.badges || [],
-      deleted: false, // In DB it is always false, we don't store trashed notes in cloud
+      deleted: note.deleted || false,
       updated_at: new Date(note.updatedAt || Date.now()).toISOString()
     };
 
-    if (note.deleted) {
-      // If note is deleted (in trash), we actually remove it from cloud
-      const { error } = await supabase
-        .from('notes')
-        .delete()
-        .eq('id', note.id)
-        .eq('user_id', user.id);
-        
-      if (error) {
-          console.error('Error soft-deleting note from cloud:', error);
-          return { error };
-      }
-      return { data: { ...dbNote, deleted: true }, error: null };
-    }
+
 
     const { data, error } = await supabase
       .from('notes')
@@ -403,6 +391,22 @@ export const dataService = {
           .select('*')
           .eq('id', user.id)
           .single();
+      
+      // Auto-sync / migration for older accounts without a profile or missing nickname
+      if (error && error.code === 'PGRST116') {
+          // Profile not found, let's create it from metadata
+          const username = user.user_metadata?.nickname || user.user_metadata?.username || user.user_metadata?.full_name || user.email?.split('@')[0] || "Utilisateur";
+          const newProfile = { id: user.id, nickname: username, avatar_url: user.user_metadata?.avatar_url || '', bio: '', accent_color: '#5865F2', updated_at: new Date().toISOString() };
+          const { data: createdData } = await supabase.from('profiles').upsert(newProfile, { onConflict: 'id' }).select().single();
+          return { data: createdData, error: null };
+      }
+      
+      // Sync legacy 'username' column to 'nickname' column if nickname is empty but username exists
+      if (data && !data.nickname && data.username) {
+          const updatedProfile = { ...data, nickname: data.username };
+          const { data: fixedData } = await supabase.from('profiles').upsert(updatedProfile, { onConflict: 'id' }).select().single();
+          return { data: fixedData, error: null };
+      }
       
       return { data, error };
   },

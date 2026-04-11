@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { searchFonts } from '../services/fontStore';
 import { open } from '@tauri-apps/plugin-shell';
 import IconDownload from '~icons/mingcute/download-2-fill';
-import IconDelete from '~icons/mingcute/delete-2-line';
+
 import IconSearch from '~icons/mingcute/search-2-line';
 import IconRefresh from '~icons/mingcute/refresh-3-fill';
 

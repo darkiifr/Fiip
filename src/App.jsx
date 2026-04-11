@@ -59,8 +59,8 @@ function App() {
     return [
       {
         id: "1",
-        title: "Bienvenue sur Fiip",
-        content: "Ceci est une note d'exemple. Créez-en une nouvelle pour commencer !",
+        title: "Bienvenue sur Fiip 👋",
+        content: "<h1>Fiip : Votre Espace de Notes Connecté</h1><p>Bienvenue sur <strong>Fiip</strong> ! Découvrez une interface fluide et intelligente pour gérer vos idées.</p><ul><li>✏️ <strong>Éditeur de texte riche</strong> pour mettre en forme vos notes.</li><li>🤖 <strong>Mode Dexter (Intelligence Artificielle)</strong> : sélectionnez du texte et demandez de reformuler, traduire ou résumer.</li><li>🤝 <strong>Notes Collaboratives</strong> pour travailler en temps réel avec vos proches.</li><li>🗑️ <strong>Système de corbeille</strong> : aucune note n'est perdue par erreur.</li></ul><p><br></p><p><em>Créez un compte gratuitement pour commencer à synchroniser vos notes !</em></p>",
         updatedAt: Date.now(),
       }
     ];
@@ -98,6 +98,17 @@ function App() {
   const settingsRef = useRef(settings);
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
+  
+  useEffect(() => {
+    // macOS fix: Force window to show and focus in case it launches transparent/invisible
+    setTimeout(() => {
+        let win; try { win = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
+        if(win) {
+            win.show();
+            win.setFocus();
+        }
+    }, 100);
+  }, []);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
 
   // Update storage info whenever notes change or modal opens
@@ -589,7 +600,7 @@ function App() {
   useEffect(() => {
       let unlisten;
       const initCloseListener = async () => {
-          const win = getCurrentWindow();
+          let win; try { win = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
         unlisten = await win.listen('close-requested', async () => {
             // Check if we need to sync
               if (settings.cloudSync && keyAuthService.isAuthenticated) {
@@ -633,7 +644,9 @@ function App() {
     if (effect === 'none') {
         document.body.style.backgroundColor = '#1C1C1E';
     } else {
-        document.body.style.backgroundColor = 'transparent';
+        // macOS fix for invisible transparent window: use a slightly tinted background 
+        // so if vibrancy fails, the app is not a literal ghost window.
+        document.body.style.backgroundColor = 'rgba(28, 28, 30, 0.4)';
     }
     
     invoke('set_window_effect', { effect })
@@ -687,7 +700,13 @@ function App() {
     if (effect === 'none') {
         document.body.style.backgroundColor = '#1C1C1E';
     } else {
-        document.body.style.backgroundColor = 'transparent';
+        document.body.style.backgroundColor = 'rgba(28, 28, 30, 0.4)';
+    }
+
+    let win; try { win = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
+    if (win) {
+        win.setDecorations(settings.titlebarStyle === 'native')
+           .catch(err => console.error("Failed to set window decorations:", err));
     }
 
     invoke('set_window_effect', { effect })
@@ -703,7 +722,7 @@ function App() {
     if (initialData.id) {
       setNotes(prevNotes => [initialData, ...prevNotes]);
       setSelectedNoteId(initialData.id);
-      await dataService.saveNote(initialData);
+      if (storageUsage.percent < 100) await dataService.saveNote(initialData);
       return;
     }
 
@@ -719,16 +738,19 @@ function App() {
     };
     setNotes(prevNotes => [newNote, ...prevNotes]);
     setSelectedNoteId(newNote.id);
-    await dataService.saveNote(newNote);
-
-    // Once saved, if it was successful and returned data, we could potentially update the note with DB defaults, e.g., user_id.
-    // By adding it directly above, we solve the owner UI bug immediately.
+    
+    if (storageUsage.percent < 100) {
+      await dataService.saveNote(newNote);
+    }
   };
 
   const handleUpdateNote = (updatedNote) => {
     setNotes((prevNotes) => prevNotes.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
     // Debounce Save to Supabase
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    
+    if (storageUsage.percent >= 100) return; // Prevent Cloud Sync if full
+    
     saveTimeoutRef.current = setTimeout(async () => {
         setIsSyncing(true);
         await dataService.saveNote(updatedNote);
@@ -816,6 +838,22 @@ function App() {
     <div className="h-screen w-screen bg-transparent text-white overflow-hidden flex flex-col font-sora select-none">
       <Titlebar style={settings.titlebarStyle} />
 
+      {storageUsage.percent >= 90 && storageUsage.percent < 100 && (
+          <div className="bg-[#FEBC2E] text-black text-[11px] font-medium py-1.5 px-4 flex justify-center items-center shadow-md z-50 text-center w-full shrink-0">
+              <div className="flex items-center gap-2 max-w-full">
+                  <span>⚠️ Stockage cloud presque plein. Si vous continuez, vos notes risquent de ne plus être synchronisées.</span>
+              </div>
+          </div>
+      )}
+      
+      {storageUsage.percent >= 100 && (
+          <div className="bg-[#E81123] text-white text-[11px] font-medium py-1.5 px-4 flex justify-center items-center shadow-md z-50 text-center w-full shrink-0">
+              <div className="flex items-center gap-2 max-w-full">
+                  <span>⚠️ Limite de stockage cloud atteinte. Vos nouvelles notes et modifications ne sont plus synchronisées.</span>
+              </div>
+          </div>
+      )}
+
       <div className="flex-1 flex overflow-hidden relative">
         {/* Sidebar */}
         <Sidebar 
@@ -867,7 +905,9 @@ function App() {
             isOpen={isDexterOpen} 
             onClose={() => setIsDexterOpen(false)} 
             currentNote={activeNote}
+            onCreateNote={handleCreateNote}
             onUpdateNote={handleUpdateNote}
+            onDeleteNote={handleDeleteNote}
             settings={settings}
         />
       </div>

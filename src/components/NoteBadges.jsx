@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, X, Zap, Trophy, Flame, Plus, Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search } from 'lucide-react';
+import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, X, Zap, Trophy, Flame, Plus, Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search, Bell, Brush, Gamepad, Globe, Laptop, Lightbulb, Music, PenTool, Plane, Palette, Wifi, Cpu, Database, Shield, Server, Box, Terminal, MessageSquare, Monitor, Image as ImageIcon } from 'lucide-react';
 import { Icon as IconifyIcon } from '@iconify/react';
 import { dataService } from '../services/supabase';
 
 const PRESET_ICONS = {
     Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame,
-    Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search
+    Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search,
+    Bell, Brush, Gamepad, Globe, Laptop, Lightbulb, Music, PenTool, Plane, Palette, Wifi, Cpu, Database, Shield, Server, Box, Terminal, MessageSquare, Monitor, ImageIcon
 };
 
 const SKILL_ICONS = [
@@ -14,6 +15,7 @@ const SKILL_ICONS = [
     'skill-icons:nextjs-dark', 'skill-icons:vite-dark', 'skill-icons:svelte', 'skill-icons:nuxtjs-dark', 'skill-icons:expressjs-dark', 'skill-icons:nestjs-dark', 'skill-icons:django', 'skill-icons:laravel-dark', 'skill-icons:spring-dark', 'skill-icons:flask-dark',
     // Logos
     'logos:supabase-icon', 'logos:firebase', 'logos:google-cloud', 'logos:aws', 'logos:microsoft-azure', 'logos:stripe', 'logos:auth0', 'logos:netlify-icon',
+    'skill-icons:swift', 'skill-icons:kotlin-light', 'skill-icons:scala-light', 'skill-icons:dart-light', 'skill-icons:r-light', 'skill-icons:go-light', 'skill-icons:graphql-dark', 'skill-icons:gcp-light', 'skill-icons:discord', 'logos:heroku-icon', 'logos:figma', 'logos:gitlab', 'logos:digital-ocean', 'logos:digitalocean', 'logos:cloudflare-icon', 'logos:postman-icon', 'logos:docker-icon', 'logos:kubernetes', 'logos:vitejs', 'logos:react',
     // VSCode
     'vscode-icons:file-type-reactts', 'vscode-icons:file-type-js', 'vscode-icons:file-type-python', 'vscode-icons:file-type-html', 'vscode-icons:file-type-css', 'vscode-icons:file-type-json', 'vscode-icons:file-type-markdown', 'vscode-icons:folder-type-src', 'vscode-icons:folder-type-components', 'vscode-icons:folder-type-api',
     // Formkit

@@ -135,7 +135,7 @@ const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, r
                      <button
                         onClick={() => onAnnotate(att)}
                         className="p-2 bg-black/60 backdrop-blur-md text-white hover:bg-blue-600 rounded-full shadow-xl border border-white/10 transition-colors"
-                        title="Annoter l'image"
+                        title={t('editor.annotate_image', "Annoter l'image")}
                     >
                         <IconEdit className="w-3.5 h-3.5" />
                     </button>
@@ -250,6 +250,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
     const [drawingSession, setDrawingSession] = useState(null); // { type: 'standard' | 'overlay' | 'image', data: string | null }
     
     const editorContainerRef = useRef(null);
+    const richTextEditorRef = useRef(null);
     const dragCounter = useRef(0);
 
     // TTS & STT State
@@ -369,22 +370,42 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                     const currentNote = noteRef.current;
                     if (!currentNote) return;
 
-                    const currentContent = currentNote.content || '';
-                    const separator = currentContent.length > 0 && !currentContent.endsWith(' ') && !currentContent.endsWith('\n') ? ' ' : '';
-                    const newContent = currentContent + separator + finalTranscript;
+                    let separator = ' ';
                     
-                    const updatedNote = { ...currentNote, content: newContent, updatedAt: Date.now() };
-                    
-                    // Optimistic update to prevent race conditions
-                    noteRef.current = updatedNote;
-                    if (onUpdateNoteRef.current) {
-                        onUpdateNoteRef.current(updatedNote);
+                    if (richTextEditorRef.current && richTextEditorRef.current.getEditor()) {
+                        // For rich text, rely on native insert at cursor
+                        const editor = richTextEditorRef.current.getEditor();
+                        const isEmpty = editor.isEmpty;
+                        separator = isEmpty ? '' : ' ';
+                        // Insert safely
+                        richTextEditorRef.current.insertText(separator + finalTranscript.trim());
+                    } else {
+                        // Fallback logic
+                        const currentContent = currentNote.content || '';
+                        separator = currentContent.length > 0 && !currentContent.endsWith(' ') && !currentContent.endsWith('\n') && !currentContent.endsWith('</p>') ? ' ' : '';
+                        const newContent = currentContent + separator + finalTranscript.trim();
+                        
+                        const updatedNote = { ...currentNote, content: newContent, updatedAt: Date.now() };
+                        
+                        // Optimistic update to prevent race conditions
+                        noteRef.current = updatedNote;
+                        if (onUpdateNoteRef.current) {
+                            onUpdateNoteRef.current(updatedNote);
+                        }
                     }
                     
                     // Also clear interim since we committed final
-                    setInterimTranscript('');
+                    if (richTextEditorRef.current && richTextEditorRef.current.setInterimText) {
+                        richTextEditorRef.current.setInterimText('');
+                    } else {
+                        setInterimTranscript('');
+                    }
                 } else {
-                    setInterimTranscript(interim);
+                    if (richTextEditorRef.current && richTextEditorRef.current.setInterimText) {
+                        richTextEditorRef.current.setInterimText(interim);
+                    } else {
+                        setInterimTranscript(interim);
+                    }
                 }
             };
 
@@ -393,7 +414,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 if (event.error === 'not-allowed') {
                     setIsListening(false);
                     isListeningRef.current = false;
-                    alert("Accès au microphone refusé.");
+                    alert(t('editor.mic_denied', "Accès au microphone refusé."));
                 }
             };
 
@@ -421,7 +442,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
 
     const toggleListening = () => {
         if (!recognitionRef.current) {
-            alert("La reconnaissance vocale n'est pas supportée par ce navigateur/système.");
+            alert(t('editor.stt_not_supported', "La reconnaissance vocale n'est pas supportée par ce navigateur/système."));
             return;
         }
 
@@ -430,15 +451,22 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             recognitionRef.current.stop();
             setIsListening(false);
         } else {
-            isListeningRef.current = true;
-            recognitionRef.current.lang = detectedLanguage?.code || 'fr-FR';
-            try {
-                recognitionRef.current.start();
-                setIsListening(true);
-            } catch (e) {
-                console.error("Failed to start recognition:", e);
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+                isListeningRef.current = true;
+                recognitionRef.current.lang = detectedLanguage?.code || 'fr-FR';
+                try {
+                    recognitionRef.current.start();
+                    setIsListening(true);
+                } catch (e) {
+                    console.error("Failed to start recognition:", e);
+                    isListeningRef.current = false;
+                }
+            }).catch((err) => {
+                console.error("Mic access denied:", err);
+                setIsListening(false);
                 isListeningRef.current = false;
-            }
+                alert(t('editor.mic_denied', "Accès au microphone refusé."));
+            });
         }
     };
 
@@ -478,9 +506,10 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
 
     const handleContentChange = (e) => {
         const newContent = e.target.value;
-        const updatedNote = { ...note, content: newContent, updatedAt: Date.now() };
+        const currentNote = noteRef.current || note;
+        const updatedNote = { ...currentNote, content: newContent, updatedAt: Date.now() };
         noteRef.current = updatedNote;
-        onUpdateNote(updatedNote);
+        onUpdateNoteRef.current(updatedNote);
 
         if (realtimeChannelRef.current) {
             authService.getUser().then(user => {
@@ -541,7 +570,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             
         } catch (err) {
             console.error("Failed to download file:", err);
-            alert("Erreur lors du téléchargement : " + (err.message || JSON.stringify(err)));
+            alert(t('editor.download_error', "Erreur lors du téléchargement : {{msg}}", { msg: err.message || JSON.stringify(err) }));
         }
     };
 
@@ -592,7 +621,15 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
 
     const saveAttachmentToCloud = async (file) => {
         const user = await authService.getUser();
-        if (!user) throw new Error("Authentication required");
+        if (!user) {
+            // Sans compte fallback: save as base64 Data URL locally
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
 
         // const ext = file.name.split('.').pop();
         const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
@@ -654,7 +691,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             setDrawingSession(null);
         } catch (err) {
             console.error("Failed to save drawing:", err);
-            alert("Erreur lors de l'enregistrement du dessin.");
+            alert(t('editor.drawing_save_error', "Erreur lors de l'enregistrement du dessin."));
         }
     };
 
@@ -687,7 +724,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
         } catch (e) {
             console.error("Error processing file:", e);
             const errorMessage = e instanceof Error ? e.message : String(e);
-            alert("Erreur lors de l'ajout du fichier : " + errorMessage);
+            alert(t('editor.file_add_error', "Erreur lors de l'ajout du fichier : {{msg}}", { msg: errorMessage }));
         }
     };
 
@@ -813,7 +850,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 setIsRecording(true);
             } catch (err) {
                 console.error("Mic Error:", err);
-                alert("Impossible d'accéder au micro : " + err.message);
+                alert(t('editor.mic_access_error', "Impossible d'accéder au micro : {{msg}}", { msg: err.message }));
             }
         }
     };
@@ -823,10 +860,10 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
         try {
             const content = `# ${note.title}\n\n${note.content}`;
             await writeText(content);
-            alert('Note copiée dans le presse-papiers !');
+            alert(t('editor.note_copied', 'Note copiée dans le presse-papiers !'));
         } catch (err) {
             console.error('Copy error:', err);
-            alert('Erreur lors de la copie : ' + err.message);
+            alert(t('editor.copy_error', 'Erreur lors de la copie : {{msg}}', { msg: err.message }));
         }
     };
 
@@ -864,12 +901,12 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 return;
             }
 
-            alert('Presse-papiers vide ou format non supporté');
+            alert(t('editor.clipboard_empty', 'Presse-papiers vide ou format non supporté'));
 
         } catch (err) {
             console.error('Paste error:', err);
             const msg = err instanceof Error ? err.message : String(err);
-            alert('Erreur lors du collage : ' + msg);
+            alert(t('editor.paste_error', 'Erreur lors du collage : {{msg}}', { msg: msg }));
         }
     };
 
@@ -881,7 +918,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
         }
 
         if (!settings?.aiApiKey) {
-            alert("Veuillez configurer votre clé API OpenRouter dans les paramètres.");
+            alert(t('editor.openrouter_api_required', "Veuillez configurer votre clé API OpenRouter dans les paramètres."));
             return;
         }
 
@@ -924,7 +961,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
             setPendingAiContent(cleanGenerated.trim());
             
         } catch (error) {
-            alert("Erreur AI : " + error.message);
+            alert(t('editor.ai_error', "Erreur AI : {{msg}}", { msg: error.message }));
         } finally {
             setIsGenerating(false);
             setIsWaiting(false);
@@ -967,7 +1004,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-500/20 backdrop-blur-sm border-2 border-blue-500 border-dashed m-4 rounded-xl pointer-events-none">
                     <div className="text-blue-200 font-bold text-xl flex flex-col items-center gap-2">
                         <IconAttachment className="w-12 h-12" />
-                        <span>Déposer ici</span>
+                        <span>{t('editor.drop_here', 'Déposer ici')}</span>
                     </div>
                 </div>
             )}
@@ -1017,7 +1054,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                                 onClick={handleAiGenerate}
                                 disabled={isGenerating}
                                 className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center text-blue-400 hover:bg-blue-900/40 hover:text-blue-300`}
-                                title="Assistant AI (Compléter/Améliorer)"
+                                title={t('editor.ai_assistant', "Assistant AI (Compléter/Améliorer)")}
                             >
                                 {isGenerating ? <IconSparkles className="w-5 h-5 animate-pulse" /> : <IconSparkles className="w-5 h-5" />}
                             </button>
@@ -1040,14 +1077,14 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                         )}
                     </button>
 
-                    <div className="relative w-8 h-8 flex items-center justify-center">
+                    <div className="relative w-8 h-8 flex items-center justify-center overflow-hidden">
                         <input
                             type="file"
                             multiple
                             accept="image/*,video/*,audio/*,application/pdf,.odt,.odp"
                             onChange={handleFileUpload}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                            title="Insérer un fichier (Image, Vidéo, Audio, PDF)"
+                            title={t('editor.insert_file', "Insérer un fichier (Image, Vidéo, Audio, PDF)")}
                         />
                         <div className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-full h-full flex items-center justify-center">
                             <IconImage className="w-5 h-5" />
@@ -1058,14 +1095,14 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                         <button
                             onClick={() => setDrawingSession({ type: 'standard' })}
                             className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out w-8 h-8 flex items-center justify-center"
-                            title="Dessiner"
+                            title={t('editor.draw', "Dessiner")}
                         >
                             <IconEdit className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => setDrawingSession({ type: 'overlay' })}
                             className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out w-8 h-8 flex items-center justify-center"
-                            title="Dessiner sur la note"
+                            title={t('editor.draw_on_note', "Dessiner sur la note")}
                         >
                             <IconEdit className="w-5 h-5 opacity-50" />
                         </button>
@@ -1074,7 +1111,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                     <button
                         onClick={handlePaste}
                         className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center"
-                        title="Coller (Texte ou Image)"
+                        title={t('editor.paste', "Coller (Texte ou Image)")}
                     >
                         <IconPaste className="w-5 h-5" />
                     </button>
@@ -1118,7 +1155,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 <button
                     onClick={onOpenShare}
                     className="p-1.5 rounded-md text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center mr-1"
-                    title="Partager / Inviter"
+                    title={t('editor.share', "Partager / Inviter")}
                 >
                     <IconShare className="w-5 h-5" />
                 </button>
@@ -1126,7 +1163,7 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                 <button
                     onClick={handleCopyNote}
                     className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center"
-                    title="Copier la note"
+                    title={t('editor.copy_note', "Copier la note")}
                 >
                     <IconCopy className="w-5 h-5" />
                 </button>
@@ -1195,6 +1232,8 @@ export default function Editor({ note, onUpdateNote, settings, onOpenLicense, ch
                         )}
 
                         <RichTextEditor
+                            ref={richTextEditorRef}
+                            spellcheck={settings?.enableCorrection !== false}
                             value={note.content}
                             onChange={handleContentChange}
                             onKeyDown={handleKeyDown}

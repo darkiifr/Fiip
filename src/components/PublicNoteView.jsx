@@ -54,7 +54,7 @@ export default function PublicNoteView() {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-[#1C1C1E] text-white">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-                <p>Chargement de la note...</p>
+                <p>{"Chargement de la note..."}</p>
             </div>
         );
     }
@@ -63,7 +63,7 @@ export default function PublicNoteView() {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-[#1C1C1E] text-white p-4">
                 <IconifyIcon icon="mingcute:sad-fill" className="w-16 h-16 text-gray-500 mb-4" />
-                <h1 className="text-2xl font-bold mb-2">Oups !</h1>
+                <h1 className="text-2xl font-bold mb-2">{"Oups !"}</h1>
                 <p className="text-gray-400">{error}</p>
                 <a href="/" className="mt-6 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-500 transition-colors">
                     Retour à l&apos;accueil

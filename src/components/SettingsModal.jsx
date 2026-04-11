@@ -196,8 +196,11 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                     <div className="space-y-3 relative z-20">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.language')}</h3>
                         <CustomSelect
-                            value={i18n.language}
-                            onChange={(code) => i18n.changeLanguage(code)}
+                            value={languages.find(l => l.code === localSettings.language || l.code === i18n.language)?.code || 'fr'}
+                            onChange={(code) => {
+                                i18n.changeLanguage(code);
+                                handleUpdate({ ...localSettings, language: code });
+                            }}
                             options={languages.map(l => ({ value: l.code, label: l.label, icon: l.flag }))}
                             renderOption={(option) => (
                                 <>
@@ -288,7 +291,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.titlebar_style')}</h3>
                         <div className="bg-black/20 rounded-lg p-1 flex gap-1">
-                            {['none', 'windows', 'macos'].map((style) => (
+                            {['native', 'windows', 'macos'].map((style) => (
                                 <button
                                     key={style}
                                     onClick={() => handleUpdate({ ...localSettings, titlebarStyle: style })}
@@ -297,7 +300,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                                         : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
                                         }`}
                                 >
-                                    {style === 'none' ? t('settings.none') : style.charAt(0).toUpperCase() + style.slice(1)}
+                                    {style === 'native' ? t('settings.native', "Natif à l'OS") : style.charAt(0).toUpperCase() + style.slice(1)}
                                 </button>
                             ))}
                         </div>
@@ -344,7 +347,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                                             handleUpdate({ ...localSettings, cloudSync: enabled });
                                             
                                             // Handle sync & restart
-                                            if (window.confirm("L'application va synchroniser vos données et redémarrer pour appliquer les changements. Voulez-vous continuer ?")) {
+                                            if (window.confirm(t('settings.sync_confirm', "L'application va synchroniser vos données et redémarrer pour appliquer les changements. Voulez-vous continuer ?"))) {
                                                  // Force save local first just in case
                                                  if (keyAuthService.isAuthenticated && enabled) {
                                                      if (onSync) await onSync(); // Sync notes now
@@ -565,11 +568,13 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                                         onChange={(val) => handleUpdate({ ...localSettings, aiModel: val })}
                                         options={[
                                             { value: "openai/gpt-oss-20b:free", label: "GPT-OSS 20B (Défaut)" },
-                                            { value: "openai/gpt-4o-mini", label: `GPT-4o Mini ${t('settings.model_desc_fast') || ''}` },
-                                            { value: "openai/gpt-4o", label: `GPT-4o ${t('settings.model_desc_powerful') || ''}` },
-                                            { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
-                                            { value: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet" },
-                                            { value: "mistralai/mistral-large-2411", label: "Mistral Large" },
+                                            ...(localSettings.aiApiKey ? [
+                                                { value: "openai/gpt-4o-mini", label: `GPT-4o Mini ${t('settings.model_desc_fast') || ''}` },
+                                                { value: "openai/gpt-4o", label: `GPT-4o ${t('settings.model_desc_powerful') || ''}` },
+                                                { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
+                                                { value: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet" },
+                                                { value: "mistralai/mistral-large-2411", label: "Mistral Large" },
+                                            ] : []),
                                             ...(localSettings.customModels || []).map(m => ({ value: m, label: m }))
                                         ]}
                                         renderTrigger={(option) => (
@@ -673,10 +678,13 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                                     onChange={(val) => handleUpdate({ ...localSettings, voiceName: val })}
                                     options={[
                                         { value: "", label: t('settings.default') },
-                                        ...voices.map(voice => ({
-                                            value: voice.name,
-                                            label: `${voice.name} (${voice.lang})`
-                                        }))
+                                        ...voices
+                                            .filter(v => v.lang.startsWith((i18n.language || 'fr').split('-')[0]) || v.lang.startsWith('en'))
+                                            .sort((a, b) => a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name))
+                                            .map(voice => ({
+                                                value: voice.name,
+                                                label: `${voice.name} (${voice.lang})`
+                                            }))
                                     ]}
                                     renderTrigger={(option) => (
                                         <>
@@ -690,7 +698,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                                 {isLinux && voices.length === 0 && (
                                     <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mt-3 animate-in fade-in slide-in-from-top-1">
                                         <p className="text-xs text-yellow-200 mb-2 leading-relaxed">
-                                            Aucune voix détectée. Sur Linux, le paquet <code>speech-dispatcher</code> est souvent requis pour le TTS.
+                                            {t('settings.no_voices_linux', "Aucune voix détectée. Sur Linux, le paquet speech-dispatcher est souvent requis pour le TTS.")}
                                         </p>
                                         <button
                                             onClick={async () => {
@@ -698,20 +706,20 @@ export default function SettingsModal({ isOpen, onClose, settings, onUpdateSetti
                                                     const cmd = Command.create('install_speech_dispatcher');
                                                     const output = await cmd.execute();
                                                     if (output.code === 0) {
-                                                        alert("Installation terminée avec succès. L'application va redémarrer.");
+                                                        alert(t('settings.install_success', "Installation terminée avec succès. L'application va redémarrer."));
                                                         await relaunch();
                                                     } else {
-                                                        alert("L'installation a échoué (Code " + output.code + "). Vérifiez votre mot de passe ou installez 'speech-dispatcher' manuellement.");
+                                                        alert(t('settings.install_failed', "L'installation a échoué (Code {{code}}). Vérifiez votre mot de passe ou installez 'speech-dispatcher' manuellement.", { code: output.code }));
                                                     }
                                                 } catch (e) {
                                                     console.error(e);
-                                                    alert("Erreur : " + e.message);
+                                                    alert(t('settings.error_generic', "Erreur : {{msg}}", { msg: e.message }));
                                                 }
                                             }}
                                             className="w-full text-xs bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-2 rounded transition-colors font-medium flex items-center justify-center gap-2"
                                         >
                                             <IconRefresh className="w-3 h-3" />
-                                            Installer speech-dispatcher & Redémarrer
+                                            {t('settings.install_speech_dl', "Installer speech-dispatcher & Redémarrer")}
                                         </button>
                                     </div>
                                 )}
