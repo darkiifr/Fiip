@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exit } from '@tauri-apps/plugin-process';
 import { useTranslation } from 'react-i18next';
+import { type } from '@tauri-apps/plugin-os';
 
 export default function Titlebar({ style = 'macos' }) {
     let appWindow; try { appWindow = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
     const { t } = useTranslation();
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const osType = type();
 
     useEffect(() => {
         let unlisten;
@@ -62,23 +64,27 @@ export default function Titlebar({ style = 'macos' }) {
                 {/* Left Drag Region (Padding) */}
                 <div className="w-[12px] h-full" data-tauri-drag-region />
 
-                <div className="flex gap-2 z-10 hover:*:brightness-110">
-                    <button
-                        onClick={handleClose}
-                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#FF5F57] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                        title={t('settings.close')}
-                    />
-                    <button
-                        onClick={handleMinimize}
-                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#FEBC2E] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                        title={t('settings.minimize')}
-                    />
-                    <button
-                        onClick={handleMaximize}
-                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#28C840] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                        title={t('settings.maximize')}
-                    />
-                </div>
+                {osType === 'macos' ? (
+                    <div className="w-[60px] h-full" data-tauri-drag-region />
+                ) : (
+                    <div className="flex gap-2 z-10 hover:*:brightness-110">
+                        <button
+                            onClick={handleClose}
+                            className="window-btn w-3.5 h-3.5 rounded-full bg-[#FF5F57] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                            title={t('settings.close')}
+                        />
+                        <button
+                            onClick={handleMinimize}
+                            className="window-btn w-3.5 h-3.5 rounded-full bg-[#FEBC2E] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                            title={t('settings.minimize')}
+                        />
+                        <button
+                            onClick={handleMaximize}
+                            className="window-btn w-3.5 h-3.5 rounded-full bg-[#28C840] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                            title={t('settings.maximize')}
+                        />
+                    </div>
+                )}
 
                 <div className="flex-1 h-full flex items-center" data-tauri-drag-region />
 

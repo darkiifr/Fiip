@@ -17,8 +17,10 @@
         "height": 900,
         "resizable": true,
         "maximized": false,
-        "decorations": false,
+        "decorations": true,
         "transparent": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "center": true,
         "label": "main",
         "visible": true

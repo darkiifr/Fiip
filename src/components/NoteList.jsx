@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame } from 'lucide-react';
+import { Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Icon as IconifyIcon } from '@iconify/react';
 
@@ -13,9 +13,7 @@ import IconStarOn from '~icons/mingcute/star-fill';
 import IconRestore from '~icons/mingcute/back-2-fill';
 import IconDeletePermanent from '~icons/mingcute/close-circle-fill';
 
-const BADGE_ICONS = {
-    Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame
-};
+import { PRESET_ICONS } from './NoteBadges';
 
 const BADGE_COLORS = [
     'text-red-400', 'text-orange-400', 'text-yellow-400', 'text-green-400', 'text-blue-400', 'text-indigo-400', 'text-purple-400', 'text-pink-400', 'text-gray-400'
@@ -193,7 +191,7 @@ export default function NoteList({
                                                     {isSkill ? (
                                                         <IconifyIcon icon={badge.icon} className="w-2.5 h-2.5" />
                                                     ) : (() => {
-                                                        const Icon = BADGE_ICONS[badge.icon] || Tag;
+                                                        const Icon = PRESET_ICONS[badge.icon] || Tag;
                                                         return <Icon className={`w-2.5 h-2.5 ${colorClass}`} />;
                                                     })()}
                                                 </div>

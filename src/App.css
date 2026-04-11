@@ -36,3 +36,15 @@ select option {
   background-color: #1e1e1e;
   color: white;
 }
+
+.ProseMirror-grammar-red {
+  text-decoration: underline wavy #ff4081;
+  text-decoration-thickness: 2px;
+  cursor: context-menu;
+}
+.ProseMirror-grammar-orange {
+  text-decoration: underline wavy #ffd740;
+  text-decoration-thickness: 2px;
+  cursor: context-menu;
+}
+

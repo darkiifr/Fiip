@@ -378,6 +378,27 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                 {isLoadingCollab ? <IconLoading className="w-4 h-4 animate-spin" /> : 'Ajouter'}
                             </button>
                         </form>
+
+                        {/* Section pour partager son propre pseudo */}
+                        {currentUser && currentUser.user_metadata?.username && (
+                            <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg flex items-center justify-between">
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-gray-400 font-medium tracking-wide">VOTRE PSEUDO POUR COLLABORER</span>
+                                    <span className="text-sm text-white mt-0.5">@{currentUser.user_metadata.username}</span>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(currentUser.user_metadata.username);
+                                        setStatus({ type: 'success', message: 'Pseudo copié !' });
+                                        setTimeout(() => setStatus({ type: '', message: '' }), 2000);
+                                    }}
+                                    className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium"
+                                >
+                                    <IconCopy className="w-4 h-4" />
+                                    <span>Copier</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                         </>
                     )}
