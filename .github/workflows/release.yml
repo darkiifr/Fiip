@@ -430,3 +430,73 @@ jobs:
             } catch (error) {
                 core.setFailed(`Action failed with error: ${error.message}`);
             }
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install dependencies
+        working-directory: Mobile
+        run: npm install
+
+      - name: Build APK
+        working-directory: Mobile/android
+        run: ./gradlew assembleRelease
+
+      - name: Upload Release APK
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Mobile/android/app/build/outputs/apk/release/*.apk
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: Mobile
+        run: npm install
+
+      - name: Install CocoaPods
+        working-directory: Mobile/ios
+        run: pod install --repo-update
+
+      - name: Build Unsigned App
+        working-directory: Mobile/ios
+        run: xcodebuild -workspace FiipMobile.xcworkspace -scheme FiipMobile -configuration Release -archivePath $PWD/build/FiipMobile.xcarchive CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -sdk iphoneos
+
+      - name: Package IPA
+        working-directory: Mobile/ios
+        run: |
+          mkdir -p Payload
+          cp -r build/FiipMobile.xcarchive/Products/Applications/FiipMobile.app Payload/
+          zip -r FiipMobile-Unsigned.ipa Payload
+
+      - name: Upload Release IPA
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Mobile/ios/FiipMobile-Unsigned.ipa
+
+      - name: Upload Release IPA
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Mobile/ios/*.ipa
