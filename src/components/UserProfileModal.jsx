@@ -281,10 +281,10 @@ export default function UserProfileModal({ isOpen, onClose }) {
                           <span className="text-[#B5BAC1] text-xs font-bold uppercase">Utilisateur</span>
                           {keyAuthService.isAuthenticated && <span className="bg-[#248046] text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Vérifié</span>}
                       </div>
-                      <div className="text-white font-medium">
-                          {keyAuthService.isAuthenticated ? (publicProfile.nickname || keyAuthService.userData?.username) : 'Invité'}
-                          <span className="text-[#B5BAC1] text-xs font-bold uppercase">Abonnement</span>
+                      <div className="text-white font-medium mb-4">
+                          {keyAuthService.isAuthenticated ? (publicProfile.nickname || (keyAuthService.userData?.username?.length > 20 ? "Utilisateur" : keyAuthService.userData?.username)) : 'Invité'}
                       </div>
+                      <span className="text-[#B5BAC1] text-xs font-bold uppercase">Abonnement</span>
                       <div className="text-white font-medium">
                         {keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : 'Aucun'}
                       </div>

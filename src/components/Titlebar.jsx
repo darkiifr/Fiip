@@ -1,12 +1,31 @@
+import { useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { exit } from '@tauri-apps/plugin-process';
 import { useTranslation } from 'react-i18next';
 
 export default function Titlebar({ style = 'macos' }) {
-    const appWindow = getCurrentWindow();
+    let appWindow; try { appWindow = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
     const { t } = useTranslation();
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
-    if (style === 'none') return null;
+    useEffect(() => {
+        let unlisten;
+        const checkFullscreen = async () => {
+            const isFull = await appWindow.isFullscreen();
+            setIsFullscreen(isFull);
+        };
+        checkFullscreen();
+
+        appWindow.onResized(() => {
+            checkFullscreen();
+        }).then(u => unlisten = u);
+
+        return () => {
+            if (unlisten) unlisten();
+        };
+    }, [appWindow]);
+
+    if (style === 'none' || style === 'native') return null;
 
     const handleClose = async (e) => {
         e.stopPropagation();
@@ -20,15 +39,25 @@ export default function Titlebar({ style = 'macos' }) {
 
     const handleMaximize = async (e) => {
         e.stopPropagation();
-        await appWindow.toggleMaximize();
+        if (style === 'macos') {
+            const isFull = await appWindow.isFullscreen();
+            if (isFull) {
+                await appWindow.setFullscreen(false);
+            } else {
+                await appWindow.setFullscreen(true);
+            }
+        } else {
+            await appWindow.toggleMaximize();
+        }
     };
 
     // macOS style: rounded buttons on the left
     if (style === 'macos') {
+        if (isFullscreen) return null;
+
         return (
             <div
-                className="h-[52px] w-full bg-[#1e1e1e] border-b border-white/10 flex items-center select-none"
-                style={{ willChange: 'transform' }}
+                className="h-[52px] w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
             >
                 {/* Left Drag Region (Padding) */}
                 <div className="w-[12px] h-full" data-tauri-drag-region />
@@ -61,10 +90,11 @@ export default function Titlebar({ style = 'macos' }) {
 
     // Windows style: flat buttons on the right
     if (style === 'windows') {
+        if (isFullscreen) return null;
+
         return (
             <div
-                className="h-8 w-full bg-[#1e1e1e] border-b border-white/10 flex items-center select-none"
-                style={{ willChange: 'transform' }}
+                className="h-8 w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
             >
                 <div className="flex-1 px-4 h-full flex items-center" data-tauri-drag-region>
                     <div className="text-[12px] font-medium text-gray-400 pointer-events-none">Fiip</div>

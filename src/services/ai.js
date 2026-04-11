@@ -11,11 +11,11 @@ export const generateText = async ({ apiKey, model, messages, signal, jsonMode }
 
     const finalKey = apiKey && apiKey.trim() ? apiKey : DEFAULT_OPENROUTER_KEY;
 
-    if (!finalKey) {
-        throw new Error("Clé API OpenRouter manquante. Veuillez la configurer dans les paramètres ou via un fichier .env");
-    }
-
     const finalModel = model || DEFAULT_OPENROUTER_MODEL;
+
+    if (!finalKey && finalModel !== DEFAULT_OPENROUTER_MODEL) {
+        throw new Error("Modèle payant sélectionné sans clé API. Configurez votre clé API ou choisissez un modèle gratuit.");
+    }
 
     const maxRetries = 3;
     let attempt = 0;
