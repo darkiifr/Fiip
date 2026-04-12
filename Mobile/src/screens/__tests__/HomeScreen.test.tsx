@@ -17,7 +17,7 @@ describe('HomeScreen', () => {
   const mockTriggerImpact = jest.fn();
 
   beforeEach(() => {
-    (useHaptics as jest.Mock).mockReturnValue({
+    (useHaptics as unknown as jest.Mock).mockReturnValue({
       triggerImpact: mockTriggerImpact
     });
     jest.clearAllMocks();

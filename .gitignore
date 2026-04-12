@@ -49,3 +49,4 @@ PublicLinksite/.env
 
 supabase/
 DA/directionArtistique.txt
+supabase-update.sql
