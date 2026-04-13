@@ -457,6 +457,8 @@ jobs:
     needs: bump-version
     if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -487,6 +489,9 @@ jobs:
             # Replace jcenter() with mavenCentral() in gradle files to avoid jcenter deprecation issues
             find node_modules -type f -name build.gradle -print0 | xargs -0 sed -i 's/jcenter()/mavenCentral()/g' || true
 
+            # Replace provided() with compileOnly() for Gradle compatibility (remove deprecated 'provided')
+            find node_modules -type f -name build.gradle -print0 | xargs -0 sed -i "s/provided(/compileOnly(/g" || true
+
             # Specific fix for react-native-voice if present
             RNVOICE="node_modules/@react-native-voice/voice/android/build.gradle"
             if [ -f "$RNVOICE" ]; then
@@ -514,6 +519,8 @@ jobs:
     needs: bump-version
     if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
