@@ -413,8 +413,9 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
   const saveDrawing = () => {
     if (canvasRef.current) {
        triggerHaptic('notificationSuccess');
+       // As per the react-native-sketch-canvas docs: includeImage, includeText, cropToImageSize
        canvasRef.current.getBase64('png', false, true, false, true, (err: any, result: string) => {
-           if (!err) {
+           if (!err && result) {
               setDrawingPaths(prev => [...prev, `data:image/png;base64,${result}`]);
               setIsDrawing(false);
            } else {
@@ -491,6 +492,33 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
   };
 
   if (isLocked && !unlocked) return null;
+
+  const renderToolbarContent = () => (
+    <View style={[styles.bottomToolbar, { backgroundColor: isDark ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)', borderTopColor: colors.border, position: 'relative', paddingBottom: isIOS ? 20 : 16, borderTopWidth: 1 }]}>
+        <TouchableOpacity style={styles.bottomToolBtn} onPress={handleMic}>
+          <Icon sfSymbol={isRecording ? "mic.fill" : "mic"} mdIcon={isRecording ? "microphone" : "microphone-outline"} size={22} color={isRecording ? "#007AFF" : colors.textSecondary} />
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.bottomToolBtn} onPress={handleVoiceMemo}>
+          <Icon sfSymbol={isMemoRecording ? "waveform.circle.fill" : "waveform.circle"} mdIcon={isMemoRecording ? "record-circle" : "record-rec"} size={22} color={isMemoRecording ? "#FF3B30" : colors.textSecondary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.bottomToolBtn} onPress={() => { setIsDrawing(!isDrawing); setTimeout(() => canvasRef.current?.clear(), 100); }}>
+          <Icon sfSymbol="pencil.tip" mdIcon="draw" size={22} color={isDrawing ? "#AF52DE" : colors.textSecondary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.bottomToolBtn} onPress={handleAttachFile}>
+          <Icon sfSymbol="paperclip" mdIcon="paperclip" size={22} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <View style={styles.toolbarDivider} />
+
+        <TouchableOpacity style={[styles.bottomToolBtn, { backgroundColor: 'rgba(0, 122, 255, 0.1)', borderRadius: 20, paddingHorizontal: 12 }]} onPress={handleSparkAI}>
+          <Icon sfSymbol="wand.and.stars" mdIcon="magic-staff" size={20} color="#007AFF" />
+          <Text style={styles.sparkText}>Spark AI</Text>
+        </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={[styles.screenContainer, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
@@ -609,21 +637,24 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
               </View>
             )}
 
-            {/* CANVAS */}
+            {/* Canvas will sit directly below attachments when active */}
             {isDrawing && (
-              <View style={[styles.canvasContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.canvasHeader, { borderBottomColor: colors.border }]}>
-                  <Text style={[styles.canvasTitle, { color: colors.text }]}>Zone de dessin</Text>
-                  <TouchableOpacity onPress={saveDrawing} style={styles.canvasSaveBtn}>
-                    <Icon sfSymbol="checkmark" mdIcon="check" size={16} color="#FFF" />
-                    <Text style={styles.canvasSaveText}>Garder</Text>
+              <View style={[styles.canvasContainer, { backgroundColor: colors.card, borderColor: colors.border, height: 300, marginHorizontal: 20, marginBottom: 20, borderRadius: 16, overflow: 'hidden' }]}>
+                <View style={[styles.canvasHeader, { borderBottomColor: colors.border, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                  <Text style={[styles.canvasTitle, { color: colors.text, fontWeight: '600' }]}>Zone de dessin</Text>
+                  <TouchableOpacity onPress={saveDrawing} style={[styles.canvasSaveBtn, { backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }]}>
+                    <Icon sfSymbol="checkmark" mdIcon="check" size={14} color="#FFF" />
+                    <Text style={[styles.canvasSaveText, { color: '#FFF', marginLeft: 4, fontWeight: '600', fontSize: 13 }]}>Garder</Text>
                   </TouchableOpacity>
                 </View>
                 <SketchCanvas
                   ref={canvasRef}
-                  style={styles.canvas}
+                  style={{ flex: 1 }}
                   strokeColor={isDark ? '#FFFFFF' : '#000000'}
                   strokeWidth={4}
+                  // We remove onStrokeEnd={saveDrawing} to prevent the crash caused by
+                  // SketchCanvas calling the function with unexpected event args on stroke end.
+                  // We also removed localSourceImage since it defaults to null effectively.
                 />
               </View>
             )}
@@ -633,64 +664,14 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
           </ScrollView>
         </View>
         
-        
-        {/* BOTTOM RICH TOOLBAR */}
-        {(!isIOS || !isKeyboardVisible) && (
-          <View style={[styles.bottomToolbar, { backgroundColor: isDark ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)', borderTopColor: colors.border }]}>
-            <TouchableOpacity style={styles.bottomToolBtn} onPress={handleMic}>
-              <Icon sfSymbol={isRecording ? "mic.fill" : "mic"} mdIcon={isRecording ? "microphone" : "microphone-outline"} size={22} color={isRecording ? "#007AFF" : colors.textSecondary} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.bottomToolBtn} onPress={handleVoiceMemo}>
-              <Icon sfSymbol={isMemoRecording ? "waveform.circle.fill" : "waveform.circle"} mdIcon={isMemoRecording ? "record-circle" : "record-rec"} size={22} color={isMemoRecording ? "#FF3B30" : colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.bottomToolBtn} onPress={handleDraw}>
-              <Icon sfSymbol="pencil.tip" mdIcon="draw" size={22} color={isDrawing ? "#AF52DE" : colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.bottomToolBtn} onPress={handleAttachFile}>
-              <Icon sfSymbol="paperclip" mdIcon="paperclip" size={22} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <View style={styles.toolbarDivider} />
-
-            <TouchableOpacity style={[styles.bottomToolBtn, { backgroundColor: 'rgba(0, 122, 255, 0.1)', borderRadius: 20, paddingHorizontal: 12 }]} onPress={handleSparkAI}>
-              <Icon sfSymbol="wand.and.stars" mdIcon="magic-staff" size={20} color="#007AFF" />
-              <Text style={styles.sparkText}>Spark AI</Text>
-            </TouchableOpacity>
-        </View>
+        {/* BOTTOM RICH TOOLBAR ALWAYS ANCHORED AVOIDING KEYBOARD */}
+        {isIOS ? (
+           <InputAccessoryView nativeID="toolbarAccessory" backgroundColor={isDark ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)'}>
+              {renderToolbarContent()}
+           </InputAccessoryView>
+        ) : (
+           renderToolbarContent()
         )}
-
-        {isIOS && (
-          <InputAccessoryView nativeID="toolbarAccessory" backgroundColor={isDark ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)'}>
-            <View style={[styles.bottomToolbar, { backgroundColor: isDark ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)', borderTopColor: colors.border }]}>
-            <TouchableOpacity style={styles.bottomToolBtn} onPress={handleMic}>
-              <Icon sfSymbol={isRecording ? "mic.fill" : "mic"} mdIcon={isRecording ? "microphone" : "microphone-outline"} size={22} color={isRecording ? "#007AFF" : colors.textSecondary} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.bottomToolBtn} onPress={handleVoiceMemo}>
-              <Icon sfSymbol={isMemoRecording ? "waveform.circle.fill" : "waveform.circle"} mdIcon={isMemoRecording ? "record-circle" : "record-rec"} size={22} color={isMemoRecording ? "#FF3B30" : colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.bottomToolBtn} onPress={handleDraw}>
-              <Icon sfSymbol="pencil.tip" mdIcon="draw" size={22} color={isDrawing ? "#AF52DE" : colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.bottomToolBtn} onPress={handleAttachFile}>
-              <Icon sfSymbol="paperclip" mdIcon="paperclip" size={22} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <View style={styles.toolbarDivider} />
-
-            <TouchableOpacity style={[styles.bottomToolBtn, { backgroundColor: 'rgba(0, 122, 255, 0.1)', borderRadius: 20, paddingHorizontal: 12 }]} onPress={handleSparkAI}>
-              <Icon sfSymbol="wand.and.stars" mdIcon="magic-staff" size={20} color="#007AFF" />
-              <Text style={styles.sparkText}>Spark AI</Text>
-            </TouchableOpacity>
-        </View>
-          </InputAccessoryView>
-        )}
-
         
       </KeyboardAvoidingView>
 
@@ -744,7 +725,7 @@ const styles = StyleSheet.create({
   canvasSaveBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#34C759', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
   canvasSaveText: { color: '#FFF', fontSize: 13, fontWeight: '600', marginLeft: 4 },
   canvas: { flex: 1, backgroundColor: 'transparent' },
-  bottomToolbar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly', paddingVertical: 12, paddingHorizontal: 8, borderTopWidth: 1 },
+  bottomToolbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly', paddingTop: 12, paddingHorizontal: 8, borderTopWidth: 1 },
   bottomToolBtn: { padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   toolbarDivider: { width: 1, height: 24, backgroundColor: '#ccc', opacity: 0.3, marginHorizontal: 4 },
   sparkText: { color: '#007AFF', fontWeight: '600', fontSize: 14, marginLeft: 6 }

@@ -1,5 +1,4 @@
 /* global jest */
-/* eslint-env jest */
 jest.mock('react-native-haptic-feedback', () => ({
   trigger: jest.fn(),
 }));

@@ -40,14 +40,16 @@ export default defineConfig(async () => ({
     chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          pdf: ['pdfjs-dist'],
-          ui: ['lucide-react', 'marked', 'dompurify', 'clsx', 'tailwind-merge'],
-          i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
-          emoji: ['emoji-picker-react'],
-          tiptap: ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/extension-text-style', '@tiptap/extension-color', '@tiptap/extension-highlight', '@tiptap/extension-underline', '@tiptap/extension-text-align'],
-        },
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react/') || id.includes('react-dom/')) return 'vendor';
+            if (id.includes('pdfjs-dist/')) return 'pdf';
+            if (id.includes('lucide-react/') || id.includes('marked/') || id.includes('dompurify/') || id.includes('clsx/') || id.includes('tailwind-merge/')) return 'ui';
+            if (id.includes('i18next/') || id.includes('react-i18next/') || id.includes('i18next-browser-languagedetector/')) return 'i18n';
+            if (id.includes('emoji-picker-react/')) return 'emoji';
+            if (id.includes('@tiptap/')) return 'tiptap';
+          }
+        }
       },
     },
   },

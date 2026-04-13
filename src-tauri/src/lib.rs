@@ -168,7 +168,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, get_hwid, register_deep_link])
         .setup(|_app| {
             println!("App setup starting...");
-            
+
             // Check for .portable file (Skip in Dev/Debug mode)
             #[cfg(not(debug_assertions))]
             if let Ok(current_exe) = std::env::current_exe() {

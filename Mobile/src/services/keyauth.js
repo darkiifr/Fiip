@@ -248,7 +248,7 @@ class KeyAuthService {
         try {
             const trialUsed = await AsyncStorage.getItem('fiip-trial-used') === 'true';
             return !this.isAuthenticated && !trialUsed;
-        } catch (e) {
+        } catch {
             return false;
         }
     }

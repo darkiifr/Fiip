@@ -199,15 +199,24 @@ export default function SettingsScreen() {
           <View style={styles.settingRow}>
              <View style={styles.settingLeft}>
                <Icon sfSymbol="key.fill" mdIcon="key" size={24} color={isIOS ? colors.danger : '#B3261E'} />
-               <Text style={isIOS ? [styles.textIOS, { color: colors.text }] : [styles.textAndroid, { color: colors.text }]}>Licence Fiip (KeyAuth)</Text>
+               <Text style={isIOS ? [styles.textIOS, { color: colors.text }] : [styles.textAndroid, { color: colors.text }]}>
+                 Licence Fiip: {subscriptionPlan === 'free' ? 'Gratuit' : subscriptionPlan === 'pro' ? 'Pro' : 'Premium'}
+               </Text>
              </View>
              {isIOS ? (
                <TouchableOpacity onPress={handleAuthModal}>
-                 <Text style={[styles.linkIOS, { color: colors.primary }]}>Activer</Text>
+                 <Text style={[styles.linkIOS, { color: colors.primary }]}>Gérer</Text>
                </TouchableOpacity>
              ) : (
-               <Button mode="text" onPress={handleAuthModal}>Activer</Button>
+               <Button mode="text" onPress={handleAuthModal}>Gérer</Button>
              )}
+          </View>
+          
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          {/* Cloud Storage Usage */}
+          <View style={styles.settingRow}>
+             <CloudConfigView />
           </View>
         </View>
         

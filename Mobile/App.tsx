@@ -25,6 +25,7 @@ import { useSettingsStore } from './src/store/settingsStore';
 import { authenticateBiometric } from './src/services/biometrics';
 import { triggerHaptic } from './src/utils/hapticEngine';
 import { useAppTheme } from './src/hooks/useAppTheme';
+import { keyAuthService } from './src/services/keyauth';
 
 import { FloatingTabBar } from './src/components/FloatingTabBar';
 
@@ -61,6 +62,11 @@ function App() {
   useEffect(() => {
     // Check OTA updates on launch via GitHub Releases
     checkForUpdatesAndInstall().catch(console.error);
+    
+    // Init and validate KeyAuth license
+    keyAuthService.init().then(response => {
+      console.log('KeyAuth Status:', response?.message);
+    }).catch(console.error);
     
     // Check Global Biometric Lock
     if (globalLockEnabled) {

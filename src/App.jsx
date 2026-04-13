@@ -730,7 +730,7 @@ function App() {
                 // - Uniquement en mode macos sur macOS (pour Overlay avec les traffic lights natifs)
                 // - Ailleurs : non (la barre est soit dessinée en HTML/CSS, soit on est sur Windows où "Overlay" n'existe pas de la même manière)
                 const actualTitleBarStyle = settings.titlebarStyle === 'native' ? (osType === 'macos' ? 'macos' : 'windows') : settings.titlebarStyle;
-                const shouldHaveDecorations = (actualTitleBarStyle === 'macos' && osType === 'macos');
+                const shouldHaveDecorations = false; // On utilise toujours la barre custom (HTML/CSS) pour éviter de casser la transparence
                 
                 // On n'appelle setDecorations que si on détecte qu'on en a besoin pour éviter de casser le rendu sur macOS 'Overlay'
                 // qui perd sa transparence quand on force setDecorations(true) alors qu'il y est déjà.
@@ -739,7 +739,7 @@ function App() {
                     if (isDecorated !== shouldHaveDecorations) {
                         await win.setDecorations(shouldHaveDecorations);
                     }
-                } catch (_) {
+                } catch {
                     // Si isDecorated n'est pas supporté (suivant la version Tauri), on le force
                     await win.setDecorations(shouldHaveDecorations);
                 }

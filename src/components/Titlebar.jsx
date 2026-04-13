@@ -66,27 +66,23 @@ export default function Titlebar({ style = 'macos' }) {
                 {/* Left Drag Region (Padding) */}
                 <div className="w-[12px] h-full" data-tauri-drag-region />
 
-                {osType === 'macos' ? (
-                    <div className="w-[60px] h-full" data-tauri-drag-region />
-                ) : (
-                    <div className="flex gap-2 z-10 hover:*:brightness-110">
-                        <button
-                            onClick={handleClose}
-                            className="window-btn w-3.5 h-3.5 rounded-full bg-[#FF5F57] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                            title={t('settings.close')}
-                        />
-                        <button
-                            onClick={handleMinimize}
-                            className="window-btn w-3.5 h-3.5 rounded-full bg-[#FEBC2E] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                            title={t('settings.minimize')}
-                        />
-                        <button
-                            onClick={handleMaximize}
-                            className="window-btn w-3.5 h-3.5 rounded-full bg-[#28C840] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
-                            title={t('settings.maximize')}
-                        />
-                    </div>
-                )}
+                <div className="flex gap-2 z-10 hover:*:brightness-110">
+                    <button
+                        onClick={handleClose}
+                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#FF5F57] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        title={t('settings.close')}
+                    />
+                    <button
+                        onClick={handleMinimize}
+                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#FEBC2E] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        title={t('settings.minimize')}
+                    />
+                    <button
+                        onClick={handleMaximize}
+                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#28C840] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        title={t('settings.maximize')}
+                    />
+                </div>
 
                 <div className="flex-1 h-full flex items-center" data-tauri-drag-region />
 
