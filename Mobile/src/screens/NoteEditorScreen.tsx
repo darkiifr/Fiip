@@ -63,6 +63,9 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
 
   const [isRecording, setIsRecording] = useState(false); // Dictation
   const [isMemoRecording, setIsMemoRecording] = useState(false); // Voice Memos
+
+  // Couleur du pinceau pour le canvas
+  const [canvasColor, setCanvasColor] = useState(isDark ? '#FFFFFF' : '#000000');
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawingPaths, setDrawingPaths] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<any[]>([]);
@@ -70,7 +73,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
   const [playPosition, setPlayPosition] = useState<number>(0);
   const [memoDuration, setMemoDuration] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  
+
   const canvasRef = useRef<any>(null);
   const contentBeforeDictationRef = useRef<string>('');
 
@@ -650,8 +653,9 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
                 <SketchCanvas
                   ref={canvasRef}
                   style={{ flex: 1 }}
-                  strokeColor={isDark ? '#FFFFFF' : '#000000'}
-                  strokeWidth={4}
+                  strokeColors={[{ color: canvasColor }]}
+                  defaultStrokeIndex={0}
+                  defaultStrokeWidth={4}
                   // We remove onStrokeEnd={saveDrawing} to prevent the crash caused by
                   // SketchCanvas calling the function with unexpected event args on stroke end.
                   // We also removed localSourceImage since it defaults to null effectively.
@@ -664,15 +668,18 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
           </ScrollView>
         </View>
         
-        {/* BOTTOM RICH TOOLBAR ALWAYS ANCHORED AVOIDING KEYBOARD */}
-        {isIOS ? (
-           <InputAccessoryView nativeID="toolbarAccessory" backgroundColor={isDark ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)'}>
-              {renderToolbarContent()}
-           </InputAccessoryView>
+
+        {/* Barre d'outils toujours visible en bas, sauf si clavier ouvert sur iOS (InputAccessoryView) */}
+        {isIOS && isKeyboardVisible ? (
+          <InputAccessoryView nativeID="toolbarAccessory" backgroundColor={isDark ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)'}>
+            {renderToolbarContent()}
+          </InputAccessoryView>
         ) : (
-           renderToolbarContent()
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 100 }} pointerEvents="box-none">
+            {renderToolbarContent()}
+          </View>
         )}
-        
+
       </KeyboardAvoidingView>
 
       

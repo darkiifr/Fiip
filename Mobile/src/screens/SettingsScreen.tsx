@@ -214,10 +214,7 @@ export default function SettingsScreen() {
           
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          {/* Cloud Storage Usage */}
-          <View style={styles.settingRow}>
-             <CloudConfigView />
-          </View>
+           {/* Cloud Storage Usage (supprimé doublon) */}
         </View>
         
         <View style={{ alignItems: 'center', marginVertical: 32, opacity: 0.5 }}>
