@@ -18,4 +18,21 @@ buildscript {
     }
 }
 
+// Backward-compat shim: map legacy 'provided' usages to 'compileOnly'
+subprojects { subproject ->
+    subproject.afterEvaluate {
+        try {
+            if (subproject.configurations.findByName('compileOnly') == null) {
+                subproject.configurations.create('compileOnly')
+            }
+            def dh = subproject.dependencies
+            if (!dh.metaClass.getMetaMethod("provided", Object)) {
+                dh.metaClass.provided = { dep ->
+                    dh.add('compileOnly', dep)
+                }
+            }
+        } catch (ignored) {}
+    }
+}
+
 apply plugin: "com.facebook.react.rootproject"
