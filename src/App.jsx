@@ -540,7 +540,22 @@ function App() {
                 return [payload.new, ...prev];
              });
           } else if (payload.eventType === 'UPDATE') {
-             setNotes(prev => prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } : n));
+             setNotes(prev => prev.map(n => {
+                 if (n.id === payload.new.id) {
+                     // Check if local note is newer before applying the payload
+                     const localUpdate = n.updatedAt || 0;
+                     const remoteUpdate = new Date(payload.new.updated_at).getTime() || 0;
+                     if (localUpdate > remoteUpdate) {
+                         return n; // Ignore outdated payload from realtime
+                     }
+                     // Map DB fields to local fields correctly (if needed) to prevent wiping out local arrays/state
+                     const updatedFromDb = { ...payload.new };
+                     if (updatedFromDb.updated_at) updatedFromDb.updatedAt = new Date(updatedFromDb.updated_at).getTime();
+                     if (updatedFromDb.is_favorite !== undefined) updatedFromDb.favorite = updatedFromDb.is_favorite;
+                     return { ...n, ...updatedFromDb };
+                 }
+                 return n;
+             }));
           } else if (payload.eventType === 'DELETE') {
              setNotes(prev => prev.filter(n => n.id !== payload.old.id));
           }
@@ -705,8 +720,33 @@ function App() {
 
     let win; try { win = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
     if (win) {
-        win.setDecorations(settings.titlebarStyle === 'native')
-           .catch(err => console.error("Failed to set window decorations:", err));
+        // Utiliser une petite temporisation pour s'assurer que ça s'applique bien sous Windows
+        setTimeout(async () => {
+            try {
+                const { type } = await import('@tauri-apps/plugin-os');
+                const osType = await type();
+                
+                // On détermine si la fenêtre doit avoir les décorations système
+                // - Uniquement en mode macos sur macOS (pour Overlay avec les traffic lights natifs)
+                // - Ailleurs : non (la barre est soit dessinée en HTML/CSS, soit on est sur Windows où "Overlay" n'existe pas de la même manière)
+                const actualTitleBarStyle = settings.titlebarStyle === 'native' ? (osType === 'macos' ? 'macos' : 'windows') : settings.titlebarStyle;
+                const shouldHaveDecorations = (actualTitleBarStyle === 'macos' && osType === 'macos');
+                
+                // On n'appelle setDecorations que si on détecte qu'on en a besoin pour éviter de casser le rendu sur macOS 'Overlay'
+                // qui perd sa transparence quand on force setDecorations(true) alors qu'il y est déjà.
+                try {
+                    const isDecorated = await win.isDecorated();
+                    if (isDecorated !== shouldHaveDecorations) {
+                        await win.setDecorations(shouldHaveDecorations);
+                    }
+                } catch (_) {
+                    // Si isDecorated n'est pas supporté (suivant la version Tauri), on le force
+                    await win.setDecorations(shouldHaveDecorations);
+                }
+            } catch (err) {
+                console.error("Failed to set window decorations:", err);
+            }
+        }, 100);
     }
 
     invoke('set_window_effect', { effect })

@@ -221,6 +221,9 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
       setIsRecording(false);
       triggerHaptic('notificationError');
     };
+    Voice.onSpeechEnd = () => {
+      setIsRecording(false);
+    };
     return () => {
       Voice.destroy().then(Voice.removeAllListeners);
     };
@@ -260,8 +263,8 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
           text: "Supprimer", 
           style: "destructive", 
           onPress: () => {
-            if (noteLoaded && noteRef.current?.id) {
-              deleteNote(noteRef.current.id);
+            if (currentNoteId) {
+              deleteNote(currentNoteId);
               triggerHaptic('notificationWarning');
               onClose();
             }

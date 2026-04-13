@@ -27,7 +27,9 @@ export default function Titlebar({ style = 'macos' }) {
         };
     }, [appWindow]);
 
-    if (style === 'none' || style === 'native') return null;
+    const actualStyle = style === 'native' ? (osType === 'macos' ? 'macos' : 'windows') : style;
+
+    if (actualStyle === 'none') return null;
 
     const handleClose = async (e) => {
         e.stopPropagation();
@@ -41,7 +43,7 @@ export default function Titlebar({ style = 'macos' }) {
 
     const handleMaximize = async (e) => {
         e.stopPropagation();
-        if (style === 'macos') {
+        if (actualStyle === 'macos') {
             const isFull = await appWindow.isFullscreen();
             if (isFull) {
                 await appWindow.setFullscreen(false);
@@ -54,7 +56,7 @@ export default function Titlebar({ style = 'macos' }) {
     };
 
     // macOS style: rounded buttons on the left
-    if (style === 'macos') {
+    if (actualStyle === 'macos') {
         if (isFullscreen) return null;
 
         return (
@@ -95,7 +97,7 @@ export default function Titlebar({ style = 'macos' }) {
     }
 
     // Windows style: flat buttons on the right
-    if (style === 'windows') {
+    if (actualStyle === 'windows') {
         if (isFullscreen) return null;
 
         return (
