@@ -12,6 +12,8 @@ lerna-debug.log*
 src-tauri/target/
 src-tauri/gen/
 target/
+src-tauri/.portable
+src-tauri/temp_portable/
 
 # Environment Variables (Critical for Public Repos)
 .env
@@ -43,10 +45,38 @@ keys.txt
 
 Untitled-1.ipynb
 
+# Web Sites & sub-projects
 PublicLinksite/node_modules/
 PublicLinksite/dist/
 PublicLinksite/.env
 
+# Supabase etc.
 supabase/
 DA/directionArtistique.txt
-supabase-update.sql
+
+# Mobile (React Native / iOS / Android)
+Mobile/node_modules/
+Mobile/ios/Pods/
+Mobile/ios/build/
+Mobile/ios/*.ipa
+Mobile/ios/*.dSYM.zip
+Mobile/ios/*.dSYM
+Mobile/ios/altstore.json
+Mobile/ios/Payload/
+Mobile/ios/DerivedData/
+Mobile/ios/**/*.pbxuser
+Mobile/ios/**/*.mode1v3
+Mobile/ios/**/*.mode2v3
+Mobile/ios/**/*.perspectivev3
+Mobile/ios/**/*.xcuserstate
+Mobile/ios/**/*.xccheckout
+Mobile/ios/**/*.moved-aside
+Mobile/ios/**/*.hmap
+Mobile/ios/**/*.xcworkspace/xcuserdata/
+Mobile/ios/**/*.xcodeproj/xcuserdata/
+Mobile/android/.gradle/
+Mobile/android/app/build/
+Mobile/android/build/
+Mobile/android/local.properties
+Mobile/vendor/bundle/
+Mobile/.bundle/
