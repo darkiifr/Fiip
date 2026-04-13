@@ -106,21 +106,38 @@ jobs:
             VERSION=${TAG_NAME#v}
             # Remove leading dot if present (e.g. v.1.9.4 -> .1.9.4 -> 1.9.4)
             VERSION=${VERSION#.}
-            echo "Syncing version to $VERSION from tag $TAG_NAME"
+            # Extract numeric X.Y.Z (drop any pre-release like -beta)
+            NUMERIC=$(echo "$VERSION" | grep -oE '^[0-9]+(\.[0-9]+){0,2}' || true)
+            IFS='.' read -r MAJ MIN PATCH <<< "$NUMERIC"
+            MIN=${MIN:-0}
+            PATCH=${PATCH:-0}
+            MSI_VERSION="$MAJ.$MIN.$PATCH"
+            # Validate MSI constraints (each segment <= 65535)
+            for seg in $MAJ $MIN $PATCH; do
+              if [ "$seg" -gt 65535 ]; then
+                echo "Version segment $seg is greater than 65535 (invalid for MSI)" >&2
+                exit 1
+              fi
+            done
+            echo "Syncing version to $VERSION from tag $TAG_NAME (MSI safe: $MSI_VERSION)"
             echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+            echo "MSI_VERSION=$MSI_VERSION" >> $GITHUB_ENV
             node -e "
               const fs = require('fs');
-              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-              pkg.version = '$VERSION';
-              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-              
-              const tauriConf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
-              tauriConf.version = '$VERSION';
-              fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(tauriConf, null, 2));
+              const pkgPath = 'package.json';
+              const tauriPath = 'src-tauri/tauri.conf.json';
+              const publicPath = 'public/version.json';
 
-              // Update public/version.json for runtime check
+              const pkg = JSON.parse(fs.readFileSync(pkgPath,'utf8'));
+              pkg.version = '$VERSION';
+              fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+
+              const tauri = JSON.parse(fs.readFileSync(tauriPath,'utf8'));
+              tauri.version = '$MSI_VERSION';
+              fs.writeFileSync(tauriPath, JSON.stringify(tauri, null, 2));
+
               const versionData = { version: '$VERSION' };
-              fs.writeFileSync('public/version.json', JSON.stringify(versionData, null, 2));
+              fs.writeFileSync(publicPath, JSON.stringify(versionData, null, 2));
             "
           else
             echo "Tag $TAG_NAME does not start with 'v', skipping version sync."
@@ -452,6 +469,28 @@ jobs:
         working-directory: Mobile
         run: npm install
 
+      - name: Patch Android node modules (jcenter -> mavenCentral, compileSdk)
+        working-directory: Mobile
+        shell: bash
+        run: |
+          echo "Patching Android node_modules before build..."
+          if [ -d node_modules ]; then
+            # Replace jcenter() with mavenCentral() in gradle files to avoid jcenter deprecation issues
+            find node_modules -type f -name build.gradle -print0 | xargs -0 sed -i 's/jcenter()/mavenCentral()/g' || true
+
+            # Specific fix for react-native-voice if present
+            RNVOICE="node_modules/@react-native-voice/voice/android/build.gradle"
+            if [ -f "$RNVOICE" ]; then
+              echo "Patching react-native-voice build.gradle"
+              sed -i 's/jcenter()/mavenCentral()/g' "$RNVOICE" || true
+              if ! grep -q "compileSdk" "$RNVOICE"; then
+                awk '/android *\{/{print; print "    compileSdkVersion 33"; next}1' "$RNVOICE" > "$RNVOICE.tmp" && mv "$RNVOICE.tmp" "$RNVOICE" || true
+              fi
+            fi
+          else
+            echo "node_modules not found; ensure npm install ran correctly." || true
+          fi
+
       - name: Build APK
         working-directory: Mobile/android
         run: ./gradlew assembleRelease
@@ -484,11 +523,27 @@ jobs:
         working-directory: Mobile/ios
         run: xcodebuild -workspace FiipMobile.xcworkspace -scheme FiipMobile -configuration Release -archivePath $PWD/build/FiipMobile.xcarchive CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -sdk iphoneos
 
+      - name: Inspect archive
+        working-directory: Mobile/ios
+        run: |
+          echo "Listing build directory for debugging"
+          ls -la build || true
+          if [ -d build/FiipMobile.xcarchive ]; then
+            echo "Archive contents:"
+            ls -la build/FiipMobile.xcarchive || true
+          fi
+
       - name: Package IPA
         working-directory: Mobile/ios
         run: |
           mkdir -p Payload
-          cp -r build/FiipMobile.xcarchive/Products/Applications/FiipMobile.app Payload/
+          if [ -d build/FiipMobile.xcarchive/Products/Applications ]; then
+            cp -r build/FiipMobile.xcarchive/Products/Applications/*.app Payload/
+          else
+            echo "Archive Applications folder not found; listing build:" >&2
+            ls -la build || true
+            exit 1
+          fi
           zip -r FiipMobile-Unsigned.ipa Payload
 
       - name: Upload Release IPA
