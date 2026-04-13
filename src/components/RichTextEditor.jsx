@@ -247,7 +247,7 @@ const MenuBar = ({ editor }) => {
 };
 
 
-export default function RichTextEditor({ value, onChange, onKeyDown, spellcheck = true }) {
+export default React.forwardRef(function RichTextEditor({ value, onChange, onKeyDown, spellcheck = true }, ref) {
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -282,10 +282,21 @@ export default function RichTextEditor({ value, onChange, onKeyDown, spellcheck 
         }
     });
 
+    React.useImperativeHandle(ref, () => ({
+        getEditor: () => editor,
+        insertText: (text) => {
+            if (editor) {
+                editor.commands.insertContent(text);
+            }
+        }
+    }), [editor]);
+
     // Handle external external value changes safely (e.g., when switching notes)
     useEffect(() => {
         if (editor && value !== undefined && value !== editor.getHTML()) {
-            editor.commands.setContent(value);
+            if (!editor.isFocused) {
+                editor.commands.setContent(value);
+            }
         }
     }, [value, editor]);
 
@@ -295,4 +306,4 @@ export default function RichTextEditor({ value, onChange, onKeyDown, spellcheck 
             <EditorContent editor={editor} className="flex-1" />
         </div>
     );
-}
+});

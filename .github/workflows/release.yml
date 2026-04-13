@@ -14,6 +14,10 @@ on:
         - patch
         - minor
         - major
+        - prepatch
+        - preminor
+        - premajor
+        - prerelease
 
 jobs:
   bump-version:
@@ -188,6 +192,7 @@ jobs:
         run: |
           $TAG_NAME = "${{ needs.bump-version.outputs.new_tag || github.ref_name }}"
           $VERSION = $TAG_NAME -replace '^v', ''
+          $VERSION = $VERSION -replace '^\.', ''
           $ZIP_NAME = "Fiip-Portable-${VERSION}-Windows-x64.zip"
           
           echo "Packaging portable version: $ZIP_NAME"
@@ -262,8 +267,8 @@ jobs:
             console.log(`TagName: ${tagName} -> Cleaned Version: ${version}`);
             
             // Validate SemVer
-            // Allow standard X.Y.Z and pre-release tags like X.Y.Z-beta.1
-            if (!/^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$/.test(version)) {
+            // Allow standard X.Y.Z, pre-release tags (beta, alpha), and build metadata
+            if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/.test(version)) {
                 core.setFailed(`Version ${version} is not valid SemVer (X.Y.Z or X.Y.Z-tag)`);
                 return;
             }
@@ -430,3 +435,110 @@ jobs:
             } catch (error) {
                 core.setFailed(`Action failed with error: ${error.message}`);
             }
+
+  build-android:
+    needs: bump-version
+    if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install dependencies
+        working-directory: Mobile
+        run: npm install
+
+      - name: Build APK
+        working-directory: Mobile/android
+        run: ./gradlew assembleRelease
+
+      - name: Upload Release APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
+          files: Mobile/android/app/build/outputs/apk/release/*.apk
+
+  build-ios:
+    needs: bump-version
+    if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: Mobile
+        run: npm install
+
+      - name: Install CocoaPods
+        working-directory: Mobile/ios
+        run: pod install --repo-update
+
+      - name: Build Unsigned App
+        working-directory: Mobile/ios
+        run: xcodebuild -workspace FiipMobile.xcworkspace -scheme FiipMobile -configuration Release -archivePath $PWD/build/FiipMobile.xcarchive CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -sdk iphoneos
+
+      - name: Package IPA
+        working-directory: Mobile/ios
+        run: |
+          mkdir -p Payload
+          cp -r build/FiipMobile.xcarchive/Products/Applications/FiipMobile.app Payload/
+          zip -r FiipMobile-Unsigned.ipa Payload
+
+      - name: Generate AltStore JSON
+        working-directory: Mobile/ios
+        run: |
+          TAG_NAME="${{ needs.bump-version.outputs.new_tag || github.ref_name }}"
+          VERSION=$(echo $TAG_NAME | sed 's/^v[.]\?//')
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          SIZE=$(stat -f%z FiipMobile-Unsigned.ipa)
+          
+          cat <<EOF > altstore.json
+          {
+            "name": "Fiip",
+            "identifier": "vinsstudio.FiipMobile.altstore",
+            "apps": [
+              {
+                "name": "Fiip",
+                "bundleIdentifier": "vinsstudio.FiipMobile",
+                "developerName": "VinsSoftware",
+                "version": "$VERSION",
+                "versionDate": "$DATE",
+                "versionDescription": "Update to version $VERSION",
+                "downloadURL": "https://github.com/darkiifr/Fiip/releases/download/$TAG_NAME/FiipMobile-Unsigned.ipa",
+                "localizedDescription": "Application mobile Fiip",
+                "iconURL": "https://raw.githubusercontent.com/darkiifr/Fiip/main/src-tauri/icons/icon.png",
+                "tintColor": "#000000",
+                "size": $SIZE
+              }
+            ]
+          }
+          EOF
+
+      - name: Upload Release IPA and AltStore JSON
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
+          files: |
+            Mobile/ios/*.ipa
+            Mobile/ios/altstore.json
