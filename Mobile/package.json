@@ -53,7 +53,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/preset-env": "^7.25.3",
-    "@babel/runtime": "^7.25.0",
+    "@babel/runtime": "^7.29.2",
     "@react-native-community/cli": "20.1.0",
     "@react-native-community/cli-platform-android": "20.1.0",
     "@react-native-community/cli-platform-ios": "20.1.0",
@@ -62,7 +62,6 @@
     "@react-native/jest-preset": "0.85.0",
     "@react-native/metro-config": "0.85.0",
     "@react-native/typescript-config": "0.85.0",
-    "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^29.5.13",
     "@types/react": "^19.2.0",
@@ -77,9 +76,16 @@
     "eslint-plugin-react-native": "^5.0.0",
     "jest": "^29.6.3",
     "jest-environment-node": "^30.3.0",
+    "patch-package": "^8.0.0",
     "prettier": "2.8.8",
     "react-test-renderer": "19.2.3",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "xml2js": ">=0.6.2",
+    "@xmldom/xmldom": ">=0.8.12",
+    "xmldom": ">=0.8.10",
+    "flatted": ">=3.4.2"
   },
   "engines": {
     "node": ">= 22.11.0"
