@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
+import { syncStatsToWidget } from '../services/widgetService';
 
 export interface Note {
   id: string;
@@ -10,7 +11,7 @@ export interface Note {
   user_id: string;
   is_favorite: boolean;
   is_locked: boolean;
-  badges: any[];
+  badges: string[];
   is_public?: boolean;
   shared?: boolean;
   public_slug?: string | null;
@@ -18,7 +19,97 @@ export interface Note {
   updated_at: string;
   deleted_at?: string | null;
   _status: 'synced' | 'created' | 'updated' | 'deleted';
+  drawingPaths?: string[];
+  attachments?: any[];
+  memoPath?: string | null;
 }
+
+const SEED_NOTES: Record<string, Note> = {
+  "seed-1": {
+    id: "seed-1",
+    title: "Clarté avant vitesse",
+    content: "Prendre le temps de comprendre le vrai problème permet de construire des solutions qui durent. Dans un monde qui valorise la rapidité, la clarté devient un avantage compétitif.\n\nLa clarté guide chaque décision. Elle évite les faux départs, réduit les allers-retours et aligne les équipes. Quand chacun comprend le “pourquoi”, l’exécution devient plus fluide et plus sereine.\n\nNotre cap est simple : créer un produit utile, compréhensible et fiable. La clarté du message sera au cœur de notre stratégie.\n\nBesoin de clarté sur les responsabilités et les prochaines étapes. Chacun repart avec une action précise et une deadline.\n\nSimplifier l’expérience. Enlever le superflu. Apporter plus de clarté dans chaque interaction avec le produit.\n\nLa clarté est la politesse des leaders. Un message clair crée l’alignement et la confiance.",
+    user_id: "local-user",
+    is_favorite: true,
+    is_locked: false,
+    badges: ["Réflexion", "Principes"],
+    created_at: "2026-05-31T09:41:00Z",
+    updated_at: "2026-05-31T09:41:00Z",
+    _status: "synced"
+  },
+  "seed-2": {
+    id: "seed-2",
+    title: "Idées produit",
+    content: "Simplifier l'expérience. Enlever le superflu. Apporter plus de clarté à chaque interaction.",
+    user_id: "local-user",
+    is_favorite: false,
+    is_locked: false,
+    badges: ["Idées"],
+    created_at: "2026-05-31T09:12:00Z",
+    updated_at: "2026-05-31T09:12:00Z",
+    _status: "synced"
+  },
+  "seed-3": {
+    id: "seed-3",
+    title: "Réunion équipe",
+    content: "Besoin de clarté sur les responsabilités et les prochaines étapes.",
+    user_id: "local-user",
+    is_favorite: false,
+    is_locked: false,
+    badges: ["Réunion"],
+    created_at: "2026-05-31T08:30:00Z",
+    updated_at: "2026-05-31T08:30:00Z",
+    _status: "synced"
+  },
+  "seed-4": {
+    id: "seed-4",
+    title: "Journal",
+    content: "Ce matin, j'ai cherché la clarté dans mes priorités. Moins de bruit, plus d'essentiel.",
+    user_id: "local-user",
+    is_favorite: true,
+    is_locked: false,
+    badges: ["Réflexion"],
+    created_at: "2026-05-30T10:00:00Z",
+    updated_at: "2026-05-30T10:00:00Z",
+    _status: "synced"
+  },
+  "seed-5": {
+    id: "seed-5",
+    title: "Plan lancement",
+    content: "Notre stratégie repose sur une vision claire et une clarté d'exécution à chaque étape.",
+    user_id: "local-user",
+    is_favorite: false,
+    is_locked: false,
+    badges: ["Stratégie"],
+    created_at: "2026-05-30T11:00:00Z",
+    updated_at: "2026-05-30T11:00:00Z",
+    _status: "synced"
+  },
+  "seed-6": {
+    id: "seed-6",
+    title: "Voyage à Lisbonne",
+    content: "Notes, adresses et souvenirs.",
+    user_id: "local-user",
+    is_favorite: false,
+    is_locked: false,
+    badges: ["Personnel"],
+    created_at: "2026-05-25T14:00:00Z",
+    updated_at: "2026-05-25T14:00:00Z",
+    _status: "synced"
+  },
+  "seed-7": {
+    id: "seed-7",
+    title: "Lecture",
+    content: "La clarté n'est pas innée, elle se cultive : lire, observer, écouter.",
+    user_id: "local-user",
+    is_favorite: false,
+    is_locked: false,
+    badges: ["Idées"],
+    created_at: "2026-05-26T15:00:00Z",
+    updated_at: "2026-05-26T15:00:00Z",
+    _status: "synced"
+  }
+};
 
 interface NotesState {
   notes: Record<string, Note>;
@@ -35,12 +126,12 @@ interface NotesState {
 export const useNotesStore = create<NotesState>()(
   persist(
     (set, get) => ({
-      notes: {},
+      notes: SEED_NOTES,
       lastSyncAt: null,
       isSyncing: false,
       pendingDeletions: [],
 
-            addNote: async (noteData) => {
+      addNote: async (noteData) => {
         let userId = 'local-user';
         try {
           const { data } = await supabase.auth.getSession();
@@ -61,9 +152,13 @@ export const useNotesStore = create<NotesState>()(
           _status: 'created',
         };
 
-        set((state) => ({
-          notes: { ...state.notes, [id]: newNote }
-        }));
+        set((state) => {
+          const newNotes = { ...state.notes, [id]: newNote };
+          // Sync with mobile widgets
+          syncStatsToWidget(Object.values(newNotes)).catch(console.error);
+          return { notes: newNotes };
+        });
+
         get().syncWithCloud();
         return id;
       },
@@ -74,17 +169,18 @@ export const useNotesStore = create<NotesState>()(
           if (!existing) return state;
 
           const now = new Date().toISOString();
-          return {
-            notes: {
-              ...state.notes,
-              [id]: {
-                ...existing,
-                ...updates,
-                updated_at: now,
-                _status: existing._status === 'created' ? 'created' : 'updated'
-              }
+          const newNotes = {
+            ...state.notes,
+            [id]: {
+              ...existing,
+              ...updates,
+              updated_at: now,
+              _status: existing._status === 'created' ? 'created' : 'updated'
             }
           };
+          // Sync with mobile widgets
+          syncStatsToWidget(Object.values(newNotes)).catch(console.error);
+          return { notes: newNotes };
         });
         
         get().syncWithCloud();
@@ -98,12 +194,13 @@ export const useNotesStore = create<NotesState>()(
           const newNotes = { ...state.notes };
           delete newNotes[id];
 
+          // Sync with mobile widgets
+          syncStatsToWidget(Object.values(newNotes)).catch(console.error);
+
           if (existing._status === 'created') {
-            // If never synced, simply remove it with no pending deletion needed
             return { notes: newNotes };
           }
 
-          // Real robust offline-first: add to pendingDeletions, immediately remove from UI state
           return { 
             notes: newNotes,
             pendingDeletions: [...(state.pendingDeletions || []), id]
@@ -129,13 +226,11 @@ export const useNotesStore = create<NotesState>()(
           const localNotes = state.notes;
           const notesToPush = Object.values(localNotes).filter(n => n._status !== 'synced');
           
-          // 1. Process Pending Deletions first
           const pendingDels = state.pendingDeletions || [];
           if (pendingDels.length > 0) {
             const successfulDeletes = [];
             for (const delId of pendingDels) {
               const { error } = await supabase.from('notes').delete().eq('id', delId).eq('user_id', user.id);
-              // if it's already deleted (or not found), we should also consider it successful locally to not block the queue
               if (!error || error.code === 'PGRST116') {
                 successfulDeletes.push(delId);
               }
@@ -147,7 +242,6 @@ export const useNotesStore = create<NotesState>()(
             }
           }
 
-          // 2. Push local changes
           for (const note of notesToPush) {
             const { _status, ...dbNote } = note;
             
@@ -175,12 +269,10 @@ export const useNotesStore = create<NotesState>()(
             }
           }
 
-          // 2. Pull remote changes
           const lastSync = state.lastSyncAt;
           let query = supabase.from('notes').select('*').eq('user_id', user.id);
           
           if (lastSync) {
-             // Only fetch records updated after last sync
              query = query.gt('updated_at', lastSync);
           }
 
@@ -191,7 +283,6 @@ export const useNotesStore = create<NotesState>()(
               const newNotes = { ...s.notes };
               remoteNotes.forEach(remote => {
                 const local = newNotes[remote.id];
-                // Local write wins if it's not synced yet to avoid overwriting pending offline changes
                 if (!local || local._status === 'synced' || new Date(remote.updated_at) > new Date(local.updated_at)) {
                   newNotes[remote.id] = {
                     ...remote,

@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import IconPlay from '~icons/mingcute/play-fill';
-import IconPause from '~icons/mingcute/pause-fill';
-import IconEdit from '~icons/mingcute/edit-2-fill';
+import { useTranslation } from 'react-i18next';
+
 import IconCheck from '~icons/mingcute/check-fill';
 import IconClose from '~icons/mingcute/close-fill';
-import { useTranslation } from 'react-i18next';
+import IconEdit from '~icons/mingcute/edit-2-fill';
+import IconPause from '~icons/mingcute/pause-fill';
+import IconPlay from '~icons/mingcute/play-fill';
+
 
 export default function AudioPlayer({ src, name, onRename, onError }) {
     const { t } = useTranslation();
@@ -31,12 +33,12 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
 
     useEffect(() => {
         const audio = audioRef.current;
-        if (!audio) return;
+        if (!audio) {return;}
 
-        let isFixingDuration = false;
+        const isFixingDuration = false;
 
         const updateProgress = () => {
-            if (isFixingDuration) return;
+            if (isFixingDuration) {return;}
             if (audio.duration && isFinite(audio.duration)) {
                 setProgress((audio.currentTime / audio.duration) * 100);
             }
@@ -65,7 +67,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
         };
 
         const onEnded = () => {
-            if (isFixingDuration) return;
+            if (isFixingDuration) {return;}
             setIsPlaying(false);
             setProgress(0);
         };
@@ -120,7 +122,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
     };
 
     const formatTime = (time) => {
-        if (isNaN(time) || !isFinite(time)) return "0:00";
+        if (isNaN(time) || !isFinite(time)) {return "0:00";}
         const minutes = Math.floor(time / 60);
         const seconds = Math.floor(time % 60);
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -135,9 +137,11 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
                 onEnded={() => setIsPlaying(false)}
                 onError={(e) => {
                     console.error("Audio Load Error in Player:", e);
-                    if (onError) onError(e);
+                    if (onError) {onError(e);}
                 }}
-            />
+            >
+                <track kind="captions" />
+            </audio>
 
             <div className="flex items-center gap-3 mb-2">
                 <button
@@ -156,8 +160,8 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
                                 value={tempName}
                                 onChange={(e) => setTempName(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter') saveRename();
-                                    if (e.key === 'Escape') cancelRename();
+                                    if (e.key === 'Enter') {saveRename();}
+                                    if (e.key === 'Escape') {cancelRename();}
                                 }}
                                 className="w-full text-xs font-semibold bg-[#1E1F22] border border-[#5865F2] rounded px-1 py-0.5 text-white outline-none"
                             />

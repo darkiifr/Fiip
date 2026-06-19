@@ -1,4 +1,5 @@
 import { bench, describe } from 'vitest';
+
 import { moderationService } from './moderation.js';
 
 describe('Moderation Service Benchmarks', () => {

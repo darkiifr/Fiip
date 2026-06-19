@@ -1,23 +1,29 @@
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
+import { HocuspocusProvider } from '@hocuspocus/provider';
+import Collaboration from '@tiptap/extension-collaboration';
+import CollaborationCaret from '@tiptap/extension-collaboration-caret';
+import { Color } from '@tiptap/extension-color';
+import FontFamily from '@tiptap/extension-font-family';
+import Highlight from '@tiptap/extension-highlight';
 import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
-import { Color } from '@tiptap/extension-color';
-import Highlight from '@tiptap/extension-highlight';
+import Underline from '@tiptap/extension-underline';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
 import {
     Bold, Italic, Strikethrough,
     AlignLeft, AlignCenter, AlignRight,
     List, ListOrdered, Undo, Redo
 } from 'lucide-react';
 import React, { useEffect } from 'react';
-import ToolbarCombobox from './ToolbarCombobox';
+import * as Y from 'yjs';
 
-import FontFamily from '@tiptap/extension-font-family';
-import { FontSize } from './FontSizeExtension';
-import { detectLocalFonts } from '../utils/fontDetector';
+
 import { getInstalledFonts } from '../services/fontStore';
+import { detectLocalFonts } from '../utils/fontDetector';
+
+import { FontSize } from './FontSizeExtension';
 import { LanguageToolExtension } from './LanguageToolExtension';
+import ToolbarCombobox from './ToolbarCombobox';
 
 
 
@@ -117,7 +123,7 @@ const MenuBar = ({ editor }) => {
             return;
         }
         let size = val;
-        if (/^\d+$/.test(size)) size += 'px';
+        if (/^\d+$/.test(size)) {size += 'px';}
         editor.chain().focus().setFontSize(size).run();
     };
 
@@ -247,10 +253,28 @@ const MenuBar = ({ editor }) => {
 };
 
 
-export default React.forwardRef(function RichTextEditor({ value, onChange, onKeyDown, spellcheck = true }, ref) {
+export default React.forwardRef(function RichTextEditor({ value, onChange, onKeyDown, spellcheck = true, noteId, user }, ref) {
+    
+    const { ydoc, provider } = React.useMemo(() => {
+        const doc = new Y.Doc();
+        const prov = new HocuspocusProvider({
+            url: import.meta.env.VITE_HOCUSPOCUS_URL || 'ws://localhost:1234',
+            name: `fiip-v2-${noteId || 'default'}`,
+            document: doc,
+        });
+        return { ydoc: doc, provider: prov };
+    }, [noteId]);
+
+    useEffect(() => {
+        return () => {
+            provider?.destroy();
+            ydoc?.destroy();
+        };
+    }, [provider, ydoc]);
+
     const editor = useEditor({
         extensions: [
-            StarterKit,
+            StarterKit.configure({ history: false }),
             Underline,
             TextAlign.configure({ types: ['heading', 'paragraph'] }),
             TextStyle,
@@ -258,6 +282,14 @@ export default React.forwardRef(function RichTextEditor({ value, onChange, onKey
             Highlight.configure({ multicolor: true }),
             FontFamily,
             FontSize,
+            Collaboration.configure({ document: ydoc }),
+            CollaborationCaret.configure({
+                provider: provider,
+                user: { 
+                    name: user?.user_metadata?.username || 'Anonyme', 
+                    color: user?.user_metadata?.accent_color || '#' + '00bfff' 
+                }
+            }),
             ...(spellcheck ? [LanguageToolExtension] : []),
         ],
         content: value,

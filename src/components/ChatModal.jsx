@@ -1,20 +1,22 @@
+import EmojiPicker, { Theme, EmojiStyle } from 'emoji-picker-react';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+
 import { keyAuthService } from '../services/keyauth';
 import { moderationService } from '../services/moderation';
 import { soundManager } from '../services/soundManager';
+
 import UserProfileModal from './UserProfileModal';
-import { useTranslation } from 'react-i18next';
-import EmojiPicker, { Theme, EmojiStyle } from 'emoji-picker-react';
 
 // Icons Import (Pim's Edition)
-import IconClose from '~icons/mingcute/close-fill';
-import IconSend from '~icons/mingcute/send-plane-fill';
-import IconRefresh from '~icons/mingcute/refresh-3-fill';
-import IconHashtag from '~icons/mingcute/hashtag-fill';
-import IconEmotion from '~icons/mingcute/emoji-fill';
-import IconUser from '~icons/mingcute/user-4-fill';
-import IconSettings from '~icons/mingcute/settings-3-fill';
 import IconAddCircle from '~icons/mingcute/add-circle-fill';
+import IconClose from '~icons/mingcute/close-fill';
+import IconEmotion from '~icons/mingcute/emoji-fill';
+import IconHashtag from '~icons/mingcute/hashtag-fill';
+import IconRefresh from '~icons/mingcute/refresh-3-fill';
+import IconSend from '~icons/mingcute/send-plane-fill';
+import IconSettings from '~icons/mingcute/settings-3-fill';
+import IconUser from '~icons/mingcute/user-4-fill';
 
 export default function ChatModal({ isOpen, onClose }) {
     const { t } = useTranslation();
@@ -50,7 +52,7 @@ export default function ChatModal({ isOpen, onClose }) {
 
     const fetchMessages = async () => {
         // Only set loading on first load to avoid flickering
-        if (messages.length === 0) setLoading(true);
+        if (messages.length === 0) {setLoading(true);}
         
         const result = await keyAuthService.getChatMessages(activeChannel);
         if (result.success) {
@@ -87,20 +89,20 @@ export default function ChatModal({ isOpen, onClose }) {
                     if (cloud.success && cloud.data) {
                         try {
                             profile = typeof cloud.data === 'string' ? JSON.parse(cloud.data) : cloud.data;
-                            if (profile) localStorage.setItem('fiip_public_profile', JSON.stringify(profile));
+                            if (profile) {localStorage.setItem('fiip_public_profile', JSON.stringify(profile));}
                         } catch { /* ignore */ }
                     }
                 }
                 if (!profile) {
                     const local = localStorage.getItem('fiip_public_profile');
-                    if (local) profile = JSON.parse(local);
+                    if (local) {profile = JSON.parse(local);}
                 }
                 setCurrentUserProfile(profile || {});
+                await fetchMessages();
             };
             load();
-            fetchMessages();
             const interval = setInterval(() => {
-                if (autoRefresh) fetchMessages();
+                if (autoRefresh) {fetchMessages();}
             }, 5000);
             return () => clearInterval(interval);
         }
@@ -108,7 +110,7 @@ export default function ChatModal({ isOpen, onClose }) {
     }, [isOpen, autoRefresh, activeChannel, showProfileModal]);
 
     const searchTenor = async (query) => {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
+        if (debounceRef.current) {clearTimeout(debounceRef.current);}
         
         debounceRef.current = setTimeout(async () => {
             try {
@@ -167,7 +169,7 @@ export default function ChatModal({ isOpen, onClose }) {
              return;
         }
 
-        if (!newMessage.trim()) return;
+        if (!newMessage.trim()) {return;}
 
         // Moderation
         const moderation = moderationService.analyzeMessage(newMessage);
@@ -248,7 +250,7 @@ export default function ChatModal({ isOpen, onClose }) {
         msg.author.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (!isOpen) return null;
+    if (!isOpen) {return null;}
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm font-sans p-4 sm:p-6 text-sm">

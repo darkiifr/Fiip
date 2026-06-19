@@ -1,81 +1,208 @@
 import { keyAuthService } from './keyauth';
 
-const DEFAULT_OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
-const DEFAULT_OPENROUTER_MODEL = 'openai/gpt-oss-20b:free';
+export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+export const FREE_MODEL_ROUTER = 'openrouter/free';
 
-export const generateText = async ({ apiKey, model, messages, signal, jsonMode }) => {
-    // Vérification de la licence (Abonnement requis pour l'IA)
-    if (!keyAuthService.hasAIAccess()) {
-        throw new Error("Cette fonctionnalité nécessite un abonnement actif. Veuillez activer votre licence.");
-    }
+const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
 
-    const finalKey = apiKey && apiKey.trim() ? apiKey : DEFAULT_OPENROUTER_KEY;
+const usageListeners = new Set();
+let lastUsageStats = null;
 
-    const finalModel = model || DEFAULT_OPENROUTER_MODEL;
+function normalizeGenerateTextArgs(input, model, signal) {
+  if (typeof input === 'string') {
+    return {
+      model,
+      signal,
+      messages: [{ role: 'user', content: input }],
+    };
+  }
 
-    if (!finalKey && finalModel !== DEFAULT_OPENROUTER_MODEL) {
-        throw new Error("Modèle payant sélectionné sans clé API. Configurez votre clé API ou choisissez un modèle gratuit.");
-    }
+  return input || {};
+}
 
-    const maxRetries = 3;
-    let attempt = 0;
+function assertOpenRouterKey() {
+  if (!OPENROUTER_KEY) {
+    throw new Error('OpenRouter est configuré via le secret GitHub VITE_OPENROUTER_KEY. Aucune clé locale personnalisée n’est acceptée.');
+  }
+}
 
-    while (attempt < maxRetries) {
-        try {
-            const body = {
-                model: finalModel,
-                messages: messages,
-                temperature: 0.7,
-            };
+function notifyUsage(stats) {
+  lastUsageStats = stats;
+  usageListeners.forEach((listener) => listener(stats));
+}
 
-            if (jsonMode) {
-                body.response_format = { type: "json_object" };
-            }
+async function fetchGenerationStats(generationId) {
+  if (!generationId) {
+    return null;
+  }
 
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${finalKey}`,
-                    "Content-Type": "application/json",
-                    // "HTTP-Referer": "https://fiip-notes.app", // Optional
-                    // "X-Title": "Fiip Notes" // Optional
-                },
-                body: JSON.stringify(body),
-                signal: signal
-            });
+  const response = await fetch(`${OPENROUTER_BASE_URL}/generation?id=${encodeURIComponent(generationId)}`, {
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_KEY}`,
+    },
+  });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                
-                // Retry on 503 (Service Unavailable) or 429 (Rate Limit)
-                if ((response.status === 503 || response.status === 429) && attempt < maxRetries - 1) {
-                    console.warn(`API Error ${response.status}. Retrying... (${attempt + 1}/${maxRetries})`);
-                    attempt++;
-                    await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
-                    continue;
-                }
+  if (!response.ok) {
+    return null;
+  }
 
-                throw new Error(`Erreur API (${response.status}): ${errorData.error?.message || response.statusText}`);
-            }
+  return response.json();
+}
 
-            const data = await response.json();
-            return data.choices[0]?.message?.content || "";
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                console.log('Generation aborted');
-                throw error;
-            }
-            
-            // If it's the last attempt or not a retryable error, throw it
-            if (attempt === maxRetries - 1) {
-                console.error("AI Generation Error:", error);
-                throw error;
-            }
-            
-            // If it was a network error (fetch failed), retry
-            console.warn(`Network Error. Retrying... (${attempt + 1}/${maxRetries})`, error);
-            attempt++;
-            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+export function subscribeToAIUsage(listener) {
+  usageListeners.add(listener);
+  if (lastUsageStats) {
+    listener(lastUsageStats);
+  }
+
+  return () => usageListeners.delete(listener);
+}
+
+export function getLastAIUsageStats() {
+  return lastUsageStats;
+}
+
+export async function listOpenRouterModels({ freeOnly = true } = {}) {
+  assertOpenRouterKey();
+
+  const response = await fetch(`${OPENROUTER_BASE_URL}/models`, {
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_KEY}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erreur modèles OpenRouter (${response.status})`);
+  }
+
+  const payload = await response.json();
+  const models = Array.isArray(payload.data) ? payload.data : [];
+
+  if (!freeOnly) {
+    return models;
+  }
+
+  return models.filter((model) => {
+    const promptPrice = Number(model.pricing?.prompt || 0);
+    const completionPrice = Number(model.pricing?.completion || 0);
+    return model.id?.endsWith(':free') || (promptPrice === 0 && completionPrice === 0);
+  });
+}
+
+export const generateText = async (input, model, signal) => {
+  const { messages, signal: requestedSignal, jsonMode } = normalizeGenerateTextArgs(input, model, signal);
+
+  if (!keyAuthService.hasAIAccess()) {
+    throw new Error('Cette fonctionnalité nécessite un abonnement actif. Veuillez activer votre licence.');
+  }
+
+  assertOpenRouterKey();
+
+  const maxRetries = 3;
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    try {
+      const body = {
+        model: FREE_MODEL_ROUTER,
+        messages,
+        temperature: 0.7,
+      };
+
+      if (jsonMode) {
+        body.response_format = { type: 'json_object' };
+      }
+
+      const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://fiip.app',
+          'X-Title': 'Fiip',
+        },
+        body: JSON.stringify(body),
+        signal: requestedSignal,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        if ((response.status === 429 || response.status === 503) && attempt < maxRetries - 1) {
+          attempt += 1;
+          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+          continue;
         }
+
+        throw new Error(`Erreur OpenRouter (${response.status}): ${errorData.error?.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      const generationId = data.id;
+      const generationStats = await fetchGenerationStats(generationId);
+
+      notifyUsage({
+        id: generationId,
+        model: FREE_MODEL_ROUTER,
+        usage: data.usage || generationStats?.data || generationStats || null,
+        createdAt: new Date().toISOString(),
+      });
+
+      return data.choices?.[0]?.message?.content || '';
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw error;
+      }
+
+      if (attempt === maxRetries - 1) {
+        throw error;
+      }
+
+      attempt += 1;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
     }
+  }
+};
+
+export const aiService = {
+  FREE_MODEL_ROUTER,
+  getLastUsageStats: getLastAIUsageStats,
+  listModels: listOpenRouterModels,
+  subscribeToUsage: subscribeToAIUsage,
+
+  async enhanceNote(content) {
+    return generateText({
+      messages: [
+        {
+          role: 'system',
+          content: 'Améliore cette note en français en gardant le sens, la structure utile et un ton clair. Retourne uniquement le contenu amélioré.',
+        },
+        { role: 'user', content: content || '' },
+      ],
+    });
+  },
+
+  async getSmartSuggestions(content) {
+    const response = await generateText({
+      jsonMode: true,
+      messages: [
+        {
+          role: 'system',
+          content: 'Retourne un JSON {"suggestions":["..."]} avec 3 suggestions courtes et actionnables pour améliorer une note.',
+        },
+        { role: 'user', content: content || '' },
+      ],
+    });
+
+    try {
+      const parsed = JSON.parse(response);
+      return Array.isArray(parsed.suggestions) ? parsed.suggestions : [];
+    } catch {
+      return response
+        .split('\n')
+        .map((line) => line.replace(/^[-*\d.\s]+/, '').trim())
+        .filter(Boolean)
+        .slice(0, 3);
+    }
+  },
 };

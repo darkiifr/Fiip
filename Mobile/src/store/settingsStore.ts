@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type TypographyMode = 'Inter' | 'Roboto' | 'System' | 'Outfit';
+export type FontSizeMode = 'petite' | 'moyenne' | 'grande';
 
 interface SettingsState {
   hapticsEnabled: boolean;
@@ -17,6 +19,18 @@ interface SettingsState {
   setSubscriptionPlan: (plan: 'free' | 'pro' | 'pro+') => void;
   lang: string;
   setLang: (lang: string) => void;
+  
+  // New visual configurations from mockup 3
+  typography: TypographyMode;
+  setTypography: (font: TypographyMode) => void;
+  fontSize: FontSizeMode;
+  setFontSize: (size: FontSizeMode) => void;
+  autoSave: boolean;
+  setAutoSave: (enabled: boolean) => void;
+  showWordCount: boolean;
+  setShowWordCount: (enabled: boolean) => void;
+  showReadingTime: boolean;
+  setShowReadingTime: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -26,7 +40,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHapticsEnabled: (enabled) => set({ hapticsEnabled: enabled }),
       syncEnabled: true,
       setSyncEnabled: (enabled) => set({ syncEnabled: enabled }),
-      themeMode: 'system',
+      themeMode: 'light', // Light theme matches default screens
       setThemeMode: (mode) => set({ themeMode: mode }),
       globalLockEnabled: false,
       setGlobalLockEnabled: (enabled) => set({ globalLockEnabled: enabled }),
@@ -34,6 +48,18 @@ export const useSettingsStore = create<SettingsState>()(
       setSubscriptionPlan: (plan) => set({ subscriptionPlan: plan }),
       lang: 'fr',
       setLang: (lang) => set({ lang: lang }),
+      
+      // Defaults matching Screen 3
+      typography: 'Inter',
+      setTypography: (typography) => set({ typography }),
+      fontSize: 'moyenne',
+      setFontSize: (fontSize) => set({ fontSize }),
+      autoSave: true,
+      setAutoSave: (autoSave) => set({ autoSave }),
+      showWordCount: true,
+      setShowWordCount: (showWordCount) => set({ showWordCount }),
+      showReadingTime: true,
+      setShowReadingTime: (showReadingTime) => set({ showReadingTime }),
     }),
     {
       name: 'settings-storage',

@@ -1,67 +1,65 @@
-
-import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import Sidebar from "./components/Sidebar";
-import NoteList from "./components/NoteList";
-import Editor from "./components/Editor";
-import SettingsModal from "./components/SettingsModal";
-import LicenseModal from "./components/LicenseModal";
-import ChatModal from "./components/ChatModal";
-import AuthModal from "./components/AuthModal";
-import ShareModal from "./components/ShareModal";
-import LoadingScreen from "./components/LoadingScreen";
-import Dexter from "./components/Dexter";
-import Titlebar from "./components/Titlebar";
-// import CollaborationView from "./components/CollaborationView";
-import "./App.css";
-
-import { type } from '@tauri-apps/plugin-os';
-// import { readFile } from '@tauri-apps/plugin-fs';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
+import { ask, message } from '@tauri-apps/plugin-dialog';
+import { type } from '@tauri-apps/plugin-os';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
-import IconFileText from '~icons/mingcute/file-fill';
-import { keyAuthService } from "./services/keyauth";
-import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
-import { soundManager } from "./services/soundManager";
+
+import OnboardingView from "./components/OnboardingView";
+import SettingsView from "./components/SettingsView";
+import { CommandPalette } from "./components/ui/CommandPalette";
+import Dexter from "./components/Dexter";
+import Editor from "./components/Editor";
+import LicenseModal from "./components/LicenseModal";
+import LoadingScreen from "./components/LoadingScreen";
+import ShareModal from "./components/ShareModal";
+import UnifiedSidebar from "./components/UnifiedSidebar";
+import HomeDashboard from "./components/HomeDashboard";
+import Titlebar from "./components/Titlebar";
+import UserProfileModal from "./components/UserProfileModal";
 import { calculateTotalUsage } from "./services/fileManager";
 import { initializeFonts } from "./services/fontStore";
+import { keyAuthService } from "./services/keyauth";
+import { soundManager } from "./services/soundManager";
+import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
 
-// Helper to convert buffer to base64
-// function arrayBufferToBase64(buffer) {
-//    let binary = '';
-//    const bytes = new Uint8Array(buffer);
-//    const len = bytes.byteLength;
-//    for (let i = 0; i < len; i++) {
-//        binary += String.fromCharCode(bytes[i]);
-//    }
-//    return window.btoa(binary);
-// }
+import "./App.css";
 
-// const LICENSE_URL = "https://votre-site-de-licence.com"; // À remplacer par le vrai lien
+const getCurrentTimestamp = () => new Date().getTime();
 
 function App() {
   const { t, i18n } = useTranslation();
   const [appLoading, setAppLoading] = useState({ isLoading: true, status: 'Chargement...' });
   const [activeNav, setActiveNav] = useState('home');
+  const [onboardingCompleted, setOnboardingCompleted] = useState(() => {
+    return localStorage.getItem('fiip-onboarding-completed') === 'true';
+  });
+  const [user, setUser] = useState(null);
+  
   const [notes, setNotes] = useState(() => {
     const saved = localStorage.getItem("fiip-notes");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+            return parsed;
+        }
       } catch (e) {
         console.error("Failed to parse notes", e);
       }
     }
+    const now = getCurrentTimestamp();
     return [
       {
         id: "1",
-        title: "Bienvenue sur Fiip 👋",
-        content: "<h1>Fiip : Votre Espace de Notes Connecté</h1><p>Bienvenue sur <strong>Fiip</strong> ! Découvrez une interface fluide et intelligente pour gérer vos idées.</p><ul><li>✏️ <strong>Éditeur de texte riche</strong> pour mettre en forme vos notes.</li><li>🤖 <strong>Mode Dexter (Intelligence Artificielle)</strong> : sélectionnez du texte et demandez de reformuler, traduire ou résumer.</li><li>🤝 <strong>Notes Collaboratives</strong> pour travailler en temps réel avec vos proches.</li><li>🗑️ <strong>Système de corbeille</strong> : aucune note n'est perdue par erreur.</li></ul><p><br></p><p><em>Créez un compte gratuitement pour commencer à synchroniser vos notes !</em></p>",
-        updatedAt: Date.now(),
+        title: "Démarrer avec Fiip",
+        content: "<h1>Bienvenue dans votre nouvel espace de pensée</h1><p>Fiip est conçu pour être minimaliste, puissant et sécurisé.</p><ul><li><strong>Organisation</strong> : Utilisez la barre latérale pour naviguer dans vos notes et favoris.</li><li><strong>Intelligence</strong> : Sélectionnez du texte pour activer Dexter, votre assistant IA.</li><li><strong>Synchronisation</strong> : Connectez-vous pour retrouver vos notes sur tous vos appareils.</li></ul>",
+        updatedAt: now,
+        createdAt: now,
+        favorite: false,
+        deleted: false
       }
     ];
   });
@@ -79,717 +77,272 @@ function App() {
         windowEffect: 'mica',
         titlebarStyle: 'macos',
         darkMode: true,
-        cloudSync: true // Default to true
+        cloudSync: true
     };
     return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
   });
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
   const [isDexterOpen, setIsDexterOpen] = useState(false);
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
-  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [storageUsage, setStorageUsage] = useState({ used: 0, limit: 0, percent: 0 });
-  
-  // Refs for stable access in callbacks/listeners
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // --- Refs ---
   const notesRef = useRef(notes);
   const saveTimeoutRef = useRef(null);
-  const settingsRef = useRef(settings);
 
-  useEffect(() => { notesRef.current = notes; }, [notes]);
-  
-  useEffect(() => {
-    // macOS fix: Force window to show and focus in case it launches transparent/invisible
-    setTimeout(() => {
-        let win; try { win = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
-        if(win) {
-            win.show();
-            win.setFocus();
-        }
-    }, 100);
-  }, []);
-  useEffect(() => { settingsRef.current = settings; }, [settings]);
-
-  // Update storage info whenever notes change or modal opens
-  useEffect(() => {
-      const updateStorage = async () => {
-          let used = 0;
-          // Only fetch real cloud usage if settings are open to save API calls
-          if (isSettingsOpen) {
-             used = await dataService.getUsage();
-          } else {
-             // Otherwise use local estimation
-             used = await calculateTotalUsage(notes);
-          }
-          
-          const user = await authService.getUser();
-          const level = user?.user_metadata?.subscription_level || 0;
-          const limit = getStorageLimit(level);
-          const percent = limit > 0 ? (used / limit) * 100 : 0;
-          setStorageUsage({ used, limit, percent });
-      };
-      updateStorage();
-  }, [notes, isSettingsOpen]);
-
-  // Configure Deep Link Listener
-  useEffect(() => {
-    const setupDeepLink = async () => {
-      try {
-        const unlisten = await onOpenUrl(async (urls) => {
-          console.log('Deep link received:', urls);
-          for (const url of urls) {
-
-            // Handle Import Note
-            if (url.startsWith('fiip://note/')) {
-                const slug = url.split('fiip://note/')[1];
-                if (slug) {
-                    window.dispatchEvent(new CustomEvent('import-note', { detail: slug }));
-                    continue; // Skip the rest for this URL
-                }
-            }
-
-            // Handle Supabase OAuth Callback (Implicit & PKCE)
-            let success = false;
-            try {
-                const urlObj = new URL(url);
-                const hashParams = new URLSearchParams(urlObj.hash.substring(1)); // remove #
-                const queryParams = urlObj.searchParams;
-
-                // 1. Implicit Grant (Access Token in Hash)
-                const accessToken = hashParams.get('access_token');
-                const refreshToken = hashParams.get('refresh_token');
-
-                // 2. PKCE Flow (Code in Query)
-                const code = queryParams.get('code');
-                const error = queryParams.get('error') || hashParams.get('error');
-                const errorDesc = queryParams.get('error_description') || hashParams.get('error_description');
-
-                if (error) {
-                    console.error("Auth Error:", error, errorDesc);
-                    // Optionally show error to user
-                    continue;
-                }
-
-                if (accessToken && refreshToken) {
-                    const { error } = await authService.setSession(accessToken, refreshToken);
-                    if (!error) success = true;
-                } else if (code) {
-                    const { error } = await authService.exchangeCodeForSession(code);
-                    if (!error) success = true;
-                }
-
-                if (success) {
-                    const user = await authService.getUser();
-                    if (user) {
-                        const savedLevel = user?.user_metadata?.subscription_level || 0;
-                        const savedKey = user?.user_metadata?.license_key;
-                        const username = user?.user_metadata?.username || user?.email;
-                        
-                        if (savedKey) {
-                            // Validation de la clé de l'utilisateur après login Google
-                            const res = await keyAuthService.validateLicense(savedKey);
-                            if (res.success) {
-                                keyAuthService.setLocalLevel(res.level, username);
-                            } else {
-                                keyAuthService.setLocalLevel(0, username);
-                            }
-                        } else {
-                            keyAuthService.setLocalLevel(savedLevel, username);
-                        }
-                        
-                        setIsAuthModalOpen(false);
-                        
-                        if (keyAuthService.isAuthenticated || keyAuthService.isTrialActive) {
-                            setIsLicenseModalOpen(false);
-                        } else {
-                            setIsLicenseModalOpen(true);
-                        }
-
-                        // Force sync immediately
-                        if (typeof loadDataFromSupabase === 'function') {
-                            await loadDataFromSupabase();
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error("Deep link parse error", e);
-            }
-          }
-        });
-        // Cleanup function for unlisten if supported by run-time? 
-        // onOpenUrl returns a Promise<UnlistenFn> usually.
-        return unlisten;
-      } catch (e) {
-        console.error("Deep link setup failed", e);
-      }
+  // --- Computed State ---
+  const storageUsage = useMemo(() => {
+    const level = keyAuthService.hasProAccess() ? 10 : 0;
+    const limit = getStorageLimit(level);
+    const used = calculateTotalUsage(notes);
+    return {
+        used,
+        limit,
+        percent: limit > 0 ? (used / limit) * 100 : 0
     };
-    
-    let unlistenFn;
-    setupDeepLink().then(fn => unlistenFn = fn);
-    
-    return () => {
-        if (unlistenFn) unlistenFn();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Listen for 'import-note' events safely
-  useEffect(() => {
-    const handleImportNoteEvent = async (e) => {
-        const slug = e.detail;
-        if (!slug) return;
-        
-        try {
-            setAppLoading({ isLoading: true, status: "Importation de la note..." });
-            const { data, error } = await dataService.getPublicNote(slug);
-            
-            if (error || !data) {
-                console.error("Failed to fetch public note", error);
-                alert("Erreur lors de l'importation de la note partagée.");
-                setAppLoading({ isLoading: false, status: '' });
-                return;
-            }
-
-            // Demander confirmation avant d'importer la note copiée
-            const confirmImport = window.confirm(`Voulez-vous importer la note partagée "${data.title || 'Sans titre'}" dans votre espace ?\nElle sera ajoutée à vos notes partagées.`);
-            if (!confirmImport) {
-                setAppLoading({ isLoading: false, status: '' });
-                return;
-            }
-
-            const newId = crypto.randomUUID();
-            const importedNote = {
-                ...data,
-                id: newId,
-                public_slug: null, // Don't steal original's slug
-                shared: true,      // Pre-add to shared list/category
-                created_at: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            };
-
-            setNotes(prev => [importedNote, ...prev]);
-            setSelectedNoteId(newId);
-            setActiveNav('shared');
-            
-            // Save to DB
-            await dataService.saveNote(importedNote);
-        } catch (err) {
-            console.error("Error importing note:", err);
-            alert("Erreur lors de l'importation de la note partagée.");
-        } finally {
-            setAppLoading({ isLoading: false, status: "" });
-        }
-    };
-
-    window.addEventListener('import-note', handleImportNoteEvent);
-    return () => window.removeEventListener('import-note', handleImportNoteEvent);
-  }, []); // notes are accessed correctly via functional update prev => ...
-
-  // Configure Auto Updater
-  useEffect(() => {
-    const checkAndInstallUpdates = async () => {
-      // Désactiver les mises à jour automatiques en mode développement
-      if (import.meta.env.DEV) {
-        return;
-      }
-      
-      // Check if user disabled auto-update
-      if (settingsRef.current?.autoUpdate === false) {
-        return;
-      }
-      try {
-        const { check } = await import('@tauri-apps/plugin-updater');
-        const update = await check();
-        if (update?.available) {
-          console.log(`Update available: ${update.version}`);
-            const yes = await ask(`Une nouvelle version de Fiip vous attend (v${update.version}).\n\nVoulez-vous la télécharger et l'installer maintenant ?`, {
-              title: 'Mise à jour disponible',
-              kind: 'info',
-              okLabel: 'Mettre à jour',
-              cancelLabel: 'Plus tard'
-            });
-            if (yes) {
-              await update.downloadAndInstall();
-              console.log("Update installed, relaunching...");
-              // Redémarrer l'application pour appliquer les changements
-              await relaunch();
-            }
-        }
-      } catch (e) {
-        console.error("Erreur durant la mise à jour automatique :", e);
-      }
-    };
-    checkAndInstallUpdates();
-  }, []);
-
-  useEffect(() => {
-    const handleGlobalClick = (e) => {
-        // Check if target is a button, or inside a button
-        let target = e.target;
-        while (target && target !== document.body) {
-            if (target.tagName === 'BUTTON' || target.getAttribute('role') === 'button') {
-                soundManager.play('interaction');
-                break;
-            }
-            target = target.parentElement;
-        }
-    };
-    window.addEventListener('click', handleGlobalClick, true); // Capture phase to ensure we catch it
-    return () => window.removeEventListener('click', handleGlobalClick, true);
-  }, []);
-
-  // Initialize KeyAuth and check license with Loading Screen
-  useEffect(() => {
-    const initApp = async () => {
-        try {
-            setAppLoading({ isLoading: true, status: "Démarrage des services..." });
-
-            // Helper function to prevent any await from blocking infinitely
-            const withGlobalTimeout = (promise, ms, name) => {
-                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout: ${name}`)), ms));
-                return Promise.race([promise, timeout]);
-            };
-
-            try {
-                await withGlobalTimeout(keyAuthService.init(), 5000, "KeyAuth Init");
-            } catch (err) {
-                console.warn("KeyAuth initialization skipped or failed:", err);
-            }
-
-            // Sync Supabase Level to Local
-            let user = null;
-            try {
-                user = await withGlobalTimeout(authService.getUser(), 5000, "Supabase GetUser");
-            } catch (err) {
-                console.warn("Supabase auth check failed or timed out:", err);
-            }
-            
-            if (user) {
-                const savedLevel = user?.user_metadata?.subscription_level || 0;
-                const savedKey = user?.user_metadata?.license_key;
-                const username = user?.user_metadata?.username || user?.email;
-                
-                if (savedKey) {
-                    setAppLoading({ isLoading: true, status: "Vérification de la licence système..." });
-                    try {
-                        const res = await withGlobalTimeout(keyAuthService.validateLicense(savedKey), 5000, "KeyAuth Validate");
-                        if (res && res.success) {
-                            keyAuthService.setLocalLevel(res.level, username);
-                        } else {
-                            keyAuthService.setLocalLevel(0, username);
-                        }
-                    } catch (err) {
-                        console.warn("License validation timed out or failed:", err);
-                        keyAuthService.setLocalLevel(savedLevel, username); // fallback to saved level
-                    }
-                } else {
-                    keyAuthService.setLocalLevel(savedLevel, username);
-                }
-            }
-
-            // Register Deep Link Protocol (Windows Registry)
-            try {
-                await withGlobalTimeout(invoke('register_deep_link'), 3000, "Register Deep Link");
-                console.log("Deep link protocol registered.");
-            } catch (e) {
-                console.warn("Failed to register deep link:", e);
-            }
-
-            // Initialize Fonts
-            try {
-                setAppLoading({ isLoading: true, status: "Chargement des polices .fiif..." });
-                await withGlobalTimeout(initializeFonts(), 5000, "Font Initialization");
-            } catch (e) {
-                console.warn("Failed to load fonts:", e);
-            }
-            
-            setAppLoading({ isLoading: true, status: "Vérification de la licence..." });
-            
-            // If still not authenticated and not in trial -> show license modal
-            if (!keyAuthService.isAuthenticated && !keyAuthService.isTrialActive) {
-                setIsLicenseModalOpen(true);
-            }
-            
-            // If logged in, maybe sync?
-            if (keyAuthService.isAuthenticated) {
-                 setAppLoading({ isLoading: true, status: "Synchronisation des notes..." });
-                 // Auto-sync down silently on startup
-                 try {
-                     await withGlobalTimeout(loadDataFromSupabase(), 8000, "Supabase Sync");
-                 } catch (err) {
-                     console.warn("Supabase loadDataFromSupabase timeout or failed:", err);
-                 }
-            }
-
-            setAppLoading({ isLoading: true, status: "Prêt" });
-            await new Promise(r => setTimeout(r, 400));
-            
-        } catch (e) {
-            console.error("Critical Init Error", e);
-            setAppLoading({ isLoading: false, status: "Mode hors ligne" });
-        } finally {
-            // ALWAYS finish loading
-            setAppLoading({ isLoading: false, status: "" });
-        }
-    };
-    initApp();
-
-    // Set up auth state listener
-    const authListener = authService.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-            const level = session.user.user_metadata?.subscription_level || 0;
-            const username = session.user.user_metadata?.username || session.user.email;
-            keyAuthService.setLocalLevel(level, username);
-            if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-                await loadDataFromSupabase();
-            }
-        } else if (event === 'SIGNED_OUT') {
-            keyAuthService.isAuthenticated = false;
-            keyAuthService.currentLevel = 0;
-            setNotes([{ id: '1', title: 'Bienvenue', content: 'Connectez-vous pour synchroniser...', favorite: false, badges: [], tags: [] }]);
-        }
-    });
-
-    // Sync on window focus
-    const handleFocus = () => {
-        if (keyAuthService.isAuthenticated) {
-            loadDataFromSupabase();
-        }
-    };
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-        if (authListener?.data?.subscription) {
-            authListener.data.subscription.unsubscribe();
-        }
-        window.removeEventListener('focus', handleFocus);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [notes]);
 
   // --- Supabase Data Sync & Realtime ---
-  const loadDataFromSupabase = async () => {
-    const user = await authService.getUser();
-    if (!user) return;
+  async function loadDataFromSupabase() {
+    const authedUser = await authService.getUser();
+    if (!authedUser) {
+        return;
+    }
 
     setIsSyncing(true);
     try {
-      // 1. Fetch Notes with Migration Logic
       const { data: remoteNotes, error: notesError } = await dataService.fetchNotes();
       
       if (!notesError && remoteNotes) {
           const localNotes = notesRef.current;
-          // Check for migration needed: Local has data, Remote is empty
           if (remoteNotes.length === 0 && localNotes && localNotes.length > 0) {
-              // Check if only default note
               const isDefault = localNotes.length === 1 && localNotes[0].id === '1';
-              
               if (!isDefault) {
-                  // Migrate local notes to cloud
-                  console.log("Migrating local notes to Supabase...");
                   for (const note of localNotes) {
                       const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id);
-                      let noteToSave = { ...note };
-                      
+                      const noteToSave = { ...note };
                       if (!isValidUUID) {
                           noteToSave.id = crypto.randomUUID();
                       }
-                      
                       await dataService.saveNote(noteToSave);
                   }
-                  // Re-fetch after migration
-                  const { data: migratedNotes, error: fetchErr } = await dataService.fetchNotes();
-                  if (!fetchErr && migratedNotes) setNotes(migratedNotes);
+                  const { data: refreshedRemote } = await dataService.fetchNotes();
+                  if (refreshedRemote) {
+                      setNotes(refreshedRemote);
+                      notesRef.current = refreshedRemote;
+                  }
+              } else {
+                  setNotes(remoteNotes);
+                  notesRef.current = remoteNotes;
               }
-          } else if (remoteNotes.length > 0) {
+          } else {
               setNotes(remoteNotes);
+              notesRef.current = remoteNotes;
           }
       }
-
-      // 2. Fetch Settings
-      const { data: remoteSettings, error: settingsError } = await dataService.fetchSettings();
-      if (!settingsError && remoteSettings && Object.keys(remoteSettings).length > 0) {
-         setSettings(prev => ({ ...prev, ...remoteSettings }));
-         // Apply language if changed
-         if (remoteSettings.language && remoteSettings.language !== i18n.language) {
-             i18n.changeLanguage(remoteSettings.language);
-         }
-      }
-
-      console.log("Supabase data loaded successfully");
     } catch (e) {
-      console.error("Error loading data from Supabase:", e);
+      console.error("Sync error", e);
     } finally {
       setIsSyncing(false);
     }
-  };
+  }
 
+  // --- Initialization ---
   useEffect(() => {
-    let subscription;
-    const setupRealtime = async () => {
-      const user = await authService.getUser();
-      if (!user) return;
-
-      subscription = dataService.subscribeToNotes((payload) => {
-          console.log('Realtime change:', payload);
-          if (payload.eventType === 'INSERT') {
-             setNotes(prev => {
-                const exists = prev.find(n => n.id === payload.new.id);
-                if (exists) return prev;
-                return [payload.new, ...prev];
-             });
-          } else if (payload.eventType === 'UPDATE') {
-             setNotes(prev => prev.map(n => {
-                 if (n.id === payload.new.id) {
-                     // Check if local note is newer before applying the payload
-                     const localUpdate = n.updatedAt || 0;
-                     const remoteUpdate = new Date(payload.new.updated_at).getTime() || 0;
-                     if (localUpdate > remoteUpdate) {
-                         return n; // Ignore outdated payload from realtime
-                     }
-                     // Map DB fields to local fields correctly (if needed) to prevent wiping out local arrays/state
-                     const updatedFromDb = { ...payload.new };
-                     if (updatedFromDb.updated_at) updatedFromDb.updatedAt = new Date(updatedFromDb.updated_at).getTime();
-                     if (updatedFromDb.is_favorite !== undefined) updatedFromDb.favorite = updatedFromDb.is_favorite;
-                     return { ...n, ...updatedFromDb };
-                 }
-                 return n;
-             }));
-          } else if (payload.eventType === 'DELETE') {
-             setNotes(prev => prev.filter(n => n.id !== payload.old.id));
+    const init = async () => {
+      try {
+        console.log("Fiip v" + (await invoke("get_app_version").catch(() => "3.0.0")) + " initializing...");
+        
+        await initializeFonts();
+        
+        const setupDeepLink = async () => {
+          try {
+            const unlisten = await onOpenUrl(async (urls) => {
+              console.log('URLs deep link received:', urls);
+              for (const url of urls) {
+                try {
+                    const parsedUrl = new URL(url);
+                    if (parsedUrl.host === 'license' || parsedUrl.pathname.includes('/license')) {
+                        const key = parsedUrl.searchParams.get('key');
+                        if (key) {
+                            const result = await keyAuthService.verifyLicense(key);
+                            if (result.success) {
+                                await message("Votre licence a été activée. Merci pour votre soutien !", { title: "Fiip License", kind: 'info' }).catch(console.error);
+                                setIsLicenseModalOpen(false);
+                            } else {
+                                setIsLicenseModalOpen(true);
+                            }
+                            await loadDataFromSupabase();
+                        }
+                    }
+                } catch (e) {
+                    console.error("Deep link parse error", e);
+                }
+              }
+            });
+            return unlisten;
+          } catch (e) {
+            console.error("Deep link setup failed", e);
           }
-      });
+        };
+        
+        let unlistenFn;
+        setupDeepLink().then(fn => unlistenFn = fn).catch(console.error);
+        
+        const sessionUser = await authService.getUser();
+        if (sessionUser) {
+            setUser(sessionUser);
+            localStorage.setItem('fiip-onboarding-completed', 'true');
+            setOnboardingCompleted(true);
+            await loadDataFromSupabase();
+        }
+
+        // Listen for auth state changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          setUser(session?.user || null);
+          if (session?.user) {
+              localStorage.setItem('fiip-onboarding-completed', 'true');
+              setOnboardingCompleted(true);
+          } else {
+              if (localStorage.getItem('fiip-mode-local') !== 'true') {
+                  setOnboardingCompleted(false);
+              }
+          }
+        });
+
+        setAppLoading({ isLoading: false, status: '' });
+
+        return () => {
+            if (unlistenFn) { unlistenFn(); }
+            subscription?.unsubscribe();
+        };
+      } catch (e) {
+        console.error("Critical Init Error:", e);
+        setAppLoading({ isLoading: false, status: '' });
+      }
     };
-    setupRealtime();
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Set real-time subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('fiip-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
+        if (isSyncing) return;
+        
+        if (payload.event === 'INSERT' || payload.event === 'UPDATE') {
+            const receivedNote = payload.new;
+            setNotes(prev => {
+                const index = prev.findIndex(n => n.id === receivedNote.id);
+                if (index !== -1) {
+                    const existing = prev[index];
+                    if (receivedNote.updatedAt > (existing.updatedAt || 0)) {
+                        const newNotes = [...prev];
+                        newNotes[index] = receivedNote;
+                        return newNotes;
+                    }
+                    return prev;
+                }
+                return [...prev, receivedNote];
+            });
+        } else if (payload.event === 'DELETE') {
+            setNotes(prev => prev.filter(n => n.id !== payload.old.id));
+        }
+      })
+      .subscribe();
 
     return () => {
-        if (subscription) supabase.removeChannel(subscription);
+      supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keyAuthService.isAuthenticated]); // Re-run when auth changes
+  }, [isSyncing]);
 
-  // Keep local storage in sync
   useEffect(() => {
-      if (notes) localStorage.setItem("fiip-notes", JSON.stringify(notes));
+    localStorage.setItem("fiip-notes", JSON.stringify(notes));
+    notesRef.current = notes;
   }, [notes]);
 
-  const handleLoginSuccess = async () => {
-      setIsAuthModalOpen(false);
-      await loadDataFromSupabase();
-  };
-
-  // Detect OS for default settings
   useEffect(() => {
-    if (!localStorage.getItem("fiip-settings")) {
-        const checkOS = async () => {
-            try {
-                const osType = await type();
-                if (osType === 'windows' || osType === 'linux') {
-                    setSettings(prev => ({ ...prev, titlebarStyle: 'windows' }));
-                }
-            } catch (e) {
-                console.error("Failed to detect OS", e);
-            }
-        };
-        checkOS();
-    }
-  }, []);
-
-  // Disable default context menu (Inspect Element)
-  useEffect(() => {
-    const handleContextMenu = (e) => {
-      // Allow context menu only on inputs and textareas if needed, 
-      // but user asked to remove "Inspect", so we block it globally 
-      // unless we implement custom menus everywhere.
-      // For now, we block it globally to satisfy "enlève le inspecter".
-      // We will implement custom context menu for notes in Sidebar.
-      e.preventDefault();
+    localStorage.setItem("fiip-settings", JSON.stringify(settings));
+    
+    // Resolve Light/Dark Mode
+    const resolveTheme = () => {
+      if (settings.theme === 'system') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      return settings.theme === 'light' ? 'light' : 'dark';
     };
-
-    document.addEventListener('contextmenu', handleContextMenu);
-    return () => document.removeEventListener('contextmenu', handleContextMenu);
-  }, []);
-
-  // Handle Close Request
-  useEffect(() => {
-      let unlisten;
-      const initCloseListener = async () => {
-          let win; try { win = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
-        unlisten = await win.listen('close-requested', async () => {
-            // Check if we need to sync
-              if (settings.cloudSync && keyAuthService.isAuthenticated) {
-                  // We can't easily prevent close in async listener in all Tauri versions cleanly without a state flag loop
-                  // But we can try to fire a sync. 
-                  // For a truly robust "save on exit", we'd need to preventDefault(), sync, then close.
-                  // For now, let's assume the 3s auto-save catches most, and we fire one last attempt.
-                  // However, since the app dies, this async call might die with it.
-                  // Best practice: The 3s debounce is the main mechanism.
-                  // We can reduce it to 1s for "iCloud-like" speed.
-                  console.log("Closing...");
-              }
-          });
-      };
-      initCloseListener();
-      return () => { if (unlisten) unlisten(); };
-  }, [settings.cloudSync]);
-
-  // Persist Settings
-  useEffect(() => {
-    localStorage.setItem("fiip-settings", JSON.stringify(settings));
+    const resolvedTheme = resolveTheme();
+    document.documentElement.className = resolvedTheme;
     
-    // Apply Settings Effects locally
-    document.documentElement.classList.add('dark'); // Force dark
-    const fontSize = settings.fontSize || (settings.largeText ? 'large' : 'normal');
-    document.documentElement.classList.remove('text-sm', 'text-base', 'text-lg', 'text-xl');
-    if (fontSize === 'small') {
-        document.documentElement.classList.add('text-sm');
-    } else if (fontSize === 'large') {
-        document.documentElement.classList.add('text-lg');
-    } else if (fontSize === 'xlarge') {
-        document.documentElement.classList.add('text-xl');
-    } else {
-        document.documentElement.classList.add('text-base');
+    soundManager.setAppSoundEnabled(settings.appSound);
+    soundManager.setChatSoundEnabled(settings.chatSound);
+    
+    if (window.__TAURI_INTERNALS__) {
+        invoke('set_window_effect', { effect: settings.windowEffect }).catch(console.error);
+        if (settings.windowEffect !== 'none') {
+            document.documentElement.classList.add('window-effect-active');
+        } else {
+            document.documentElement.classList.remove('window-effect-active');
+        }
     }
-    
-    const effect = settings.windowEffect || 'none';
-    document.documentElement.classList.remove('effect-none', 'effect-mica', 'effect-acrylic', 'effect-blur');
-    document.documentElement.classList.add(`effect-${effect}`);
-    
-    if (effect === 'none') {
-        document.body.style.backgroundColor = '#1C1C1E';
-    } else {
-        // macOS fix for invisible transparent window: use a slightly tinted background 
-        // so if vibrancy fails, the app is not a literal ghost window.
-        document.body.style.backgroundColor = 'rgba(28, 28, 30, 0.4)';
-    }
-    
-    invoke('set_window_effect', { effect })
-      .catch(err => console.error("Failed to set window effect:", err));
-
-    // Save to Supabase (Debounced)
-    const timeoutId = setTimeout(() => {
-        dataService.saveSettings(settings);
-    }, 2000);
-    return () => clearTimeout(timeoutId);
   }, [settings]);
 
-
-  // Close Dexter if AI is disabled
-  useEffect(() => {
-    if (settings.aiEnabled === false && isDexterOpen) {
-      setIsDexterOpen(false);
-    }
-  }, [settings.aiEnabled, isDexterOpen]);
-
-  // Handle Theme & Settings Persistence
-  useEffect(() => {
-    localStorage.setItem("fiip-settings", JSON.stringify(settings));
-
-    // Force Dark Mode
-    document.documentElement.classList.add('dark');
-
-    // Apply Font Size
-    const fontSize = settings.fontSize || (settings.largeText ? 'large' : 'normal');
-    document.documentElement.classList.remove('text-sm', 'text-base', 'text-lg', 'text-xl');
-    if (fontSize === 'small') {
-        document.documentElement.classList.add('text-sm');
-    } else if (fontSize === 'large') {
-        document.documentElement.classList.add('text-lg');
-    } else if (fontSize === 'xlarge') {
-        document.documentElement.classList.add('text-xl');
-    } else {
-        document.documentElement.classList.add('text-base');
-    }
-
-    // Apply Window Effect
-    const effect = settings.windowEffect || 'none';
-    document.documentElement.classList.remove('effect-none', 'effect-mica', 'effect-acrylic', 'effect-blur');
-    document.documentElement.classList.add(`effect-${effect}`);
-
-    // Apply UI Theme
-    document.body.classList.remove('theme-default', 'theme-liquid-glass-original', 'theme-liquid-glass-op');
-    document.body.classList.add(`theme-${settings.uiTheme || 'default'}`);
-
-    // If effect is 'none', ensure we have a background color
-    if (effect === 'none') {
-        document.body.style.backgroundColor = '#1C1C1E';
-    } else {
-        document.body.style.backgroundColor = 'rgba(28, 28, 30, 0.4)';
-    }
-
-    let win; try { win = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
-    if (win) {
-        // Utiliser une petite temporisation pour s'assurer que ça s'applique bien sous Windows
-        setTimeout(async () => {
-            try {
-                const { type } = await import('@tauri-apps/plugin-os');
-                const osType = await type();
-                
-                // On détermine si la fenêtre doit avoir les décorations système
-                // - Uniquement en mode macos sur macOS (pour Overlay avec les traffic lights natifs)
-                // - Ailleurs : non (la barre est soit dessinée en HTML/CSS, soit on est sur Windows où "Overlay" n'existe pas de la même manière)
-                const actualTitleBarStyle = settings.titlebarStyle === 'native' ? (osType === 'macos' ? 'macos' : 'windows') : settings.titlebarStyle;
-                const shouldHaveDecorations = false; // On utilise toujours la barre custom (HTML/CSS) pour éviter de casser la transparence
-                
-                // On n'appelle setDecorations que si on détecte qu'on en a besoin pour éviter de casser le rendu sur macOS 'Overlay'
-                // qui perd sa transparence quand on force setDecorations(true) alors qu'il y est déjà.
-                try {
-                    const isDecorated = await win.isDecorated();
-                    if (isDecorated !== shouldHaveDecorations) {
-                        await win.setDecorations(shouldHaveDecorations);
-                    }
-                } catch {
-                    // Si isDecorated n'est pas supporté (suivant la version Tauri), on le force
-                    await win.setDecorations(shouldHaveDecorations);
-                }
-            } catch (err) {
-                console.error("Failed to set window decorations:", err);
-            }
-        }, 100);
-    }
-
-    invoke('set_window_effect', { effect })
-      .catch(err => console.error("Failed to set window effect:", err));
-
-  }, [settings]);
-
-  const handleCreateNote = async (initialData = {}) => {
-    const user = await authService.getUser();
-    
-    // Generating UUID locally to match Supabase schema
-    // If initialData already has an id, it's a complete note (from import)
-    if (initialData.id) {
-      setNotes(prevNotes => [initialData, ...prevNotes]);
-      setSelectedNoteId(initialData.id);
-      if (storageUsage.percent < 100) await dataService.saveNote(initialData);
-      return;
-    }
-
-    // Otherwise, create a new empty note
+  const handleCreateNote = useCallback(async (title = "", content = "") => {
+    const now = getCurrentTimestamp();
     const newNote = {
       id: crypto.randomUUID(),
-      title: initialData.title || "",
-      content: initialData.content || "",
-      updatedAt: Date.now(), // Local timestamp, Supabase will use its own or this one
-      deleted: false,
+      title: title || t('common.new_note', "Nouvelle Note"),
+      content: content || "",
+      updatedAt: now,
+      createdAt: now,
       favorite: false,
-      user_id: user ? user.id : undefined
+      deleted: false
     };
-    setNotes(prevNotes => [newNote, ...prevNotes]);
+    setNotes((prev) => [newNote, ...prev]);
     setSelectedNoteId(newNote.id);
+    setActiveNav('home');
     
-    if (storageUsage.percent < 100) {
-      await dataService.saveNote(newNote);
+    try {
+        await dataService.saveNote(newNote);
+    } catch (e) {
+        console.error("Failed to sync new note", e);
     }
+    
+    return newNote;
+  }, [t]);
+
+  // Global Keyboard listener for Command Palette (⌘K) & New Note (⌘N)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            setIsCommandPaletteOpen(prev => !prev);
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+            e.preventDefault();
+            handleCreateNote();
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleCreateNote]);
+
+  // --- Handlers ---
+  const handleLoginSuccess = async () => {
+    await loadDataFromSupabase();
   };
 
   const handleUpdateNote = (updatedNote) => {
-    setNotes((prevNotes) => prevNotes.map((n) => (n.id === updatedNote.id ? updatedNote : n)));
-    // Debounce Save to Supabase
+    setNotes((prev) =>
+      prev.map((n) => (n.id === updatedNote.id ? updatedNote : n))
+    );
+
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    
-    if (storageUsage.percent >= 100) return; // Prevent Cloud Sync if full
     
     saveTimeoutRef.current = setTimeout(async () => {
         setIsSyncing(true);
@@ -798,39 +351,28 @@ function App() {
     }, 1000);
   };
 
-  /*
-  const checkStorageLimit = async (additionalBytes = 0) => {
-      const user = await authService.getUser();
-      const level = user?.user_metadata?.subscription_level || 0;
-      const limit = getStorageLimit(level);
-      if (limit === 0) return true; 
-      
-      const currentUsage = await calculateTotalUsage(notes);
-      
-      if (currentUsage + additionalBytes > limit) {
-          return false;
-      }
-      return true;
-  };
-  */
-  const handleDeleteNote = (noteId) => {
+  const handleDeleteNote = async (noteId) => {
     const idToDelete = noteId || selectedNoteId;
     if (!idToDelete) return;
 
     if (activeNav === 'trash') {
-        // Permanent delete
+        const confirmed = await ask(
+            "Voulez-vous supprimer définitivement cette note ?",
+            { title: "Fiip", kind: 'warning', okLabel: 'Supprimer', cancelLabel: 'Annuler' }
+        );
+        if (!confirmed) return;
+        
         const newNotes = notes.filter((n) => n.id !== idToDelete);
         setNotes(newNotes);
         if (selectedNoteId === idToDelete) {
-            setSelectedNoteId(newNotes[0]?.id || null);
+            setSelectedNoteId(null);
         }
-        dataService.deleteNote(idToDelete);
+        await dataService.deleteNote(idToDelete).catch(console.error);
     } else {
-        // Soft delete
         setNotes(prev => {
             const newNotes = prev.map(n => n.id === idToDelete ? { ...n, deleted: true } : n);
             const note = newNotes.find(n => n.id === idToDelete);
-            if (note) dataService.saveNote(note);
+            if (note) { dataService.saveNote(note).catch(console.error); }
             return newNotes;
         });
         if (selectedNoteId === idToDelete) {
@@ -843,7 +385,7 @@ function App() {
       setNotes(prev => {
           const newNotes = prev.map(n => n.id === noteId ? { ...n, deleted: false } : n);
           const note = newNotes.find(n => n.id === noteId);
-          if (note) dataService.saveNote(note);
+          if (note) { dataService.saveNote(note).catch(console.error); }
           return newNotes;
       });
   };
@@ -852,14 +394,22 @@ function App() {
       setNotes(prev => {
           const newNotes = prev.map(n => n.id === noteId ? { ...n, favorite: !n.favorite } : n);
           const note = newNotes.find(n => n.id === noteId);
-          if (note) dataService.saveNote(note);
+          if (note) { dataService.saveNote(note).catch(console.error); }
           return newNotes;
       });
   };
 
-  const handleEmptyTrash = () => {
+  const handleEmptyTrash = async () => {
+    const confirmed = await ask(
+        "Voulez-vous vider la corbeille ? Cette action est irréversible.",
+        { title: "Fiip", kind: 'warning', okLabel: 'Vider', cancelLabel: 'Annuler' }
+    );
+    if (!confirmed) return;
+
     const toDelete = notes.filter(n => n.deleted);
-    toDelete.forEach(n => dataService.deleteNote(n.id));
+    for (const n of toDelete) {
+        await dataService.deleteNote(n.id).catch(console.error);
+    }
 
     setNotes(prev => prev.filter(n => !n.deleted));
     if (selectedNoteId && notes.find(n => n.id === selectedNoteId)?.deleted) {
@@ -867,80 +417,145 @@ function App() {
     }
   };
 
-  // Find active note
   const activeNote = notes.find((n) => n.id === selectedNoteId);
 
-  const handleCloudSync = async () => {
-      await loadDataFromSupabase();
-  };
+  // Command palette items creation
+  const commandItems = useMemo(() => {
+    const actions = [
+      {
+        id: 'new-note',
+        label: 'Nouvelle Note',
+        description: 'Créer une nouvelle note',
+        shortcut: ['⌘', 'N'],
+        group: 'Actions',
+        onSelect: () => handleCreateNote()
+      },
+      {
+        id: 'settings',
+        label: 'Préférences',
+        description: 'Ouvrir les réglages',
+        shortcut: ['⌘', ','],
+        group: 'Actions',
+        onSelect: () => setActiveNav('settings')
+      },
+      {
+        id: 'theme-light',
+        label: 'Activer le Thème Clair',
+        description: 'Changer l\'apparence',
+        group: 'Apparence',
+        onSelect: () => setSettings(prev => ({ ...prev, theme: 'light' }))
+      },
+      {
+        id: 'theme-dark',
+        label: 'Activer le Thème Sombre',
+        description: 'Changer l\'apparence',
+        group: 'Apparence',
+        onSelect: () => setSettings(prev => ({ ...prev, theme: 'dark' }))
+      }
+    ];
+
+    const noteItems = notes.filter(n => !n.deleted).map(n => ({
+        id: `note-${n.id}`,
+        label: n.title || 'Sans titre',
+        description: 'Ouvrir cette note',
+        group: 'Notes Récentes',
+        onSelect: () => {
+            setSelectedNoteId(n.id);
+            setActiveNav('home');
+        }
+    }));
+
+    return [...actions, ...noteItems];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notes]);
+
+  // If Onboarding is not completed, route to OnboardingView
+  if (!onboardingCompleted) {
+      return (
+          <>
+              <Titlebar style={settings.titlebarStyle} />
+              <OnboardingView 
+                  onComplete={() => setOnboardingCompleted(true)} 
+                  onLoginSuccess={handleLoginSuccess}
+              />
+              {appLoading.isLoading && (
+                  <LoadingScreen status={appLoading.status} />
+              )}
+          </>
+      );
+  }
 
   return (
-    <div className="h-screen w-screen bg-transparent text-white overflow-hidden flex flex-col font-sora select-none">
+    <div className="h-screen w-screen bg-transparent text-white overflow-hidden flex flex-col font-sans select-none relative">
+      <div className="mica-noise-overlay" />
       <Titlebar style={settings.titlebarStyle} />
-
-      {storageUsage.percent >= 90 && storageUsage.percent < 100 && (
-          <div className="bg-[#FEBC2E] text-black text-[11px] font-medium py-1.5 px-4 flex justify-center items-center shadow-md z-50 text-center w-full shrink-0">
-              <div className="flex items-center gap-2 max-w-full">
-                  <span>⚠️ Stockage cloud presque plein. Si vous continuez, vos notes risquent de ne plus être synchronisées.</span>
-              </div>
-          </div>
-      )}
       
-      {storageUsage.percent >= 100 && (
-          <div className="bg-[#E81123] text-white text-[11px] font-medium py-1.5 px-4 flex justify-center items-center shadow-md z-50 text-center w-full shrink-0">
-              <div className="flex items-center gap-2 max-w-full">
-                  <span>⚠️ Limite de stockage cloud atteinte. Vos nouvelles notes et modifications ne sont plus synchronisées.</span>
-              </div>
+      {storageUsage.percent >= 90 && (
+          <div className={`text-white text-[11px] font-medium py-1.5 px-4 flex justify-center items-center shadow-md z-50 text-center w-full shrink-0 ${storageUsage.percent >= 100 ? 'bg-[#E81123]' : 'bg-[#FEBC2E] text-black'}`}>
+              <span>⚠️ {storageUsage.percent >= 100 ? 'Limite atteint' : 'Stockage presque plein'}. Vos notes risquent de ne plus être synchronisées.</span>
           </div>
       )}
 
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Sidebar */}
-        <Sidebar 
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onToggleDexter={() => setIsDexterOpen(!isDexterOpen)}
-            onOpenAuth={() => setIsAuthModalOpen(true)}
-            settings={settings}
+        <UnifiedSidebar 
+            notes={notes}
+            selectedNoteId={selectedNoteId}
+            onSelectNote={(id) => {
+                setSelectedNoteId(id);
+                setActiveNav('home');
+            }}
             activeNav={activeNav}
             onNavigate={setActiveNav}
-            isSyncing={isSyncing}
-            onSync={() => handleCloudSync(true)}
-        />
-
-        {/* Note List */}
-        <NoteList 
-            notes={notes} 
-            selectedNoteId={selectedNoteId} 
-            onSelectNote={setSelectedNoteId} 
-            onCreateNote={handleCreateNote}
-            onDeleteNote={handleDeleteNote}
+            onOpenSettings={() => setActiveNav('settings')}
+            onOpenAuth={() => setOnboardingCompleted(false)}
+            onOpenProfile={() => setIsUserProfileOpen(true)}
+            onRestoreNote={handleRestoreNote}
             onToggleFavorite={handleToggleFavorite}
             onEmptyTrash={handleEmptyTrash}
-            onRestoreNote={handleRestoreNote}
-            activeNav={activeNav}
-            settings={settings}
-            isSyncing={isSyncing}
         />
 
-        {/* Editor Area */}
-        <div className="flex-1 flex flex-col h-full bg-transparent relative">
-            {activeNote ? (
+        <div className="flex-1 flex flex-col h-full bg-transparent relative overflow-hidden">
+            {activeNav === 'settings' ? (
+                <SettingsView 
+                    settings={settings}
+                    onUpdateSettings={setSettings}
+                    storageUsage={storageUsage}
+                    onSync={() => loadDataFromSupabase()}
+                    onBack={() => {
+                        setActiveNav('home');
+                        setSelectedNoteId(null);
+                    }}
+                />
+            ) : activeNav === 'home' && !selectedNoteId ? (
+                <HomeDashboard 
+                    featuredNote={notes.find(n => !n.deleted)} 
+                    recentNotes={notes.filter(n => !n.deleted).slice(0, 6)}
+                    onSelectNote={setSelectedNoteId}
+                    onSearchClick={() => setIsCommandPaletteOpen(true)}
+                />
+            ) : activeNote ? (
                 <Editor 
-                    key={activeNote.id} // Force remount on note switch
+                    key={activeNote.id}
                     note={activeNote} 
                     onUpdateNote={handleUpdateNote} 
                     settings={settings}
                     onOpenShare={() => setIsShareModalOpen(true)}
+                    onDeleteNote={handleDeleteNote}
+                    onBack={() => setSelectedNoteId(null)}
+                    onOpenDexter={() => setIsDexterOpen(true)}
+                    onOpenLicense={() => setIsLicenseModalOpen(true)}
+                    onCreateNote={() => handleCreateNote()}
                 />
             ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500 flex-col gap-4">
-                    <IconFileText className="w-16 h-16 opacity-20" />
-                    <p className="text-sm opacity-50">{t('editor.no_note_selected', "Aucune note sélectionnée")}</p>
-                </div>
+                <HomeDashboard 
+                    featuredNote={notes.find(n => !n.deleted)} 
+                    recentNotes={notes.filter(n => !n.deleted).slice(0, 6)}
+                    onSelectNote={setSelectedNoteId}
+                    onSearchClick={() => setIsCommandPaletteOpen(true)}
+                />
             )}
         </div>
 
-        {/* Dexter AI Panel */}
         <Dexter 
             isOpen={isDexterOpen} 
             onClose={() => setIsDexterOpen(false)} 
@@ -951,32 +566,16 @@ function App() {
             settings={settings}
         />
       </div>
-
-      {/* Modals */}
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-        settings={settings} 
-        onUpdateSettings={setSettings}
-        storageUsage={storageUsage}
-        onSync={() => handleCloudSync(true)}
-      />
       
       <LicenseModal 
         isOpen={isLicenseModalOpen} 
         onClose={() => setIsLicenseModalOpen(false)} 
-        onOpenAuth={() => { setIsLicenseModalOpen(false); setIsAuthModalOpen(true); }}
-      />
-      
-      <ChatModal 
-        isOpen={isChatModalOpen} 
-        onClose={() => setIsChatModalOpen(false)} 
+        onOpenAuth={() => { setIsLicenseModalOpen(false); setOnboardingCompleted(false); }}
       />
 
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
-        onLoginSuccess={handleLoginSuccess}
+      <UserProfileModal 
+        isOpen={isUserProfileOpen} 
+        onClose={() => setIsUserProfileOpen(false)} 
       />
 
       <ShareModal
@@ -987,14 +586,11 @@ function App() {
         onUpdateNote={handleUpdateNote}
       />
 
-      {/* 
-      <CollaborationView 
-        note={activeNote} 
-        isOpen={false} // Placeholder for future collab feature
-        onClose={() => {}}
-        onImportNote={handleCreateNote}
+      <CommandPalette 
+        items={commandItems}
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
       />
-      */}
 
       {appLoading.isLoading && (
         <LoadingScreen status={appLoading.status} />

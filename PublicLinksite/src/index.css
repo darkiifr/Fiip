@@ -1,201 +1,409 @@
 @import "tailwindcss";
-
-@theme {
-  --color-sidebar: #F5F5F7;
-  --color-sidebar-dark: #1C1C1E;
-}
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Geist:wght@400;500;600;700;800&family=Host+Grotesk:wght@500;600;700;800&display=swap');
 
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  line-height: 1.5;
-  font-weight: 400;
-
   color-scheme: light dark;
+  --paper: #f7f3ec;
+  --paper-strong: #fffaf2;
+  --ink: #181513;
+  --muted: rgba(24, 21, 19, 0.62);
+  --line: rgba(80, 62, 45, 0.13);
+  --glass: rgba(255, 255, 255, 0.68);
+  --accent: #9f6a43;
+  --blue: #0a84ff;
+  --shadow: rgba(31, 23, 15, 0.13);
+  font-family: "Geist", "Figtree", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background-color: transparent;
-  transition: background-color 0.3s ease;
+* {
+  box-sizing: border-box;
 }
 
-/* Fallback background if mica fails or is not supported */
-html.effect-none body {
-  background-color: #1C1C1E;
-}
-
-/* Ensure content is visible even if window is transparent */
+html,
+body,
 #root {
-  width: 100%;
-  height: 100%;
+  min-height: 100%;
+  margin: 0;
 }
 
-/* Custom Scrollbar - Apple Style */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-  background-color: transparent;
+body {
+  background:
+    radial-gradient(circle at 8% 4%, rgba(159, 106, 67, 0.24), transparent 28rem),
+    radial-gradient(circle at 90% 12%, rgba(10, 132, 255, 0.16), transparent 24rem),
+    linear-gradient(135deg, var(--paper), #eee8de 58%, #e7ded1);
+  color: var(--ink);
 }
 
-::-webkit-scrollbar-track {
-  background-color: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  /* gray-400 equivalent with opacity */
-  border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-  transition: background-color 0.2s;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(107, 114, 128, 0.8);
-  /* gray-500 equivalent */
-}
-
-/* Hide scrollbar for clean look but keep functionality */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-/* Shimmer Effect */
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.animate-shimmer {
-  background-image: linear-gradient(90deg, 
-    rgba(255, 255, 255, 0) 0%, 
-    rgba(255, 255, 255, 0.1) 50%, 
-    rgba(255, 255, 255, 0) 100%
-  );
-  background-size: 200% 100%;
-  background-repeat: no-repeat;
-  animation: shimmer 2s infinite linear;
-}
-
-.dark .animate-shimmer {
-  background-image: linear-gradient(90deg, 
-    rgba(255, 255, 255, 0) 0%, 
-    rgba(255, 255, 255, 0.05) 50%, 
-    rgba(255, 255, 255, 0) 100%
-  );
-}
-
-/* Markdown Styles for Dexter */
-.markdown-content h1 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #fff;
-  margin-top: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.markdown-content h2 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #fff;
-  margin-top: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.markdown-content h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #fff;
-  margin-top: 0.25rem;
-  margin-bottom: 0.25rem;
-}
-
-.markdown-content p {
-  margin-bottom: 0.5rem;
-}
-
-.markdown-content p:last-child {
-  margin-bottom: 0;
-}
-
-.markdown-content ul {
-  list-style-type: disc;
-  padding-left: 1.25rem;
-  margin-bottom: 0.5rem;
-}
-
-.markdown-content ol {
-  list-style-type: decimal;
-  padding-left: 1.25rem;
-  margin-bottom: 0.5rem;
-}
-
-.markdown-content li {
-  margin-bottom: 0.25rem;
-}
-
-.markdown-content a {
-  color: #a78bfa; /* purple-400 */
+a {
+  color: inherit;
   text-decoration: none;
 }
 
-.markdown-content a:hover {
-  text-decoration: underline;
+button {
+  font: inherit;
 }
 
-.markdown-content blockquote {
-  border-left: 2px solid #a855f7; /* purple-500 */
-  padding-left: 0.75rem;
-  font-style: italic;
-  color: #9ca3af; /* gray-400 */
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
+.public-shell {
+  min-height: 100vh;
+  padding: 24px;
 }
 
-.markdown-content code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 0.85em;
-  background-color: rgba(63, 63, 70, 0.5); /* zinc-700/50 */
-  padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
-  color: #d8b4fe; /* purple-300 */
+.public-center {
+  display: grid;
+  place-items: center;
 }
 
-.markdown-content pre {
-  background-color: #18181b; /* zinc-900 */
-  padding: 0.75rem;
-  border-radius: 0.375rem;
-  overflow-x: auto;
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-  border: 1px solid #3f3f46; /* zinc-700 */
+.site-nav {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
 }
 
-.markdown-content pre code {
-  background-color: transparent;
-  padding: 0;
-  color: inherit;
-  font-size: 0.875rem;
+.brand-mark {
+  font-family: "Host Grotesk", "Geist", sans-serif;
+  font-size: 24px;
+  font-weight: 800;
 }
 
-@keyframes loading-bar {
-  0% { left: -40%; }
-  50% { left: 40%; }
-  100% { left: 100%; }
+.nav-actions,
+.hero-actions,
+.preview-toolbar,
+.download-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ghost-link,
+.primary-link,
+.download-link,
+.secondary-link,
+.download-actions button,
+.open-app-link {
+  min-height: 42px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.44);
+  font-weight: 800;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms ease;
+}
+
+.primary-link,
+.download-link,
+.open-app-link {
+  background: var(--ink);
+  color: #fff;
+}
+
+.ghost-link:hover,
+.primary-link:hover,
+.download-link:hover,
+.secondary-link:hover,
+.download-actions button:hover,
+.open-app-link:hover {
+  transform: translateY(-1px);
+}
+
+.hero-grid {
+  max-width: 1180px;
+  margin: 72px auto 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.03fr) minmax(320px, 0.8fr);
+  gap: 36px;
+  align-items: center;
+}
+
+.hero-copy h1 {
+  font-family: "Host Grotesk", "Geist", sans-serif;
+  max-width: 760px;
+  margin: 14px 0 18px;
+  font-size: clamp(48px, 8vw, 92px);
+  line-height: 0.92;
+  letter-spacing: 0;
+}
+
+.hero-copy p {
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1.6;
+}
+
+.eyebrow,
+.preview-kicker,
+.note-kicker,
+.meta-pill {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 900;
+}
+
+.public-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--glass);
+  backdrop-filter: blur(34px) saturate(165%);
+  -webkit-backdrop-filter: blur(34px) saturate(165%);
+  box-shadow: 0 24px 70px -32px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.public-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,0.72), transparent 42%);
+  opacity: 0.55;
+}
+
+.public-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.note-preview {
+  min-height: 430px;
+  border-radius: 34px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.window-dots {
+  position: absolute;
+  top: 24px;
+  left: 26px;
+  display: flex;
+  gap: 8px;
+}
+
+.window-dots span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: rgba(24,21,19,0.22);
+}
+
+.note-preview h2 {
+  margin: 10px 0;
+  font-family: "Host Grotesk", "Geist", sans-serif;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.note-preview p,
+.feature-card p,
+.note-error p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.preview-toolbar span {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(24,21,19,0.07);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.feature-band {
+  max-width: 1180px;
+  margin: 42px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.feature-card {
+  border-radius: 26px;
+  padding: 24px;
+}
+
+.feature-card svg {
+  font-size: 28px;
+  color: var(--accent);
+}
+
+.feature-card h3 {
+  margin: 16px 0 8px;
+  font-size: 20px;
+}
+
+.note-shell {
+  min-height: 100vh;
+  padding: 22px;
+}
+
+.note-nav,
+.note-layout {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.note-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.note-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 18px;
+}
+
+.note-document {
+  border-radius: 34px;
+  padding: clamp(22px, 5vw, 54px);
+}
+
+.note-document h1 {
+  margin: 12px 0;
+  font-family: "Host Grotesk", "Geist", sans-serif;
+  font-size: clamp(42px, 7vw, 76px);
+  line-height: 0.98;
+}
+
+.note-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 22px 0 34px;
+}
+
+.meta-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(255,255,255,0.4);
+}
+
+.markdown-body {
+  font-family: "Figtree", "Geist", sans-serif;
+  color: rgba(24, 21, 19, 0.86);
+  font-size: 19px;
+  line-height: 1.76;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  font-family: "Host Grotesk", "Geist", sans-serif;
+  line-height: 1.1;
+}
+
+.markdown-body a {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.download-panel {
+  border-radius: 26px;
+  padding: 18px;
+  height: max-content;
+  position: sticky;
+  top: 18px;
+}
+
+.download-panel h2 {
+  margin: 0 0 8px;
+}
+
+.download-actions {
+  margin-top: 16px;
+}
+
+.attachments {
+  margin-top: 34px;
+  display: grid;
+  gap: 12px;
+}
+
+.attachment-card,
+.media-card {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgba(255,255,255,0.38);
+  padding: 14px;
+}
+
+.media-card img,
+.media-card video {
+  width: 100%;
+  max-height: 620px;
+  object-fit: contain;
+  border-radius: 16px;
+}
+
+.media-card audio {
+  width: 100%;
+}
+
+.note-error,
+.note-loading,
+.auth-panel {
+  width: min(520px, calc(100vw - 40px));
+  border-radius: 32px;
+  padding: 36px;
+  text-align: center;
+}
+
+.spin-icon {
+  font-size: 34px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 840px) {
+  .public-shell,
+  .note-shell {
+    padding: 16px;
+  }
+
+  .hero-grid,
+  .note-layout,
+  .feature-band {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-grid {
+    margin-top: 36px;
+  }
+
+  .download-panel {
+    position: relative;
+    top: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
 }

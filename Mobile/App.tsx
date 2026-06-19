@@ -43,9 +43,11 @@ function TabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'Favoris' }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Accueil' }} />
+      <Tab.Screen name="Search" component={FavoritesScreen} options={{ title: 'Recherche' }} />
+      <Tab.Screen name="New" component={View} options={{ title: 'Nouveau' }} />
+      <Tab.Screen name="Assistant" component={AiChatScreen} options={{ title: 'Assistant' }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Réglages' }} />
     </Tab.Navigator>
   );
 }

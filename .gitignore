@@ -2,6 +2,9 @@
 node_modules/
 dist/
 dist-ssr/
+.vite/
+coverage/
+.coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -38,10 +41,16 @@ Thumbs.db
 Desktop.ini
 
 # Agent
+codex.md
+.agents/
+.cline/
 .gemini/
 brain/
 keys.txt
-
+/memories/
+/memories/session/
+skills-lock.json
+skills/
 
 Untitled-1.ipynb
 
@@ -49,6 +58,8 @@ Untitled-1.ipynb
 PublicLinksite/node_modules/
 PublicLinksite/dist/
 PublicLinksite/.env
+PublicLinksite/coverage/
+PublicLinksite/.vite/
 
 # Supabase etc.
 supabase/
@@ -56,6 +67,8 @@ DA/directionArtistique.txt
 
 # Mobile (React Native / iOS / Android)
 Mobile/node_modules/
+Mobile/coverage/
+Mobile/.jest/
 Mobile/ios/Pods/
 Mobile/ios/build/
 Mobile/ios/*.ipa

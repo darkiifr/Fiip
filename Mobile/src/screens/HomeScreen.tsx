@@ -1,307 +1,181 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity, ScrollView, Linking } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { triggerHaptic } from '../utils/hapticEngine';
-import { useTranslation } from 'react-i18next';
-import { Button } from 'react-native-paper';
-import { GlassCard } from '../components/ui/GlassCard';
+
 import { Icon } from '../components/ui/Icon';
-import { NoteList } from '../components/NoteList';
-import DocumentPicker from 'react-native-document-picker';
-import { updateWidgetData } from '../utils/LiveActivity';
+import { GlassCard } from '../components/ui/GlassCard';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { useNotesStore } from '../store/notesStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { fiipRadius } from '../theme/fiipDesign';
+import { triggerHaptic } from '../utils/hapticEngine';
+
+const countWords = (content = '') => content.trim() ? content.trim().split(/\s+/).length : 0;
+const estimateReadingTime = (words: number) => Math.max(1, Math.ceil(words / 180));
 
 export default function HomeScreen() {
-  const { t } = useTranslation();
   const navigation = useNavigation<any>();
-  const isIOS = Platform.OS === 'ios';
   const { colors, isDark } = useAppTheme();
+  const notesById = useNotesStore((state) => state.notes);
+  const syncEnabled = useSettingsStore((state) => state.syncEnabled);
 
-  React.useEffect(() => {
-    // Seed iOS Widget with sample data to prove it works
-    if (isIOS) {
-      updateWidgetData("Idées Fonctionnalités", "1. Chat IA\n2. Intégration KeyAuth\n3. Interface", 3);
-    }
-  }, []);
+  const notes = useMemo(
+    () => Object.values(notesById)
+      .filter((note) => !note.deleted_at)
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+    [notesById],
+  );
 
-  useEffect(() => {
-    // Handles URL deep link if the app is already open
-    const subscription = Linking.addEventListener('url', (event) => {
-      handleDeepLink(event.url);
-    });
+  const stats = useMemo(() => {
+    const words = notes.reduce((sum, note) => sum + countWords(note.content), 0);
+    const favorites = notes.filter((note) => note.is_favorite).length;
+    return { words, favorites, readingTime: estimateReadingTime(words) };
+  }, [notes]);
 
-    // Handles URL deep link if the app is starting cold from a widget click
-    Linking.getInitialURL().then(url => {
-      if (url) {
-        handleDeepLink(url);
-      }
-    });
+  const featuredNote = notes[0];
+  const recentNotes = notes.slice(0, 5);
 
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  const handleDeepLink = (url: string) => {
-    if (url === 'fiip://newNote') {
-      handleNewNote();
-    }
-  };
-
-  const handleAIAction = async () => {
-    triggerHaptic('impactHeavy');
-    navigation.navigate('AiChat');
-  };
-
-  const handleFileAction = async () => {
+  const openNote = (note?: any) => {
     triggerHaptic('selection');
-    try {
-      const res = await DocumentPicker.pick({
-        type: [DocumentPicker.types.pdf],
-      });
-      
-      const file = res[0];
-      if (file && file.uri) {
-         // Ensure completion of UI open before success tick
-         setTimeout(() => triggerHaptic('notificationSuccess'), 300);
-         navigation.navigate('PdfViewer', { pdfUri: file.uri, fileName: file.name });
-      }
-    } catch (err) {
-      if (DocumentPicker.isCancel(err)) {
-        triggerHaptic('selection');
-      } else {
-        triggerHaptic('notificationError');
-        console.error(err);
-      }
-    }
-  };
-
-  const handleNotePress = (note: any) => {
-     navigation.navigate('NoteEditor', { noteToEdit: note });
-  };
-
-  const handleNewNote = () => {
-    triggerHaptic('impactLight');
-    navigation.navigate('NoteEditor');
+    navigation.navigate('NoteEditor', note ? { noteToEdit: note } : undefined);
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 120 }]} showsVerticalScrollIndicator={false}>
-        
-        <GlassCard style={styles.cardHeader} intensity={isDark ? 30 : 50} cornerRadius={24}>
-          <View style={styles.header}>
-            <Icon sfSymbol="sparkles" mdIcon="star" size={32} color={isIOS ? (isDark ? '#0A84FF' : '#007AFF') : '#6750A4'} weight="bold" />
-            <Text style={[isIOS ? styles.titleIOS : styles.titleAndroid, { color: colors.text }]}>
-              Fiip Intelligence
-            </Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View>
+            <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Fiip Mobile</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Capturez, clarifiez, retrouvez.</Text>
           </View>
-          <Text style={[isIOS ? styles.subtitleIOS : styles.subtitleAndroid, { color: colors.textSecondary }]}>
-            Posez vos questions à notre modèle IA synchronisé avec votre espace personnel.
-          </Text>
-
-           {isIOS ? (
-            <TouchableOpacity style={styles.buttonIOS} onPress={handleAIAction} activeOpacity={0.7}>
-              <Icon sfSymbol="paperplane.fill" mdIcon="send" color="#FFF" size={20} />
-              <Text style={styles.buttonTextIOS}>Invoquer l'IA</Text>
-            </TouchableOpacity>
-          ) : (
-            <Button icon="robot" mode="contained" onPress={handleAIAction} style={styles.buttonMD3}>
-              Invoquer l'IA
-            </Button>
-          )}
-        </GlassCard>
-
-        {/* Hero Section pour la création rapide */}
-        <GlassCard style={styles.quickActionCard} intensity={isDark ? 20 : 35} cornerRadius={24}>
-           <View style={styles.row}>
-             <Icon sfSymbol="square.and.pencil" mdIcon="pencil" size={24} color={isIOS ? '#FF9500' : '#B3261E'} weight="semibold" />
-             <Text style={[isIOS ? styles.sectionTitleIOS : styles.sectionTitleAndroid, { color: colors.text }]}>Démarrer</Text>
-           </View>
-           <Text style={[isIOS ? styles.subtitleIOS : styles.subtitleAndroid, { color: colors.textSecondary }]}>
-             Capturez vos idées sous forme de texte, dessin ou audio instantanément.
-           </Text>
-           {isIOS ? (
-                  <TouchableOpacity style={styles.primaryActionIOS} onPress={handleNewNote} activeOpacity={0.7}>
-                    <Text style={styles.primaryActionTextIOS}>Créer une nouvelle note</Text>
-                    <Icon sfSymbol="plus.circle.fill" mdIcon="plus" color="#FFF" size={20} />
-                  </TouchableOpacity>
-             ) : (
-                  <Button icon="plus" mode="contained-tonal" onPress={handleNewNote} style={styles.buttonMD3}>
-                    Créer une nouvelle note
-                  </Button>
-             )}
-        </GlassCard>
-
-        {/* Liste des notes */}
-        <View style={styles.listContainer}>
-          <NoteList onNotePress={handleNotePress} />
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Créer une note"
+            activeOpacity={0.76}
+            onPress={() => openNote()}
+            style={[styles.createButton, { backgroundColor: colors.text }]}
+          >
+            <Icon sfSymbol="plus" mdIcon="plus" size={20} color={colors.background} />
+          </TouchableOpacity>
         </View>
 
+        <GlassCard intensity={42} cornerRadius={fiipRadius.xl} style={styles.heroCard}>
+          <View style={styles.heroTop}>
+            <View>
+              <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Aujourd'hui</Text>
+              <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={2}>
+                {featuredNote?.title || 'Nouvelle note'}
+              </Text>
+            </View>
+            <View style={[styles.syncPill, { borderColor: colors.border }]}>
+              <Icon sfSymbol={syncEnabled ? 'icloud.fill' : 'icloud.slash'} mdIcon={syncEnabled ? 'cloud-check' : 'cloud-off-outline'} size={14} color={syncEnabled ? colors.success : colors.textSecondary} />
+              <Text style={[styles.syncText, { color: colors.textSecondary }]}>{syncEnabled ? 'Supabase' : 'Local'}</Text>
+            </View>
+          </View>
+          <Text style={[styles.heroExcerpt, { color: colors.textSecondary }]} numberOfLines={4}>
+            {featuredNote?.content || 'Commencez une note, puis laissez Fiip structurer votre pensée.'}
+          </Text>
+          <View style={styles.metricGrid}>
+            <Metric label="Notes" value={String(notes.length)} color={colors} />
+            <Metric label="Favoris" value={String(stats.favorites)} color={colors} />
+            <Metric label="Lecture" value={`${stats.readingTime} min`} color={colors} />
+          </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Ouvrir la note sélectionnée"
+            activeOpacity={0.82}
+            onPress={() => openNote(featuredNote)}
+            style={[styles.primaryAction, { backgroundColor: colors.accent }]}
+          >
+            <Text style={styles.primaryActionText}>Reprendre</Text>
+            <Icon sfSymbol="arrow.right" mdIcon="arrow-right" size={16} color="#FFF" />
+          </TouchableOpacity>
+        </GlassCard>
+
+        <View style={styles.quickActions}>
+          <QuickAction title="Assistant" icon="sparkles" mdIcon="sparkles" onPress={() => navigation.navigate('Assistant')} colors={colors} />
+          <QuickAction title="Recherche" icon="magnifyingglass" mdIcon="magnify" onPress={() => navigation.navigate('Search')} colors={colors} />
+          <QuickAction title="Réglages" icon="slider.horizontal.3" mdIcon="tune" onPress={() => navigation.navigate('Settings')} colors={colors} />
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes récentes</Text>
+          <Text style={[styles.sectionCaption, { color: colors.textSecondary }]}>{stats.words} mots indexés</Text>
+        </View>
+
+        <View style={styles.noteList}>
+          {recentNotes.map((note) => (
+            <TouchableOpacity key={note.id} activeOpacity={0.78} onPress={() => openNote(note)}>
+              <GlassCard intensity={24} cornerRadius={fiipRadius.lg} style={styles.noteRow}>
+                <View style={[styles.noteIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(20,19,18,0.05)' }]}>
+                  <Icon sfSymbol={note.is_favorite ? 'star.fill' : 'doc.text'} mdIcon={note.is_favorite ? 'star' : 'file-document-outline'} size={18} color={note.is_favorite ? '#FFB340' : colors.textSecondary} />
+                </View>
+                <View style={styles.noteText}>
+                  <Text style={[styles.noteTitle, { color: colors.text }]} numberOfLines={1}>{note.title || 'Sans titre'}</Text>
+                  <Text style={[styles.noteExcerpt, { color: colors.textSecondary }]} numberOfLines={1}>{note.content || 'Note vide'}</Text>
+                </View>
+                <Icon sfSymbol="chevron.right" mdIcon="chevron-right" size={16} color={colors.textSecondary} />
+              </GlassCard>
+            </TouchableOpacity>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function Metric({ label, value, color }: any) {
+  return (
+    <View style={[styles.metric, { borderColor: color.border }]}>
+      <Text style={[styles.metricValue, { color: color.text }]}>{value}</Text>
+      <Text style={[styles.metricLabel, { color: color.textSecondary }]}>{label}</Text>
+    </View>
+  );
+}
+
+function QuickAction({ title, icon, mdIcon, onPress, colors }: any) {
+  return (
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={title} activeOpacity={0.76} onPress={onPress} style={styles.quickAction}>
+      <GlassCard intensity={26} cornerRadius={fiipRadius.lg} style={styles.quickCard}>
+        <Icon sfSymbol={icon} mdIcon={mdIcon} size={20} color={colors.text} />
+        <Text style={[styles.quickTitle, { color: colors.text }]}>{title}</Text>
+      </GlassCard>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Platform.OS === 'ios' ? 'transparent' : '#F3F4F6',
-  },
-  content: {
-    padding: 16,
-    gap: 16,
-  },
-  cardHeader: {
-    padding: 24,
-    marginBottom: 8,
-  },
-  quickActionCard: {
-    padding: 20,
-    marginBottom: 20,
-  },
-  listContainer: {
-    marginTop: 8,
-    paddingHorizontal: 4,
-  },
-  sectionListTitleIOS: {
-    fontSize: 22,
-    fontWeight: '700',
-    fontFamily: 'System',
-    color: '#000',
-    marginBottom: 12,
-  },
-  sectionListTitleAndroid: {
-    fontSize: 20,
-    fontWeight: '500',
-    color: '#1C1B1F',
-    marginBottom: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  titleIOS: {
-    fontSize: 28,
-    fontWeight: '800',
-    fontFamily: 'System', // SF Pro Display automatically picked on iOS
-    color: '#000',
-    marginLeft: 12,
-  },
-  titleAndroid: {
-    fontSize: 24,
-    fontWeight: 'normal',
-    color: '#1C1B1F',
-    marginLeft: 12,
-  },
-  subtitleIOS: {
-    fontSize: 16,
-    fontFamily: 'System',
-    color: '#4B5563',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  subtitleAndroid: {
-    fontSize: 14,
-    color: '#49454F',
-    marginBottom: 20,
-  },
-  sectionTitleIOS: {
-    fontSize: 20,
-    fontWeight: '700',
-    fontFamily: 'System',
-    color: '#000',
-    marginLeft: 12,
-  },
-  sectionTitleAndroid: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#1C1B1F',
-    marginLeft: 12,
-  },
-  chatBox: {
-    minHeight: 40,
-    marginBottom: 20,
-  },
-  chatMsgIOS: {
-    fontFamily: 'System',
-    fontSize: 15,
-    color: '#000',
-    paddingVertical: 4,
-  },
-  chatMsgAndroid: {
-    fontSize: 14,
-    color: '#1C1B1F',
-    paddingVertical: 4,
-  },
-  buttonIOS: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  buttonTextIOS: {
-    color: '#FFF',
-    fontSize: 17,
-    fontWeight: '600',
-    fontFamily: 'System',
-  },
-  secondaryButtonIOS: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  secondaryButtonTextIOS: {
-    color: '#000',
-    fontSize: 16,
-    fontWeight: '500',
-    fontFamily: 'System',
-  },
-  primaryActionIOS: {
-    backgroundColor: '#FF9500',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#FF9500',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  primaryActionTextIOS: {
-    color: '#FFF',
-    fontSize: 17,
-    fontWeight: '600',
-    fontFamily: 'System',
-  },
-  btnRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  buttonMD3: {
-    marginTop: 8,
-    borderRadius: 100, // MD3 Pill shape
-  }
+  container: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 140 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
+  eyebrow: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
+  title: { fontSize: 34, lineHeight: 38, fontWeight: '800', maxWidth: 280 },
+  createButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  heroCard: { padding: 20, gap: 18 },
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
+  cardLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6 },
+  heroTitle: { fontSize: 27, lineHeight: 32, fontWeight: '800', maxWidth: 220 },
+  syncPill: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1 },
+  syncText: { fontSize: 12, fontWeight: '700' },
+  heroExcerpt: { fontSize: 16, lineHeight: 24 },
+  metricGrid: { flexDirection: 'row', gap: 10 },
+  metric: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 12 },
+  metricValue: { fontSize: 19, fontWeight: '800' },
+  metricLabel: { fontSize: 11, fontWeight: '700', marginTop: 3 },
+  primaryAction: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  primaryActionText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
+  quickActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  quickAction: { flex: 1 },
+  quickCard: { paddingVertical: 14, alignItems: 'center', gap: 8 },
+  quickTitle: { fontSize: 12, fontWeight: '800' },
+  sectionHeader: { marginTop: 26, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  sectionTitle: { fontSize: 22, fontWeight: '800' },
+  sectionCaption: { fontSize: 12, fontWeight: '600' },
+  noteList: { gap: 10 },
+  noteRow: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  noteIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  noteText: { flex: 1 },
+  noteTitle: { fontSize: 15, fontWeight: '800' },
+  noteExcerpt: { fontSize: 13, marginTop: 3 },
 });

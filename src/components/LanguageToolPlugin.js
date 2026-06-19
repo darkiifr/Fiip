@@ -4,7 +4,7 @@ import { Decoration, DecorationSet } from "prosemirror-view";
 const debounce = (fn, delay) => {
   let timeoutId;
   return function (...args) {
-    if (timeoutId) clearTimeout(timeoutId);
+    if (timeoutId) {clearTimeout(timeoutId);}
     timeoutId = setTimeout(() => {
       fn(...args);
     }, delay);
@@ -34,7 +34,7 @@ const extractChunks = (doc) => {
 const processMatch = (match) => {
   let title = match.message,
     color = "orange";
-  if (match.rule && match.rule.issueType === "misspelling") color = "red";
+  if (match.rule && match.rule.issueType === "misspelling") {color = "red";}
   return { title, color };
 };
 
@@ -44,7 +44,7 @@ const makeDecorations = (matches, mapping) => {
     const map = mapping.find(
       (m) => match.offset >= m.from && match.offset < m.to
     );
-    if (!map) return;
+    if (!map) {return;}
     
     const from = map.pos + match.offset - map.from;
     const to = from + match.length;
@@ -75,7 +75,7 @@ const makeLinter = (view, { languageToolCheckURL, languageToolCheck, language })
         let textStr = "";
         let pos = 0;
         if (chunk.type === "markup") {
-          if (chunk.markup === "<p>") textStr = i === 0 ? "" : "\n\n";
+          if (chunk.markup === "<p>") {textStr = i === 0 ? "" : "\n\n";}
         } else {
           textStr = chunk.text;
           pos = chunk.pos;
@@ -85,7 +85,7 @@ const makeLinter = (view, { languageToolCheckURL, languageToolCheck, language })
       })
       .join("");
 
-    if (aborter) aborter.abort();
+    if (aborter) {aborter.abort();}
     aborter = new AbortController();
 
     const promise = languageToolCheck
@@ -129,7 +129,7 @@ export const grammarPlugin = (options) => {
         }
         const meta = tr.getMeta(pluginKey);
         if (meta) {
-          if (meta.lint) value = { ...value, lint: meta.lint };
+          if (meta.lint) {value = { ...value, lint: meta.lint };}
           if (meta.decorations) {
             value = {
               ...value,
@@ -175,7 +175,7 @@ export const grammarPlugin = (options) => {
       }
     },
     view(view) {
-      if (pluginKey.getState(view.state).lint) return {};
+      if (pluginKey.getState(view.state).lint) {return {};}
       const lint = debounce(makeLinter(view, options), 1000);
       view.dispatch(view.state.tr.setMeta(pluginKey, { lint }));
       if (view.state.doc.textContent.trim() !== "") {

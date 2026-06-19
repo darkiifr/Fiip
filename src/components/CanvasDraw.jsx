@@ -1,15 +1,17 @@
-import { useRef, useState, useEffect } from 'react';
 import { Save, X, Eraser, Undo, Redo, Square, Circle, Minus, Paintbrush, ChevronDown } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
 
 const HexColorPicker = ({ color, onChange }) => {
     // Custom Color Picker with Palette, Hue Slider, and Preview
-    const [hue, setHue] = useState(0);
     const [localColor, setLocalColor] = useState(color);
-    
-    useEffect(() => {
+    const [hue, setHue] = useState(() => getHue(color));
+    const [prevColor, setPrevColor] = useState(color);
+
+    if (color !== prevColor) {
+        setPrevColor(color);
         setLocalColor(color);
         setHue(getHue(color));
-    }, [color]);
+    }
 
     const handleHueChange = (e) => {
         const h = parseInt(e.target.value);
@@ -80,7 +82,7 @@ const HexColorPicker = ({ color, onChange }) => {
                     onChange={(e) => {
                         const val = "#" + e.target.value.replace('#', '');
                         setLocalColor(val);
-                        if (/^#[0-9A-F]{6}$/i.test(val)) onChange(val);
+                        if (/^#[0-9A-F]{6}$/i.test(val)) { onChange(val); }
                     }}
                     className="w-full bg-transparent border-none text-xs text-white font-mono focus:outline-none uppercase"
                     maxLength={6}
@@ -92,12 +94,12 @@ const HexColorPicker = ({ color, onChange }) => {
 
 // Helper HSL to Hex
 function hslToHex(h, s, l) {
-  l /= 100;
-  const a = s * Math.min(l, 1 - l) / 100;
+  const light = l / 100;
+  const a = (s * Math.min(light, 1 - light)) / 100;
   const f = n => {
     const k = (n + h / 30) % 12;
-    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');
+    const colorVal = light - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * colorVal).toString(16).padStart(2, '0');
   };
   return `#${f(0)}${f(8)}${f(4)}`;
 }
@@ -115,14 +117,14 @@ const getHue = (hex) => {
         b = parseInt("0x" + hex[5] + hex[6]);
     }
     r /= 255; g /= 255; b /= 255;
-    let cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin;
+    const cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin;
     let h = 0;
-    if (delta === 0) h = 0;
-    else if (cmax === r) h = ((g - b) / delta) % 6;
-    else if (cmax === g) h = (b - r) / delta + 2;
-    else h = (r - g) / delta + 4;
+    if (delta === 0) { h = 0; }
+    else if (cmax === r) { h = ((g - b) / delta) % 6; }
+    else if (cmax === g) { h = (b - r) / delta + 2; }
+    else { h = (r - g) / delta + 4; }
     h = Math.round(h * 60);
-    if (h < 0) h += 360;
+    if (h < 0) { h += 360; }
     return h;
 };
 
@@ -143,333 +145,288 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
     const [history, setHistory] = useState([]);
     const [historyStep, setHistoryStep] = useState(-1);
 
-    // Initialize Canvas
-    useEffect(() => {
+    const saveToHistory = () => {
         const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-
-        const initCanvas = async () => {
-            if (initialImage) {
-                const img = new Image();
-                img.src = initialImage;
-                try {
-                    await new Promise((resolve, reject) => {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                    });
-                    
-                    // Set canvas size to match image
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    
-                    // Draw image
-                    ctx.drawImage(img, 0, 0);
-                } catch (e) {
-                    console.error("Failed to load initial image", e);
-                    // Fallback to standard size
-                    canvas.width = 800;
-                    canvas.height = 600;
-                }
-            } else if (isOverlay) {
-                // Overlay mode: Match container size after mount animation
-                const setSize = () => {
-                    if (!containerRef.current || !canvas) return;
-                    const rect = containerRef.current.getBoundingClientRect();
-                    canvas.width = rect.width;
-                    canvas.height = rect.height;
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                };
-                setSize();
-                setTimeout(setSize, 250); // Fallback after animation
-            } else {
-                // Standard mode
-                canvas.width = 1920;
-                canvas.height = 1080;
-                // Transparent/Checkerboard handled by CSS, logic is clear
-            }
-
-            // Save initial state
-            const dataUrl = canvas.toDataURL();
-            setHistory([dataUrl]);
-            setHistoryStep(0);
-        };
-
-        initCanvas();
-    }, [initialImage, isOverlay]);
-
-    const saveHistory = () => {
-        if (!canvasRef.current) return;
-        const dataUrl = canvasRef.current.toDataURL();
         const newHistory = history.slice(0, historyStep + 1);
-        newHistory.push(dataUrl);
+        newHistory.push(canvas.toDataURL());
+        if (newHistory.length > 20) { newHistory.shift(); }
         setHistory(newHistory);
         setHistoryStep(newHistory.length - 1);
     };
 
-    const restoreHistory = (step) => {
-        if (step < 0 || step >= history.length) return;
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-        const img = new Image();
-        img.src = history[step];
-        img.onload = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-        };
-        setHistoryStep(step);
-    };
-
-    const handleResize = () => {
-        // Debounce or throttle could be added here
-        if (canvasRef.current && containerRef.current) {
-             // Just trigger a re-render or layout update if needed
-        }
-    };
-    
+    // Initialize Canvas
     useEffect(() => {
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const container = containerRef.current;
+        
+        const resize = () => {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            if (isOverlay) {
+               ctx.clearRect(0, 0, canvas.width, canvas.height);
+            } else {
+               ctx.fillStyle = '#1a1a1a';
+               ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        };
+
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Load Initial Image if any
+        if (initialImage) {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                saveToHistory();
+            };
+            img.src = initialImage;
+        } else {
+            saveToHistory();
+        }
+
+        return () => window.removeEventListener('resize', resize);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const undo = () => {
+        if (historyStep > 0) {
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (!isOverlay) {
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = history[historyStep - 1];
+            setHistoryStep(historyStep - 1);
+        }
+    };
+
+    const redo = () => {
+        if (historyStep < history.length - 1) {
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (!isOverlay) {
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = history[historyStep + 1];
+            setHistoryStep(historyStep + 1);
+        }
+    };
+
     const getPos = (e) => {
-        const canvas = canvasRef.current;
-        if (!canvas) return { x: 0, y: 0 };
-        const rect = canvas.getBoundingClientRect();
-        
-        // Handle both mouse and touch events
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-        // Calculate scale factors (internal resolution / displayed size)
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-
+        const rect = canvasRef.current.getBoundingClientRect();
         return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY,
+            x: (e.clientX || e.touches[0].clientX) - rect.left,
+            y: (e.clientY || e.touches[0].clientY) - rect.top
         };
     };
 
-    const handleMouseDown = (e) => {
-        // Prevent scrolling on touch
-        // e.preventDefault(); // Moved to container
+    const startDrawing = (e) => {
         const pos = getPos(e);
         setDrawing(true);
         setLastPos(pos);
         setStartPos(pos);
-        
-        const ctx = canvasRef.current.getContext("2d");
-        if (['rect', 'circle', 'line'].includes(tool)) {
-            setSnapshot(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
-        }
+        const ctx = canvasRef.current.getContext('2d');
+        setSnapshot(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
     };
 
-    const handleMouseMove = (e) => {
-        if (!drawing) return;
-        const ctx = canvasRef.current.getContext("2d");
+    const draw = (e) => {
+        if (!drawing) { return; }
         const pos = getPos(e);
+        const ctx = canvasRef.current.getContext('2d');
 
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
         ctx.lineWidth = brushSize;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        
-        if (tool === 'eraser') {
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.globalAlpha = 1;
-        } else {
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.strokeStyle = color;
-            ctx.globalAlpha = opacity;
-        }
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.globalAlpha = opacity;
 
-        if (tool === 'brush' || tool === 'eraser') {
+        if (tool === 'brush') {
             ctx.beginPath();
             ctx.moveTo(lastPos.x, lastPos.y);
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             setLastPos(pos);
-        } else if (['rect', 'circle', 'line'].includes(tool) && snapshot) {
+        } else if (tool === 'eraser') {
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.moveTo(lastPos.x, lastPos.y);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            ctx.restore();
+            setLastPos(pos);
+        } else if (tool === 'square' || tool === 'circle' || tool === 'line') {
             ctx.putImageData(snapshot, 0, 0);
             ctx.beginPath();
-            
             if (tool === 'line') {
                 ctx.moveTo(startPos.x, startPos.y);
                 ctx.lineTo(pos.x, pos.y);
-            } else if (tool === 'rect') {
-                const w = pos.x - startPos.x;
-                const h = pos.y - startPos.y;
-                ctx.rect(startPos.x, startPos.y, w, h);
+                ctx.stroke();
+            } else if (tool === 'square') {
+                ctx.strokeRect(startPos.x, startPos.y, pos.x - startPos.x, pos.y - startPos.y);
             } else if (tool === 'circle') {
                 const radius = Math.sqrt(Math.pow(pos.x - startPos.x, 2) + Math.pow(pos.y - startPos.y, 2));
                 ctx.arc(startPos.x, startPos.y, radius, 0, 2 * Math.PI);
+                ctx.stroke();
             }
-            
-            ctx.stroke();
         }
     };
 
-    const handleMouseUp = () => {
+    const stopDrawing = () => {
         if (drawing) {
             setDrawing(false);
-            saveHistory();
+            saveToHistory();
         }
     };
 
     const handleSave = () => {
-        const canvas = canvasRef.current;
-        // const ctx = canvas.getContext('2d');
-        
-        // Créer un canvas temporaire pour fusionner le fond et le dessin
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
-        const tempCtx = tempCanvas.getContext('2d');
-        
-        if (!isOverlay && !initialImage) {
-            // Dessiner un vrai fond transparent propre
-            tempCtx.fillStyle = '#1e1e1e'; // Mettre la couleur par défaut ? Non on veut que ça soit transparent.
-            // On le laisse transparent pour que la note l'affiche bien dans la pièce jointe sans fond noir moche
-        }
-        
-        // Dessiner le contenu original par dessus
-        tempCtx.drawImage(canvas, 0, 0);
-
-        tempCanvas.toBlob((blob) => {
-            if (onSave) onSave(blob);
+        canvasRef.current.toBlob((blob) => {
+            onSave(blob);
         }, 'image/png');
     };
 
-
-
     return (
-        <div className={`flex flex-col w-full h-full rounded-xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 ${isOverlay ? 'bg-transparent shadow-none border-none pointer-events-none' : 'bg-[#1e1e1e] border border-white/10'}`}>
-            
-            <div ref={containerRef} className="flex-1 relative overflow-hidden cursor-crosshair touch-none pointer-events-auto">
-                {!isOverlay && !initialImage && (
-                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
-                        backgroundImage: `linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%)`,
-                        backgroundSize: '20px 20px',
-                        backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
-                    }} />
-                )}
-                
-                <canvas
-                    ref={canvasRef}
-                    className={isOverlay ? "absolute inset-0 shadow-2xl touch-none w-full h-full" : "absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 shadow-2xl touch-none"}
-                    style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: '100%'
-                    }}
-                    onMouseDown={handleMouseDown}
-                    onTouchStart={handleMouseDown}
-                    onMouseUp={handleMouseUp}
-                    onTouchEnd={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
-                    onMouseMove={handleMouseMove}
-                    onTouchMove={handleMouseMove}
-                />
-            </div>
-
-            {/* Toolbar - Floating at Bottom if Overlay */}
-            <div className={`pointer-events-auto flex items-center justify-between gap-2 px-3 py-1.5 ${isOverlay ? 'fixed bottom-4 left-1/2 -translate-x-1/2 bg-[#252525]/90 backdrop-blur-md rounded-full border border-white/10 shadow-2xl scale-90 z-50' : 'bg-[#252525] border-t border-white/5'}`}>
-                
-                {/* Tools Group */}
-                <div className="flex items-center gap-2">
-                     <div className="flex items-center gap-0.5 bg-black/20 p-0.5 rounded-full">
-                        {[
-                            { id: 'brush', icon: Paintbrush, label: 'Pinceau' },
-                            { id: 'eraser', icon: Eraser, label: 'Gomme' },
-                            { id: 'line', icon: Minus, label: 'Ligne' },
-                            { id: 'rect', icon: Square, label: 'Rectangle' },
-                            { id: 'circle', icon: Circle, label: 'Cercle' }
-                        ].map(t => (
-                            <button 
-                                key={t.id}
-                                onClick={() => setTool(t.id)} 
-                                className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${tool === t.id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400'}`} 
-                                title={t.label}
-                            >
-                                <t.icon className={`w-3.5 h-3.5 ${t.id === 'line' ? '-rotate-45' : ''}`} />
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="h-4 w-px bg-white/10 hidden sm:block" />
-
-                    {/* Color Picker Group */}
-                    <div className="flex items-center gap-2">
-                        {/* Advanced Color Picker Trigger */}
-                        <div className="relative">
-                            <button 
-                                onClick={() => setShowColorPicker(!showColorPicker)}
-                                className="flex items-center gap-1.5 px-1.5 py-1 bg-black/20 rounded-full hover:bg-white/5 border border-white/5 transition-colors"
-                            >
-                                <div className="w-4 h-4 rounded-full border border-white/10 shadow-sm" style={{ background: color }} />
-                                <ChevronDown className="w-3 h-3 text-gray-500" />
-                            </button>
-                            
-                            {showColorPicker && (
-                                <>
-                                    <div className="fixed inset-0 z-40" onClick={() => setShowColorPicker(false)} />
-                                    <div className="absolute bottom-full left-0 mb-2 z-50">
-                                        <HexColorPicker color={color} onChange={setColor} />
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                        
-                        {/* Standard Palette (Quick Access) */}
-                        <div className="flex items-center gap-1">
-                            {[ "#3b82f6", "#ef4444", "#22c55e", "#ffffff" ].map(c => (
-                                <button 
-                                    key={c}
-                                    onClick={() => setColor(c)} 
-                                    className={`w-3.5 h-3.5 rounded-full border border-white/10 transition-transform hover:scale-110 ${color === c ? "ring-1 ring-white scale-110" : ""}`}
-                                    style={{ background: c }}
-                                />
-                            ))}
-                        </div>
+        <div className="flex flex-col h-full bg-[#121212]" ref={containerRef}>
+            {/* Toolbar Top */}
+            <div className="flex items-center justify-between px-6 py-3 border-b border-white/10 bg-[#1a1a1a]">
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={onClose}
+                        className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                    >
+                        <X size={20} />
+                    </button>
+                    <div className="w-px h-6 bg-white/10" />
+                    <div className="flex items-center gap-1">
+                        <button 
+                            disabled={historyStep <= 0}
+                            onClick={undo}
+                            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg disabled:opacity-30"
+                        >
+                            <Undo size={18} />
+                        </button>
+                        <button 
+                            disabled={historyStep >= history.length - 1}
+                            onClick={redo}
+                            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg disabled:opacity-30"
+                        >
+                            <Redo size={18} />
+                        </button>
                     </div>
                 </div>
 
-                {/* Actions & Settings Group */}
+                {/* Main Tools */}
+                <div className="flex items-center gap-1 bg-black/30 p-1 rounded-xl border border-white/5">
+                    {[
+                        { id: 'brush', icon: <Paintbrush size={18} />, label: 'Pinceau' },
+                        { id: 'eraser', icon: <Eraser size={18} />, label: 'Gomme' },
+                        { id: 'line', icon: <Minus size={18} />, label: 'Ligne' },
+                        { id: 'square', icon: <Square size={18} />, label: 'Carré' },
+                        { id: 'circle', icon: <Circle size={18} />, label: 'Cercle' },
+                    ].map((t) => (
+                        <button
+                            key={t.id}
+                            onClick={() => setTool(t.id)}
+                            className={`p-2 rounded-lg flex items-center gap-2 transition-all ${tool === t.id ? 'bg-blue-500 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                            title={t.label}
+                        >
+                            {t.icon}
+                        </button>
+                    ))}
+                </div>
+
                 <div className="flex items-center gap-3">
-                    {/* Sliders - Compact */}
-                    <div className="hidden md:flex items-center gap-3 px-1">
-                         <div className="flex items-center gap-1.5">
-                             <span className="text-[8px] uppercase font-bold text-gray-500">Taille</span>
-                             <input type="range" min="1" max="50" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value))} className="w-12 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500" title={`Taille: ${brushSize}px`} />
-                         </div>
-                         <div className="flex items-center gap-1.5">
-                             <span className="text-[8px] uppercase font-bold text-gray-500">Opacité</span>
-                             <input type="range" min="1" max="100" value={opacity * 100} onChange={(e) => setOpacity(parseInt(e.target.value) / 100)} className="w-12 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500" title={`Opacité: ${Math.round(opacity * 100)}%`} />
+                    <div className="flex items-center gap-2">
+                         <div className="relative">
+                            <button
+                                onClick={() => setShowColorPicker(!showColorPicker)}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-black/30 rounded-lg border border-white/5 hover:border-white/20 transition-all"
+                            >
+                                <div className="w-4 h-4 rounded-full border border-white/20" style={{ background: color }} />
+                                <span className="text-xs font-mono text-gray-400 uppercase">{color}</span>
+                                <ChevronDown size={12} className="text-gray-500" />
+                            </button>
+                            {showColorPicker && <HexColorPicker color={color} onChange={setColor} />}
                          </div>
                     </div>
+                    <button 
+                        onClick={handleSave}
+                        className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg shadow-lg border border-blue-400/20 transition-all"
+                    >
+                        <Save size={18} />
+                        <span>Enregistrer</span>
+                    </button>
+                </div>
+            </div>
 
-                    <div className="h-4 w-px bg-white/10 hidden md:block" />
+            {/* Content Bottom */}
+            <div className="flex-1 relative overflow-hidden bg-[#121212]">
+                <canvas
+                    ref={canvasRef}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                    className="absolute inset-0 cursor-crosshair touch-none"
+                    style={{ background: isOverlay ? 'transparent' : '#1a1a1a' }}
+                />
 
-                    <div className="flex items-center gap-0.5">
-                        <button onClick={() => historyStep > 0 && restoreHistory(historyStep - 1)} disabled={historyStep <= 0} className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 hover:bg-white/5 rounded-full">
-                            <Undo className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => historyStep < history.length - 1 && restoreHistory(historyStep + 1)} disabled={historyStep >= history.length - 1} className="p-1.5 text-gray-400 hover:text-white disabled:opacity-30 hover:bg-white/5 rounded-full">
-                            <Redo className="w-3.5 h-3.5" />
-                        </button>
+                {/* Size/Opacity Floating Panel */}
+                <div className="absolute bottom-6 left-6 flex flex-col gap-4 p-4 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+                    <div className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center px-1">
+                            <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Taille</span>
+                            <span className="text-[10px] font-mono text-white/60">{brushSize}px</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            min="1" 
+                            max="50" 
+                            value={brushSize} 
+                            onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                            className="w-32 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
+                        />
                     </div>
-                    
-                    <div className="flex items-center gap-1.5">
-                         <button onClick={handleSave} className="px-3 py-1 bg-blue-600 text-white text-[11px] font-bold rounded-full shadow hover:bg-blue-500 transition-colors flex items-center gap-1">
-                            <Save className="w-3 h-3" />
-                            <span className="hidden sm:inline">{isOverlay ? 'Terminer' : 'Enregistrer'}</span>
-                        </button>
-                        <button onClick={onClose} className="p-1 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors">
-                            <X className="w-4 h-4" />
-                        </button>
+                    <div className="flex flex-col gap-2">
+                         <div className="flex justify-between items-center px-1">
+                            <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Opacité</span>
+                            <span className="text-[10px] font-mono text-white/60">{Math.round(opacity * 100)}%</span>
+                        </div>
+                        <input 
+                            type="range" 
+                            min="0.1" 
+                            max="1" 
+                            step="0.05"
+                            value={opacity} 
+                            onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                            className="w-32 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-500"
+                        />
                     </div>
                 </div>
             </div>
         </div>
     );
 }
-
-

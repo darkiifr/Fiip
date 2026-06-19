@@ -45,7 +45,7 @@ class KeyAuthService {
     }
 
     async _fetchHWID() {
-        if (this.hwid) return;
+        if (this.hwid) {return;}
         try {
             this.hwid = await invoke('get_hwid');
             console.log("HWID:", this.hwid);
@@ -58,9 +58,9 @@ class KeyAuthService {
     async init() {
         await this._fetchHWID();
         
-        if (this.initialized && this.sessionid) return { success: true };
+        if (this.initialized && this.sessionid) {return { success: true };}
         
-        if (this.initPromise) return this.initPromise;
+        if (this.initPromise) {return this.initPromise;}
 
         this.initPromise = (async () => {
             this.initialized = false;
@@ -124,7 +124,7 @@ class KeyAuthService {
         let initError = null;
         if (!this.initialized || !this.sessionid) {
             const initRes = await this.init();
-            if (!initRes.success) initError = initRes.message;
+            if (!initRes.success) {initError = initRes.message;}
         }
 
         if (!this.sessionid) {
@@ -179,7 +179,7 @@ class KeyAuthService {
     }
 
     _processUserData(info) {
-        if (!info) return info;
+        if (!info) {return info;}
         
         // Empêcher la clé de licence d'être utilisée comme nom d'utilisateur
         if (info.username === this.licenseKey) {
@@ -188,15 +188,15 @@ class KeyAuthService {
         
         if (info.subscriptions && Array.isArray(info.subscriptions)) {
             info.subscriptions = info.subscriptions.map(sub => {
-                let subName = (sub.subscription || "").toLowerCase();
+                const subName = (sub.subscription || "").toLowerCase();
                 if (subName.includes("dev") || subName.includes("admin")) {
                     sub.level = "4"; 
                 } else if (subName.includes("pro") || subName.includes("premium")) {
-                    if (!sub.level || sub.level < 2) sub.level = "2";
+                    if (!sub.level || sub.level < 2) {sub.level = "2";}
                 } else if (subName.includes("ai") || subName.includes("plus")) {
-                     if (!sub.level || sub.level < 1.5) sub.level = "1.5";
+                     if (!sub.level || sub.level < 1.5) {sub.level = "1.5";}
                 }
-                if (!sub.level || sub.level === "0") sub.level = "1"; 
+                if (!sub.level || sub.level === "0") {sub.level = "1";} 
                 return sub;
             });
         }
@@ -204,19 +204,19 @@ class KeyAuthService {
     }
 
     _calculateLevel(info) {
-        if (!info) return 0;
+        if (!info) {return 0;}
         let maxLevel = 0;
         if (info.subscriptions && Array.isArray(info.subscriptions)) {
             for (const sub of info.subscriptions) {
                 let lvl = parseFloat(sub.level);
-                if (lvl > 1000) lvl = 1; 
-                if (!isNaN(lvl) && lvl > maxLevel) maxLevel = lvl;
+                if (lvl > 1000) {lvl = 1;} 
+                if (!isNaN(lvl) && lvl > maxLevel) {maxLevel = lvl;}
             }
         }
         if (info.level !== undefined) {
              let lvl = parseFloat(info.level);
-             if (lvl > 1000) lvl = 1; 
-             if (!isNaN(lvl) && lvl > maxLevel) maxLevel = lvl;
+             if (lvl > 1000) {lvl = 1;} 
+             if (!isNaN(lvl) && lvl > maxLevel) {maxLevel = lvl;}
         }
         return maxLevel;
     }
@@ -230,11 +230,11 @@ class KeyAuthService {
     }
 
     getCurrentSubscriptionName() {
-        if (this.isAuthenticated && this.currentLevel >= 4) return "Developer";
-        if (this.isAuthenticated && this.currentLevel >= 2) return "Pro";
-        if (this.isAuthenticated && this.currentLevel >= 1.5) return "AI Plus";
-        if (this.isAuthenticated && this.currentLevel >= 1) return "Basic";
-        if (this.isTrialActive) return "Essai Gratuit";
+        if (this.isAuthenticated && this.currentLevel >= 4) {return "Developer";}
+        if (this.isAuthenticated && this.currentLevel >= 2) {return "Pro";}
+        if (this.isAuthenticated && this.currentLevel >= 1.5) {return "AI Plus";}
+        if (this.isAuthenticated && this.currentLevel >= 1) {return "Basic";}
+        if (this.isTrialActive) {return "Essai Gratuit";}
         return "Free";
     }
 
@@ -245,7 +245,7 @@ class KeyAuthService {
     }
 
     startTrial() {
-        if (!this.canStartTrial()) return false;
+        if (!this.canStartTrial()) {return false;}
         const now = Date.now();
         const duration = 15 * 24 * 60 * 60 * 1000; 
         const expiry = now + duration;

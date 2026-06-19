@@ -1,4 +1,5 @@
 import { Extension } from '@tiptap/core';
+
 import { grammarPlugin } from './LanguageToolPlugin';
 
 export const LanguageToolExtension = Extension.create({

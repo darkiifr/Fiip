@@ -2,7 +2,7 @@
 // Generate a key from a password using PBKDF2
 export async function deriveKey(password, salt) {
     const enc = new TextEncoder();
-    const keyMaterial = await window.crypto.subtle.importKey(
+    const keyMaterial = await globalThis.crypto.subtle.importKey(
         "raw",
         enc.encode(password),
         { name: "PBKDF2" },
@@ -10,7 +10,7 @@ export async function deriveKey(password, salt) {
         ["deriveKey"]
     );
 
-    return window.crypto.subtle.deriveKey(
+    return globalThis.crypto.subtle.deriveKey(
         {
             name: "PBKDF2",
             salt: salt, // BufferSource
@@ -28,14 +28,14 @@ export async function deriveKey(password, salt) {
 export async function encryptData(data, password) {
     try {
         const enc = new TextEncoder();
-        const salt = window.crypto.getRandomValues(new Uint8Array(16));
-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+        const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
+        const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
         const key = await deriveKey(password, salt);
         
         const jsonStr = JSON.stringify(data);
         const encodedData = enc.encode(jsonStr);
 
-        const encryptedContent = await window.crypto.subtle.encrypt(
+        const encryptedContent = await globalThis.crypto.subtle.encrypt(
             {
                 name: "AES-GCM",
                 iv: iv
@@ -60,7 +60,7 @@ export async function encryptData(data, password) {
 // Decrypt data
 export async function decryptData(encryptedStr, password) {
     try {
-        if (!encryptedStr || typeof encryptedStr !== 'string') return encryptedStr;
+        if (!encryptedStr || typeof encryptedStr !== 'string') {return encryptedStr;}
 
         if (!encryptedStr.startsWith('ENC:')) {
             // Assume plain JSON if not prefixed (Migration path)
@@ -73,7 +73,7 @@ export async function decryptData(encryptedStr, password) {
         }
 
         const parts = encryptedStr.split(':');
-        if (parts.length !== 4) throw new Error("Invalid encrypted format");
+        if (parts.length !== 4) {throw new Error("Invalid encrypted format");}
 
         const salt = base64ToArrayBuffer(parts[1]);
         const iv = base64ToArrayBuffer(parts[2]);
@@ -81,7 +81,7 @@ export async function decryptData(encryptedStr, password) {
 
         const key = await deriveKey(password, salt);
 
-        const decryptedContent = await window.crypto.subtle.decrypt(
+        const decryptedContent = await globalThis.crypto.subtle.decrypt(
             {
                 name: "AES-GCM",
                 iv: iv
@@ -106,11 +106,11 @@ function arrayBufferToBase64(buffer) {
     for (let i = 0; i < len; i++) {
         binary += String.fromCharCode(bytes[i]);
     }
-    return window.btoa(binary);
+    return globalThis.btoa(binary);
 }
 
 function base64ToArrayBuffer(base64) {
-    const binary_string = window.atob(base64);
+    const binary_string = globalThis.atob(base64);
     const len = binary_string.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) {

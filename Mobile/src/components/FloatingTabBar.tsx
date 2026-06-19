@@ -1,164 +1,231 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform, Animated, Dimensions } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform, Text, Dimensions } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-// @ts-ignore
-import { SFSymbol } from 'react-native-sfsymbols';
-// @ts-ignore
-import { LiquidGlassView } from '@callstack/liquid-glass';
+import { Icon } from './ui/Icon';
 import { triggerHaptic } from '../utils/hapticEngine';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
 export function FloatingTabBar({ state, descriptors, navigation }: any) {
   const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
+  const activeAccent = '#A48A7B'; // Editorial Brand rose-taupe accent from mockup
 
   return (
-    <View style={styles.wrapper}>
-      <View style={[
-          styles.container, 
-          { 
-              backgroundColor: Platform.OS === 'ios' ? 'transparent' : colors.card,
-              borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.4)',
-              borderWidth: Platform.OS === 'ios' ? StyleSheet.hairlineWidth : 0,
-          }
-      ]}>
-        
-        {Platform.OS === 'ios' && (
-          <View style={styles.liquidGlassWrapper}>
-             <LiquidGlassView blurAmount={80} style={StyleSheet.absoluteFill} />
-             <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.5)' }]} />
-          </View>
-        )}
-
-        <View style={styles.content}>
-          {state.routes.map((route: any, index: number) => {
-            const { options } = descriptors[route.key];
-            const isFocused = state.index === index;
-
-            const onPress = () => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-
-              if (!isFocused && !event.defaultPrevented) {
-                triggerHaptic('selection');
-                navigation.navigate(route.name, route.params);
-              }
-            };
-
-            const onLongPress = () => {
-              navigation.emit({
-                type: 'tabLongPress',
-                target: route.key,
-              });
-            };
-
-            const getIcon = () => {
-              const size = 26;
-              const color = isFocused ? colors.text : colors.textSecondary;
-              
-              if (Platform.OS === 'ios') {
-                let symbol = '';
-                if (route.name === 'Home') symbol = isFocused ? 'house.fill' : 'house';
-                else if (route.name === 'Favorites') symbol = isFocused ? 'star.fill' : 'star';
-                else if (route.name === 'Settings') symbol = isFocused ? 'gearshape.fill' : 'gearshape';
-                
-                return (
-                  <SFSymbol
-                    name={symbol}
-                    weight={isFocused ? "bold" : "medium"}
-                    color={color}
-                    size={size}
-                    style={{ width: size, height: size }}
-                  />
-                );
-              } else {
-                let iconName = '';
-                if (route.name === 'Home') iconName = 'home';
-                else if (route.name === 'Favorites') iconName = 'star';
-                else if (route.name === 'Settings') iconName = 'cog';
-                
-                return <Icon name={iconName} size={size} color={color} />;
-              }
-            };
-
-            return (
-              <TouchableOpacity
-                key={index}
-                accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={options.tabBarAccessibilityLabel}
-                testID={options.tabBarTestID}
-                onPress={onPress}
-                onLongPress={onLongPress}
-                style={styles.tabButton}
-                activeOpacity={0.8}
-              >
-                <Animated.View
-                  style={[
-                    styles.iconContainer,
-                    {
-                      backgroundColor: isFocused 
-                        ? (isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.06)') 
-                        : 'transparent',
-                    },
-                  ]}
-                >
-                  {getIcon()}
-                </Animated.View>
-              </TouchableOpacity>
-            );
-          })}
+    <View style={[
+      styles.container, 
+      { 
+        backgroundColor: isDark ? 'rgba(15, 15, 15, 0.85)' : 'rgba(255, 255, 255, 0.88)',
+        borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+        paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+      }
+    ]}>
+      {Platform.OS === 'ios' && (
+        <View style={styles.blurWrapper}>
+          {/* iOS Native glass blur view */}
+          {(() => {
+            try {
+              const { LiquidGlassView } = require('@callstack/liquid-glass');
+              return <LiquidGlassView style={StyleSheet.absoluteFill} intensity={40} />;
+            } catch (e) {
+              return null;
+            }
+          })()}
         </View>
+      )}
+
+      <View style={styles.tabBarContent}>
+        {state.routes.map((route: any, index: number) => {
+          const { options } = descriptors[route.key];
+          const isFocused = state.index === index;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              triggerHaptic('selection');
+              navigation.navigate(route.name, route.params);
+            }
+          };
+
+          const onLongPress = () => {
+            navigation.emit({
+              type: 'tabLongPress',
+              target: route.key,
+            });
+          };
+
+          const isNewAction = route.name === 'New';
+
+          const handlePress = () => {
+            if (isNewAction) {
+              triggerHaptic('impactLight');
+              navigation.navigate('NoteEditor');
+              return;
+            }
+            onPress();
+          };
+
+          // Get exact cross-platform icons matching mockups
+          const getIconProps = () => {
+            switch (route.name) {
+              case 'Home':
+                return { sfSymbol: isFocused ? 'house.fill' : 'house', mdIcon: isFocused ? 'home' : 'home-outline' };
+              case 'Search':
+                return { sfSymbol: 'magnifyingglass', mdIcon: 'magnify' };
+              case 'New':
+                return { sfSymbol: 'plus', mdIcon: 'plus' };
+              case 'Assistant':
+                return { sfSymbol: 'sparkles', mdIcon: 'sparkles' };
+              case 'Settings':
+                return { sfSymbol: 'gearshape', mdIcon: 'cog' };
+              default:
+                return { sfSymbol: 'doc', mdIcon: 'file' };
+            }
+          };
+
+          const iconProps = getIconProps();
+
+          return (
+            <TouchableOpacity
+              key={index}
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              testID={options.tabBarTestID}
+              onPress={handlePress}
+              onLongPress={onLongPress}
+              style={styles.tabButton}
+              activeOpacity={0.7}
+            >
+              {isNewAction ? (
+                // "Nouveau" custom floating round glass action button
+                <View style={styles.newButtonContainer}>
+                  <View style={[
+                    styles.newIconCircle, 
+                    { 
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                      borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'
+                    }
+                  ]}>
+                    <Icon 
+                      sfSymbol={iconProps.sfSymbol} 
+                      mdIcon={iconProps.mdIcon} 
+                      size={20} 
+                      color={isDark ? '#FFF' : '#000'} 
+                      weight="medium"
+                    />
+                  </View>
+                  <Text style={[styles.tabLabel, { color: colors.textSecondary }]}>Nouveau</Text>
+                </View>
+              ) : (
+                // Regular tabs with capsule highlight and active dot indicator
+                <View style={styles.regularTabContainer}>
+                  <View style={[
+                    styles.iconCapsule,
+                    isFocused && { 
+                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)' 
+                    }
+                  ]}>
+                    <Icon 
+                      sfSymbol={iconProps.sfSymbol} 
+                      mdIcon={iconProps.mdIcon} 
+                      size={22} 
+                      color={isFocused ? colors.text : colors.textSecondary} 
+                      weight={isFocused ? 'bold' : 'regular'}
+                    />
+                  </View>
+                  <Text style={[
+                    styles.tabLabel, 
+                    { color: isFocused ? colors.text : colors.textSecondary, fontWeight: isFocused ? '600' : '500' }
+                  ]}>
+                    {options.title || route.name}
+                  </Text>
+                  
+                  {/* Delicate active dot indicator from mockup */}
+                  <View style={[
+                    styles.activeDot, 
+                    { backgroundColor: isFocused ? activeAccent : 'transparent' }
+                  ]} />
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 32 : 24,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   container: {
-    flexDirection: 'row',
-    height: 64,
-    width: width * 0.6, // Compact width like SwiftUI dock
-    minWidth: 260,
-    borderRadius: 32,
-    elevation: 12,
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    height: Platform.OS === 'ios' ? 92 : 82,
+    borderTopWidth: 1,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 28,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 10,
   },
-  liquidGlassWrapper: {
+  blurWrapper: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 32,
     overflow: 'hidden',
   },
-  content: {
+  tabBarContent: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
+    justifyContent: 'space-around',
     paddingHorizontal: 8,
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: 8,
   },
-  iconContainer: {
+  regularTabContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: '100%',
   },
+  iconCapsule: {
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+    borderRadius: 14,
+    marginBottom: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabLabel: {
+    fontSize: 10,
+    letterSpacing: -0.1,
+  },
+  activeDot: {
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 1.75,
+    marginTop: 4,
+  },
+  newButtonContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  }
 });

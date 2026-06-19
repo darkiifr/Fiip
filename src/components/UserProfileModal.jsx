@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { X, User, Shield, CreditCard, Save, Upload } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { keyAuthService } from '../services/keyauth';
 import { Icon as IconifyIcon } from '@iconify/react';
+import { X, User, Shield, CreditCard, Save, Upload } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
+import { keyAuthService } from '../services/keyauth';
 import { authService, dataService } from '../services/supabase';
 
 const SKILL_ICONS = [
@@ -159,7 +159,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
       return colors[Math.abs(hash) % colors.length];
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {return null;}
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm font-sans p-4">
@@ -211,15 +211,21 @@ export default function UserProfileModal({ isOpen, onClose }) {
                             {(publicProfile.nickname || 'User').substring(0, 2).toUpperCase()}
                         </div>
                      )}
-                     <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer" onClick={() => document.getElementById('avatar-upload').click()}>
+                     <button
+                        type="button"
+                        aria-label={t('profile.upload_avatar', "Changer l'avatar")}
+                        className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                        onClick={() => document.getElementById('avatar-upload').click()}
+                     >
                         <Upload className="w-6 h-6 text-white" />
-                     </div>
+                     </button>
                      <input type="file" id="avatar-upload" className="hidden" accept="image/*" onChange={handleAvatarChange} />
                    </div>
                    
                    <div className="flex-1">
-                      <label className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">Pseudo</label>
+                      <label htmlFor="profile-nickname" className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">{t('profile.pseudo', 'Pseudo')}</label>
                       <input 
+                        id="profile-nickname"
                         type="text" 
                         value={publicProfile.nickname}
                         onChange={(e) => setPublicProfile({...publicProfile, nickname: e.target.value})}
@@ -229,19 +235,20 @@ export default function UserProfileModal({ isOpen, onClose }) {
                 </div>
 
                 <div>
-                   <label className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">À propos de moi</label>
+                   <label htmlFor="profile-bio" className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">{t('profile.bio', 'À propos de moi')}</label>
                    <textarea 
+                      id="profile-bio"
                       value={publicProfile.bio}
                       onChange={handleBioChange}
                       className="w-full h-24 bg-[#1E1F22] text-white p-2.5 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#00A8FC] resize-none"
-                      placeholder="Dites quelque chose sur vous..."
+                      placeholder={t('profile.bio_placeholder', "Dites quelque chose sur vous...")}
                    />
                 </div>
 
                 {/* Skills Section */}
                 <div>
-                    <label className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">Compétences & Technologies</label>
-                    <div className="flex flex-wrap gap-2 mb-2 p-2 bg-[#1E1F22] rounded min-h-[44px]">
+                    <label id="label-skills" className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">{t('profile.skills', 'Compétences & Technologies')}</label>
+                    <div role="group" aria-labelledby="label-skills" className="flex flex-wrap gap-2 mb-2 p-2 bg-[#1E1F22] rounded min-h-[44px]">
                         {(publicProfile.skills || []).length === 0 ? (
                             <span className="text-gray-500 text-sm italic py-1">Aucune compétence sélectionnée...</span>
                         ) : (
@@ -379,7 +386,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Mot de passe"
-                onKeyDown={(e) => { if (e.key === 'Enter') handlePasswordConfirm(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') {handlePasswordConfirm();} }}
                 className="w-full bg-[#1E1F22] text-white p-3 rounded mb-2 focus:outline-none focus:ring-1 focus:ring-[#5865F2]"
               />
               

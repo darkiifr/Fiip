@@ -51,7 +51,7 @@ export async function installFont(fontData) {
         const fontUrl = `https://cdn.jsdelivr.net/fontsource/fonts/${fontData.id}@latest/latin-${weight}-${style}.woff2`;
         
         const response = await fetch(fontUrl);
-        if (!response.ok) throw new Error("Impossible de télécharger le fichier WOFF2");
+        if (!response.ok) {throw new Error("Impossible de télécharger le fichier WOFF2");}
         
         const buffer = await response.arrayBuffer();
         
@@ -89,7 +89,7 @@ export async function installFont(fontData) {
 // 3. Inject @font-face dynamically in the document
 export function injectFont(fontObj) {
     const styleId = `fiif-font-${fontObj.id}`;
-    if (document.getElementById(styleId)) return; // Already injected
+    if (document.getElementById(styleId)) {return;} // Already injected
     
     const styleEl = document.createElement("style");
     styleEl.id = styleId;

@@ -1,53 +1,94 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
-import HomeScreen from '../HomeScreen';
-import { useHaptics } from '../../providers/haptics';
-import { Platform } from 'react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
-// Mock the haptics provider
-jest.mock('../../providers/haptics', () => ({
-  useHaptics: jest.fn()
+import HomeScreen from '../HomeScreen';
+
+const mockNavigate = jest.fn();
+const mockNotes = {
+  'note-1': {
+    id: 'note-1',
+    title: 'Note de test',
+    content: 'Un contenu mobile utile',
+    is_favorite: true,
+    updated_at: '2026-06-18T10:00:00Z',
+    created_at: '2026-06-18T10:00:00Z',
+  },
+  'note-2': {
+    id: 'note-2',
+    title: 'Deuxième note',
+    content: 'Autre contenu',
+    is_favorite: false,
+    updated_at: '2026-06-17T10:00:00Z',
+    created_at: '2026-06-17T10:00:00Z',
+  },
+};
+
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
 }));
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key })
+jest.mock('../../hooks/useAppTheme', () => ({
+  useAppTheme: () => ({
+    isDark: false,
+    colors: {
+      background: '#f8fafc',
+      backgroundAlt: '#ffffff',
+      text: '#111827',
+      textSecondary: '#6b7280',
+      border: '#e5e7eb',
+      primary: '#111827',
+      accent: '#2563eb',
+      success: '#10b981',
+    },
+  }),
+}));
+
+jest.mock('../../store/notesStore', () => ({
+  useNotesStore: (selector: any) => selector({ notes: mockNotes }),
+}));
+
+jest.mock('../../store/settingsStore', () => ({
+  useSettingsStore: (selector: any) => selector({ syncEnabled: true }),
+}));
+
+jest.mock('../../components/ui/GlassCard', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    GlassCard: ({ children, style }: any) => <View style={style}>{children}</View>,
+  };
+});
+
+jest.mock('../../components/ui/Icon', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return {
+    Icon: () => <Text>icon</Text>,
+  };
+});
+
+jest.mock('../../utils/hapticEngine', () => ({
+  triggerHaptic: jest.fn(),
 }));
 
 describe('HomeScreen', () => {
-  const mockTriggerImpact = jest.fn();
-
   beforeEach(() => {
-    (useHaptics as unknown as jest.Mock).mockReturnValue({
-      triggerImpact: mockTriggerImpact
-    });
-    jest.clearAllMocks();
+    mockNavigate.mockClear();
   });
 
-  it('renders correctly on iOS', () => {
-    Platform.OS = 'ios';
-    const { getByText, getByText: assertText } = render(<HomeScreen />);
-    
-    expect(getByText('Fiip Mobile')).toBeTruthy();
-    expect(getByText("Bienvenue dans l'expérience Liquid Glass")).toBeTruthy();
-    expect(getByText('Explorer')).toBeTruthy();
-  });
-
-  it('renders correctly on Android', () => {
-    Platform.OS = 'android';
+  it('renders the mobile dashboard with note metrics', () => {
     const { getByText } = render(<HomeScreen />);
-    
+
     expect(getByText('Fiip Mobile')).toBeTruthy();
-    expect(getByText("Bienvenue dans l'expérience Material Design 3")).toBeTruthy();
-    expect(getByText('Explorer')).toBeTruthy();
+    expect(getByText('Capturez, clarifiez, retrouvez.')).toBeTruthy();
+    expect(getByText('Notes récentes')).toBeTruthy();
   });
 
-  it('triggers haptic feedback on Explorer button press', () => {
-    Platform.OS = 'ios';
-    const { getByText } = render(<HomeScreen />);
-    
-    const explorerButton = getByText('Explorer');
-    fireEvent.press(explorerButton);
+  it('opens the editor when creating a note', () => {
+    const { getByLabelText } = render(<HomeScreen />);
 
-    expect(mockTriggerImpact).toHaveBeenCalledWith('heavy');
+    fireEvent.press(getByLabelText('Créer une note'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('NoteEditor', undefined);
   });
 });

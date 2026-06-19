@@ -1,23 +1,24 @@
-import { useState, useEffect } from 'react';
-import { keyAuthService } from '../services/keyauth';
-import { useTranslation } from 'react-i18next';
-import { open } from '@tauri-apps/plugin-shell';
-import { relaunch, exit } from '@tauri-apps/plugin-process';
-import { type } from '@tauri-apps/plugin-os';
 import { Icon } from '@iconify/react';
+import { type } from '@tauri-apps/plugin-os';
+import { relaunch, exit } from '@tauri-apps/plugin-process';
+import { open } from '@tauri-apps/plugin-shell';
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { keyAuthService } from '../services/keyauth';
 
 // Icons Import (Pim's Edition)
-import IconClose from '~icons/mingcute/close-fill';
-import IconKey from '~icons/mingcute/key-2-fill';
 import IconCheck from '~icons/mingcute/check-fill';
+import IconClose from '~icons/mingcute/close-fill';
+import IconDownload from '~icons/mingcute/download-2-fill';
+import IconGlobe from '~icons/mingcute/earth-2-fill';
+import IconKey from '~icons/mingcute/key-2-fill';
+import IconZap from '~icons/mingcute/lightning-fill';
+import IconRefresh from '~icons/mingcute/refresh-3-fill';
 import IconShieldCheck from '~icons/mingcute/shield-shape-fill';
 import IconSparkles from '~icons/mingcute/sparkles-fill';
 import IconStar from '~icons/mingcute/star-fill';
-import IconZap from '~icons/mingcute/lightning-fill';
-import IconRefresh from '~icons/mingcute/refresh-3-fill';
 import IconClock from '~icons/mingcute/time-fill';
-import IconGlobe from '~icons/mingcute/earth-2-fill';
-import IconDownload from '~icons/mingcute/download-2-fill';
 
 function FeatureItem({ label, active, icon: Icon }) {
     return (
@@ -58,7 +59,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
   };
 
   const handleInstallUpdate = async () => {
-      if (!updateInfo) return;
+      if (!updateInfo) {return;}
       setUpdateStatus('downloading');
       try {
           await updateInfo.downloadAndInstall();
@@ -112,7 +113,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
   const handleStartTrial = () => {
       if (keyAuthService.startTrial()) {
           refreshAuthData();
-          if (onClose) onClose(); // Auto close on success if requested, but let's refresh UI first
+          if (onClose) {onClose();} // Auto close on success if requested, but let's refresh UI first
       }
   };
 
@@ -125,7 +126,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
     await open('https://vinsstudio.mysellauth.com/');
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {return null;}
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">

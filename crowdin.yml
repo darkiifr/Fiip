@@ -8,6 +8,8 @@ preserve_hierarchy: true
 files:
   - source: /src/locales/fr.json
     translation: /src/locales/%locale%.json
+  - source: /Mobile/src/locales/fr.json
+    translation: /Mobile/src/locales/%locale%.json
 
 languages_mapping:
   locale:

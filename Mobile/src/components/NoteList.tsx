@@ -39,12 +39,12 @@ export const NoteList = ({ onNotePress }: { onNotePress: (note: any) => void }) 
   return (
     <View style={styles.container}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 16 }}>
-        <Text style={[isIOS ? styles.headerIOS : styles.headerAndroid, { color: colors.text, marginBottom: 0, marginLeft: 0 }]}>Récents</Text>
+        <Text style={[isIOS ? styles.headerIOS : styles.headerAndroid, { color: colors.text, marginBottom: 0, marginLeft: 0 }]}>{t('home.recent')}</Text>
         {isSyncing && <ActivityIndicator size="small" color={colors.primary} />}
       </View>
       
       {notes.length === 0 && !isSyncing ? (
-        <Text style={{ marginHorizontal: 16, color: colors.textSecondary }}>Aucune note récente.</Text>
+        <Text style={{ marginHorizontal: 16, color: colors.textSecondary }}>{t('home.no_recent')}</Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {notes.map(note => (

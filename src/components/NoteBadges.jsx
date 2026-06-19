@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
-import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, X, Zap, Trophy, Flame, Plus, Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search, Bell, Brush, Gamepad, Globe, Laptop, Lightbulb, Music, PenTool, Plane, Palette, Wifi, Cpu, Database, Shield, Server, Box, Terminal, MessageSquare, Monitor, Image as ImageIcon } from 'lucide-react';
 import { Icon as IconifyIcon } from '@iconify/react';
+import { Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, X, Zap, Trophy, Flame, Plus, Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search, Bell, Brush, Gamepad, Globe, Laptop, Lightbulb, Music, PenTool, Plane, Palette, Wifi, Cpu, Database, Shield, Server, Box, Terminal, MessageSquare, Monitor, Image as ImageIcon } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+
 import { dataService } from '../services/supabase';
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -54,7 +55,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
         if (settingsRaw) {
             try {
                 const settings = JSON.parse(settingsRaw);
-                if (settings.saved_custom_badges) return settings.saved_custom_badges;
+                if (settings.saved_custom_badges) {return settings.saved_custom_badges;}
             } catch (e) { console.error(e); }
         }
         const saved = localStorage.getItem('saved_custom_badges');
@@ -80,7 +81,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
     };
 
     const handleAddBadge = () => {
-        if (!newLabel.trim()) return;
+        if (!newLabel.trim()) {return;}
         
         const newBadge = {
             id: generateId(),

@@ -8,7 +8,7 @@ export const detectLocalFonts = () => {
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d", { willReadFrequently: true });
     
-    if (!context) return [];
+    if (!context) {return [];}
     
     const getWidth = (fontFamily, baseFont) => {
         context.font = `${testSize} "${fontFamily}", ${baseFont}`;

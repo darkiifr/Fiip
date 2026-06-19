@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+
 import IconChevronDown from '~icons/mingcute/down-fill';
 
 export default function ToolbarCombobox({ 
@@ -77,7 +78,7 @@ export default function ToolbarCombobox({
             e.preventDefault();
             onChange(inputValue);
             setIsOpen(false);
-            if (inputRef.current) inputRef.current.blur();
+            if (inputRef.current) {inputRef.current.blur();}
         } else if (e.key === 'Escape') {
             setIsOpen(false);
             setInputValue(value || ''); // Revert
@@ -85,7 +86,7 @@ export default function ToolbarCombobox({
     };
 
     const renderMenu = () => {
-        if (!isOpen) return null;
+        if (!isOpen) {return null;}
 
         const menuContent = (
             <div 
@@ -135,7 +136,7 @@ export default function ToolbarCombobox({
                 value={inputValue}
                 onChange={(e) => {
                     setInputValue(e.target.value);
-                    if (!isOpen) handleOpen();
+                    if (!isOpen) {handleOpen();}
                 }}
                 onFocus={handleOpen}
                 onKeyDown={handleKeyDown}
@@ -145,8 +146,8 @@ export default function ToolbarCombobox({
             <button 
                 type="button"
                 onClick={() => {
-                   if (isOpen) setIsOpen(false);
-                   else handleOpen();
+                   if (isOpen) {setIsOpen(false);}
+                   else {handleOpen();}
                 }}
                 className="pr-2 pl-1 h-full text-gray-400 group-hover:text-gray-300 transition-colors flex items-center"
             >

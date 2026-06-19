@@ -4,8 +4,8 @@ import { twMerge } from "tailwind-merge";
 const API_URL = "https://api.languagetoolplus.com/v2/check";
 
 function getDecoratedText(value, errors) {
-    if (!errors.length) return value;
-    let result = [];
+    if (!errors.length) {return value;}
+    const result = [];
     let lastIndex = 0;
     errors.forEach((err, i) => {
         const { offset, length } = err;
@@ -22,7 +22,7 @@ function getDecoratedText(value, errors) {
     if (lastIndex < value.length) {
         result.push(value.slice(lastIndex));
     }
-    if (value.endsWith('\n')) result.push(<br key="trailing" />);
+    if (value.endsWith('\n')) {result.push(<br key="trailing" />);}
     return result;
 }
 
@@ -33,19 +33,19 @@ const LanguageToolHighlightTextarea = forwardRef(({ value, onChange, className, 
     const [checking, setChecking] = useState(false);
 
     useEffect(() => {
-        if (typeof ref === 'function') ref(localRef.current);
-        else if (ref) ref.current = localRef.current;
+        if (typeof ref === 'function') {ref(localRef.current);}
+        else if (ref) {ref.current = localRef.current;}
     }, [ref]);
 
     const handleInput = (e) => {
-        if (onChange) onChange(e);
+        if (onChange) {onChange(e);}
     };
 
     useEffect(() => {
         if (!enabled || !value || value.trim().length < 3) {
             const timer = setTimeout(() => {
                 setErrors(prev => prev.length > 0 ? [] : prev);
-                if (onLanguageDetected) onLanguageDetected(null);
+                if (onLanguageDetected) {onLanguageDetected(null);}
             }, 0);
             return () => clearTimeout(timer);
         }
@@ -78,7 +78,7 @@ const LanguageToolHighlightTextarea = forwardRef(({ value, onChange, className, 
     }, [value, language, enabled, onLanguageDetected]);
 
     const handleSuggestionClick = (err, replacement) => {
-        if (!replacement) return;
+        if (!replacement) {return;}
         const textarea = localRef.current;
         if (textarea) {
             textarea.focus();
@@ -87,7 +87,7 @@ const LanguageToolHighlightTextarea = forwardRef(({ value, onChange, className, 
         } else {
             const before = value.slice(0, err.offset);
             const after = value.slice(err.offset + err.length);
-            if (onChange) onChange({ target: { value: before + replacement + after } });
+            if (onChange) {onChange({ target: { value: before + replacement + after } });}
         }
     };
 
@@ -152,8 +152,7 @@ const LanguageToolHighlightTextarea = forwardRef(({ value, onChange, className, 
                                     {err.replacements?.length > 0 && (
                                         <div className="flex flex-wrap gap-1 mt-1">
                                             {err.replacements.slice(0, 4).map((rep, j) => (
-                                                <button
-                                                    key={j}
+                                                <button                                                    type="button"                                                    key={j}
                                                     title={`Remplacer par "${rep.value}"`}
                                                     className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-300 hover:text-red-200 rounded text-xs transition-colors border border-red-500/20 cursor-pointer"
                                                     onClick={() => handleSuggestionClick(err, rep.value)}

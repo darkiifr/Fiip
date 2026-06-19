@@ -18,7 +18,7 @@ export const DictationExtension = Extension.create({
           apply(tr, decoSet) {
             const val = tr.getMeta(DictationPluginKey);
             if (val !== undefined) {
-              if (val === '') return DecorationSet.empty;
+              if (val === '') {return DecorationSet.empty;}
               
               const widget = document.createElement('span');
               widget.className = 'text-gray-400 bg-white/10 rounded px-1.5 py-0.5 animate-pulse ml-1 italic inline-block';

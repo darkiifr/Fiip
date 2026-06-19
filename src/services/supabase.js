@@ -22,9 +22,9 @@ export const STORAGE_LIMITS = {
 export const getStorageLimit = (level) => {
   // Level mapping from KeyAuth: 0=Free, 1=Basic, 2=Pro, 4=Dev/Enterprise
   const levelNum = Number(level) || 0;
-  if (levelNum >= 4) return STORAGE_LIMITS.ENTERPRISE;
-  if (levelNum >= 2) return STORAGE_LIMITS.PRO;
-  if (levelNum >= 1) return STORAGE_LIMITS.BASIC;
+  if (levelNum >= 4) {return STORAGE_LIMITS.ENTERPRISE;}
+  if (levelNum >= 2) {return STORAGE_LIMITS.PRO;}
+  if (levelNum >= 1) {return STORAGE_LIMITS.BASIC;}
   return STORAGE_LIMITS.FREE;
 };
 
@@ -49,7 +49,7 @@ export const authService = {
             .from('profiles')
             .upsert({ id: data.user.id, nickname: username, avatar_url: '', bio: '', accent_color: '#5865F2', updated_at: new Date().toISOString() }, { onConflict: 'id' });
             
-        if (profileError) console.error("Error creating profile:", profileError);
+        if (profileError) {console.error("Error creating profile:", profileError);}
     }
     return { data, error };
   },
@@ -120,7 +120,7 @@ export const authService = {
 
   async validateSession() {
     const user = await this.getUser();
-    if (!user) return false;
+    if (!user) {return false;}
     
     try {
       const validateLogic = async () => {
@@ -130,7 +130,7 @@ export const authService = {
           .eq('id', user.id)
           .single();
           
-        if (!data?.last_session_validated) return false;
+        if (!data?.last_session_validated) {return false;}
         
         const lastValidated = new Date(data.last_session_validated);
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -184,7 +184,7 @@ export const dataService = {
   // --- Notes ---
   async fetchNotes() {
     const user = await authService.getUser();
-    if (!user) return { data: [], error: 'Not authenticated' };
+    if (!user) {return { data: [], error: 'Not authenticated' };}
 
     // Fetch owned notes
     const { data: ownedData, error: ownedError } = await supabase
@@ -216,7 +216,7 @@ export const dataService = {
         });
     }
     
-    let combinedData = Array.from(allNotesMap.values());
+    const combinedData = Array.from(allNotesMap.values());
     combinedData.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
     // Map DB fields back to what the frontend expects
@@ -249,7 +249,7 @@ export const dataService = {
 
   async saveNote(note) {
     const user = await authService.getUser();
-    if (!user) return { error: 'Not authenticated' };
+    if (!user) {return { error: 'Not authenticated' };}
 
     // Format note for DB (remove local-only constructs if any)
     const dbNote = {
@@ -283,7 +283,7 @@ export const dataService = {
 
   async deleteNote(noteId) {
       const user = await authService.getUser();
-      if (!user) return { error: 'Not authenticated' };
+      if (!user) {return { error: 'Not authenticated' };}
 
       const { error } = await supabase
           .from('notes')
@@ -296,7 +296,7 @@ export const dataService = {
   // --- Public Sharing ---
   async publishNote(noteId) {
     const user = await authService.getUser();
-    if (!user) return { error: 'Not authenticated' };
+    if (!user) {return { error: 'Not authenticated' };}
 
     // Generate a random slug
     const slug = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
@@ -314,7 +314,7 @@ export const dataService = {
 
   async unpublishNote(noteId) {
     const user = await authService.getUser();
-    if (!user) return { error: 'Not authenticated' };
+    if (!user) {return { error: 'Not authenticated' };}
 
     const { data, error } = await supabase
       .from('notes')
@@ -384,7 +384,7 @@ export const dataService = {
   // --- Profile ---
   async fetchProfile() {
       const user = await authService.getUser();
-      if (!user) return { data: null, error: 'Not authenticated' };
+      if (!user) {return { data: null, error: 'Not authenticated' };}
 
       const { data, error } = await supabase
           .from('profiles')
@@ -413,7 +413,7 @@ export const dataService = {
 
   async saveProfile(profile) {
       const user = await authService.getUser();
-      if (!user) return { error: 'Not authenticated' };
+      if (!user) {return { error: 'Not authenticated' };}
 
       // Update auth user metadata so it drops down smoothly
       const { error: authError } = await supabase.auth.updateUser({
@@ -445,7 +445,7 @@ export const dataService = {
 
   async uploadAvatar(file) {
       const user = await authService.getUser();
-      if (!user) return { error: new Error('Not authenticated') };
+      if (!user) {return { error: new Error('Not authenticated') };}
 
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Math.random()}.${fileExt}`;
@@ -455,7 +455,7 @@ export const dataService = {
           .from('avatars')
           .upload(filePath, file, { upsert: true });
 
-      if (uploadError) return { error: uploadError };
+      if (uploadError) {return { error: uploadError };}
 
       const { data } = supabase.storage
           .from('avatars')
@@ -476,7 +476,7 @@ export const dataService = {
   },
 
   joinNoteCollaboration(noteId, userId, username, onUpdate, onPresenceSync) {
-      if (!noteId) return null;
+      if (!noteId) {return null;}
       const room = supabase.channel(`note-${noteId}`, {
           config: { presence: { key: userId } }
       });
@@ -489,7 +489,7 @@ export const dataService = {
 
       room.on('presence', { event: 'sync' }, () => {
           const state = room.presenceState();
-          if (onPresenceSync) onPresenceSync(state);
+          if (onPresenceSync) {onPresenceSync(state);}
       });
 
       room.subscribe(async (status) => {
@@ -507,7 +507,7 @@ export const dataService = {
   // --- Settings ---
   async fetchSettings() {
       const user = await authService.getUser();
-      if (!user) return { data: {}, error: 'Not authenticated' };
+      if (!user) {return { data: {}, error: 'Not authenticated' };}
 
       const { data, error } = await supabase
           .from('user_settings')
@@ -526,7 +526,7 @@ export const dataService = {
 
   async saveSettings(settings) {
       const user = await authService.getUser();
-      if (!user) return { error: 'Not authenticated' };
+      if (!user) {return { error: 'Not authenticated' };}
 
       const { error } = await supabase
           .from('user_settings')
@@ -539,9 +539,9 @@ export const dataService = {
     if (!userId) {
         if (typeof authService !== 'undefined' && authService.getUser) {
              const user = await authService.getUser();
-             if (user) userId = user.id;
+             if (user) {userId = user.id;}
         }
-        if (!userId) return 0;
+        if (!userId) {return 0;}
     }
 
     let totalSize = 0;
@@ -560,7 +560,7 @@ export const dataService = {
             sortBy: { column: 'name', order: 'asc' }
           });
 
-        if (rootError) throw rootError;
+        if (rootError) {throw rootError;}
 
         if (!rootItems || rootItems.length === 0) {
           hasMore = false;
@@ -592,7 +592,7 @@ export const dataService = {
             totalSize += sizes.reduce((acc, s) => acc + s, 0);
 
             page++;
-            if (page > 50) hasMore = false; 
+            if (page > 50) {hasMore = false;} 
         }
       }
     } catch (e) {
@@ -607,7 +607,7 @@ export const dataService = {
   async uploadAttachment(file, path) {
     // 1. Check Usage
     const user = await authService.getUser();
-    if (!user) return { error: 'Not authenticated' };
+    if (!user) {return { error: 'Not authenticated' };}
     
     const currentUsage = await this.getUsage(user.id);
     const level = user?.user_metadata?.subscription_level || 0;
@@ -626,7 +626,7 @@ export const dataService = {
             upsert: true
         });
 
-    if (error) return { error };
+    if (error) {return { error };}
 
     const { data: publicUrlData } = supabase
         .storage
@@ -658,7 +658,7 @@ export const storageService = {
         .from('attachments')
         .download(finalPath);
   
-      if (error) throw error;
+      if (error) {throw error;}
       return await data.text();
   },
 

@@ -8,8 +8,8 @@ export const soundManager = {
         // Read settings directly from localStorage to avoid prop drilling everywhere for global events
         const settings = JSON.parse(localStorage.getItem('fiip-settings') || '{}');
 
-        if (type === 'interaction' && settings.appSound === false) return;
-        if (type === 'message' && settings.chatSound === false) return;
+        if (type === 'interaction' && settings.appSound === false) {return;}
+        if (type === 'message' && settings.chatSound === false) {return;}
 
         if (currentAudio) {
             currentAudio.pause();

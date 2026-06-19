@@ -71,12 +71,7 @@ describe('Supabase authService', () => {
         expect(supabase.auth.signUp).toHaveBeenCalledWith({
             email: 'test@example.com',
             password: 'password123',
-            options: {
-                data: {
-                    username: 'testuser',
-                    subscription_level: 0
-                }
-            }
+            options: { data: { username: 'testuser', nickname: 'testuser', subscription_level: 0 } }
         });
     });
 
@@ -124,17 +119,25 @@ describe('Supabase dataService', () => {
     });
 
     it('fetchProfile should fetch from profiles table', async () => {
-        const mockSingle = vi.fn().mockResolvedValue({ data: { username: 'test' }, error: null });
-        supabase.from.mockReturnValueOnce({
+        const mockSingle = vi.fn().mockResolvedValue({ data: { id: '123', nickname: 'test' }, error: null });
+        supabase.from.mockReturnValue({
             select: vi.fn().mockReturnValue({
                 eq: vi.fn().mockReturnValue({
                     single: mockSingle
+                })
+            }),
+            upsert: vi.fn().mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                    single: vi.fn().mockReturnValue({
+                        data: { id: '123', nickname: 'test' },
+                        error: null
+                    })
                 })
             })
         });
 
         const profile = await dataService.fetchProfile();
-        expect(profile.data.username).toBe('test');
+        expect(profile.data.nickname).toBe('test');
         expect(supabase.from).toHaveBeenCalledWith('profiles');
     });
 });

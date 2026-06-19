@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
-import { dataService } from '../services/supabase';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
 import { Icon as IconifyIcon } from '@iconify/react';
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
+import { useEffect, useState } from 'react';
+
+import { dataService } from '../services/supabase';
 import 'katex/dist/katex.min.css';
 
 // Simple parser for LaTeX in markdown
 const renderMarkdown = (text) => {
-    if (!text) return { __html: '' };
+    if (!text) {return { __html: '' };}
     
     // Configure marked options if needed
     // marked.setOptions({ ... });
@@ -22,25 +23,11 @@ export default function PublicNoteView() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        // Extract slug from URL: /n/:slug
-        const path = window.location.pathname;
-        const parts = path.split('/n/');
-        if (parts.length > 1) {
-            const currentSlug = parts[1];
-            // setSlug(currentSlug);
-            fetchNote(currentSlug);
-        } else {
-            setError("Lien invalide");
-            setLoading(false);
-        }
-    }, []);
-
     const fetchNote = async (slug) => {
         try {
             setLoading(true);
             const { data, error } = await dataService.getPublicNote(slug);
-            if (error) throw error;
+            if (error) {throw error;}
             setNote(data);
         } catch (err) {
             console.error(err);
@@ -49,6 +36,22 @@ export default function PublicNoteView() {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        // Extract slug from URL: /n/:slug
+        const path = window.location.pathname;
+        const parts = path.split('/n/');
+        if (parts.length > 1) {
+            const currentSlug = parts[1];
+            // setSlug(currentSlug);
+            queueMicrotask(() => fetchNote(currentSlug));
+        } else {
+            queueMicrotask(() => {
+                setError("Lien invalide");
+                setLoading(false);
+            });
+        }
+    }, []);
 
     if (loading) {
         return (
@@ -72,7 +75,7 @@ export default function PublicNoteView() {
         );
     }
 
-    if (!note) return null;
+    if (!note) {return null;}
 
     return (
         <div className="min-h-screen bg-[#1C1C1E] text-[#E0E0E0] font-dexter selection:bg-blue-500/30">
@@ -140,7 +143,7 @@ export default function PublicNoteView() {
                     <div className="mt-8 space-y-6">
                         {note.attachments.filter(att => ['image', 'video', 'audio'].includes(att.type)).map((att, index) => {
                             const src = att.url || att.data;
-                            if (!src) return null;
+                            if (!src) {return null;}
                             
                             return (
                                 <div key={index} className="flex flex-col items-center">

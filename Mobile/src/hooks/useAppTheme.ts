@@ -1,5 +1,6 @@
 import { useColorScheme } from 'react-native';
 import { useSettingsStore } from '../store/settingsStore';
+import { getFiipTheme } from '../theme/fiipDesign';
 
 export function useAppTheme() {
   const systemColorScheme = useColorScheme();
@@ -7,18 +8,22 @@ export function useAppTheme() {
 
   const isDark = themeMode === 'system' ? systemColorScheme === 'dark' : themeMode === 'dark';
 
+  const theme = getFiipTheme(isDark);
+
   return {
     isDark,
     colors: {
-      background: isDark ? '#000000' : '#F2F2F7',
-      card: isDark ? '#1C1C1E' : '#FFFFFF',
-      text: isDark ? '#FFFFFF' : '#000000',
-      textSecondary: isDark ? '#EBEBF599' : '#3C3C4399',
-      border: isDark ? '#38383A' : '#C6C6C8',
-      primary: '#0A84FF',
-      danger: '#FF453A',
-      warning: '#FF9F0A',
-      success: '#32D74B',
+      background: theme.background,
+      card: theme.card,
+      text: theme.text,
+      textSecondary: theme.textSecondary,
+      border: theme.border,
+      primary: theme.blue,
+      danger: theme.danger,
+      warning: theme.accent,
+      success: theme.success,
+      accent: theme.accent,
+      backgroundAlt: theme.backgroundAlt,
     },
   };
 }

@@ -5,7 +5,7 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
-    "lint": "eslint .",
+    "lint": "node scripts/lint.cjs",
     "lint:ios": "xcodebuild -workspace ios/FiipMobile.xcworkspace -scheme FiipMobile -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build | xcpretty",
     "lint:android": "cd android && ./gradlew lintDebug",
     "start": "react-native start",
@@ -51,12 +51,12 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
-    "@babel/preset-env": "^7.25.3",
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
     "@babel/runtime": "^7.29.2",
-    "@react-native-community/cli": "20.1.0",
-    "@react-native-community/cli-platform-android": "20.1.0",
-    "@react-native-community/cli-platform-ios": "20.1.0",
+    "@react-native-community/cli": "20.1.3",
+    "@react-native-community/cli-platform-android": "20.1.3",
+    "@react-native-community/cli-platform-ios": "20.1.3",
     "@react-native/babel-preset": "0.85.0",
     "@react-native/eslint-config": "^0.85.0",
     "@react-native/jest-preset": "0.85.0",
@@ -83,9 +83,18 @@
   },
   "overrides": {
     "xml2js": ">=0.6.2",
-    "@xmldom/xmldom": ">=0.8.12",
-    "xmldom": ">=0.8.10",
-    "flatted": ">=3.4.2"
+    "@xmldom/xmldom": "0.9.10",
+    "xmldom": "npm:@xmldom/xmldom@0.9.10",
+    "fast-xml-parser": "^5.9.3",
+    "flatted": ">=3.4.2",
+    "joi": "^18.2.3",
+    "js-yaml": "^4.2.0",
+    "launch-editor": "^2.14.1",
+    "qs": "^6.15.2",
+    "shell-quote": "^1.8.4",
+    "tmp": "^0.2.7",
+    "uuid": "^11.1.1",
+    "ws": "^8.21.0"
   },
   "engines": {
     "node": ">= 22.11.0"

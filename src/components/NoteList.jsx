@@ -1,19 +1,23 @@
+import { Icon as IconifyIcon } from '@iconify/react';
+import { Tag } from 'lucide-react';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Tag } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Icon as IconifyIcon } from '@iconify/react';
 
 // Icons Import (Pim's Edition)
+import { PRESET_ICONS } from './NoteBadges';
+
 import IconPlus from '~icons/mingcute/add-fill';
-import IconSearch from '~icons/mingcute/search-line';
-import IconTrash from '~icons/mingcute/delete-2-fill';
-import IconStarOff from '~icons/mingcute/star-line';
-import IconStarOn from '~icons/mingcute/star-fill';
 import IconRestore from '~icons/mingcute/back-2-fill';
 import IconDeletePermanent from '~icons/mingcute/close-circle-fill';
+import IconTrash from '~icons/mingcute/delete-2-fill';
+import IconSearch from '~icons/mingcute/search-line';
+import IconStarOn from '~icons/mingcute/star-fill';
+import IconStarOff from '~icons/mingcute/star-line';
 
-import { PRESET_ICONS } from './NoteBadges';
+
+import { useUI } from '../providers/UIProvider';
+import { LiquidGlassPrimitive } from './ui/LiquidGlassPrimitive';
 
 const BADGE_COLORS = [
     'text-red-400', 'text-orange-400', 'text-yellow-400', 'text-green-400', 'text-blue-400', 'text-indigo-400', 'text-purple-400', 'text-pink-400', 'text-gray-400'
@@ -32,6 +36,7 @@ export default function NoteList({
     settings
 }) {
     const { t, i18n } = useTranslation();
+    const { theme } = useUI();
     const [searchTerm, setSearchTerm] = useState('');
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
 
@@ -97,9 +102,19 @@ export default function NoteList({
     }, [contextMenu]);
 
     return (
-        <div className={`flex flex-col h-full ${bgClass} border-r border-white/10`} style={{ width: '320px', minWidth: '280px', maxWidth: '320px' }}>
+        <LiquidGlassPrimitive 
+            className="flex flex-col h-full border-r border-white/10" 
+            variant={theme === 'liquid-glass' ? 'default' : 'subtle'}
+            style={{ 
+                width: '320px', 
+                minWidth: '280px', 
+                maxWidth: '320px',
+                borderRadius: 0,
+                background: theme === 'liquid-glass' ? undefined : (isTransparent ? '#1C1C1E40' : '#1C1C1E')
+            }}
+        >
             {/* Header */}
-            <div className="flex items-center justify-between px-[16px] h-[52px] box-border shrink-0">
+            <div className="flex items-center justify-between px-4 h-13 box-border shrink-0">
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-white/90 px-2">{
                         activeNav === 'favorites' ? (t('sidebar.favorites') || "Favorites") :
@@ -111,7 +126,7 @@ export default function NoteList({
                 {activeNav === 'trash' ? (
                     <button 
                         onClick={onEmptyTrash}
-                        className="h-[32px] px-[16px] py-[8px] bg-red-600/10 hover:bg-red-600/20 text-red-400 hover:text-red-300 text-[13px] font-medium rounded-[6px] transition-colors duration-[250ms] ease-in-out flex items-center gap-2 border border-red-500/20"
+                        className="h-8 px-4 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-400 hover:text-red-300 text-[13px] font-medium rounded-md transition-colors duration-250 ease-in-out flex items-center gap-2 border border-red-500/20"
                         title={t('sidebar.empty_trash') || "Empty Trash"}
                     >
                         <IconTrash className="w-4 h-4" />
@@ -120,7 +135,7 @@ export default function NoteList({
                 ) : (
                     <button 
                         onClick={() => onCreateNote({})}
-                        className="h-[32px] px-[16px] py-[8px] bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-medium rounded-[6px] transition-colors duration-[250ms] ease-in-out flex items-center gap-2"
+                        className="h-8 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[13px] font-medium rounded-md transition-colors duration-250 ease-in-out flex items-center gap-2"
                     >
                         <IconPlus className="w-4 h-4" />
                         {t('sidebar.new_note') || "New Note"}
@@ -129,23 +144,28 @@ export default function NoteList({
             </div>
 
             {/* Search */}
-            <div className="px-4 pb-[4px]">
+            <div className="px-4 pb-1">
                 <div className="relative group">
-                    <IconSearch className="w-4 h-4 absolute left-[12px] top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-blue-400 transition-colors duration-[150ms] ease-out" />
+                    <IconSearch className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-blue-400 transition-colors duration-150 ease-out" />
                     <input
                         type="text"
                         placeholder={t('sidebar.search_placeholder') || "Search"}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full h-[32px] bg-[#2C2C2E] border border-transparent focus:border-blue-500/50 pl-[36px] pr-[12px] rounded-[8px] text-sm outline-none transition-all duration-[250ms] ease-in-out text-gray-100 placeholder-gray-500"
+                        className={`
+                            w-full h-8 pl-9 pr-3 rounded-lg text-sm outline-none transition-all duration-250 ease-in-out text-gray-100 placeholder-gray-500
+                            ${theme === 'liquid-glass' 
+                                ? 'bg-white/5 border border-white/10 focus:bg-white/10 focus:border-blue-500/50' 
+                                : 'bg-[#2C2C2E] border border-transparent focus:border-blue-500/50'}
+                        `}
                     />
                 </div>
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-2 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-3 custom-scrollbar">
                 {filteredNotes.length === 0 ? (
-                    <div className="text-center text-gray-500 mt-10 text-sm">{t('sidebar.no_notes') || "No notes"}</div>
+                    <div className="text-center text-white/20 mt-10 text-xs font-bold uppercase tracking-widest">{t('sidebar.no_notes') || "No notes"}</div>
                 ) : (
                     filteredNotes.map((note) => (
                         <div
@@ -153,26 +173,29 @@ export default function NoteList({
                             onClick={() => onSelectNote(note.id)}
                             onContextMenu={(e) => handleContextMenu(e, note.id)}
                             className={`
-                                group px-[16px] py-[12px] rounded-[8px] cursor-pointer transition-all duration-[150ms] ease-out
-                                flex flex-col gap-[6px] border border-transparent min-h-[72px] mb-[8px]
+                                group px-4 py-4 rounded-2xl cursor-pointer transition-all duration-300 ease-out
+                                flex flex-col gap-2 border min-h-[84px] mb-3 relative overflow-hidden
                                 ${selectedNoteId === note.id
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'hover:bg-white/5 text-gray-300 border-transparent'}
+                                    ? (theme === 'liquid-glass' ? 'bg-blue-600/90 border-blue-400/40 shadow-[0_8px_20px_rgba(59,130,246,0.4)]' : 'bg-blue-600 border-transparent text-white shadow-lg scale-[1.02]')
+                                    : (theme === 'liquid-glass' ? 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20 hover:scale-[1.01]' : 'hover:bg-white/5 border-transparent text-gray-300')}
                             `}
                         >
-                            <h3 className={`font-semibold text-[15px] leading-5 truncate ${selectedNoteId === note.id ? 'text-white' : 'text-gray-200'}`}>
-                                {note.title || t('sidebar.new_note') || "Untitled"}
+                            {/* Glass overlay on hover */}
+                            <div className="absolute inset-0 bg-linear-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            
+                            <h3 className={`font-bold text-[15px] leading-tight truncate relative z-10 ${selectedNoteId === note.id ? 'text-white' : 'text-white/90'}`}>
+                                {note.title || "Note sans titre"}
                             </h3>
-                            <div className={`text-[13px] leading-[18px] line-clamp-2 ${selectedNoteId === note.id ? 'text-blue-100' : 'text-gray-400'}`}>
+                            <div className={`text-[12px] leading-relaxed line-clamp-2 relative z-10 ${selectedNoteId === note.id ? 'text-white/80' : 'text-white/30'}`}>
                                 {(() => {
-                                    if (!note.content) return t('sidebar.no_content') || "No content";
+                                    if (!note.content) {return "Aucun contenu";}
                                     const tempDiv = document.createElement('div');
                                     tempDiv.innerHTML = note.content;
                                     return tempDiv.textContent || tempDiv.innerText || "";
-                                })() || t('sidebar.no_content') || "No content"}
+                                })() || "Aucun contenu"}
                             </div>
-                            <div className="flex items-center justify-between mt-[8px]">
-                                <span className={`text-[11px] ${selectedNoteId === note.id ? 'text-blue-200' : 'text-gray-500'}`}>
+                            <div className="flex items-center justify-between mt-1 relative z-10">
+                                <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedNoteId === note.id ? 'text-white/60' : 'text-white/20'}`}>
                                     {(() => {
                                         try {
                                             return new Date(note.updatedAt).toLocaleDateString(i18n.language, { month: 'short', day: 'numeric' });
@@ -181,27 +204,25 @@ export default function NoteList({
                                         }
                                     })()}
                                 </span>
+                                {note.favorite && (
+                                    <IconStarOn className={`w-3.5 h-3.5 ${selectedNoteId === note.id ? 'text-white' : 'text-yellow-500'} opacity-80`} />
+                                )}
                                 {note.badges && note.badges.length > 0 && (
-                                    <div className="flex items-center -space-x-1">
+                                    <div className="flex items-center -space-x-1.5 ml-2">
                                         {note.badges.slice(0, 3).map((badge, idx) => {
                                             const isSkill = badge.icon && (badge.icon.startsWith('skill-icons:') || badge.icon.startsWith('logos:') || badge.icon.startsWith('devicon:') || badge.icon.startsWith('vscode-icons:') || badge.icon.startsWith('formkit:'));
                                             const colorClass = BADGE_COLORS[badge.color] || 'text-gray-400';
                                             return (
-                                                <div key={idx} className={`w-4 h-4 rounded-full flex items-center justify-center bg-[#2C2C2E] border border-[#1C1C1E] ring-1 ring-[#1C1C1E] relative z-${10-idx}`} title={badge.label}>
+                                                <div key={idx} className={`w-5 h-5 rounded-full flex items-center justify-center bg-[#2C2C2E] border border-white/10 ring-2 ring-transparent relative z-${10-idx} shadow-sm group-hover:ring-white/5 transition-all`} title={badge.label}>
                                                     {isSkill ? (
-                                                        <IconifyIcon icon={badge.icon} className="w-2.5 h-2.5" />
+                                                        <IconifyIcon icon={badge.icon} className="w-3 h-3" />
                                                     ) : (() => {
                                                         const Icon = PRESET_ICONS[badge.icon] || Tag;
-                                                        return <Icon className={`w-2.5 h-2.5 ${colorClass}`} />;
+                                                        return <Icon className={`w-3 h-3 ${colorClass}`} />;
                                                     })()}
                                                 </div>
                                             );
                                         })}
-                                        {note.badges.length > 3 && (
-                                            <div className="w-4 h-4 rounded-full flex items-center justify-center bg-[#2C2C2E] border border-[#1C1C1E] text-[8px] text-gray-400 font-bold z-0 ring-1 ring-[#1C1C1E] relative">
-                                                +{note.badges.length - 3}
-                                            </div>
-                                        )}
                                     </div>
                                 )}
                             </div>
@@ -213,7 +234,7 @@ export default function NoteList({
             {/* Context Menu */}
             {contextMenu.visible && createPortal(
                 <div
-                    className="fixed z-[99999] w-48 bg-[#2C2C2E] border border-white/10 rounded-lg shadow-xl py-1 text-white font-sans"
+                    className={`fixed z-99999 w-48 rounded-lg shadow-xl py-1 text-white font-sans border border-white/10 ${theme === 'liquid-glass' ? 'bg-sidebar-dark/80 backdrop-blur-xl' : 'bg-[#2C2C2E]'}`}
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                     onContextMenu={(e) => e.preventDefault()}
                 >
@@ -223,7 +244,7 @@ export default function NoteList({
                             onToggleFavorite && onToggleFavorite(contextMenu.noteId);
                             setContextMenu({ ...contextMenu, visible: false });
                         }}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2 transition-colors duration-[150ms] ease-out"
+                        className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-white/5 flex items-center gap-2 transition-colors duration-150 ease-out"
                     >
                         {notes.find(n => n.id === contextMenu.noteId)?.favorite ? (
                              <>
@@ -245,7 +266,7 @@ export default function NoteList({
                                 onRestoreNote && onRestoreNote(contextMenu.noteId);
                                 setContextMenu({ ...contextMenu, visible: false });
                             }}
-                            className="w-full text-left px-3 py-2 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors duration-[150ms] ease-out"
+                            className="w-full text-left px-3 py-2 text-sm text-green-400 hover:bg-white/5 flex items-center gap-2 transition-colors duration-150 ease-out"
                         >
                             <IconRestore className="w-4 h-4" />
                             {t('sidebar.restore') || "Restore"}
@@ -258,7 +279,7 @@ export default function NoteList({
                             onDeleteNote(contextMenu.noteId);
                             setContextMenu({ ...contextMenu, visible: false });
                         }}
-                        className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors duration-[150ms] ease-out"
+                        className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-white/5 flex items-center gap-2 transition-colors duration-150 ease-out"
                     >
                         {activeNav === 'trash' ? (
                             <>
@@ -275,6 +296,6 @@ export default function NoteList({
                 </div>,
                 document.body
             )}
-        </div>
+        </LiquidGlassPrimitive>
     );
 }

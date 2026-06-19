@@ -1,10 +1,10 @@
-import { writeTextFile, readTextFile, stat } from '@tauri-apps/plugin-fs';
 import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
+import { writeTextFile, readTextFile, stat } from '@tauri-apps/plugin-fs';
 
 export async function calculateTotalUsage(notes) {
     let totalSize = 0;
     
-    if (!notes || !Array.isArray(notes)) return 0;
+    if (!notes || !Array.isArray(notes)) {return 0;}
 
     for (const note of notes) {
         // Text content size (UTF-16 characters = 2 bytes usually, but simple length approximation)

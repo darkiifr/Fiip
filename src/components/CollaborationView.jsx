@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+
 import { keyAuthService } from '../services/keyauth';
+
+import IconDownload from '~icons/mingcute/download-2-fill';
+import IconLoading from '~icons/mingcute/loading-fill';
 import IconMail from '~icons/mingcute/mail-fill';
+import IconRefresh from '~icons/mingcute/refresh-3-fill';
 import IconShare from '~icons/mingcute/share-2-fill';
 import IconUser from '~icons/mingcute/user-4-fill';
-import IconDownload from '~icons/mingcute/download-2-fill';
-import IconRefresh from '~icons/mingcute/refresh-3-fill';
-import IconLoading from '~icons/mingcute/loading-fill';
 
 export default function CollaborationView({ onImportNote }) {
     const [inbox, setInbox] = useState([]);
@@ -15,7 +17,9 @@ export default function CollaborationView({ onImportNote }) {
     const myUsername = keyAuthService.userData?.username;
 
     const loadInbox = useCallback(async () => {
-        if (!keyAuthService.isAuthenticated) return;
+        if (!keyAuthService.isAuthenticated) {
+            return;
+        }
         setLoading(true);
         try {
             // Fetch from 'invites' channel
@@ -52,29 +56,39 @@ export default function CollaborationView({ onImportNote }) {
 
     // Poll for shared notes
     useEffect(() => {
-        loadInbox();
+        // use async wrapper to avoid cascading render warning
+        const init = async () => {
+            await loadInbox();
+        };
+        init();
+        
         const interval = setInterval(loadInbox, 10000);
         return () => clearInterval(interval);
     }, [loadInbox]);
 
     const handleDownload = async (item) => {
-        if (!item.downloadUrl) return;
+        if (!item.downloadUrl) {
+            return;
+        }
         setStatus(`Téléchargement de "${item.noteTitle}"...`);
         
         try {
             const response = await fetch(item.downloadUrl);
-            if (!response.ok) throw new Error("Erreur téléchargement");
+            if (!response.ok) {
+                throw new Error("Erreur téléchargement");
+            }
             
             const noteData = await response.json();
             
             // Clean up note data for import
+            const now = new Date().toISOString();
             const newNote = {
                 ...noteData,
-                id: Date.now().toString(), // New ID to avoid conflicts
+                id: crypto.randomUUID(), // New UUID to avoid conflicts
                 owner: myUsername, // I become the owner of my copy
                 sharedWith: [], // Reset sharing
-                createdAt: Date.now(),
-                updatedAt: Date.now()
+                createdAt: now,
+                updatedAt: now
             };
 
             onImportNote(newNote);

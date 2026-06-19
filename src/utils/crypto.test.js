@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+
 import { encryptData, decryptData } from './crypto';
 
 describe('crypto utils', () => {
@@ -36,7 +37,7 @@ describe('crypto utils', () => {
 
             await expect(decryptData(encryptedStr, wrongPassword)).rejects.toThrow();
         } catch (e) {
-             if (e.message.includes('crypto.subtle is undefined')) return;
+             if (e.message.includes('crypto.subtle is undefined')) {return;}
              throw e;
         } finally {
             consoleSpy.mockRestore();

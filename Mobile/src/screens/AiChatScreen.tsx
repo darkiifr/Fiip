@@ -1,308 +1,174 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, LayoutAnimation, UIManager } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import { fetchServerConfig } from '../services/config';
-import { systemInstruction, getResponse } from '../services/ai';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { GlassCard } from '../components/ui/GlassCard';
+import { Icon } from '../components/ui/Icon';
+import { FREE_MODEL_ROUTER, generateText, getLastAIUsageStats, subscribeToAIUsage } from '../services/ai';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { useNotesStore } from '../store/notesStore';
+import { fiipRadius } from '../theme/fiipDesign';
 import { triggerHaptic } from '../utils/hapticEngine';
-import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+const quickPrompts = [
+  { label: 'Résumer', prompt: 'Résume cette note en 4 points actionnables.' },
+  { label: 'Clarifier', prompt: 'Réécris cette note en français clair, précis et professionnel.' },
+  { label: 'Plan', prompt: 'Transforme cette note en plan structuré avec prochaines actions.' },
+];
 
-export const AiChatScreen = ({ route, navigation }: any) => {
-  const { initialNoteContext } = route.params || {};
-  const [messages, setMessages] = useState<any[]>([]);
+export function AiChatScreen({ navigation }: any) {
+  const { colors } = useAppTheme();
+  const notes = useNotesStore((state) => state.getNotesList());
+  const updateNote = useNotesStore((state) => state.updateNote);
+  const activeNote = notes[0];
+
   const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const insets = useSafeAreaInsets();
-  
-  // Use official Fiip App theme
-  const { isDark, colors } = useAppTheme();
+  const [answer, setAnswer] = useState('Choisissez une action rapide ou demandez une reformulation. Fiip utilise uniquement le routeur gratuit OpenRouter.');
+  const [loading, setLoading] = useState(false);
+  const [usage, setUsage] = useState<any>(getLastAIUsageStats());
 
-  const bgColor = colors.background;
-  const textColor = colors.text;
-  const subTextColor = colors.textSecondary;
-  
-  // Fiip Theme specific bubble colors
-  const bubbleUserBg = colors.primary; 
-  const bubbleUserText = '#FFFFFF';
-  
-  // A clean surface card color for AI bubble
-  const bubbleAiBg = isDark ? '#1C1C1E' : '#FFFFFF';
-  const bubbleAiText = textColor;
-  const borderLight = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
+  useEffect(() => subscribeToAIUsage(setUsage), []);
 
-  useEffect(() => {
-    let initialGreeting = "Bonjour ! Je suis FiipCopilot. Comment puis-je vous aider ?";
-    if (initialNoteContext) {
-      initialGreeting = "J'ai bien pris connaissance du contexte de votre note. Que souhaitez-vous faire ou savoir ?";
+  const usageLabel = useMemo(() => {
+    const raw = usage?.usage;
+    const prompt = raw?.prompt_tokens ?? raw?.tokens_prompt ?? raw?.native_tokens_prompt;
+    const completion = raw?.completion_tokens ?? raw?.tokens_completion ?? raw?.native_tokens_completion;
+    if (!prompt && !completion) {
+      return 'Aucune génération mesurée';
     }
-    setMessages([{ role: 'assistant', content: initialGreeting }]);
-  }, [initialNoteContext]);
+    return `${prompt || 0} entrée / ${completion || 0} sortie`;
+  }, [usage]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
-    
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    
-    const userMsg = input.trim();
-    const newMsgObj = { role: 'user', content: userMsg };
-    
-    setMessages(prev => [...prev, newMsgObj]);
-    setInput('');
-    setIsTyping(true);
+  const askFiip = async (prompt: string) => {
+    if (!prompt.trim() || loading) {
+      return;
+    }
+
     triggerHaptic('impactLight');
-
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 150);
+    setLoading(true);
 
     try {
-      const config = await fetchServerConfig();
-      const apiKey = config?.keys?.OPENROUTER_API_KEY || '';
-      
-      const conversation = [
-        { role: 'system', content: systemInstruction + (initialNoteContext ? "\nContexte de la note actuelle : " + initialNoteContext : "") },
-        ...messages,
-        newMsgObj
-      ];
-
-      const reply = await getResponse(conversation, apiKey);
-      
-      if (reply) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
-        triggerHaptic('notificationSuccess');
-      }
-
-    } catch (e) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "Désolé, une erreur de réseau est survenue." }]);
+      const response = await generateText({
+        messages: [
+          { role: 'system', content: 'Tu es Dexter, assistant éditorial de Fiip. Réponds en français, de façon concise et directement exploitable.' },
+          { role: 'user', content: `Note active:\n${activeNote?.content || ''}\n\nDemande:\n${prompt}` },
+        ],
+      });
+      setAnswer(response || 'Aucune réponse exploitable.');
+    } catch (error: any) {
+      setAnswer(error?.message || 'Erreur OpenRouter.');
     } finally {
-      setIsTyping(false);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 150);
+      setLoading(false);
+      setInput('');
     }
   };
 
+  const replaceNote = () => {
+    if (!activeNote || !answer.trim()) {
+      return;
+    }
+    triggerHaptic('notificationSuccess');
+    updateNote(activeNote.id, { content: answer });
+    navigation.navigate('NoteEditor', { noteToEdit: { ...activeNote, content: answer } });
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
-      {/* Header Fiip Style */}
-      <View style={[styles.headerAbsolute, { paddingTop: Math.max(insets.top, 10), backgroundColor: isDark ? 'rgba(10,10,10,0.92)' : 'rgba(240,240,245,0.92)', borderBottomColor: borderLight }]}>
-        <View style={styles.headerLayout}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={26} color={colors.primary} />
-            <Text style={[styles.backText, { color: colors.primary }]}>Retour</Text>
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <View style={[styles.iconGlowWrapper, { backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(10, 132, 255, 0.1)' }]}>
-              <Ionicons name="sparkles" size={14} color={colors.primary} />
-            </View>
-            <Text style={[styles.headerTitle, { color: textColor }]}>FiipCopilot</Text>
-          </View>
-          <View style={{ width: 80 }} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      <View style={styles.header}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Retour" onPress={() => navigation.goBack()} style={styles.iconButton}>
+          <Icon sfSymbol="chevron.left" mdIcon="chevron-left" size={22} color={colors.text} />
+        </TouchableOpacity>
+        <View>
+          <Text style={[styles.kicker, { color: colors.textSecondary }]}>Dexter</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Assistant gratuit</Text>
+        </View>
+        <View style={[styles.routerPill, { borderColor: colors.border }]}>
+          <Text style={[styles.routerText, { color: colors.textSecondary }]}>{FREE_MODEL_ROUTER}</Text>
         </View>
       </View>
 
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView 
-          ref={scrollViewRef} 
-          style={styles.chatArea}
-          contentContainerStyle={[styles.chatContent, { paddingBottom: 20 }]}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-        >
-          <Text style={styles.timestamp}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', hour: '2-digit', minute: '2-digit'})}</Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <GlassCard intensity={34} cornerRadius={fiipRadius.xl} style={styles.noteCard}>
+          <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Note active</Text>
+          <Text style={[styles.noteTitle, { color: colors.text }]}>{activeNote?.title || 'Aucune note'}</Text>
+          <Text style={[styles.noteText, { color: colors.textSecondary }]} numberOfLines={4}>{activeNote?.content || 'Créez une note pour obtenir une aide contextuelle.'}</Text>
+        </GlassCard>
 
-          {messages.map((m, i) => {
-            const isUser = m.role === 'user';
-            return (
-              <View key={i} style={[styles.bubbleRow, isUser ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
-                {!isUser && (
-                  <View style={[styles.aiAvatar, { backgroundColor: isDark ? colors.border : '#E5E5EA' }]}>
-                    <Ionicons name="sparkles" size={12} color={isDark ? '#FFF' : '#8E8E93'} />
-                  </View>
-                )}
-                <View style={[
-                  styles.bubble,
-                  isUser ? [styles.bubbleUser, { backgroundColor: bubbleUserBg }] : [styles.bubbleAi, { backgroundColor: bubbleAiBg }],
-                  !isUser && !isDark && styles.bubbleAiShadow
-                ]}>
-                  <Text style={[styles.bubbleText, isUser ? { color: bubbleUserText } : { color: bubbleAiText }]}>
-                    {m.content}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
-          
-          {isTyping && (
-            <View style={[styles.bubbleRow, styles.bubbleRowLeft]}>
-              <View style={[styles.aiAvatar, { backgroundColor: isDark ? colors.border : '#E5E5EA' }]}>
-                <Ionicons name="sparkles" size={12} color={isDark ? '#FFF' : '#8E8E93'} />
-              </View>
-              <View style={[styles.bubble, styles.bubbleAi, { backgroundColor: bubbleAiBg, paddingHorizontal: 20, paddingVertical: 14 }]}>
-                <ActivityIndicator size="small" color={subTextColor} />
-              </View>
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Input Area with bottom safe padding */}
-        <View style={[styles.inputOuterContainer, { backgroundColor: bgColor, paddingBottom: Math.max(insets.bottom, 12), borderTopColor: borderLight, borderTopWidth: StyleSheet.hairlineWidth }]}>
-          <View style={[styles.inputContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : colors.card, borderColor: borderLight }]}>
-            <TextInput
-              style={[styles.input, { color: textColor }]}
-              placeholder="Que voulez-vous demander..."
-              placeholderTextColor={subTextColor}
-              value={input}
-              onChangeText={setInput}
-              multiline
-              maxLength={2500}
-            />
-            <TouchableOpacity 
-              activeOpacity={0.7}
-              onPress={handleSend} 
-              disabled={!input.trim()} 
-              style={styles.sendBtn}
-            >
-              <View style={[
-                styles.sendCircle, 
-                { backgroundColor: input.trim() ? colors.primary : (isDark ? '#38383A' : '#E5E5EA') }
-              ]}>
-                <Ionicons name="arrow-up" size={18} color={input.trim() ? "#FFF" : subTextColor} />
-              </View>
+        <View style={styles.quickGrid}>
+          {quickPrompts.map((item) => (
+            <TouchableOpacity key={item.label} accessibilityRole="button" activeOpacity={0.78} onPress={() => askFiip(item.prompt)} style={styles.quickItem}>
+              <GlassCard intensity={22} cornerRadius={fiipRadius.md} style={styles.quickCard}>
+                <Icon sfSymbol="sparkles" mdIcon="sparkles" size={16} color={colors.primary} />
+                <Text style={[styles.quickText, { color: colors.text }]}>{item.label}</Text>
+              </GlassCard>
             </TouchableOpacity>
-          </View>
+          ))}
         </View>
-      </KeyboardAvoidingView>
+
+        <GlassCard intensity={30} cornerRadius={fiipRadius.xl} style={styles.answerCard}>
+          <View style={styles.answerHeader}>
+            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Réponse</Text>
+            {loading && <ActivityIndicator size="small" color={colors.primary} />}
+          </View>
+          <Text style={[styles.answerText, { color: colors.text }]}>{answer}</Text>
+          <TouchableOpacity accessibilityRole="button" onPress={replaceNote} activeOpacity={0.78} style={[styles.replaceButton, { backgroundColor: colors.accent }]}>
+            <Text style={styles.replaceText}>Remplacer la note</Text>
+          </TouchableOpacity>
+        </GlassCard>
+
+        <GlassCard intensity={18} cornerRadius={fiipRadius.lg} style={styles.usageCard}>
+          <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Statistiques d’utilisation</Text>
+          <Text style={[styles.usageText, { color: colors.text }]}>{usageLabel}</Text>
+          <Text style={[styles.noteText, { color: colors.textSecondary }]}>Coûts limités par le routeur gratuit OpenRouter et les limites du compte.</Text>
+        </GlassCard>
+      </ScrollView>
+
+      <View style={styles.composer}>
+        <GlassCard intensity={32} cornerRadius={28} style={styles.inputCard}>
+          <TextInput
+            value={input}
+            onChangeText={setInput}
+            onSubmitEditing={() => askFiip(input)}
+            placeholder="Demander à Dexter..."
+            placeholderTextColor={colors.textSecondary}
+            style={[styles.input, { color: colors.text }]}
+            returnKeyType="send"
+          />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Envoyer" onPress={() => askFiip(input)} style={[styles.sendButton, { backgroundColor: colors.primary }]}>
+            <Icon sfSymbol="arrow.up" mdIcon="arrow-up" size={18} color="#FFF" />
+          </TouchableOpacity>
+        </GlassCard>
+      </View>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  headerAbsolute: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerLayout: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingBottom: 12,
-  },
-  backBtn: { flexDirection: 'row', alignItems: 'center', width: 80, paddingVertical: 4 },
-  backText: { fontSize: 17, marginLeft: -6, fontWeight: '400' },
-  headerTitleContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  iconGlowWrapper: {
-    padding: 6,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  headerTitle: { fontSize: 17, fontWeight: '600', letterSpacing: 0.1 },
-  chatArea: {
-    flex: 1,
-    marginTop: Platform.OS === 'ios' ? 100 : 70, // Buffer for header
-  },
-  chatContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  timestamp: {
-    alignSelf: 'center',
-    fontSize: 12,
-    marginBottom: 24,
-    fontWeight: '500',
-    textTransform: 'capitalize',
-    color: '#8E8E93',
-  },
-  bubbleRow: {
-    flexDirection: 'row',
-    marginBottom: 18,
-    alignItems: 'flex-end',
-  },
-  bubbleRowRight: {
-    justifyContent: 'flex-end',
-  },
-  bubbleRowLeft: {
-    justifyContent: 'flex-start',
-  },
-  aiAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-    marginBottom: 4,
-  },
-  bubble: {
-    maxWidth: '78%',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  bubbleAiShadow: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  bubbleUser: {
-    borderRadius: 20,
-    borderBottomRightRadius: 4,
-  },
-  bubbleAi: {
-    borderRadius: 20,
-    borderBottomLeftRadius: 4,
-  },
-  bubbleText: {
-    fontSize: 16,
-    lineHeight: 23,
-    letterSpacing: 0,
-  },
-  inputOuterContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    borderRadius: 24,
-    paddingLeft: 18,
-    paddingRight: 6,
-    paddingVertical: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    minHeight: 34,
-    maxHeight: 130,
-    paddingTop: 8,
-    paddingBottom: 8,
-    marginRight: 10,
-  },
-  sendBtn: {
-    marginBottom: 4,
-  },
-  sendCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  }
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  kicker: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  title: { fontSize: 24, fontWeight: '900' },
+  routerPill: { marginLeft: 'auto', borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  routerText: { fontSize: 11, fontWeight: '800' },
+  content: { paddingHorizontal: 20, paddingBottom: 132, gap: 14 },
+  noteCard: { padding: 18 },
+  cardLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+  noteTitle: { marginTop: 8, fontSize: 22, fontWeight: '900' },
+  noteText: { marginTop: 8, fontSize: 14, lineHeight: 21 },
+  quickGrid: { flexDirection: 'row', gap: 10 },
+  quickItem: { flex: 1 },
+  quickCard: { paddingVertical: 14, alignItems: 'center', gap: 8 },
+  quickText: { fontSize: 12, fontWeight: '800' },
+  answerCard: { padding: 18 },
+  answerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  answerText: { marginTop: 12, fontSize: 16, lineHeight: 24 },
+  replaceButton: { marginTop: 16, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  replaceText: { color: '#FFF', fontWeight: '900' },
+  usageCard: { padding: 16 },
+  usageText: { marginTop: 8, fontSize: 18, fontWeight: '900' },
+  composer: { position: 'absolute', left: 16, right: 16, bottom: 24 },
+  inputCard: { minHeight: 58, flexDirection: 'row', alignItems: 'center', paddingLeft: 18, paddingRight: 8 },
+  input: { flex: 1, fontSize: 16, paddingVertical: 12 },
+  sendButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
 });

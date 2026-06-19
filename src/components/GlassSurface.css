@@ -1,0 +1,68 @@
+.glass-surface {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: background var(--duration-base, 260ms) var(--motion-smooth, cubic-bezier(0.16, 1, 0.3, 1)),
+    border-color var(--duration-base, 260ms) var(--motion-smooth, cubic-bezier(0.16, 1, 0.3, 1)),
+    box-shadow var(--duration-base, 260ms) var(--motion-smooth, cubic-bezier(0.16, 1, 0.3, 1)),
+    transform var(--duration-base, 260ms) var(--motion-smooth, cubic-bezier(0.16, 1, 0.3, 1));
+  background: var(--glass-bg, rgba(25, 25, 27, 0.4));
+  backdrop-filter: blur(var(--glass-blur, 40px)) saturate(180%) contrast(100%) brightness(110%);
+  -webkit-backdrop-filter: blur(var(--glass-blur, 40px)) saturate(180%) contrast(100%) brightness(110%);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  box-shadow: 
+    0 4px 24px -1px var(--glass-shadow, rgba(0, 0, 0, 0.2)),
+    inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.1));
+}
+
+.glass-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    var(--glass-highlight, rgba(255, 255, 255, 0.05)) 0%,
+    rgba(255, 255, 255, 0) 40%,
+    rgba(255, 255, 255, 0) 60%,
+    var(--glass-tint, rgba(255, 255, 255, 0.02)) 100%
+  );
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-surface__distortion {
+  position: absolute;
+  inset: -10px;
+  background: inherit;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.glass-surface__content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  border-radius: inherit;
+  position: relative;
+  z-index: 1;
+}
+
+.glass-surface:focus-within {
+  border-color: var(--accent);
+  box-shadow: 
+    var(--focus-ring, 0 0 0 4px rgba(59, 130, 246, 0.1)),
+    0 4px 24px -1px var(--glass-shadow, rgba(0, 0, 0, 0.2));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-surface {
+    transition-duration: 1ms;
+  }
+}

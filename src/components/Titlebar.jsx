@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { exit } from '@tauri-apps/plugin-process';
-import { useTranslation } from 'react-i18next';
 import { type } from '@tauri-apps/plugin-os';
+import { exit } from '@tauri-apps/plugin-process';
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { useUI } from '../providers/UIProvider';
+import { LiquidGlassPrimitive } from './ui/LiquidGlassPrimitive';
 
 export default function Titlebar({ style = 'macos' }) {
+    const { theme } = useUI();
     let appWindow; try { appWindow = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
     const { t } = useTranslation();
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -23,13 +27,13 @@ export default function Titlebar({ style = 'macos' }) {
         }).then(u => unlisten = u);
 
         return () => {
-            if (unlisten) unlisten();
+            if (unlisten) {unlisten();}
         };
     }, [appWindow]);
 
     const actualStyle = style === 'native' ? (osType === 'macos' ? 'macos' : 'windows') : style;
 
-    if (actualStyle === 'none') return null;
+    if (actualStyle === 'none') {return null;}
 
     const handleClose = async (e) => {
         e.stopPropagation();
@@ -57,14 +61,19 @@ export default function Titlebar({ style = 'macos' }) {
 
     // macOS style: rounded buttons on the left
     if (actualStyle === 'macos') {
-        if (isFullscreen) return null;
+        if (isFullscreen) {return null;}
 
         return (
-            <div
-                className="h-[52px] w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
+            <LiquidGlassPrimitive
+                className="h-[52px] w-full border-b border-white/20 flex items-center select-none transition-all duration-300 backdrop-blur-3xl saturate-200"
+                variant={theme === 'liquid-glass' ? 'default' : 'subtle'}
+                style={{ 
+                    borderRadius: 0,
+                    background: theme === 'liquid-glass' ? undefined : 'rgba(28, 28, 30, 0.4)'
+                }}
             >
                 {/* Left Drag Region (Padding) */}
-                <div className="w-[12px] h-full" data-tauri-drag-region />
+                <div className="w-3 h-full" data-tauri-drag-region />
 
                 <div className="flex gap-2 z-10 hover:*:brightness-110">
                     <button
@@ -84,21 +93,26 @@ export default function Titlebar({ style = 'macos' }) {
                     />
                 </div>
 
-                <div className="flex-1 h-full flex items-center" data-tauri-drag-region />
-
                 {/* Title */}
-                <div className="text-sm font-medium text-gray-300 pr-[16px] h-full flex items-center pointer-events-none">Fiip</div>
-            </div>
+                <div className="absolute left-1/2 -translate-x-1/2 text-[13px] font-semibold text-white/40 tracking-[0.05em] uppercase h-full flex items-center pointer-events-none">
+                    Fiip
+                </div>
+            </LiquidGlassPrimitive>
         );
     }
 
     // Windows style: flat buttons on the right
     if (actualStyle === 'windows') {
-        if (isFullscreen) return null;
+        if (isFullscreen) {return null;}
 
         return (
-            <div
-                className="h-8 w-full bg-[#1e1e1e]/80 backdrop-blur-md border-b border-white/10 flex items-center select-none transition-colors duration-300"
+            <LiquidGlassPrimitive
+                className="h-8 w-full border-b border-white/10 flex items-center select-none transition-all duration-300"
+                variant={theme === 'liquid-glass' ? 'default' : 'subtle'}
+                style={{ 
+                    borderRadius: 0,
+                    background: theme === 'liquid-glass' ? undefined : '#1e1e1eCC'
+                }}
             >
                 <div className="flex-1 px-4 h-full flex items-center" data-tauri-drag-region>
                     <div className="text-[12px] font-medium text-gray-400 pointer-events-none">Fiip</div>
@@ -133,7 +147,7 @@ export default function Titlebar({ style = 'macos' }) {
                         </svg>
                     </button>
                 </div>
-            </div>
+            </LiquidGlassPrimitive>
         );
     }
 

@@ -1,1505 +1,380 @@
-import { useState, useRef, useEffect } from 'react';
-import RichTextEditor from './RichTextEditor';
-import CanvasDraw from './CanvasDraw';
-import NoteBadges from './NoteBadges';
-import { Lock } from 'lucide-react';
-import { generateText } from '../services/ai';
-import AudioPlayer from './AudioPlayer';
-import { writeText, readImage, readText } from '@tauri-apps/plugin-clipboard-manager';
-import { writeFile, readFile } from '@tauri-apps/plugin-fs';
-import { save } from '@tauri-apps/plugin-dialog';
-// import { appDataDir, join } from '@tauri-apps/api/path';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { 
+    ChevronLeft, 
+    Share2, 
+    Trash2, 
+    Sparkles, 
+    Type, 
+    Mic, 
+    Volume2, 
+    Save,
+    Image as ImageIcon,
+    FileText,
+    History,
+    CheckCircle2,
+    Lock,
+    Plus,
+    Tag
+} from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { keyAuthService } from '../services/keyauth';
-import { Icon as IconifyIcon } from '@iconify/react';
-import { dataService, authService } from '../services/supabase';
+import RichTextEditor from './RichTextEditor';
+import { aiService } from '../services/ai';
+import { soundManager } from '../services/soundManager';
 
-// Icons Import (Pim's Edition)
-import IconSparkles from '~icons/mingcute/sparkles-fill';
-import IconMic from '~icons/mingcute/mic-fill';
-import IconMicOff from '~icons/mingcute/mic-off-fill';
-import IconImage from '~icons/mingcute/pic-fill';
-import IconStop from '~icons/mingcute/stop-circle-fill';
-import IconTrash from '~icons/mingcute/delete-2-fill';
-import IconLeft from '~icons/mingcute/arrow-left-fill';
-import IconRight from '~icons/mingcute/arrow-right-fill';
-import IconCopy from '~icons/mingcute/copy-2-fill';
-import IconPaste from '~icons/mingcute/clipboard-fill';
-import IconVolume from '~icons/mingcute/volume-fill';
-import IconCheck from '~icons/mingcute/check-fill';
-import IconClose from '~icons/mingcute/close-fill';
-import IconAttachment from '~icons/mingcute/attachment-fill';
-import IconFile from '~icons/mingcute/file-fill';
-import IconDownload from '~icons/mingcute/download-2-fill';
-import IconEdit from '~icons/mingcute/edit-2-fill';
-import IconShare from '~icons/mingcute/share-forward-fill';
+const getCurrentTimestamp = () => new Date().getTime();
 
-const MediaAttachment = ({ att, index, note, moveAttachment, removeAttachment, resizeAttachment, renameAttachment, handleDownloadAttachment, onAnnotate }) => {
-    const { t } = useTranslation();
-    const [src, setSrc] = useState('');
-    const [isError, setIsError] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-
-
-    useEffect(() => {
-        let active = true;
-        const loadSrc = async () => {
-            setIsLoading(true);
-            setIsError(false);
-            try {
-                if (!att.data) return;
-
-                if (att.data.startsWith('data:') || att.data.startsWith('blob:') || att.data.startsWith('http://') || att.data.startsWith('https://')) {
-                    if (active) setSrc(att.data);
-                } else {
-                    // Try standard convertFileSrc first for local files
-                    const assetUrl = convertFileSrc(att.data);
-                    if (active) setSrc(assetUrl);
-                }
-            } catch (e) {
-                console.error("Error generating src:", e);
-                if (active) setIsError(true);
-            } finally {
-                if (active) setIsLoading(false);
-            }
-        };
-        loadSrc();
-        return () => { active = false; };
-    }, [att.data]);
-
-    const handleLoadError = async () => {
-        if (src.startsWith('blob:')) return; // Already tried blob
-
-        console.warn(`Failed to load resource: ${att.data}. Trying fallback...`);
-        try {
-            const content = await readFile(att.data);
-            const blob = new Blob([content], { 
-                type: att.mimeType || (att.type === 'audio' ? 'audio/mpeg' : (att.type === 'video' ? 'video/mp4' : 'image/jpeg')) 
-            });
-            const blobUrl = URL.createObjectURL(blob);
-            setSrc(blobUrl);
-        } catch (e) {
-            console.error("Fallback loading failed:", e);
-            setIsError(true);
-        }
-    };
-
+const MediaAttachment = ({ type, url, name, onRemove }) => {
+    const isImage = type === 'image' || name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    
     return (
-        <div
-            className={`relative group rounded-xl transition-all duration-[250ms] ease-in-out animate-scale-in ${((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video' ? '' : 'w-72'}`}
-            style={{
-                width: (((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video') ? (att.width || 100) + '%' : undefined,
-                maxWidth: (((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video') ? '100%' : '320px',
-                flexBasis: (((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video') ? (att.width || 100) + '%' : 'auto'
-            }}
-        >
-            {/* --- Hover Controls (Glassmorphism) --- */}
-            <div className="absolute -top-3 right-2 flex items-center justify-end gap-1 z-30 opacity-0 group-hover:opacity-100 transition-all duration-[150ms] ease-out scale-95 group-hover:scale-100 pointer-events-none group-hover:pointer-events-auto">
-                <div className="bg-black/60 backdrop-blur-md rounded-full p-1 flex items-center border border-white/10 shadow-xl">
-                    {/* Move Left */}
-                    {index > 0 && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); moveAttachment(att.id, 'left'); }}
-                            className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors duration-[150ms] ease-out"
-                            title={t('editor.move_left')}
-                        >
-                            <IconLeft className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-                    {/* Move Right */}
-                    {index < (note.attachments || []).filter(a => a.type !== 'overlay').length - 1 && (
-                        <button
-                            onClick={(e) => { e.stopPropagation(); moveAttachment(att.id, 'right'); }}
-                            className="p-1.5 text-gray-300 hover:text-white hover:bg-white/20 rounded-full transition-colors duration-[150ms] ease-out"
-                            title={t('editor.move_right')}
-                        >
-                            <IconRight className="w-3.5 h-3.5" />
-                        </button>
-                    )}
-                    <div className="w-px h-3 bg-white/20 mx-1"></div>
-                    {/* Delete */}
-                    <button
-                        onClick={() => removeAttachment(att.id)}
-                        className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-full transition-colors duration-[150ms] ease-out"
-                        title={t('editor.delete')}
-                    >
-                        <IconTrash className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            </div>
-
-            {/* Annotate Button for Images */}
-            {((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') && !isError && (
-                <div className="absolute top-2 left-2 z-30 opacity-0 group-hover:opacity-100 transition-all duration-[150ms] ease-out scale-95 group-hover:scale-100">
-                     <button
-                        onClick={() => onAnnotate(att)}
-                        className="p-2 bg-black/60 backdrop-blur-md text-white hover:bg-blue-600 rounded-full shadow-xl border border-white/10 transition-colors"
-                        title={t('editor.annotate_image', "Annoter l'image")}
-                    >
-                        <IconEdit className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            )}
-
-
-            {((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') || att.type === 'video' ? (
-                <div className="relative rounded-2xl overflow-hidden shadow-sm border border-white/10 bg-black/20 min-h-[200px] flex items-center justify-center">
-                    {isLoading && (
-                        <div className="absolute inset-0 flex items-center justify-center z-10">
-                            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        </div>
-                    )}
-                    
-                    {isError ? (
-                        <div className="flex flex-col items-center gap-2 text-red-400 p-4">
-                            <IconImage className="w-8 h-8 opacity-50" />
-                            <span className="text-xs font-medium">{t('editor.loading_error')}</span>
-                        </div>
-                    ) : ((att.type === 'image' || att.type === 'overlay') || att.type === 'overlay') ? (
-                        <img 
-                            src={src} 
-                            alt={att.name} 
-                            onError={handleLoadError}
-                            className={`w-full transition-opacity duration-[250ms] ease-in-out ${att.name?.startsWith('drawing-') ? 'object-contain' : 'object-cover'}`}
-                            style={{ maxHeight: '600px', opacity: isLoading ? 0 : 1 }}
-                        />
-                    ) : (
-                        <video
-                            src={src}
-                            controls 
-                            onError={handleLoadError}
-                            className="w-full object-cover transition-opacity duration-[250ms] ease-in-out" 
-                            style={{ maxHeight: '600px', opacity: isLoading ? 0 : 1 }} 
-                        />
-                    )}
-
-                    {/* Beautiful Resize Slider */}
-                    {!isError && (
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-[150ms] ease-out translate-y-2 group-hover:translate-y-0 z-20">
-                            <div className="bg-black/60 backdrop-blur-xl px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-3">
-                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{t('editor.size')}</span>
-                                <input
-                                    type="range"
-                                    min="20"
-                                    max="100"
-                                    step="5"
-                                    value={att.width || 100}
-                                    onChange={(e) => resizeAttachment(att.id, parseInt(e.target.value))}
-                                    className="w-32 h-1.5 bg-white/20 rounded-full appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400"
-                                />
-                                <span className="text-[10px] font-mono text-white w-8 text-right">{att.width || 100}%</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            ) : att.type === 'pdf' ? (
-                <div className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded-xl border border-white/10 group/pdf hover:border-blue-500/30 transition-colors duration-[150ms] ease-out">
-                    <div className="p-3 bg-red-500/10 rounded-xl text-red-400 group-hover/pdf:bg-red-500/20 transition-colors duration-[150ms] ease-out">
-                        <IconFile className="w-8 h-8" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-200 truncate mb-0.5">{att.name}</div>
-                        <div className="text-xs text-gray-500">{t('editor.pdf_document')}</div>
-                    </div>
-                    <button 
-                        onClick={() => handleDownloadAttachment(att)}
-                        className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors duration-[150ms] ease-out"
-                        title={t('editor.download')}
-                    >
-                        <IconDownload className="w-5 h-5" />
-                    </button>
-                </div>
-            ) : att.type === 'libreoffice' ? (
-                <div className="flex items-center gap-4 bg-[#1e1e1e] p-4 rounded-xl border border-white/10 group/libre hover:border-blue-500/30 transition-colors duration-[150ms] ease-out">
-                    <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 group-hover/libre:bg-blue-500/20 transition-colors duration-[150ms] ease-out">
-                        <IconFile className="w-8 h-8" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-200 truncate mb-0.5">{att.name}</div>
-                        <div className="text-xs text-gray-500 uppercase">{att.name.split('.').pop()} Document</div>
-                    </div>
-                    <button 
-                        onClick={() => handleDownloadAttachment(att)}
-                        className="p-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors duration-[150ms] ease-out"
-                        title={t('editor.download')}
-                    >
-                        <IconDownload className="w-5 h-5" />
-                    </button>
-                </div>
+        <div className="group relative w-32 h-32 rounded-2xl overflow-hidden border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark transition-all hover:border-amber-500/50 hover:scale-105 shadow-md">
+            {isImage ? (
+                <img src={url} alt={name} className="w-full h-full object-cover" />
             ) : (
-                <AudioPlayer
-                    src={src}
-                    name={att.name}
-                    onRename={(newName) => renameAttachment(att.id, newName)}
-                    onError={handleLoadError}
-                />
+                <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
+                    <FileText className="w-8 h-8 text-amber-600 dark:text-amber-400 mb-2" />
+                    <span className="text-[10px] text-warm-text-secondary-light/75 dark:text-warm-text-secondary-dark/75 truncate w-full px-1 font-medium">{name}</span>
+                </div>
             )}
+            <button 
+                onClick={onRemove}
+                className="absolute top-1.5 right-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/80"
+            >
+                <Trash2 size={12} />
+            </button>
         </div>
     );
 };
 
-export default function Editor({ note, onUpdateNote, settings, onOpenLicense, checkStorageLimit, onOpenShare }) {
-    const { t, i18n } = useTranslation();
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [isWaiting, setIsWaiting] = useState(false);
-    const [pendingAiContent, setPendingAiContent] = useState(null); // Store AI content for review
-    const [isRecording, setIsRecording] = useState(false);
-    const [suggestion, setSuggestion] = useState(null);
-    const [isDragging, setIsDragging] = useState(false); // Drag & Drop state
-    const [drawingSession, setDrawingSession] = useState(null); // { type: 'standard' | 'overlay' | 'image', data: string | null }
+export default function Editor({ 
+    note, 
+    onUpdateNote, 
+    settings, 
+    onOpenShare, 
+    onDeleteNote, 
+    onBack,
+    onOpenDexter,
+    onOpenLicense,
+    onCreateNote
+}) {
+    const { t } = useTranslation();
+    const [title, setTitle] = useState(note.title);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isAILoading, setIsAILoading] = useState(false);
+    const [aiSuggestions, setAiSuggestions] = useState([]);
+    const [isDragging, setIsDragging] = useState(false);
+    const [attachments, setAttachments] = useState(note.attachments || []);
+    const [tags, setTags] = useState(note.tags || ['Réflexion']);
+    const [newTagInput, setNewTagInput] = useState('');
+    const [showTagInput, setShowTagInput] = useState(false);
     
-    const editorContainerRef = useRef(null);
-    const richTextEditorRef = useRef(null);
-    const dragCounter = useRef(0);
-
-    // TTS & STT State
-    const [isSpeaking, setIsSpeaking] = useState(false);
-    const [isListening, setIsListening] = useState(false);
-    const [languageToolMenu, setLanguageToolMenu] = useState(null);
+    const editorRef = useRef(null);
+    const titleRef = useRef(null);
 
     useEffect(() => {
-        const handleContextMenu = (e) => {
-            const replacements = e.detail.replacementsStr ? JSON.parse(e.detail.replacementsStr) : [];
-            setLanguageToolMenu({
-                x: e.detail.x,
-                y: e.detail.y,
-                replacements,
-                message: e.detail.message,
-                from: e.detail.from,
-                to: e.detail.to,
-                view: e.detail.view
-            });
-        };
-        const handleCloseMenu = () => setLanguageToolMenu(null);
-
-        window.addEventListener("languagetool:contextmenu", handleContextMenu);
-        window.addEventListener("click", handleCloseMenu);
-        window.addEventListener("scroll", handleCloseMenu, true);
-
-        return () => {
-            window.removeEventListener("languagetool:contextmenu", handleContextMenu);
-            window.removeEventListener("click", handleCloseMenu);
-            window.removeEventListener("scroll", handleCloseMenu, true);
-        };
-    }, []);
-
-    const isListeningRef = useRef(false); // Track intent to listen
-    const lastSpeechStartRef = useRef(0);
-    const [interimTranscript, setInterimTranscript] = useState('');
-    const [detectedLanguage] = useState(null);
-    const recognitionRef = useRef(null);
-    const noteRef = useRef(note);
-    const mediaRecorderRef = useRef(null);
-    const chunksRef = useRef([]);
-
-    // Collaboration State
-    const [onlineUsers, setOnlineUsers] = useState([]);
-    const realtimeChannelRef = useRef(null);
-
-    // Keep note ref updated, but respect local optimistic updates
-    useEffect(() => { 
-        if (!note) return;
-        // Accept update if from another user or if no noteRef exists
-        if (!noteRef.current || note.id !== noteRef.current.id || note.updatedAt > (noteRef.current.updatedAt || 0)) {
-            noteRef.current = note; 
-        }
+        setTitle(note.title);
+        setAttachments(note.attachments || []);
+        setTags(note.tags || ['Réflexion']);
     }, [note]);
 
-    // Setup Collaboration Channel
-    useEffect(() => {
-        if (!note || !note.id) {
-            if (realtimeChannelRef.current) {
-                realtimeChannelRef.current.unsubscribe();
-                realtimeChannelRef.current = null;
-            }
-            setOnlineUsers([]);
-            return;
-        }
-
-        const setupCollab = async () => {
-            const user = await authService.getUser();
-            if (!user) return;
-
-            const username = keyAuthService.userData?.username || 'Anonyme';
-            
-            if (realtimeChannelRef.current) {
-                realtimeChannelRef.current.unsubscribe();
-            }
-
-            const channel = dataService.joinNoteCollaboration(
-                note.id,
-                user.id,
-                username,
-                (payloadNote) => {
-                    // Update note implicitly without overriding active cursor (handled carefully by LanguageTool component)
-                    noteRef.current = { ...noteRef.current, ...payloadNote };
-                    // Let the parent know as we received a broadcast
-                    if (onUpdateNoteRef.current) {
-                        onUpdateNoteRef.current(noteRef.current);
-                    }
-                },
-                (presenceState) => {
-                    const users = [];
-                    for (const id in presenceState) {
-                        if (String(id) !== String(user.id) && presenceState[id][0]) {
-                            users.push({ id, user: presenceState[id][0].user });
-                        }
-                    }
-                    setOnlineUsers(users);
-                }
-            );
-
-            realtimeChannelRef.current = channel;
-        };
-
-        setupCollab();
-
-        return () => {
-            if (realtimeChannelRef.current) {
-                realtimeChannelRef.current.unsubscribe();
-                realtimeChannelRef.current = null;
-            }
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [note?.id, note?.shared]);
-
-    const onUpdateNoteRef = useRef(onUpdateNote);
-    useEffect(() => {
-        onUpdateNoteRef.current = onUpdateNote;
-    }, [onUpdateNote]);
-
-    // Initialize Speech Recognition
-    useEffect(() => {
-        if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = true;
-            recognitionRef.current.interimResults = true;
-            recognitionRef.current.lang = detectedLanguage?.code || 'fr-FR';
-
-            recognitionRef.current.onstart = () => {
-                lastSpeechStartRef.current = Date.now();
-            };
-
-            recognitionRef.current.onresult = (event) => {
-                let finalTranscript = '';
-                let interim = '';
-
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
-                    } else {
-                        interim += event.results[i][0].transcript;
-                    }
-                }
-
-                if (finalTranscript) {
-                    const currentNote = noteRef.current;
-                    if (!currentNote) return;
-
-                    let separator = ' ';
-                    
-                    if (richTextEditorRef.current && richTextEditorRef.current.getEditor()) {
-                        // For rich text, rely on native insert at cursor
-                        const editor = richTextEditorRef.current.getEditor();
-                        const isEmpty = editor.isEmpty;
-                        separator = isEmpty ? '' : ' ';
-                        // Insert safely
-                        richTextEditorRef.current.insertText(separator + finalTranscript.trim());
-                    } else {
-                        // Fallback logic
-                        const currentContent = currentNote.content || '';
-                        separator = currentContent.length > 0 && !currentContent.endsWith(' ') && !currentContent.endsWith('\n') && !currentContent.endsWith('</p>') ? ' ' : '';
-                        const newContent = currentContent + separator + finalTranscript.trim();
-                        
-                        const updatedNote = { ...currentNote, content: newContent, updatedAt: Date.now() };
-                        
-                        // Optimistic update to prevent race conditions
-                        noteRef.current = updatedNote;
-                        if (onUpdateNoteRef.current) {
-                            onUpdateNoteRef.current(updatedNote);
-                        }
-                    }
-                    
-                    // Also clear interim since we committed final
-                    if (richTextEditorRef.current && richTextEditorRef.current.setInterimText) {
-                        richTextEditorRef.current.setInterimText('');
-                    } else {
-                        setInterimTranscript('');
-                    }
-                } else {
-                    if (richTextEditorRef.current && richTextEditorRef.current.setInterimText) {
-                        richTextEditorRef.current.setInterimText(interim);
-                    } else {
-                        setInterimTranscript(interim);
-                    }
-                }
-            };
-
-            recognitionRef.current.onerror = (event) => {
-                console.error("Speech error:", event.error);
-                if (event.error === 'not-allowed') {
-                    setIsListening(false);
-                    isListeningRef.current = false;
-                    alert(t('editor.mic_denied', "Accès au microphone refusé."));
-                }
-            };
-
-            recognitionRef.current.onend = () => {
-                // Auto-restart if we intended to keep listening
-                if (isListeningRef.current) {
-                    const duration = Date.now() - lastSpeechStartRef.current;
-                    if (duration < 1000) {
-                        // Prevent rapid loops
-                        setTimeout(() => {
-                            if (isListeningRef.current && recognitionRef.current) {
-                                try { recognitionRef.current.start(); } catch { /* ignore */ }
-                            }
-                        }, 1000);
-                    } else {
-                        try { recognitionRef.current.start(); } catch { /* ignore */ }
-                    }
-                } else {
-                    setIsListening(false);
-                }
-            };
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    const toggleListening = () => {
-        if (!recognitionRef.current) {
-            alert(t('editor.stt_not_supported', "La reconnaissance vocale n'est pas supportée par ce navigateur/système."));
-            return;
-        }
-
-        if (isListening) {
-            isListeningRef.current = false;
-            recognitionRef.current.stop();
-            setIsListening(false);
-        } else {
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
-                isListeningRef.current = true;
-                recognitionRef.current.lang = detectedLanguage?.code || 'fr-FR';
-                try {
-                    recognitionRef.current.start();
-                    setIsListening(true);
-                } catch (e) {
-                    console.error("Failed to start recognition:", e);
-                    isListeningRef.current = false;
-                }
-            }).catch((err) => {
-                console.error("Mic access denied:", err);
-                setIsListening(false);
-                isListeningRef.current = false;
-                alert(t('editor.mic_denied', "Accès au microphone refusé."));
-            });
-        }
-    };
-
-    const toggleSpeaking = () => {
-        if (isSpeaking) {
-            window.speechSynthesis.cancel();
-            setIsSpeaking(false);
-        } else {
-            if (!note.content) return;
-            const utterance = new SpeechSynthesisUtterance(note.content);
-            utterance.lang = detectedLanguage?.code || 'fr-FR';
-            utterance.onend = () => setIsSpeaking(false);
-            window.speechSynthesis.speak(utterance);
-            setIsSpeaking(true);
-        }
-    };
-
-    // Auto-save title/content handlers
     const handleTitleChange = (e) => {
         const newTitle = e.target.value;
-        const updatedNote = { ...note, title: newTitle, updatedAt: Date.now() };
-        noteRef.current = updatedNote;
-        onUpdateNote(updatedNote);
-        
-        if (realtimeChannelRef.current) {
-            authService.getUser().then(user => {
-                if (user) {
-                    realtimeChannelRef.current.send({
-                        type: 'broadcast',
-                        event: 'edit',
-                        payload: { userId: user.id, note: updatedNote }
-                    });
-                }
-            });
-        }
+        setTitle(newTitle);
+        onUpdateNote({ ...note, title: newTitle, updatedAt: getCurrentTimestamp() });
     };
 
     const handleContentChange = (e) => {
-        const newContent = e.target.value;
-        const currentNote = noteRef.current || note;
-        const updatedNote = { ...currentNote, content: newContent, updatedAt: Date.now() };
-        noteRef.current = updatedNote;
-        onUpdateNoteRef.current(updatedNote);
-
-        if (realtimeChannelRef.current) {
-            authService.getUser().then(user => {
-                if (user) {
-                    realtimeChannelRef.current.send({
-                        type: 'broadcast',
-                        event: 'edit',
-                        payload: { userId: user.id, note: updatedNote }
-                    });
-                }
-            });
-        }
-
-        // Clear suggestion if typing
-        if (suggestion) setSuggestion(null);
+        onUpdateNote({ ...note, content: e.target.value, updatedAt: getCurrentTimestamp() });
+        setIsSaving(true);
+        setTimeout(() => setIsSaving(false), 1500);
     };
 
-    const handleKeyDown = (e) => {
-        // Tab to accept suggestion
-        if (e.key === 'Tab' && suggestion) {
-            e.preventDefault();
-            const newContent = (note.content || '') + suggestion;
-            onUpdateNote({ ...note, content: newContent, updatedAt: Date.now() });
-            setSuggestion(null);
-        }
-        
-        // Trigger AI on pause or specific key could go here
-    };
-
-    const handleDownloadAttachment = async (att) => {
-        try {
-            // Ask user where to save
-            const filePath = await save({
-                defaultPath: att.name,
-                filters: [{
-                    name: 'Fichier',
-                    extensions: [att.name.split('.').pop() || '*']
-                }]
-            });
-
-            if (!filePath) return; // Cancelled
-
-            if (att.data.startsWith('data:')) {
-                // It's a base64 string
-                const base64Data = att.data.split(',')[1];
-                const binaryString = atob(base64Data);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                await writeFile(filePath, bytes);
-            } else {
-                // It's a file path
-                const fileData = await readFile(att.data);
-                await writeFile(filePath, fileData);
-            }
-            
-        } catch (err) {
-            console.error("Failed to download file:", err);
-            alert(t('editor.download_error', "Erreur lors du téléchargement : {{msg}}", { msg: err.message || JSON.stringify(err) }));
-        }
-    };
-
-    // Helper: Add attachment
-    const addAttachment = (type, data, fileName, mimeType) => {
-        const newAttachment = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            type, // 'image', 'audio', 'video', 'pdf'
-            data, // path
-            name: fileName || (type === 'audio' ? `Memo ${new Date().toLocaleTimeString()}` : (type === 'video' ? 'Video' : (type === 'pdf' ? 'Document PDF' : 'Image'))),
-            width: (type === 'image' || type === 'video') ? 100 : undefined,
-            mimeType
-        };
-        const attachments = note.attachments || [];
-        onUpdateNote({ ...note, attachments: [...attachments, newAttachment], updatedAt: Date.now() });
-    };
-
-    const removeAttachment = (id) => {
-        const attachments = (note.attachments || []).filter(a => a.id !== id);
-        onUpdateNote({ ...note, attachments, updatedAt: Date.now() });
-    };
-
-    const resizeAttachment = (id, newWidth) => {
-        const attachments = (note.attachments || []).map(a =>
-            a.id === id ? { ...a, width: newWidth } : a
-        );
-        onUpdateNote({ ...note, attachments, updatedAt: Date.now() });
-    };
-
-    const moveAttachment = (id, direction) => {
-        const copy = [...(note.attachments || [])];
-        const oldIndex = copy.findIndex(a => a.id === id);
-        if (oldIndex === -1) return;
-
-        let swapIndex = -1;
-        if (direction === 'left') {
-            for (let i = oldIndex - 1; i >= 0; i--) {
-                if (copy[i].type !== 'overlay') { swapIndex = i; break; }
-            }
-        } else {
-            for (let i = oldIndex + 1; i < copy.length; i++) {
-                if (copy[i].type !== 'overlay') { swapIndex = i; break; }
-            }
-        }
-
-        if (swapIndex !== -1) {
-            [copy[oldIndex], copy[swapIndex]] = [copy[swapIndex], copy[oldIndex]];
-            onUpdateNote({ ...note, attachments: copy, updatedAt: Date.now() });
-        }
-    };
-
-    const renameAttachment = (id, newName) => {
-        const attachments = (note.attachments || []).map(a =>
-            a.id === id ? { ...a, name: newName } : a
-        );
-        onUpdateNote({ ...note, attachments, updatedAt: Date.now() });
-    };
-
-    // --- Media Handlers ---
-
-    const saveAttachmentToCloud = async (file) => {
-        const user = await authService.getUser();
-        if (!user) {
-            // Sans compte fallback: save as base64 Data URL locally
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // const ext = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-        // Path matches RLS: attachments/userId/...
-        // But dataService.uploadAttachment puts in 'attachments' bucket.
-        // It takes 'path' and uploads to that path.
-        // My previous attempt to modify supabase.js failed to clean up `uploadAttachment`.
-        // So I assume `dataService.uploadAttachment(file, path)` is available and works as per my `create_file` (if it worked in clean slate).
-        
-        // I need to know exactly how `dataService.uploadAttachment` is implemented now.
-        // I successfully created `supabase.js` via `delete` then `create`.
-        // It implemented: `const path = noteId ? ...` NO. It implemented:
-        /*
-        async uploadAttachment(file, path) {
-            // ... check usage ...
-            const { data, error } = await supabase.storage.from('attachments').upload(path, file, ...);
-            ...
-        }
-        */
-        // So I must provide full path inside bucket.
-        // And consistent with RLS policy: `(storage.foldername(name))[1]` = auth.uid()
-        // So path MUST start with `userId/`.
-        
-        const path = `${user.id}/${note.id}/${fileName}`;
-        const { data, error } = await dataService.uploadAttachment(file, path);
-        if (error) {
-            if (error.message === "STORAGE_LIMIT_EXCEEDED") throw new Error("Quota exceeded");
-            throw error;
-        }
-        return data.publicUrl;
-    };
-
-    const handleSaveDrawing = async (blob) => {
-        try {
-            const fileName = `drawing-${Date.now()}.png`;
-            const file = new File([blob], fileName, { type: 'image/png' });
-            
-            const filePath = await saveAttachmentToCloud(file);
-            const newAttachment = {
-                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                type: drawingSession && drawingSession.type === 'overlay' ? 'overlay' : 'image',
-                data: filePath,
-                name: fileName,
-                width: 100,
-                mimeType: 'image/png'
-            };
-
-            // Get current attachments
-            const currentAttachments = note.attachments || [];
-            const newAttachments = [...currentAttachments, newAttachment];
-            
-            // Update note with new attachment
-            onUpdateNote({
-                ...note,
-                attachments: newAttachments,
-                updatedAt: Date.now()
-            });
-
-            setDrawingSession(null);
-        } catch (err) {
-            console.error("Failed to save drawing:", err);
-            alert(t('editor.drawing_save_error', "Erreur lors de l'enregistrement du dessin."));
-        }
-    };
-
-    const handleAnnotate = async (att) => {
-        let src = att.data;
-        if (!src.startsWith('data:') && !src.startsWith('blob:') && !src.startsWith('http')) {
-             src = convertFileSrc(src);
-        }
-        setDrawingSession({ type: 'image', data: src });
-    };
-
-    const processFile = async (file) => {
-        if (!file) return;
-        
-        try {
-            // Upload to Supabase
-            const filePath = await saveAttachmentToCloud(file);
-            
-            if (file.type.startsWith('image/')) {
-                addAttachment('image', filePath, file.name, file.type);
-            } else if (file.type.startsWith('video/')) {
-                addAttachment('video', filePath, file.name, file.type);
-            } else if (file.type.startsWith('audio/')) {
-                addAttachment('audio', filePath, file.name, file.type);
-            } else if (file.type === 'application/pdf') {
-                addAttachment('pdf', filePath, file.name, file.type);
-            } else if (file.name.endsWith('.odt') || file.name.endsWith('.odp') || file.type.includes('opendocument')) {
-                addAttachment('libreoffice', filePath, file.name, file.type || 'application/vnd.oasis.opendocument.text');
-            }
-        } catch (e) {
-            console.error("Error processing file:", e);
-            const errorMessage = e instanceof Error ? e.message : String(e);
-            alert(t('editor.file_add_error', "Erreur lors de l'ajout du fichier : {{msg}}", { msg: errorMessage }));
-        }
-    };
-
-    const handleFileUpload = (e) => {
-        const files = Array.from(e.target.files);
-        if (files.length > 0) {
-            files.forEach(file => processFile(file));
-        }
-    };
-
-    // Drag & Drop Handlers
-    const handleDragEnter = (e) => {
+    const handleDrop = async (e) => {
         e.preventDefault();
-        e.stopPropagation();
-        dragCounter.current++;
-        // Check if we are dragging files
-        if (e.dataTransfer.types && e.dataTransfer.types.length > 0) {
-            setIsDragging(true);
-        }
-    };
-
-    const handleDragLeave = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dragCounter.current--;
-        if (dragCounter.current === 0) {
-            setIsDragging(false);
-        }
-    };
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = 'copy';
-    };
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
         setIsDragging(false);
-        dragCounter.current = 0;
-        
         const files = Array.from(e.dataTransfer.files);
-        if (files.length > 0) {
-            files.forEach(file => processFile(file));
-        }
-    };
-
-    const toggleRecording = async () => {
-        if (isRecording) {
-            // STOP
-            mediaRecorderRef.current.stop();
-            setIsRecording(false);
-        } else {
-            // START
-            try {
-                const constraints = {
-                    audio: settings?.audioInputId ? { deviceId: { exact: settings.audioInputId } } : true
-                };
-
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                mediaRecorderRef.current = new MediaRecorder(stream);
-                chunksRef.current = [];
-
-                mediaRecorderRef.current.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
-                        chunksRef.current.push(e.data);
-                    }
-                };
-
-                mediaRecorderRef.current.onstop = () => {
-                    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        // Use noteRef.current to get the latest note state
-                        const currentNote = noteRef.current;
-                        
-                        // Check storage limit for audio blob (approx size)
-                        if (checkStorageLimit) {
-                             // Blob size is available in blob.size
-                             checkStorageLimit(blob.size).then(canAdd => {
-                                 if (!canAdd) {
-                                     alert(t('storage.limit_exceeded', "Espace de stockage insuffisant pour votre abonnement."));
-                                     return;
-                                 }
-                                 
-                                 const newAttachment = {
-                                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                                    type: 'audio',
-                                    data: reader.result,
-                                    name: `Memo ${new Date().toLocaleTimeString()}`,
-                                    width: undefined
-                                };
-                                const attachments = currentNote.attachments || [];
-                                const updatedNote = { ...currentNote, attachments: [...attachments, newAttachment], updatedAt: Date.now() };
-                                
-                                noteRef.current = updatedNote;
-                                onUpdateNote(updatedNote);
-                             });
-                             return;
-                        }
-
-                        const newAttachment = {
-                            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                            type: 'audio',
-                            data: reader.result,
-                            name: `Memo ${new Date().toLocaleTimeString()}`,
-                            width: undefined
-                        };
-                        const attachments = currentNote.attachments || [];
-                        const updatedNote = { ...currentNote, attachments: [...attachments, newAttachment], updatedAt: Date.now() };
-                        
-                        noteRef.current = updatedNote;
-                        onUpdateNote(updatedNote);
-                    };
-                    reader.readAsDataURL(blob);
-
-                    // Stop tracks
-                    stream.getTracks().forEach(track => track.stop());
-                };
-
-                mediaRecorderRef.current.start(200);
-                setIsRecording(true);
-            } catch (err) {
-                console.error("Mic Error:", err);
-                alert(t('editor.mic_access_error', "Impossible d'accéder au micro : {{msg}}", { msg: err.message }));
-            }
-        }
-    };
-
-    // Clipboard Handlers
-    const handleCopyNote = async () => {
-        try {
-            const content = `# ${note.title}\n\n${note.content}`;
-            await writeText(content);
-            alert(t('editor.note_copied', 'Note copiée dans le presse-papiers !'));
-        } catch (err) {
-            console.error('Copy error:', err);
-            alert(t('editor.copy_error', 'Erreur lors de la copie : {{msg}}', { msg: err.message }));
-        }
-    };
-
-    const handlePaste = async () => {
-        try {
-            // 1. Try to read Image
-            try {
-                const image = await readImage();
-                if (image) {
-                    const rgba = await image.rgba();
-                    const size = await image.size();
-                    
-                    const canvas = document.createElement('canvas');
-                    canvas.width = size.width;
-                    canvas.height = size.height;
-                    const ctx = canvas.getContext('2d');
-                    const imageData = new ImageData(new Uint8ClampedArray(rgba), size.width, size.height);
-                    ctx.putImageData(imageData, 0, 0);
-                    
-                    const base64 = canvas.toDataURL('image/png');
-                    addAttachment('image', base64);
-                    return; // Stop here if image found
-                }
-            } catch (e) {
-                // Ignore image error, continue to text
-                console.log("No image in clipboard or read error", e);
-            }
-
-            // 2. Try to read Text
-            const text = await readText();
-            if (text) {
-                const currentContent = note.content || "";
-                const newContent = currentContent + "\n" + text;
-                onUpdateNote({ ...note, content: newContent, updatedAt: Date.now() });
-                return;
-            }
-
-            alert(t('editor.clipboard_empty', 'Presse-papiers vide ou format non supporté'));
-
-        } catch (err) {
-            console.error('Paste error:', err);
-            const msg = err instanceof Error ? err.message : String(err);
-            alert(t('editor.paste_error', 'Erreur lors du collage : {{msg}}', { msg: msg }));
-        }
-    };
-
-    const handleAiGenerate = async () => {
-        // License Check
-        if (!keyAuthService.hasAIAccess()) {
-             alert(t('license.features_locked', "Cette fonctionnalité nécessite une licence active avec l'option AI."));
-             return;
-        }
-
-        if (!settings?.aiApiKey) {
-            alert(t('editor.openrouter_api_required', "Veuillez configurer votre clé API OpenRouter dans les paramètres."));
-            return;
-        }
-
-        setIsGenerating(true);
-        setIsWaiting(true);
-        try {
-            // Prompt : Amélioration globale (Modification/Suppression/Ajout)
-            const hasContent = note.content && note.content.trim().length > 0;
-            
-            const prompt = hasContent
-                ? `Voici le contenu d'une note utilisateur :\n\n"${note.content}"\n\nTa mission est d'améliorer ce texte tout en conservant son sens et ses informations clés.
-                
-                Consignes strictes :
-                1. Corrige l'orthographe, la grammaire et la syntaxe.
-                2. Améliore la fluidité et le style.
-                3. NE AJOUTE PAS de commentaires, d'introduction (ex: "Voici le texte amélioré") ou de conclusion.
-                4. NE UTILISE PAS de balises Markdown pour le code (pas de \`\`\`).
-                5. Renvoie UNIQUEMENT le texte final amélioré.`
-                : "Écris une note détaillée, structurée et intéressante sur un sujet de culture générale ou technique, en incluant des liens vers des sources si pertinent.";
-
-            const messages = [
-                { role: "system", content: "Tu es un expert en écriture. Tu transformes des textes brouillons ou moyens en textes clairs, fluides et bien écrits. Tu ne parles jamais, tu ne fais que réécrire le texte." },
-                { role: "user", content: prompt }
-            ];
-
-            const generated = await generateText({
-                apiKey: settings.aiApiKey,
-                model: settings.aiModel,
-                messages: messages,
-                context: note.title
-            });
-
-            let cleanGenerated = generated;
-            // Remove markdown code blocks if present
-            cleanGenerated = cleanGenerated.replace(/```(?:markdown|text)?\n?/g, '').replace(/```/g, '');
-            // Remove common prefixes if the AI ignores instructions
-            cleanGenerated = cleanGenerated.replace(/^(Voici|Here is|Sure|Certainly).+?:\s*/i, '');
-
-            setIsWaiting(false);
-            setPendingAiContent(cleanGenerated.trim());
-            
-        } catch (error) {
-            alert(t('editor.ai_error', "Erreur AI : {{msg}}", { msg: error.message }));
-        } finally {
-            setIsGenerating(false);
-            setIsWaiting(false);
-        }
-    };
-
-    // Sync favorite badge with note.favorite state
-    useEffect(() => {
-        if (!note) return;
-        const hasFavBadge = (note.badges || []).some(b => b.id === 'favorite');
         
-        // If note is favorite but misses badge, add it
-        if (note.favorite && !hasFavBadge) {
-             const newBadges = [...(note.badges || []), { id: 'favorite', label: 'Favori', icon: 'Star', color: 2 }];
-             // Avoid triggering update if not needed (though here we must update to persist badge)
-             onUpdateNote({ ...note, badges: newBadges, updatedAt: Date.now() });
-        } 
-        // If note is NOT favorite but has badge, remove it
-        else if (!note.favorite && hasFavBadge) {
-             const newBadges = (note.badges || []).filter(b => b.id !== 'favorite');
-             onUpdateNote({ ...note, badges: newBadges, updatedAt: Date.now() });
-        }
-    }, [note, onUpdateNote]);
+        const newFiles = files.map(file => {
+            const url = URL.createObjectURL(file);
+            return {
+                id: crypto.randomUUID(),
+                name: file.name,
+                type: file.type.startsWith('image/') ? 'image' : 'file',
+                url: url
+            };
+        });
 
-    const handleUpdateBadges = (newBadges) => {
-        const isFavorite = newBadges.some(b => b.id === 'favorite');
-        onUpdateNote({ ...note, badges: newBadges, favorite: isFavorite, updatedAt: Date.now() });
+        const updatedAttachments = [...attachments, ...newFiles];
+        setAttachments(updatedAttachments);
+        onUpdateNote({ ...note, attachments: updatedAttachments, updatedAt: getCurrentTimestamp() });
+    };
+
+    const handleAIEnhance = async () => {
+        setIsAILoading(true);
+        try {
+            const result = await aiService.enhanceNote(note.content, settings.aiModel);
+            if (result) {
+                onUpdateNote({ ...note, content: result, updatedAt: getCurrentTimestamp() });
+                soundManager.play('crystal-chime').catch(console.error);
+            }
+        } catch (_) {
+            console.error("AI Error");
+        } finally {
+            setIsAILoading(false);
+        }
+    };
+
+    const handleAIRegenSuggestions = async () => {
+        setIsAILoading(true);
+        try {
+            const result = await aiService.getSmartSuggestions(note.content);
+            setAiSuggestions(result || []);
+        } catch (_) {
+            console.error("AI Suggestion Error");
+        } finally {
+            setIsAILoading(false);
+        }
+    };
+
+    const handleAddTag = (e) => {
+        e.preventDefault();
+        const tag = newTagInput.trim();
+        if (tag && !tags.includes(tag)) {
+            const updatedTags = [...tags, tag];
+            setTags(updatedTags);
+            onUpdateNote({ ...note, tags: updatedTags, updatedAt: getCurrentTimestamp() });
+        }
+        setNewTagInput('');
+        setShowTagInput(false);
+    };
+
+    const handleRemoveTag = (tagToRemove) => {
+        const updatedTags = tags.filter(t => t !== tagToRemove);
+        setTags(updatedTags);
+        onUpdateNote({ ...note, tags: updatedTags, updatedAt: getCurrentTimestamp() });
     };
 
     return (
         <div 
-            className={`flex-1 h-full flex flex-col bg-transparent relative transition-colors duration-300 ${isDragging ? 'bg-blue-500/10' : ''}`}
-            onDragEnter={handleDragEnter}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
+            className={`flex-1 flex flex-col h-full bg-warm-bg-light dark:bg-warm-bg-dark text-warm-text-primary-light dark:text-warm-text-primary-dark p-8 pb-28 overflow-hidden relative ${
+                isDragging ? 'bg-amber-500/5 ring-4 ring-amber-500/10 ring-inset' : ''
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
         >
-            {/* LanguageTool Context Menu */}
-            {languageToolMenu && (
-                <div 
-                    className="fixed z-[9999] bg-[#1e1e1e] border border-white/10 rounded-lg shadow-2xl overflow-hidden py-1 min-w-[150px] font-sans"
-                    style={{
-                        top: Math.min(languageToolMenu.y, window.innerHeight - 200),
-                        left: Math.min(languageToolMenu.x, window.innerWidth - 200)
-                    }}
-                >
-                    {languageToolMenu.replacements.length > 0 ? (
-                        <>
-                            <div className="px-3 py-1.5 text-xs text-white/50 border-b border-white/5 uppercase tracking-wider font-semibold">
-                                {languageToolMenu.message || "Suggestions"}
-                            </div>
-                            <div className="max-h-[300px] overflow-y-auto">
-                                {languageToolMenu.replacements.map((replacement, idx) => (
-                                    <button
-                                        key={idx}
-                                        className="w-full text-left px-4 py-2 text-sm text-white/90 hover:bg-blue-500 hover:text-white transition-colors cursor-pointer"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            const textToInsert = replacement.value || replacement;
-                                            const { view, from, to } = languageToolMenu;
-                                            if (view && view.state) {
-                                                view.dispatch(view.state.tr.insertText(textToInsert, from, to));
-                                                view.focus();
-                                            }
-                                            setLanguageToolMenu(null);
-                                        }}
-                                    >
-                                        {replacement.value || replacement}
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="px-4 py-2 text-sm text-white/50">
-                            {languageToolMenu.message || "Erreur"}
+            {/* Header Actions */}
+            <header className="flex items-center justify-between mb-6 z-20 select-none border-b border-warm-border-light dark:border-warm-border-dark pb-4">
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={onBack}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-warm-sidebar-light hover:bg-warm-sidebar-item-active dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-warm-border-light dark:border-warm-border-dark rounded-xl text-xs font-semibold transition-all"
+                    >
+                        <ChevronLeft size={14} />
+                        <span>Retour</span>
+                    </button>
+
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                             <input
+                                ref={titleRef}
+                                type="text"
+                                value={title}
+                                onChange={handleTitleChange}
+                                className="bg-transparent border-none text-xl font-extrabold text-warm-text-primary-light dark:text-warm-text-primary-dark placeholder:text-warm-text-muted-light/30 focus:outline-none focus:ring-0 p-0 m-0 w-64 md:w-80"
+                                placeholder={t('editor.placeholder_title', 'Sans Titre')}
+                            />
                         </div>
-                    )}
-                </div>
-            )}
-
-            {/* Drag Overlay */}
-            {isDragging && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-blue-500/20 backdrop-blur-sm border-2 border-blue-500 border-dashed m-4 rounded-xl pointer-events-none">
-                    <div className="text-blue-200 font-bold text-xl flex flex-col items-center gap-2">
-                        <IconAttachment className="w-12 h-12" />
-                        <span>{t('editor.drop_here', 'Déposer ici')}</span>
-                    </div>
-                </div>
-            )}
-
-            {/* Sticky Toolbar */}
-            <div className="sticky top-0 z-40 h-[44px] px-3 flex items-center gap-1 bg-[#1C1C1E]/90 backdrop-blur-xl border-b border-white/5 transition-all duration-[250ms] ease-in-out">
-                {/* STT Interim Preview */}
-                {isListening && (
-                    <div className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-none w-full max-w-2xl px-4 flex justify-center z-50">
-                        <div className={`bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl px-6 py-3 text-sm text-gray-200 shadow-2xl transition-all duration-[250ms] ease-in-out flex items-start gap-3 max-h-32 overflow-hidden ${interimTranscript ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0 mt-1.5" />
-                            <span className="font-medium whitespace-pre-wrap break-words text-left line-clamp-4">
-                                {interimTranscript || t('editor.listening')}
+                        <div className="flex items-center gap-3 mt-1 text-[10px] font-bold text-warm-text-muted-light">
+                            <span className="flex items-center gap-1">
+                                <History size={11} />
+                                {new Date(note.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
+                            {isSaving ? (
+                                <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                    Synchronisation...
+                                </span>
+                            ) : (
+                                <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                                    <CheckCircle2 size={11} />
+                                    Enregistré
+                                </span>
+                            )}
                         </div>
                     </div>
-                )}
-                
-                {/* AI & Accessibility Tools */}
-                {(settings?.aiEnabled !== false || settings?.voiceEnabled !== false || settings?.dictationEnabled !== false) && (
-                    <div className="flex items-center gap-1 mr-2 border-r border-white/10 pr-2">
-                        {/* TTS */}
-                        {(settings?.voiceEnabled !== false) && (
-                            <button
-                                onClick={toggleSpeaking}
-                                className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center ${isSpeaking ? 'bg-green-500/20 text-green-400 animate-pulse' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-                                title={isSpeaking ? "Arrêter la lecture" : "Lire la note"}
-                            >
-                                {isSpeaking ? <IconStop className="w-5 h-5" /> : <IconVolume className="w-5 h-5" />}
-                            </button>
-                        )}
-
-                        {/* STT */}
-                        {(settings?.dictationEnabled !== false) && (
-                            <button
-                                onClick={toggleListening}
-                                className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-                                title={isListening ? "Arrêter la dictée" : "Dicter"}
-                            >
-                                {isListening ? <IconMicOff className="w-5 h-5" /> : <IconMic className="w-5 h-5" />}
-                            </button>
-                        )}
-
-                        {/* AI Generation */}
-                        {(settings?.aiEnabled !== false) && (
-                            <button
-                                onClick={handleAiGenerate}
-                                disabled={isGenerating}
-                                className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center text-blue-400 hover:bg-blue-900/40 hover:text-blue-300`}
-                                title={t('editor.ai_assistant', "Assistant AI (Compléter/Améliorer)")}
-                            >
-                                {isGenerating ? <IconSparkles className="w-5 h-5 animate-pulse" /> : <IconSparkles className="w-5 h-5" />}
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* Editor Tools */}
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={() => keyAuthService.hasProAccess() ? toggleRecording() : onOpenLicense()}
-                        className={`p-1.5 rounded-md transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center relative ${isRecording
-                            ? 'bg-red-500/20 text-red-400 animate-pulse'
-                            : keyAuthService.hasProAccess() ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-600 opacity-50 hover:bg-white/10'}`}
-                        title={keyAuthService.hasProAccess() ? (isRecording ? "Arrêter l'enregistrement" : "Enregistrer un mémo vocal") : "Fonctionnalité Pro (Verrouillée)"}
-                    >
-                        {isRecording ? <IconStop className="w-5 h-5 fill-current" /> : <IconMic className="w-5 h-5" />}
-                        {!keyAuthService.hasProAccess() && (
-                            <Lock className="w-2.5 h-2.5 absolute -top-0.5 -right-0.5 text-orange-500 bg-[#1e1e1e] rounded-full" />
-                        )}
-                    </button>
-
-                    <div className="relative w-8 h-8 flex items-center justify-center overflow-hidden">
-                        <input
-                            type="file"
-                            multiple
-                            accept="image/*,video/*,audio/*,application/pdf,.odt,.odp"
-                            onChange={handleFileUpload}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                            title={t('editor.insert_file', "Insérer un fichier (Image, Vidéo, Audio, PDF)")}
-                        />
-                        <div className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-full h-full flex items-center justify-center">
-                            <IconImage className="w-5 h-5" />
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-0.5 bg-white/5 rounded-md p-0.5">
-                        <button
-                            onClick={() => setDrawingSession({ type: 'standard' })}
-                            className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out w-8 h-8 flex items-center justify-center"
-                            title={t('editor.draw', "Dessiner")}
-                        >
-                            <IconEdit className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => setDrawingSession({ type: 'overlay' })}
-                            className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out w-8 h-8 flex items-center justify-center"
-                            title={t('editor.draw_on_note', "Dessiner sur la note")}
-                        >
-                            <IconEdit className="w-5 h-5 opacity-50" />
-                        </button>
-                    </div>
-
-                    <button
-                        onClick={handlePaste}
-                        className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center"
-                        title={t('editor.paste', "Coller (Texte ou Image)")}
-                    >
-                        <IconPaste className="w-5 h-5" />
-                    </button>
                 </div>
 
-                <div className="flex-1" />
-
-                {/* Boutons de Dessin Overlay Actions */}
-                {(note.attachments || []).filter(a => a.type === 'overlay').length > 0 && (
-                    <div className="flex items-center gap-1 mr-3 bg-red-500/10 border border-red-500/20 rounded-md p-0.5 px-2">
-                        <span className="text-xs text-red-400 font-medium whitespace-nowrap ml-1 opacity-80">
-                            {(note.attachments || []).filter(a => a.type === 'overlay').length} Dessin(s)
-                        </span>
-                        <div className="w-px h-3 bg-red-500/30 mx-1"></div>
-                        {(note.attachments || []).filter(a => a.type === 'overlay').map((att, i) => (
-                            <button
-                                key={att.id}
-                                onClick={() => removeAttachment(att.id)}
-                                className="p-1 rounded text-red-500 hover:text-white hover:bg-red-600 transition-colors w-6 h-6 flex items-center justify-center"
-                                title={`Effacer le dessin ${i+1}`}
+                <div className="flex items-center gap-2">
+                    {/* Tags Container */}
+                    <div className="hidden sm:flex items-center gap-1.5 mr-2">
+                        {tags.map(tag => (
+                            <span 
+                                key={tag} 
+                                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider bg-warm-sidebar-light dark:bg-zinc-800 px-2 py-0.5 rounded-lg border border-warm-border-light dark:border-warm-border-dark"
                             >
-                                <IconTrash className="w-3.5 h-3.5" />
+                                {tag}
+                                <button 
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="text-warm-text-muted-light hover:text-red-500 font-bold"
+                                >
+                                    ×
+                                </button>
+                            </span>
+                        ))}
+                        {showTagInput ? (
+                            <form onSubmit={handleAddTag} className="inline-block">
+                                <input
+                                    type="text"
+                                    value={newTagInput}
+                                    onChange={(e) => setNewTagInput(e.target.value)}
+                                    onBlur={() => setShowTagInput(false)}
+                                    placeholder="Nouveau tag"
+                                    className="px-2 py-0.5 text-[10px] bg-white dark:bg-zinc-900 border border-warm-border-light dark:border-warm-border-dark rounded-lg outline-none w-20"
+                                    autoFocus
+                                />
+                            </form>
+                        ) : (
+                            <button 
+                                onClick={() => setShowTagInput(true)}
+                                className="p-1 rounded-lg border border-warm-border-light dark:border-warm-border-dark hover:bg-warm-sidebar-light"
+                            >
+                                <Tag size={10} className="text-warm-text-muted-light" />
                             </button>
+                        )}
+                    </div>
+
+                    {onCreateNote && (
+                        <button 
+                            onClick={onCreateNote}
+                            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-warm-sidebar-light hover:bg-warm-sidebar-item-active dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-warm-border-light dark:border-warm-border-dark rounded-xl text-xs font-semibold transition-all mr-2"
+                        >
+                            <Plus size={14} />
+                            <span>Nouvelle note</span>
+                            <span className="text-[9px] font-bold text-warm-text-muted-light bg-warm-card-light dark:bg-zinc-900 border border-warm-border-light dark:border-warm-border-dark px-1.5 py-0.2 rounded">⌘N</span>
+                        </button>
+                    )}
+
+                    <button 
+                        onClick={onOpenShare}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-warm-sidebar-light hover:bg-warm-sidebar-item-active dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-warm-border-light dark:border-warm-border-dark rounded-xl text-xs font-semibold transition-all text-warm-text-primary-light"
+                    >
+                        <Share2 size={13} />
+                        <span>Partager</span>
+                    </button>
+
+                    <button 
+                        onClick={() => onDeleteNote(note.id)}
+                        className="p-1.5 rounded-xl border border-warm-border-light dark:border-warm-border-dark hover:bg-red-500/10 hover:border-red-500/30 transition-all text-warm-text-muted-light hover:text-red-500"
+                    >
+                        <Trash2 size={15} />
+                    </button>
+                </div>
+            </header>
+
+            {/* Editor Area */}
+            <div className="flex-1 overflow-y-auto pr-4 scrollbar-hide relative">
+                {/* Attachments Rail */}
+                {attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-4 mb-6 z-10 relative">
+                        {attachments.map(att => (
+                            <MediaAttachment 
+                                key={att.id} 
+                                {...att} 
+                                onRemove={() => setAttachments(prev => prev.filter(a => a.id !== att.id))} 
+                            />
                         ))}
                     </div>
                 )}
 
-                {/* Online Users Indicator */}
-                {onlineUsers.length > 0 && (
-                    <div className="flex items-center mr-3" title={`${onlineUsers.length} utilisateur(s) en ligne`}>
-                        <div className="flex -space-x-2">
-                            {onlineUsers.map((u, i) => (
-                                <div key={u.id || i} className="w-6 h-6 rounded-full bg-blue-600 border border-[#1e1e1e] flex items-center justify-center text-[10px] font-bold text-white uppercase" title={u.user}>
-                                    {u.user.substring(0, 2)}
-                                </div>
-                            ))}
+                <RichTextEditor 
+                    ref={editorRef}
+                    value={note.content} 
+                    onChange={handleContentChange}
+                    noteId={note.id}
+                />
+            </div>
+
+            {/* Bottom Floating Bar (Dexter Quick Access) */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-full max-w-2xl px-4 select-none">
+                <div className="p-3 rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-white/70 dark:bg-[#1E1E1ECC] backdrop-blur-2xl shadow-xl flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={onOpenDexter}
+                            className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white shadow-md hover:scale-105 active:scale-95 transition-all group"
+                        >
+                            <Sparkles size={16} className="group-hover:rotate-12 transition-transform" />
+                        </button>
+                        <div className="flex flex-col text-left">
+                            <span className="text-[10px] font-black text-warm-text-primary-light uppercase tracking-wider">Dexter IA</span>
+                            <span className="text-[8px] text-warm-text-muted-light truncate w-32 font-semibold font-sans">"Corrige les fautes..."</span>
                         </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-warm-sidebar-light/50 dark:bg-zinc-800/50 p-1 rounded-xl border border-warm-border-light dark:border-warm-border-dark">
+                        <button className="p-2 rounded-lg text-warm-text-muted-light hover:text-warm-text-primary-light hover:bg-warm-sidebar-item-active transition-all" title="Dictée vocale">
+                            <Mic size={15} />
+                        </button>
+                        <button className="p-2 rounded-lg text-warm-text-muted-light hover:text-warm-text-primary-light hover:bg-warm-sidebar-item-active transition-all" title="Synthèse vocale">
+                            <Volume2 size={15} />
+                        </button>
+                        <button className="p-2 rounded-lg text-warm-text-muted-light hover:text-warm-text-primary-light hover:bg-warm-sidebar-item-active transition-all" title="Modifier le style">
+                            <Type size={15} />
+                        </button>
+                        <button className="p-2 rounded-lg text-warm-text-muted-light hover:text-warm-text-primary-light hover:bg-warm-sidebar-item-active transition-all" title="Joindre un fichier">
+                            <ImageIcon size={15} />
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={handleAIEnhance}
+                            disabled={isAILoading}
+                            className={`flex items-center gap-1.5 px-4 py-2 bg-warm-sidebar-light hover:bg-warm-sidebar-item-active dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl font-bold text-[10px] uppercase tracking-wider text-warm-text-primary-light transition-all disabled:opacity-50`}
+                        >
+                            {isAILoading ? (
+                                <div className="w-3.5 h-3.5 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                            ) : (
+                                <Sparkles size={12} className="text-amber-500" />
+                            )}
+                            Améliorer
+                        </button>
+                        
+                        <div className="h-6 w-px bg-warm-border-light dark:bg-warm-border-dark mx-1" />
+
+                        <button 
+                            onClick={onOpenLicense}
+                            className="p-2 rounded-lg text-warm-text-muted-light hover:text-amber-500 hover:bg-amber-500/5 transition-all"
+                            title="Licence Premium"
+                        >
+                            <Lock size={15} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Ghost AI Suggestions Bar */}
+                {note.content?.length > 100 && aiSuggestions.length > 0 && (
+                    <div className="absolute top-[-44px] left-0 w-full flex justify-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <button 
+                            onClick={handleAIRegenSuggestions}
+                            className="px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-md text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all uppercase tracking-wider"
+                        >
+                            Refaire le plan
+                        </button>
+                        <button className="px-3.5 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 backdrop-blur-md text-[9px] font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all uppercase tracking-wider">
+                            Trouver des sources
+                        </button>
                     </div>
                 )}
-
-                <button
-                    onClick={onOpenShare}
-                    className="p-1.5 rounded-md text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center mr-1"
-                    title={t('editor.share', "Partager / Inviter")}
-                >
-                    <IconShare className="w-5 h-5" />
-                </button>
-
-                <button
-                    onClick={handleCopyNote}
-                    className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all duration-[250ms] ease-in-out hover:duration-[150ms] w-8 h-8 flex items-center justify-center"
-                    title={t('editor.copy_note', "Copier la note")}
-                >
-                    <IconCopy className="w-5 h-5" />
-                </button>
             </div>
-
-            {/* Invisible Drag Region at top - Only when titlebar is 'none' */}
-            {(!settings?.titlebarStyle || settings.titlebarStyle === 'none') && (
-                <div className="absolute top-0 left-0 right-0 h-2 z-50 pointer-events-none" data-tauri-drag-region />
-            )}
-
-            {/* EDITOR AREA */}
-            <div 
-                key={note.id} 
-                ref={editorContainerRef}
-                className="flex-1 overflow-y-auto animate-fade-in scroll-pt-4 relative custom-scrollbar"
-            >
-                <div className="w-full mx-auto px-6 py-5 lg:px-10 lg:py-8 pb-20"> {/* Responsive Padding: 20px 24px (tablet) -> 32px 40px (desktop) */}
-                    {/* Metadata (Date) */}
-                    <div className="text-[11px] text-gray-500 mb-6 font-medium tracking-wide">
-                        {(() => {
-                            try {
-                                return new Date(note.updatedAt).toLocaleString(i18n.language, { dateStyle: 'long', timeStyle: 'short' });
-                            } catch {
-                                return "";
-                            }
-                        })()}
-                    </div>
-
-                    {/* Title Input */}
-                    <input
-                        type="text"
-                        value={note.title}
-                        onChange={handleTitleChange}
-                        placeholder={t('editor.title_placeholder')}
-                        className="w-full bg-transparent border-none outline-none text-[28px] font-bold text-white leading-9 mb-6 placeholder-gray-600 p-0"
-                    />
-
-                    <div className="relative w-full min-h-[500px]">
-                        {/* Overlays existants */}
-                        {note.attachments && note.attachments.filter(a => a.type === 'overlay').map((att, index) => {
-                            let src = att.data;
-                            if (!src.startsWith('data:') && !src.startsWith('blob:') && !src.startsWith('http')) {
-                                src = convertFileSrc(src);
-                            }
-                            return (
-                                <div key={att.id} className="absolute top-0 left-0 w-full h-full z-10 pointer-events-none group">
-                                    <img
-                                        src={src}
-                                        alt={`Drawing overlay ${index + 1}`}
-                                        className="w-full h-full pointer-events-none mix-blend-normal opacity-95 object-cover object-top"
-                                    />
-                                </div>
-                            );
-                        })}
-
-                        {/* Zone de dessin Overlay en cours */}
-                        {drawingSession && drawingSession.type === 'overlay' && (
-                            <div className="absolute inset-0 z-30 pointer-events-auto h-full w-full">
-                                <CanvasDraw
-                                    onSave={handleSaveDrawing}
-                                    onClose={() => setDrawingSession(null)}
-                                    initialImage={null}
-                                    isOverlay={true}
-                                />
-                            </div>
-                        )}
-
-                        <RichTextEditor
-                            ref={richTextEditorRef}
-                            spellcheck={settings?.enableCorrection !== false}
-                            value={note.content}
-                            onChange={handleContentChange}
-                            onKeyDown={handleKeyDown}
-                            placeholder={suggestion ? "" : t('editor.placeholder')}
-                        />
-                        {/* Suggestion Overlay */}
-                        {suggestion && (
-                            <div className="absolute top-0 left-0 pointer-events-none z-0 whitespace-pre-wrap text-[16px] leading-7 font-sans text-transparent w-full mt-10">
-                                {/* Invisible content text simply pushes suggestion down, not perfect for HTML but gives simple indication if needed */}
-                                {note.content.replace(/<[^>]*>?/gm, '')}
-                                <span className="text-gray-500 opacity-60">{suggestion}</span>
-                            </div>
-                        )}
-
-                        {/* Shimmer Loading Overlay */}
-                        {isWaiting && (
-                            <div className="absolute inset-0 z-20 bg-[#1e1e1e]/40 backdrop-blur-[1px] flex flex-col gap-4 pt-2 animate-in fade-in duration-300 pointer-events-none">
-                                <div className="h-4 w-3/4 bg-white/5 rounded animate-shimmer"></div>
-                                <div className="h-4 w-full bg-white/5 rounded animate-shimmer"></div>
-                                <div className="h-4 w-5/6 bg-white/5 rounded animate-shimmer"></div>
-                                <div className="h-4 w-4/5 bg-white/5 rounded animate-shimmer"></div>
-                                <div className="h-4 w-2/3 bg-white/5 rounded animate-shimmer"></div>
-                            </div>
-                        )}
-
-                        {/* AI Review Overlay */}
-                        {pendingAiContent && (
-                            <div className="absolute inset-0 z-30 bg-[#1e1e1e] flex flex-col animate-in fade-in slide-in-from-bottom-4 rounded-lg border border-blue-500/30 shadow-2xl overflow-hidden min-h-[400px]">
-                                <div className="flex items-center justify-between px-4 py-3 bg-blue-900/20 border-b border-blue-500/20 shrink-0">
-                                    <div className="flex items-center gap-2">
-                                        <IconSparkles className="w-4 h-4 text-blue-400" />
-                                        <span className="text-sm font-bold text-blue-100">{t('editor.ai_suggestion')}</span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => setPendingAiContent(null)}
-                                            className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white hover:bg-white/10 rounded transition-colors flex items-center gap-1"
-                                        >
-                                            <IconClose className="w-3.5 h-3.5" />
-                                            {t('editor.cancel')}
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                onUpdateNote({ ...note, content: pendingAiContent, updatedAt: Date.now() });
-                                                setPendingAiContent(null);
-                                            }}
-                                            className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded shadow-lg transition-colors flex items-center gap-1"
-                                        >
-                                            <IconCheck className="w-3.5 h-3.5" />
-                                            {t('editor.accept')}
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-                                    <div className="whitespace-pre-wrap text-[16px] leading-7 text-gray-100 font-sans">
-                                        {pendingAiContent}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Attachments Section */}
-                    {(note.attachments && note.attachments.filter(a => a.type !== 'overlay').length > 0) && (
-                        <div className="border-t border-white/5 pt-6 pb-20 mt-12">
-                            <h3 className="text-xs font-bold uppercase text-gray-400 mb-6 tracking-wider pl-1">{t('editor.attachments')} ({note.attachments.filter(a => a.type !== 'overlay').length})</h3>
-                            <div className="flex flex-wrap items-start gap-6">
-                                {note.attachments.filter(a => a.type !== 'overlay').map((att, index) => (
-                                    <MediaAttachment
-                                        key={att.id}
-                                        att={att}
-                                        index={index}
-                                        note={note}
-                                        moveAttachment={moveAttachment}
-                                        removeAttachment={removeAttachment}
-                                        resizeAttachment={resizeAttachment}
-                                        renameAttachment={renameAttachment}
-                                        handleDownloadAttachment={handleDownloadAttachment}
-                                        onAnnotate={handleAnnotate}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
+            
+            {/* Minimalist Save shortcut notification */}
+            <div className="absolute top-20 right-6 flex flex-col gap-2 pointer-events-none select-none opacity-0 hover:opacity-100 transition-opacity">
+                <div className="p-2 rounded-xl bg-black/40 backdrop-blur-xl border border-white/5 flex items-center gap-1.5">
+                    <Save size={12} className="text-white/40" />
+                    <span className="text-[9px] font-mono text-white/20">CTRL + S</span>
                 </div>
             </div>
-
-            {/* Note Badges (Fixed Bottom Left) */}
-            {!drawingSession && (
-                <NoteBadges badges={note.badges || []} onUpdate={handleUpdateBadges} />
-            )}
-
-            {/* Detected Language Indicator (Fixed Bottom Right) */}
-            {!drawingSession && detectedLanguage?.name && (
-                 <div className="absolute bottom-6 right-6 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-[#1e1e1e]/80 backdrop-blur-md shadow-sm pointer-events-none transition-all duration-300">
-                     <IconifyIcon icon="formkit:translate" className="w-3.5 h-3.5 text-blue-400" />
-                     <span className="text-xs font-medium text-gray-300 tracking-wide">{detectedLanguage.name}</span>
-                 </div>
-            )}
-
-            {/* Dessin standard/image */}
-            {drawingSession && drawingSession.type !== 'overlay' && (
-                <div className="absolute top-0 left-0 right-0 bottom-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200">
-                    <ResizableModal
-                        initialSize={{ width: 1200, height: 800 }}
-                        onClose={() => setDrawingSession(null)}
-                    >
-                        <CanvasDraw 
-                            onSave={handleSaveDrawing} 
-                            onClose={() => setDrawingSession(null)}
-                            initialImage={drawingSession.type === 'image' ? drawingSession.data : null}
-                            isOverlay={false}
-                        />
-                    </ResizableModal>
-                </div>
-            )}
         </div>
     );
 }
-
-// Helper component for resizable modal
-const ResizableModal = ({ children, initialSize }) => {
-    const ref = useRef(null);
-    
-    // Lazy initialization of state to avoid setState in useEffect
-    const [size] = useState(() => {
-        const saved = localStorage.getItem('drawing_modal_size');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                console.warn('Failed to parse drawing modal size:', e);
-            }
-        }
-        return initialSize;
-    });
-
-    useEffect(() => {
-        if (!ref.current) return;
-        const ro = new ResizeObserver(entries => {
-            for (let entry of entries) {
-                const { width, height } = entry.contentRect;
-                if (width > 100 && height > 100) {
-                     localStorage.setItem('drawing_modal_size', JSON.stringify({ width, height }));
-                }
-            }
-        });
-        ro.observe(ref.current);
-        return () => ro.disconnect();
-    }, []);
-
-    return (
-        <div 
-            ref={ref}
-            style={{ 
-                width: size.width, 
-                height: size.height,
-                maxWidth: '95vw', 
-                maxHeight: '95vh',
-                resize: 'both',
-                overflow: 'hidden',
-                minWidth: '320px',
-                minHeight: '300px'
-            }} 
-            className="bg-[#1e1e1e] rounded-xl shadow-2xl relative flex flex-col"
-        >
-            {children}
-            
-            {/* Custom Resize Handle Indicator (Visual only, browser handles interaction) */}
-            <div className="absolute bottom-0 right-0 p-1 pointer-events-none text-white/20">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v6" />
-                    <path d="M15 21h6" />
-                    <path d="M21 3v6" />
-                    <path d="M3 21h6" />
-                    <path d="M14.5 9.5 21 3" />
-                    <path d="M3 21l6.5-6.5" />
-                </svg>
-            </div>
-        </div>
-    );
-};
-
-
-

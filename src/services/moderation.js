@@ -25,7 +25,7 @@ export const moderationService = {
      * @returns {object} { safe: boolean, reason: string|null, sanitized: string }
      */
     analyzeMessage: (message) => {
-        if (!message) return { safe: true, reason: null, sanitized: "" };
+        if (!message) {return { safe: true, reason: null, sanitized: "" };}
 
         // 1. Check Keywords (Propaganda/Terrorism)
         for (const term of BLOCKED_TERMS) {

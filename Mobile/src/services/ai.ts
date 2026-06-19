@@ -1,93 +1,181 @@
 import { VITE_OPENROUTER_KEY } from '@env';
 
-// Assume keyauth is correctly ported in Mobile/src/services/keyauth
-// Here we might import a singleton instance or the class method directly if it was ported
-import { keyAuthService } from './keyauth'; 
+import { keyAuthService } from './keyauth';
 
-const DEFAULT_OPENROUTER_KEY = VITE_OPENROUTER_KEY || '';
-const DEFAULT_OPENROUTER_MODEL = 'openai/gpt-oss-20b:free';
+export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+export const FREE_MODEL_ROUTER = 'openrouter/free';
 
-interface GenerateTextArgs {
-  apiKey?: string;
-  model?: string;
-  messages: Array<{ role: string; content: string }>;
+const OPENROUTER_KEY = VITE_OPENROUTER_KEY || '';
+
+export interface OpenRouterMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface GenerateTextArgs {
+  messages: OpenRouterMessage[];
   signal?: AbortSignal;
   jsonMode?: boolean;
 }
 
-export const generateText = async ({ apiKey, model, messages, signal, jsonMode }: GenerateTextArgs) => {
-    // Vérification de la licence (Abonnement requis pour l'IA) via le state global keyAuth 
-    // MOCK: Dans la version mobile on suppose que la méthode hasAIAccess est dispo, ou on bypass si non défini
-    if (keyAuthService && typeof keyAuthService.hasAIAccess === 'function' && !keyAuthService.hasAIAccess()) {
-        throw new Error("Cette fonctionnalité nécessite un abonnement actif. Veuillez activer votre licence.");
-    }
+export interface AIUsageStats {
+  id?: string;
+  model: string;
+  usage: unknown;
+  createdAt: string;
+}
 
-    const finalKey = apiKey && apiKey.trim() ? apiKey : DEFAULT_OPENROUTER_KEY;
-    const finalModel = model || DEFAULT_OPENROUTER_MODEL;
+let lastUsageStats: AIUsageStats | null = null;
+const usageListeners = new Set<(stats: AIUsageStats) => void>();
 
-    if (!finalKey && finalModel !== DEFAULT_OPENROUTER_MODEL) {
-        throw new Error("Modèle payant sélectionné sans clé API. Configurez votre clé API ou choisissez un modèle gratuit.");
-    }
+function assertOpenRouterKey() {
+  if (!OPENROUTER_KEY) {
+    throw new Error('OpenRouter est fourni uniquement par le secret GitHub VITE_OPENROUTER_KEY. Aucune clé personnalisée locale n’est acceptée.');
+  }
+}
 
-    const maxRetries = 3;
-    let attempt = 0;
+function notifyUsage(stats: AIUsageStats) {
+  lastUsageStats = stats;
+  usageListeners.forEach((listener) => listener(stats));
+}
 
-    while (attempt < maxRetries) {
-        try {
-            const body: any = {
-                model: finalModel,
-                messages: messages,
-                temperature: 0.7,
-            };
+async function fetchGenerationStats(generationId?: string) {
+  if (!generationId) {
+    return null;
+  }
 
-            if (jsonMode) {
-                body.response_format = { type: "json_object" };
-            }
+  const response = await fetch(`${OPENROUTER_BASE_URL}/generation?id=${encodeURIComponent(generationId)}`, {
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_KEY}`,
+    },
+  });
 
-            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${finalKey}`,
-                    "Content-Type": "application/json",
-                    // "HTTP-Referer": "https://fiip-notes.app", // Optional
-                    // "X-Title": "Fiip Notes" // Optional
-                },
-                body: JSON.stringify(body),
-                signal: signal
-            });
+  if (!response.ok) {
+    return null;
+  }
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                
-                // Retry on 503 (Service Unavailable) or 429 (Rate Limit)
-                if ((response.status === 503 || response.status === 429) && attempt < maxRetries - 1) {
-                    console.warn(`API Error ${response.status}. Retrying... (${attempt + 1}/${maxRetries})`);
-                    attempt++;
-                    await new Promise(resolve => setTimeout(() => resolve(null), 1000 * (attempt + 1))); // Exponential backoff
-                    continue;
-                }
+  return response.json();
+}
 
-                throw new Error(`Erreur API (${response.status}): ${errorData.error?.message || response.statusText}`);
-            }
+export function subscribeToAIUsage(listener: (stats: AIUsageStats) => void) {
+  usageListeners.add(listener);
+  if (lastUsageStats) {
+    listener(lastUsageStats);
+  }
 
-            const data = await response.json();
-            return data.choices[0]?.message?.content || "";
-        } catch (error: any) {
-            if (error.name === 'AbortError') {
-                console.log('Generation aborted');
-                throw error;
-            }
-            
-            // If it's the last attempt or not a retryable error, throw it
-            if (attempt === maxRetries - 1) {
-                console.error("AI Generation Error:", error);
-                throw error;
-            }
-            
-            // If it was a network error (fetch failed), retry
-            console.warn(`Network Error. Retrying... (${attempt + 1}/${maxRetries})`, error);
-            attempt++;
-            await new Promise(resolve => setTimeout(() => resolve(null), 1000 * (attempt + 1)));
+  return () => usageListeners.delete(listener);
+}
+
+export function getLastAIUsageStats() {
+  return lastUsageStats;
+}
+
+export async function listOpenRouterModels({ freeOnly = true } = {}) {
+  assertOpenRouterKey();
+
+  const response = await fetch(`${OPENROUTER_BASE_URL}/models`, {
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_KEY}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erreur modèles OpenRouter (${response.status})`);
+  }
+
+  const payload = await response.json();
+  const models = Array.isArray(payload.data) ? payload.data : [];
+
+  return freeOnly
+    ? models.filter((model: any) => model.id?.endsWith(':free') || (Number(model.pricing?.prompt || 0) === 0 && Number(model.pricing?.completion || 0) === 0))
+    : models;
+}
+
+export const generateText = async ({ messages, signal, jsonMode }: GenerateTextArgs) => {
+  if (keyAuthService && typeof keyAuthService.hasAIAccess === 'function' && !keyAuthService.hasAIAccess()) {
+    throw new Error('Cette fonctionnalité nécessite un abonnement actif. Veuillez activer votre licence.');
+  }
+
+  assertOpenRouterKey();
+
+  const maxRetries = 3;
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    try {
+      const body: Record<string, unknown> = {
+        model: FREE_MODEL_ROUTER,
+        messages,
+        temperature: 0.7,
+      };
+
+      if (jsonMode) {
+        body.response_format = { type: 'json_object' };
+      }
+
+      const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://fiip.app',
+          'X-Title': 'Fiip Mobile',
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        if ((response.status === 429 || response.status === 503) && attempt < maxRetries - 1) {
+          attempt += 1;
+          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+          continue;
         }
+
+        throw new Error(`Erreur OpenRouter (${response.status}): ${errorData.error?.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      const generationStats = await fetchGenerationStats(data.id);
+
+      notifyUsage({
+        id: data.id,
+        model: FREE_MODEL_ROUTER,
+        usage: data.usage || generationStats?.data || generationStats || null,
+        createdAt: new Date().toISOString(),
+      });
+
+      return data.choices?.[0]?.message?.content || '';
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        throw error;
+      }
+
+      if (attempt === maxRetries - 1) {
+        throw error;
+      }
+
+      attempt += 1;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
     }
+  }
+
+  return '';
+};
+
+export const aiService = {
+  FREE_MODEL_ROUTER,
+  getLastUsageStats: getLastAIUsageStats,
+  listModels: listOpenRouterModels,
+  subscribeToUsage: subscribeToAIUsage,
+  async enhanceNote(content: string) {
+    return generateText({
+      messages: [
+        { role: 'system', content: 'Améliore cette note en français. Retourne uniquement le texte final.' },
+        { role: 'user', content: content || '' },
+      ],
+    });
+  },
 };
