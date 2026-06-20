@@ -1,0 +1,668 @@
+diff --git a/node_modules/nucleo-social-media/dist/components/IconAndroid.js b/node_modules/nucleo-social-media/dist/components/IconAndroid.js
+index d2d4c39..ccf2209 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconAndroid.js
++++ b/node_modules/nucleo-social-media/dist/components/IconAndroid.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconAndroid = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconAngelList.js b/node_modules/nucleo-social-media/dist/components/IconAngelList.js
+index 60bd279..1702662 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconAngelList.js
++++ b/node_modules/nucleo-social-media/dist/components/IconAngelList.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconAngelList = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconApple.js b/node_modules/nucleo-social-media/dist/components/IconApple.js
+index 1b6d2ff..18bcd59 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconApple.js
++++ b/node_modules/nucleo-social-media/dist/components/IconApple.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconApple = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconAppleSafari.js b/node_modules/nucleo-social-media/dist/components/IconAppleSafari.js
+index 19da5dc..c4b65c5 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconAppleSafari.js
++++ b/node_modules/nucleo-social-media/dist/components/IconAppleSafari.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconAppleSafari = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconBehance.js b/node_modules/nucleo-social-media/dist/components/IconBehance.js
+index 06560ca..cef65fb 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconBehance.js
++++ b/node_modules/nucleo-social-media/dist/components/IconBehance.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconBehance = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconBluesky.js b/node_modules/nucleo-social-media/dist/components/IconBluesky.js
+index 698a806..ec0859c 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconBluesky.js
++++ b/node_modules/nucleo-social-media/dist/components/IconBluesky.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconBluesky = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconDeviantart.js b/node_modules/nucleo-social-media/dist/components/IconDeviantart.js
+index 7baa498..3afc7ca 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconDeviantart.js
++++ b/node_modules/nucleo-social-media/dist/components/IconDeviantart.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconDeviantart = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconDiscord.js b/node_modules/nucleo-social-media/dist/components/IconDiscord.js
+index 07b085b..e04b87c 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconDiscord.js
++++ b/node_modules/nucleo-social-media/dist/components/IconDiscord.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconDiscord = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconDribbble.js b/node_modules/nucleo-social-media/dist/components/IconDribbble.js
+index e04507b..647ed99 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconDribbble.js
++++ b/node_modules/nucleo-social-media/dist/components/IconDribbble.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconDribbble = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconFacebook.js b/node_modules/nucleo-social-media/dist/components/IconFacebook.js
+index 29d2201..506bbbc 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconFacebook.js
++++ b/node_modules/nucleo-social-media/dist/components/IconFacebook.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconFacebook = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconFirefox.js b/node_modules/nucleo-social-media/dist/components/IconFirefox.js
+index 2af0368..7e8ba61 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconFirefox.js
++++ b/node_modules/nucleo-social-media/dist/components/IconFirefox.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconFirefox = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconGithub.js b/node_modules/nucleo-social-media/dist/components/IconGithub.js
+index 3f578f1..b6ea8db 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconGithub.js
++++ b/node_modules/nucleo-social-media/dist/components/IconGithub.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconGithub = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconGoogle.js b/node_modules/nucleo-social-media/dist/components/IconGoogle.js
+index 2d6b1bf..d942f6c 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconGoogle.js
++++ b/node_modules/nucleo-social-media/dist/components/IconGoogle.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconGoogle = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconGoogleChrome.js b/node_modules/nucleo-social-media/dist/components/IconGoogleChrome.js
+index 48b2c47..b83cad9 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconGoogleChrome.js
++++ b/node_modules/nucleo-social-media/dist/components/IconGoogleChrome.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconGoogleChrome = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconInstagram.js b/node_modules/nucleo-social-media/dist/components/IconInstagram.js
+index 23cb06c..c216795 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconInstagram.js
++++ b/node_modules/nucleo-social-media/dist/components/IconInstagram.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconInstagram = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconInternetExplorer.js b/node_modules/nucleo-social-media/dist/components/IconInternetExplorer.js
+index bafea0e..6f7959f 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconInternetExplorer.js
++++ b/node_modules/nucleo-social-media/dist/components/IconInternetExplorer.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconInternetExplorer = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconKuaishou.js b/node_modules/nucleo-social-media/dist/components/IconKuaishou.js
+index b814c97..c3d0a0f 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconKuaishou.js
++++ b/node_modules/nucleo-social-media/dist/components/IconKuaishou.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconKuaishou = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconLayers.js b/node_modules/nucleo-social-media/dist/components/IconLayers.js
+index b8dd3c4..3323c37 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconLayers.js
++++ b/node_modules/nucleo-social-media/dist/components/IconLayers.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconLayers = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconLinkedin.js b/node_modules/nucleo-social-media/dist/components/IconLinkedin.js
+index d063302..a935e0f 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconLinkedin.js
++++ b/node_modules/nucleo-social-media/dist/components/IconLinkedin.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconLinkedin = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconMastodon.js b/node_modules/nucleo-social-media/dist/components/IconMastodon.js
+index f05cd89..1006900 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconMastodon.js
++++ b/node_modules/nucleo-social-media/dist/components/IconMastodon.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconMastodon = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconMedium.js b/node_modules/nucleo-social-media/dist/components/IconMedium.js
+index c98cad9..89a79ae 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconMedium.js
++++ b/node_modules/nucleo-social-media/dist/components/IconMedium.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconMedium = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconMessenger.js b/node_modules/nucleo-social-media/dist/components/IconMessenger.js
+index 1bef93c..0ecd0ff 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconMessenger.js
++++ b/node_modules/nucleo-social-media/dist/components/IconMessenger.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconMessenger = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconMicrosoft.js b/node_modules/nucleo-social-media/dist/components/IconMicrosoft.js
+index 0ee50f7..254c8b2 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconMicrosoft.js
++++ b/node_modules/nucleo-social-media/dist/components/IconMicrosoft.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconMicrosoft = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconMicrosoftEdge.js b/node_modules/nucleo-social-media/dist/components/IconMicrosoftEdge.js
+index 2a1343b..e20ecde 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconMicrosoftEdge.js
++++ b/node_modules/nucleo-social-media/dist/components/IconMicrosoftEdge.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconMicrosoftEdge = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconOnlyfans.js b/node_modules/nucleo-social-media/dist/components/IconOnlyfans.js
+index 16fcd0e..729f697 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconOnlyfans.js
++++ b/node_modules/nucleo-social-media/dist/components/IconOnlyfans.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconOnlyfans = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconOpera.js b/node_modules/nucleo-social-media/dist/components/IconOpera.js
+index e12741e..a899a05 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconOpera.js
++++ b/node_modules/nucleo-social-media/dist/components/IconOpera.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconOpera = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconPatreon.js b/node_modules/nucleo-social-media/dist/components/IconPatreon.js
+index db31ceb..7d2130b 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconPatreon.js
++++ b/node_modules/nucleo-social-media/dist/components/IconPatreon.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconPatreon = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconPinterest.js b/node_modules/nucleo-social-media/dist/components/IconPinterest.js
+index 3484e0f..f9ca20b 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconPinterest.js
++++ b/node_modules/nucleo-social-media/dist/components/IconPinterest.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconPinterest = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconQq.js b/node_modules/nucleo-social-media/dist/components/IconQq.js
+index 6e31843..933a533 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconQq.js
++++ b/node_modules/nucleo-social-media/dist/components/IconQq.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconQq = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconReddit.js b/node_modules/nucleo-social-media/dist/components/IconReddit.js
+index dbfe028..2ebca1c 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconReddit.js
++++ b/node_modules/nucleo-social-media/dist/components/IconReddit.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconReddit = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconRss.js b/node_modules/nucleo-social-media/dist/components/IconRss.js
+index 6ab9615..5c60977 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconRss.js
++++ b/node_modules/nucleo-social-media/dist/components/IconRss.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconRss = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconSkype.js b/node_modules/nucleo-social-media/dist/components/IconSkype.js
+index 85dcdea..6469f8c 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconSkype.js
++++ b/node_modules/nucleo-social-media/dist/components/IconSkype.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconSkype = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconSlack.js b/node_modules/nucleo-social-media/dist/components/IconSlack.js
+index 8dcc897..cebfd4d 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconSlack.js
++++ b/node_modules/nucleo-social-media/dist/components/IconSlack.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconSlack = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconSnapchat.js b/node_modules/nucleo-social-media/dist/components/IconSnapchat.js
+index eb95b7c..533c0c0 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconSnapchat.js
++++ b/node_modules/nucleo-social-media/dist/components/IconSnapchat.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconSnapchat = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconSoundcloud.js b/node_modules/nucleo-social-media/dist/components/IconSoundcloud.js
+index 87094d3..8df202e 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconSoundcloud.js
++++ b/node_modules/nucleo-social-media/dist/components/IconSoundcloud.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconSoundcloud = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconTelegram.js b/node_modules/nucleo-social-media/dist/components/IconTelegram.js
+index f4b23cf..8058f1e 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconTelegram.js
++++ b/node_modules/nucleo-social-media/dist/components/IconTelegram.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconTelegram = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconThreads.js b/node_modules/nucleo-social-media/dist/components/IconThreads.js
+index 9540aa5..5daaba7 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconThreads.js
++++ b/node_modules/nucleo-social-media/dist/components/IconThreads.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconThreads = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconTikTok.js b/node_modules/nucleo-social-media/dist/components/IconTikTok.js
+index 6e2f04f..e23c1aa 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconTikTok.js
++++ b/node_modules/nucleo-social-media/dist/components/IconTikTok.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconTikTok = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconTrello.js b/node_modules/nucleo-social-media/dist/components/IconTrello.js
+index f46d56d..3f2a429 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconTrello.js
++++ b/node_modules/nucleo-social-media/dist/components/IconTrello.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconTrello = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconTumblr.js b/node_modules/nucleo-social-media/dist/components/IconTumblr.js
+index d570b86..ede7b49 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconTumblr.js
++++ b/node_modules/nucleo-social-media/dist/components/IconTumblr.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconTumblr = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconTwitch.js b/node_modules/nucleo-social-media/dist/components/IconTwitch.js
+index de27b60..28b19b5 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconTwitch.js
++++ b/node_modules/nucleo-social-media/dist/components/IconTwitch.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconTwitch = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconVimeo.js b/node_modules/nucleo-social-media/dist/components/IconVimeo.js
+index ec572ee..0140f08 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconVimeo.js
++++ b/node_modules/nucleo-social-media/dist/components/IconVimeo.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconVimeo = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconVk.js b/node_modules/nucleo-social-media/dist/components/IconVk.js
+index f204a86..f0f1c74 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconVk.js
++++ b/node_modules/nucleo-social-media/dist/components/IconVk.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconVk = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconWechat.js b/node_modules/nucleo-social-media/dist/components/IconWechat.js
+index 8efc622..aeac166 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconWechat.js
++++ b/node_modules/nucleo-social-media/dist/components/IconWechat.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconWechat = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconWeibo.js b/node_modules/nucleo-social-media/dist/components/IconWeibo.js
+index 98fe02c..51a9292 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconWeibo.js
++++ b/node_modules/nucleo-social-media/dist/components/IconWeibo.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconWeibo = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconWhatsapp.js b/node_modules/nucleo-social-media/dist/components/IconWhatsapp.js
+index fcd3200..11d9d0b 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconWhatsapp.js
++++ b/node_modules/nucleo-social-media/dist/components/IconWhatsapp.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconWhatsapp = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconWordpress.js b/node_modules/nucleo-social-media/dist/components/IconWordpress.js
+index b0d8d0e..d72a9ab 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconWordpress.js
++++ b/node_modules/nucleo-social-media/dist/components/IconWordpress.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconWordpress = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconXTwitter.js b/node_modules/nucleo-social-media/dist/components/IconXTwitter.js
+index 00d261a..0b754f4 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconXTwitter.js
++++ b/node_modules/nucleo-social-media/dist/components/IconXTwitter.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconXTwitter = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconYelp.js b/node_modules/nucleo-social-media/dist/components/IconYelp.js
+index 91f52b6..2bd86d1 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconYelp.js
++++ b/node_modules/nucleo-social-media/dist/components/IconYelp.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconYelp = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/IconYoutube.js b/node_modules/nucleo-social-media/dist/components/IconYoutube.js
+index 0a3590d..d165fd7 100644
+--- a/node_modules/nucleo-social-media/dist/components/IconYoutube.js
++++ b/node_modules/nucleo-social-media/dist/components/IconYoutube.js
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import { Icon } from './Icon';
++import { Icon } from './Icon.js';
+ export const IconYoutube = ({ ...props }) => {
+     return (React.createElement(Icon, { size: "32px", ...props },
+         React.createElement("g", { className: "nc-icon-wrapper", fill: "currentColor" },
+diff --git a/node_modules/nucleo-social-media/dist/components/index.js b/node_modules/nucleo-social-media/dist/components/index.js
+index 120393d..6d8c362 100644
+--- a/node_modules/nucleo-social-media/dist/components/index.js
++++ b/node_modules/nucleo-social-media/dist/components/index.js
+@@ -1,51 +1,51 @@
+-export * from './IconXTwitter';
+-export * from './IconWechat';
+-export * from './IconYoutube';
+-export * from './IconAndroid';
+-export * from './IconBehance';
+-export * from './IconBluesky';
+-export * from './IconDeviantart';
+-export * from './IconDiscord';
+-export * from './IconDribbble';
+-export * from './IconFacebook';
+-export * from './IconFirefox';
+-export * from './IconGithub';
+-export * from './IconGoogleChrome';
+-export * from './IconGoogle';
+-export * from './IconInstagram';
+-export * from './IconInternetExplorer';
+-export * from './IconKuaishou';
+-export * from './IconLinkedin';
+-export * from './IconMastodon';
+-export * from './IconMedium';
+-export * from './IconMessenger';
+-export * from './IconMicrosoftEdge';
+-export * from './IconMicrosoft';
+-export * from './IconOnlyfans';
+-export * from './IconOpera';
+-export * from './IconPinterest';
+-export * from './IconAngelList';
+-export * from './IconQq';
+-export * from './IconAppleSafari';
+-export * from './IconReddit';
+-export * from './IconSkype';
+-export * from './IconSlack';
+-export * from './IconSnapchat';
+-export * from './IconSoundcloud';
+-export * from './IconTelegram';
+-export * from './IconThreads';
+-export * from './IconTikTok';
+-export * from './IconTrello';
+-export * from './IconTumblr';
+-export * from './IconApple';
+-export * from './IconTwitch';
+-export * from './IconVimeo';
+-export * from './IconPatreon';
+-export * from './IconVk';
+-export * from './IconWeibo';
+-export * from './IconRss';
+-export * from './IconWordpress';
+-export * from './IconYelp';
+-export * from './IconWhatsapp';
+-export * from './IconLayers';
++export * from './IconXTwitter.js';
++export * from './IconWechat.js';
++export * from './IconYoutube.js';
++export * from './IconAndroid.js';
++export * from './IconBehance.js';
++export * from './IconBluesky.js';
++export * from './IconDeviantart.js';
++export * from './IconDiscord.js';
++export * from './IconDribbble.js';
++export * from './IconFacebook.js';
++export * from './IconFirefox.js';
++export * from './IconGithub.js';
++export * from './IconGoogleChrome.js';
++export * from './IconGoogle.js';
++export * from './IconInstagram.js';
++export * from './IconInternetExplorer.js';
++export * from './IconKuaishou.js';
++export * from './IconLinkedin.js';
++export * from './IconMastodon.js';
++export * from './IconMedium.js';
++export * from './IconMessenger.js';
++export * from './IconMicrosoftEdge.js';
++export * from './IconMicrosoft.js';
++export * from './IconOnlyfans.js';
++export * from './IconOpera.js';
++export * from './IconPinterest.js';
++export * from './IconAngelList.js';
++export * from './IconQq.js';
++export * from './IconAppleSafari.js';
++export * from './IconReddit.js';
++export * from './IconSkype.js';
++export * from './IconSlack.js';
++export * from './IconSnapchat.js';
++export * from './IconSoundcloud.js';
++export * from './IconTelegram.js';
++export * from './IconThreads.js';
++export * from './IconTikTok.js';
++export * from './IconTrello.js';
++export * from './IconTumblr.js';
++export * from './IconApple.js';
++export * from './IconTwitch.js';
++export * from './IconVimeo.js';
++export * from './IconPatreon.js';
++export * from './IconVk.js';
++export * from './IconWeibo.js';
++export * from './IconRss.js';
++export * from './IconWordpress.js';
++export * from './IconYelp.js';
++export * from './IconWhatsapp.js';
++export * from './IconLayers.js';
+ //# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/node_modules/nucleo-social-media/dist/index.js b/node_modules/nucleo-social-media/dist/index.js
+index 2c34763..84ac980 100644
+--- a/node_modules/nucleo-social-media/dist/index.js
++++ b/node_modules/nucleo-social-media/dist/index.js
+@@ -1,3 +1,3 @@
+-export * from './components/Icon';
+-export * from './components/index';
++export * from './components/Icon.js';
++export * from './components/index.js';
+ //# sourceMappingURL=index.js.map
+\ No newline at end of file

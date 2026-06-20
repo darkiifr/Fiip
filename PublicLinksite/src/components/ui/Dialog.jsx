@@ -6,7 +6,7 @@ const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 
-const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
+const DialogOverlay = React.forwardRef((props, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
     className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-overlayShow"
@@ -15,7 +15,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
+const DialogContent = React.forwardRef(({ children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -33,12 +33,12 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
-const DialogHeader = ({ className, ...props }) => (
+const DialogHeader = (props) => (
   <div className="flex flex-col space-y-1.5 text-center sm:text-left" {...props} />
 );
 DialogHeader.displayName = "DialogHeader";
 
-const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
+const DialogTitle = React.forwardRef((props, ref) => (
   <DialogPrimitive.Title
     ref={ref}
     className="text-lg font-semibold leading-none tracking-tight"
@@ -47,7 +47,7 @@ const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
 ));
 DialogTitle.displayName = DialogPrimitive.Title.displayName;
 
-const DialogDescription = React.forwardRef(({ className, ...props }, ref) => (
+const DialogDescription = React.forwardRef((props, ref) => (
   <DialogPrimitive.Description
     ref={ref}
     className="text-sm text-slate-500 dark:text-slate-400"

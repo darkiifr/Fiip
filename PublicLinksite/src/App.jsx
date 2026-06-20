@@ -46,7 +46,7 @@ function App() {
             exports propres, pièces jointes lisibles et retour direct vers l’application.
           </p>
           <div className="hero-actions">
-            <a href="https://fiip.netlify.app" className="download-link">
+            <a href="https://fiip.netlify.app/" className="download-link">
               <IconifyIcon icon="mingcute:download-2-fill" />
               Télécharger Fiip
             </a>

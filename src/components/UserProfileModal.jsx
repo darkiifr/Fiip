@@ -1,418 +1,335 @@
 import { Icon as IconifyIcon } from '@iconify/react';
-import { X, User, Shield, CreditCard, Save, Upload } from 'lucide-react';
+import { X, User, Shield, CreditCard, Save, Upload, RefreshCw, Cloud, BadgeCheck } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { keyAuthService } from '../services/keyauth';
 import { authService, dataService } from '../services/supabase';
 
-const SKILL_ICONS = [
-    'react', 'python', 'javascript', 'typescript', 'html', 'css', 'nodejs', 'php', 'rust', 'go', 'java', 'c', 'cpp', 'csharp', 'ruby', 'docker', 'linux', 'git', 'github', 'mysql', 'postgresql', 'mongodb', 'firebase', 'aws', 'azure', 'figma'
+const SKILL_OPTIONS = [
+  ['javascript', 'skill-icons:javascript', 'JavaScript'],
+  ['typescript', 'skill-icons:typescript', 'TypeScript'],
+  ['html', 'skill-icons:html', 'HTML'],
+  ['css', 'skill-icons:css', 'CSS'],
+  ['react', 'skill-icons:react-dark', 'React'],
+  ['nodejs', 'skill-icons:nodejs-dark', 'Node.js'],
+  ['python', 'skill-icons:python-dark', 'Python'],
+  ['rust', 'skill-icons:rust', 'Rust'],
+  ['go', 'skill-icons:golang', 'Go'],
+  ['java', 'skill-icons:java-dark', 'Java'],
+  ['cpp', 'skill-icons:cpp', 'C++'],
+  ['csharp', 'skill-icons:cs', 'C#'],
+  ['docker', 'skill-icons:docker', 'Docker'],
+  ['git', 'skill-icons:git', 'Git'],
+  ['github', 'skill-icons:github-dark', 'GitHub'],
+  ['postgresql', 'skill-icons:postgresql-dark', 'PostgreSQL'],
+  ['mongodb', 'skill-icons:mongodb', 'MongoDB'],
+  ['figma', 'skill-icons:figma-dark', 'Figma'],
 ];
 
+const skillById = new Map(SKILL_OPTIONS.map(([id, icon, label]) => [id, { icon, label }]));
+
+function getDisplayName(user, profile) {
+  return (
+    profile?.nickname ||
+    profile?.username ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.user_metadata?.nickname ||
+    user?.email?.split('@')[0] ||
+    'Utilisateur Fiip'
+  );
+}
+
+function ProfileAvatar({ user, profile, onUpload }) {
+  const name = getDisplayName(user, profile);
+  const avatar = profile?.avatar || profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+
+  return (
+    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-3xl border border-warm-border-light bg-amber-500/10 dark:border-white/10">
+      {avatar ? (
+        <img src={avatar} alt={name} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-xl font-black text-amber-700 dark:text-amber-300">
+          {name.slice(0, 2).toUpperCase()}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onUpload}
+        className="absolute inset-0 flex items-center justify-center bg-black/45 text-white opacity-0 transition-opacity hover:opacity-100"
+        aria-label="Changer la photo de profil"
+      >
+        <Upload size={18} />
+      </button>
+    </div>
+  );
+}
+
 export default function UserProfileModal({ isOpen, onClose }) {
-  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('profile');
+  const [user, setUser] = useState(null);
   const [publicProfile, setPublicProfile] = useState({
     nickname: '',
     bio: '',
-    accentColor: '#5865F2',
-    avatar: null,
-    skills: []
+    accentColor: '#D97706',
+    avatar: '',
+    skills: [],
   });
-  const [originalNickname, setOriginalNickname] = useState('');
-  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
-  const [password, setPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      const loadProfile = async () => {
-          const { data } = await dataService.fetchProfile();
-           if (data) {
-              setPublicProfile(prev => ({ 
-                  ...prev, 
-                  ...data,
-                  avatar: data.avatar_url || data.avatar,
-                  accentColor: data.accent_color || data.accentColor
-              }));
-              if (data.nickname) {
-                  setOriginalNickname(data.nickname);
-              }
-          }
+    if (!isOpen) return;
+    let mounted = true;
+
+    const loadProfile = async () => {
+      const currentUser = await authService.getUser();
+      const { data } = await dataService.fetchProfile();
+      if (!mounted) return;
+      setUser(currentUser);
+      const nextProfile = {
+        nickname: getDisplayName(currentUser, data),
+        bio: data?.bio || '',
+        avatar: data?.avatar_url || data?.avatar || currentUser?.user_metadata?.avatar_url || currentUser?.user_metadata?.picture || '',
+        accentColor: data?.accent_color || data?.accentColor || '#D97706',
+        skills: Array.isArray(data?.skills) ? data.skills.filter((skill) => skillById.has(skill)) : [],
       };
-      loadProfile();
-    }
+      setPublicProfile(nextProfile);
+    };
+
+    loadProfile().catch(console.error);
+    return () => {
+      mounted = false;
+    };
   }, [isOpen]);
 
   const handleSave = async () => {
-    // Si le pseudo a changé, on demande le mot de passe
-    if (publicProfile.nickname !== originalNickname && originalNickname !== '') {
-        setShowPasswordPrompt(true);
-        return;
-    }
-    
-    await executeSave();
-  };
-
-  const executeSave = async () => {
     setIsSaving(true);
-    // Save Local for Sidebar updates
-    localStorage.setItem('fiip_public_profile', JSON.stringify(publicProfile));
+    setStatus('');
+    const profileToSave = {
+      ...publicProfile,
+      avatar_url: publicProfile.avatar,
+      accent_color: publicProfile.accentColor,
+    };
 
-    // Dispatch event so Sidebar picks it up immediately
+    localStorage.setItem('fiip_public_profile', JSON.stringify(profileToSave));
     window.dispatchEvent(new Event('storage'));
 
-    // Save Cloud
-    try {
-        await dataService.saveProfile(publicProfile);
-        setOriginalNickname(publicProfile.nickname);
-    } catch (e) {
-        console.error("Save profile error", e);
-    }
-
+    const { error } = await dataService.saveProfile(profileToSave);
     setIsSaving(false);
-    handleClose();
-  };
-
-  const handlePasswordConfirm = async () => {
-    if (!password) {
-        setPasswordError('Veuillez entrer votre mot de passe.');
-        return;
-    }
-    setIsSaving(true);
-    setPasswordError('');
-    
-    const user = await authService.getUser();
-    if (!user?.email) {
-        setPasswordError('Utilisateur non trouvé.');
-        setIsSaving(false);
-        return;
-    }
-    
-    // Tentative de connexion avec le mot de passe pour vérifier
-    const { error } = await authService.signIn(user.email, password);
     if (error) {
-        setPasswordError('Mot de passe incorrect.');
-        setIsSaving(false);
-        return;
+      setStatus("Le profil n'a pas pu être enregistré.");
+      return;
     }
-    
-    setShowPasswordPrompt(false);
-    setPassword('');
-    await executeSave();
+    setStatus('Profil enregistré.');
   };
 
-  const handleClose = () => {
-    setShowPasswordPrompt(false);
-    setPassword('');
-    setPasswordError('');
-    onClose();
-  };
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setStatus("L'image est trop volumineuse. Taille maximale: 2 Mo.");
+      return;
+    }
 
-  const handleCancelPassword = () => {
-    setShowPasswordPrompt(false);
-    setPassword('');
-    setPasswordError('');
-    setPublicProfile(prev => ({ ...prev, nickname: originalNickname }));
-  };
-
-  const handleBioChange = (e) => {
-      const val = e.target.value;
-      // Simple URL/Link detection regex
-      const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\.[a-z]{2,}\/)/i;
-      
-      if (urlRegex.test(val)) {
-          alert(t('profile.no_links', "Les liens ne sont pas autorisés dans la bio pour des raisons de sécurité."));
-          return;
-      }
-      setPublicProfile({...publicProfile, bio: val});
-  };
-
-
-  const handleAvatarChange = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        alert("L'image est trop volumineuse (Max 2MB)");
-        return;
-      }
-      
-      const { url, error } = await dataService.uploadAvatar(file);
-      if (error) {
-        alert("Erreur lors de l'upload de l'avatar: " + error.message);
-        return;
-      }
-      if (url) {
-        setPublicProfile(prev => ({ ...prev, avatar: url }));
-      }
+    setStatus('');
+    const { url, error } = await dataService.uploadAvatar(file);
+    if (error) {
+      setStatus("L'avatar n'a pas pu être envoyé.");
+      return;
+    }
+    if (url) {
+      setPublicProfile((profile) => ({ ...profile, avatar: url }));
     }
   };
 
-  const getAvatarColor = (name) => {
-      const colors = ['#F23F42', '#EB459E', '#00B0F4', '#57F287', '#FEE75C', '#9B59B6'];
-      let hash = 0;
-      for (let i = 0; i < (name || '').length; i++) {
-          hash = name.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      return colors[Math.abs(hash) % colors.length];
+  const toggleSkill = (skillId) => {
+    setPublicProfile((profile) => {
+      const skills = profile.skills || [];
+      return {
+        ...profile,
+        skills: skills.includes(skillId)
+          ? skills.filter((skill) => skill !== skillId)
+          : [...skills, skillId],
+      };
+    });
   };
 
-  if (!isOpen) {return null;}
+  if (!isOpen) return null;
+
+  const displayName = getDisplayName(user, publicProfile);
+  const subscription = keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : 'Aucune licence active';
+  const cloudActive = Boolean(user) && JSON.parse(localStorage.getItem('fiip-settings') || '{}').cloudSync !== false;
+
+  const tabs = [
+    { id: 'profile', label: 'Profil', icon: User },
+    { id: 'account', label: 'Compte', icon: CreditCard },
+    { id: 'legal', label: 'Sécurité', icon: Shield },
+  ];
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm font-sans p-4">
-      <div className="w-full max-w-2xl bg-[#313338] rounded-md shadow-2xl flex overflow-hidden max-h-[90vh]">
-        {/* Sidebar */}
-        <div className="w-1/3 bg-[#2B2D31] p-4 flex flex-col gap-1">
-          <div className="text-[#949BA4] text-xs font-bold uppercase mb-2 px-2">Paramètres</div>
-          <button 
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-[#404249] text-white' : 'text-[#B5BAC1] hover:bg-[#35373C] hover:text-[#DBDEE1]'}`}
-          >
-            <User className="w-4 h-4" />
-            {t('profile.public', 'Profil Public')}
-          </button>
-          <button 
-            onClick={() => setActiveTab('account')}
-            className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm font-medium transition-colors ${activeTab === 'account' ? 'bg-[#404249] text-white' : 'text-[#B5BAC1] hover:bg-[#35373C] hover:text-[#DBDEE1]'}`}
-          >
-            <CreditCard className="w-4 h-4" />
-            {t('profile.account', 'Mon Compte')}
-          </button>
-          <div className="h-[1px] bg-[#3F4147] my-2"></div>
-          <button 
-            onClick={() => setActiveTab('legal')}
-            className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm font-medium transition-colors ${activeTab === 'legal' ? 'bg-[#404249] text-white' : 'text-[#B5BAC1] hover:bg-[#35373C] hover:text-[#DBDEE1]'}`}
-          >
-            <Shield className="w-4 h-4" />
-            {t('profile.legal', 'Légal & Sécurité')}
-          </button>
-        </div>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4 font-sans backdrop-blur-md">
+      <div className="relative flex max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[28px] border border-warm-border-light bg-warm-bg-light text-warm-text-primary-light shadow-[0_28px_90px_rgba(0,0,0,0.28)] dark:border-white/10 dark:bg-[#1c1c1b] dark:text-warm-text-primary-dark">
+        <aside className="w-48 border-r border-warm-border-light bg-warm-sidebar-light/70 p-4 dark:border-white/10 dark:bg-white/[0.035]">
+          <p className="mb-3 px-2 text-[10px] font-black uppercase tracking-[0.16em] text-warm-text-muted-light">Compte</p>
+          <nav className="space-y-1">
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold transition-colors ${
+                  activeTab === id
+                    ? 'bg-white text-warm-text-primary-light shadow-sm dark:bg-white/10 dark:text-white'
+                    : 'text-warm-text-secondary-light hover:bg-white/60 dark:text-warm-text-secondary-dark dark:hover:bg-white/5'
+                }`}
+              >
+                <Icon size={14} />
+                {label}
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-        {/* Content */}
-        <div className="flex-1 bg-[#313338] flex flex-col min-w-0">
-          <div className="p-8 flex-1 overflow-y-auto custom-scrollbar">
-            <h2 className="text-xl font-bold text-white mb-6">
-              {activeTab === 'profile' && t('profile.edit_public', 'Modifier le profil public')}
-              {activeTab === 'account' && t('profile.account_details', 'Détails du compte')}
-              {activeTab === 'legal' && t('profile.legal_title', 'Conditions & Sécurité')}
-            </h2>
+        <main className="flex min-w-0 flex-1 flex-col">
+          <header className="flex items-center justify-between border-b border-warm-border-light px-6 py-4 dark:border-white/10">
+            <div>
+              <h2 className="text-lg font-black tracking-tight">
+                {activeTab === 'profile' ? 'Profil public' : activeTab === 'account' ? 'Détails du compte' : 'Sécurité'}
+              </h2>
+              <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Informations visibles dans Fiip et la collaboration.</p>
+            </div>
+            <button type="button" onClick={onClose} className="rounded-xl p-2 text-warm-text-muted-light hover:bg-warm-sidebar-item-active dark:hover:bg-white/10">
+              <X size={18} />
+            </button>
+          </header>
 
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             {activeTab === 'profile' && (
               <div className="space-y-6">
-                <div className="flex gap-4 items-start">
-                   <div className="relative group">
-                     {publicProfile.avatar ? (
-                        <img src={publicProfile.avatar} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-4 border-[#1E1F22]" />
-                     ) : (
-                        <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold border-4 border-[#1E1F22]" style={{backgroundColor: getAvatarColor(publicProfile.nickname)}}>
-                            {(publicProfile.nickname || 'User').substring(0, 2).toUpperCase()}
-                        </div>
-                     )}
-                     <button
-                        type="button"
-                        aria-label={t('profile.upload_avatar', "Changer l'avatar")}
-                        className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
-                        onClick={() => document.getElementById('avatar-upload').click()}
-                     >
-                        <Upload className="w-6 h-6 text-white" />
-                     </button>
-                     <input type="file" id="avatar-upload" className="hidden" accept="image/*" onChange={handleAvatarChange} />
-                   </div>
-                   
-                   <div className="flex-1">
-                      <label htmlFor="profile-nickname" className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">{t('profile.pseudo', 'Pseudo')}</label>
-                      <input 
-                        id="profile-nickname"
-                        type="text" 
-                        value={publicProfile.nickname}
-                        onChange={(e) => setPublicProfile({...publicProfile, nickname: e.target.value})}
-                        className="w-full bg-[#1E1F22] text-white p-2.5 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#00A8FC]"
-                      />
-                   </div>
-                </div>
+                <section className="flex gap-4 rounded-3xl border border-warm-border-light bg-warm-card-light p-4 dark:border-white/10 dark:bg-white/[0.045]">
+                  <ProfileAvatar user={user} profile={publicProfile} onUpload={() => document.getElementById('avatar-upload')?.click()} />
+                  <input id="avatar-upload" type="file" className="hidden" accept="image/*" onChange={handleAvatarChange} />
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <label className="block text-[10px] font-black uppercase tracking-[0.14em] text-warm-text-muted-light" htmlFor="profile-nickname">
+                      Nom affiché
+                    </label>
+                    <input
+                      id="profile-nickname"
+                      value={publicProfile.nickname}
+                      onChange={(event) => setPublicProfile((profile) => ({ ...profile, nickname: event.target.value }))}
+                      className="w-full rounded-2xl border border-warm-border-light bg-white px-3 py-2 text-sm font-semibold outline-none focus:border-amber-500/45 dark:border-white/10 dark:bg-zinc-950/60 dark:text-white"
+                      placeholder={displayName}
+                    />
+                    <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">L’email reste privé. Fiip affiche ce nom et votre photo.</p>
+                  </div>
+                </section>
 
-                <div>
-                   <label htmlFor="profile-bio" className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">{t('profile.bio', 'À propos de moi')}</label>
-                   <textarea 
-                      id="profile-bio"
-                      value={publicProfile.bio}
-                      onChange={handleBioChange}
-                      className="w-full h-24 bg-[#1E1F22] text-white p-2.5 rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#00A8FC] resize-none"
-                      placeholder={t('profile.bio_placeholder', "Dites quelque chose sur vous...")}
-                   />
-                </div>
+                <section className="space-y-2">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.14em] text-warm-text-muted-light" htmlFor="profile-bio">
+                    Bio courte
+                  </label>
+                  <textarea
+                    id="profile-bio"
+                    value={publicProfile.bio}
+                    onChange={(event) => setPublicProfile((profile) => ({ ...profile, bio: event.target.value }))}
+                    className="h-24 w-full resize-none rounded-3xl border border-warm-border-light bg-warm-card-light p-4 text-sm outline-none focus:border-amber-500/45 dark:border-white/10 dark:bg-white/[0.045] dark:text-white"
+                    placeholder="Quelques mots sur votre espace de travail."
+                  />
+                </section>
 
-                {/* Skills Section */}
-                <div>
-                    <label id="label-skills" className="block text-[#B5BAC1] text-xs font-bold uppercase mb-1.5">{t('profile.skills', 'Compétences & Technologies')}</label>
-                    <div role="group" aria-labelledby="label-skills" className="flex flex-wrap gap-2 mb-2 p-2 bg-[#1E1F22] rounded min-h-[44px]">
-                        {(publicProfile.skills || []).length === 0 ? (
-                            <span className="text-gray-500 text-sm italic py-1">Aucune compétence sélectionnée...</span>
-                        ) : (
-                            (publicProfile.skills || []).map(skill => (
-                                <button 
-                                    key={skill}
-                                    onClick={() => setPublicProfile({...publicProfile, skills: publicProfile.skills.filter(s => s !== skill)})}
-                                    className="relative group transition-transform hover:scale-110"
-                                    title={`Retirer ${skill}`}
-                                >
-                                    <IconifyIcon icon={`skill-icons:${skill}`} className="w-6 h-6" />
-                                    <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center opacity-0 group-hover:opacity-100 text-[8px] font-bold">×</div>
-                                </button>
-                            ))
-                        )}
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar p-2 border border-[#1E1F22] rounded">
-                        {SKILL_ICONS.filter(s => !(publicProfile.skills || []).includes(s)).map(skill => (
-                            <button
-                                key={skill}
-                                onClick={() => setPublicProfile({...publicProfile, skills: [...(publicProfile.skills || []), skill]})}
-                                className="p-1 rounded hover:bg-[#1E1F22] transition-colors"
-                                title={`Ajouter ${skill}`}
-                            >
-                                <IconifyIcon icon={`skill-icons:${skill}`} className="w-5 h-5 opacity-50 hover:opacity-100 transition-opacity" />
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                <section className="space-y-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-warm-text-muted-light">Compétences</p>
+                    <p className="mt-1 text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Choisissez les technologies affichées sur votre profil. Les icônes non prises en charge sont filtrées.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {SKILL_OPTIONS.map(([id, icon, label]) => {
+                      const selected = publicProfile.skills?.includes(id);
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => toggleSkill(id)}
+                          className={`flex items-center gap-2 rounded-2xl border px-3 py-2 text-left text-xs font-bold transition-all ${
+                            selected
+                              ? 'border-amber-500/35 bg-amber-500/12 text-amber-800 dark:text-amber-200'
+                              : 'border-warm-border-light bg-warm-card-light hover:bg-warm-sidebar-item-active dark:border-white/10 dark:bg-white/[0.045] dark:hover:bg-white/[0.08]'
+                          }`}
+                        >
+                          <IconifyIcon icon={icon} className="h-5 w-5 shrink-0" />
+                          <span className="truncate">{label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
               </div>
             )}
 
             {activeTab === 'account' && (
-               <div className="space-y-4">
-                  <div className="bg-[#2B2D31] p-4 rounded-lg border border-[#1F2023]">
-                      <div className="flex justify-between items-center mb-2">
-                          <span className="text-[#B5BAC1] text-xs font-bold uppercase">Utilisateur</span>
-                          {keyAuthService.isAuthenticated && <span className="bg-[#248046] text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase">Vérifié</span>}
-                      </div>
-                      <div className="text-white font-medium mb-4">
-                          {keyAuthService.isAuthenticated ? (publicProfile.nickname || (keyAuthService.userData?.username?.length > 20 ? "Utilisateur" : keyAuthService.userData?.username)) : 'Invité'}
-                      </div>
-                      <span className="text-[#B5BAC1] text-xs font-bold uppercase">Abonnement</span>
-                      <div className="text-white font-medium">
-                        {keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : 'Aucun'}
-                      </div>
+              <div className="space-y-4">
+                <section className="rounded-3xl border border-warm-border-light bg-warm-card-light p-5 dark:border-white/10 dark:bg-white/[0.045]">
+                  <div className="flex items-center gap-4">
+                    <ProfileAvatar user={user} profile={publicProfile} onUpload={() => setActiveTab('profile')} />
+                    <div className="min-w-0">
+                      <p className="truncate text-lg font-black">{displayName}</p>
+                      <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-300">{subscription}</p>
+                    </div>
                   </div>
+                </section>
 
-                  <div className="bg-[#2B2D31] p-4 rounded-lg border border-[#1F2023]">
-                      <div className="flex justify-between items-center mb-2">
-                          <span className="text-[#B5BAC1] text-xs font-bold uppercase">Statut Cloud Supabase</span>
-                          {(() => {
-                              const settings = JSON.parse(localStorage.getItem('fiip-settings') || '{}');
-                              const isCloudActive = keyAuthService.isAuthenticated && settings.cloudSync !== false;
-                              return isCloudActive ? (
-                                  <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1"><IconifyIcon icon="mingcute:cloud-fill" className="w-3 h-3" /> Actif</span>
-                              ) : (
-                                  <span className="bg-gray-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-1"><IconifyIcon icon="mingcute:cloud-off-fill" className="w-3 h-3" /> Désactivé</span>
-                              );
-                          })()}
-                      </div>
-                      <div className="text-[#949BA4] text-xs mt-1 leading-relaxed">
-                        Lorsque le Cloud est actif, toutes vos notes, paramètres, IA et profils sont synchronisés en temps réel et sauvegardés de manière sécurisée via Supabase.
-                      </div>
+                <section className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-3xl border border-warm-border-light bg-warm-card-light p-4 dark:border-white/10 dark:bg-white/[0.045]">
+                    <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-300">
+                      <Cloud size={17} />
+                    </div>
+                    <p className="text-sm font-black">Cloud Supabase</p>
+                    <p className="mt-1 text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{cloudActive ? 'Actif pour ce compte.' : 'Désactivé ou non connecté.'}</p>
                   </div>
-
-                  <div className="text-[#949BA4] text-xs mt-4">
-                    Ce profil est lié à votre clé de licence Fiip.
+                  <div className="rounded-3xl border border-warm-border-light bg-warm-card-light p-4 dark:border-white/10 dark:bg-white/[0.045]">
+                    <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-700 dark:text-amber-300">
+                      <BadgeCheck size={17} />
+                    </div>
+                    <p className="text-sm font-black">Licence actuelle</p>
+                    <p className="mt-1 text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{subscription}</p>
                   </div>
-               </div>
+                </section>
+              </div>
             )}
 
             {activeTab === 'legal' && (
-              <div className="prose prose-invert prose-sm max-w-none text-[#DBDEE1]">
-                <div className="bg-[#2B2D31] p-4 rounded border-l-4 border-yellow-500 mb-6">
-                  <h3 className="text-[#F2F3F5] font-bold mt-0">Clause de non-responsabilité</h3>
-                  <p className="mb-0 text-sm">
-                    En utilisant ce service de chat, vous acceptez que l&apos;administrateur et le développeur de Fiip ne peuvent être tenus responsables du contenu généré par les utilisateurs.
-                  </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-3xl border border-warm-border-light bg-warm-card-light p-5 dark:border-white/10 dark:bg-white/[0.045]">
+                  <Shield className="mb-3 text-emerald-600 dark:text-emerald-300" size={20} />
+                  <h3 className="text-sm font-black">Confidentialité</h3>
+                  <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Vos notes restent locales tant que vous ne connectez pas Supabase. Les liens publics sont explicitement activés note par note.</p>
                 </div>
-
-                <p>
-                  Conformément aux lois en vigueur (notamment l&apos;article 6-I-2 de la LCEN en France), en tant qu&apos;hébergeur de contenu, notre responsabilité ne peut être engagée qu&apos;à partir du moment où nous avons connaissance d&apos;un contenu illicite et que nous n&apos;avons pas agi promptement pour le retirer.
-                </p>
-
-                <p>
-                  Nous ne surveillons pas activement toutes les conversations en temps réel. Cependant, nous nous réservons le droit de :
-                </p>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>Supprimer tout contenu jugé inapproprié, illégal ou nuisible.</li>
-                  <li>Bannir les utilisateurs ne respectant pas les règles de courtoisie.</li>
-                  <li>Coopérer avec les autorités compétentes en cas de requête légale.</li>
-                </ul>
-
-                <p className="mt-4 font-bold">En continuant, vous reconnaissez que :</p>
-                <ul className="list-disc pl-5 space-y-1">
-                   <li>Vous êtes seul responsable de vos propos.</li>
-                   <li>Vous n&apos;utiliserez pas ce service pour des activités illégales.</li>
-                   <li>En cas de litige, seule votre responsabilité personnelle sera engagée.</li>
-                </ul>
+                <div className="rounded-3xl border border-warm-border-light bg-warm-card-light p-5 dark:border-white/10 dark:bg-white/[0.045]">
+                  <CreditCard className="mb-3 text-blue-600 dark:text-blue-300" size={20} />
+                  <h3 className="text-sm font-black">Licence</h3>
+                  <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">La licence est liée au compte et sert à activer les fonctions Premium sans exposer de clé IA personnelle.</p>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="bg-[#2B2D31] p-4 flex justify-end gap-3 shrink-0">
-             {activeTab === 'profile' ? (
-                <>
-                  <button onClick={handleClose} className="px-4 py-2 text-white hover:underline text-sm font-medium">Annuler</button>
-                  <button onClick={handleSave} className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors flex items-center gap-2">
-                    <Save className="w-4 h-4" />
-                    Enregistrer
-                  </button>
-                </>
-             ) : (
-                <button onClick={handleClose} className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors">
-                  Fermer
-                </button>
-             )}
-          </div>
-        </div>
-        <button onClick={handleClose} className="absolute top-4 right-4 text-[#B5BAC1] hover:text-white">
-             <X className="w-6 h-6" />
-        </button>
-      </div>
-
-        {/* Password Prompt Overlay */}
-        {showPasswordPrompt && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="w-full max-w-md bg-[#313338] rounded-md shadow-2xl p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Confirmation requise</h3>
-              <p className="text-[#B5BAC1] text-sm mb-4">Veuillez entrer votre mot de passe pour valider le changement de pseudo.</p>
-              
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mot de passe"
-                onKeyDown={(e) => { if (e.key === 'Enter') {handlePasswordConfirm();} }}
-                className="w-full bg-[#1E1F22] text-white p-3 rounded mb-2 focus:outline-none focus:ring-1 focus:ring-[#5865F2]"
-              />
-              
-              {passwordError && (
-                <p className="text-red-400 text-xs mb-4">{passwordError}</p>
-              )}
-              
-              <div className="flex justify-end gap-3 mt-6">
-                <button 
-                  onClick={handleCancelPassword}
-                  disabled={isSaving}
-                  className="px-4 py-2 text-white hover:underline text-sm font-medium"
-                >
-                  Annuler
-                </button>
-                <button 
-                  onClick={handlePasswordConfirm}
-                  disabled={isSaving}
-                  className="px-6 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? 'Vérification...' : 'Confirmer'}
-                </button>
-              </div>
+          <footer className="flex items-center justify-between border-t border-warm-border-light px-6 py-4 dark:border-white/10">
+            <p className={`text-xs font-semibold ${status.includes('pas') || status.includes("n'a") ? 'text-red-500' : 'text-warm-text-muted-light dark:text-warm-text-muted-dark'}`}>
+              {status || 'Les changements sont enregistrés quand vous cliquez sur Enregistrer.'}
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="rounded-2xl border border-warm-border-light px-4 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10">
+                Fermer
+              </button>
+              <button type="button" onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-black text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-white dark:text-zinc-950">
+                {isSaving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                {isSaving ? 'Mise à jour' : 'Enregistrer'}
+              </button>
             </div>
-          </div>
-        )}
+          </footer>
+        </main>
+      </div>
     </div>
   );
 }

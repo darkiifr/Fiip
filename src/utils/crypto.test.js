@@ -43,4 +43,22 @@ describe('crypto utils', () => {
             consoleSpy.mockRestore();
         }
     });
+
+    it('should reject tampered encrypted payloads', async () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            const encryptedStr = await encryptData({ title: 'Secret' }, 'correct-password');
+            const parts = encryptedStr.split(':');
+            expect(parts).toHaveLength(4);
+            expect(parts[0]).toBe('ENC');
+
+            const tampered = `${parts[0]}:${parts[1]}:${parts[2]}:${parts[3].slice(0, -2)}AA`;
+            await expect(decryptData(tampered, 'correct-password')).rejects.toThrow('Impossible de déchiffrer');
+        } catch (e) {
+            if (e.message.includes('crypto.subtle is undefined')) {return;}
+            throw e;
+        } finally {
+            consoleSpy.mockRestore();
+        }
+    });
 });

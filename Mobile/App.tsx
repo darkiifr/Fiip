@@ -23,9 +23,8 @@ import SubscriptionScreen from './src/screens/SubscriptionScreen';
 import { checkForUpdatesAndInstall } from './src/services/updater';
 import { useSettingsStore } from './src/store/settingsStore';
 import { authenticateBiometric } from './src/services/biometrics';
-import { triggerHaptic } from './src/utils/hapticEngine';
-import { useAppTheme } from './src/hooks/useAppTheme';
 import { keyAuthService } from './src/services/keyauth';
+import { getFiipTheme } from './src/theme/fiipDesign';
 
 import { FloatingTabBar } from './src/components/FloatingTabBar';
 
@@ -33,8 +32,6 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function TabNavigator() {
-  const { colors, isDark } = useAppTheme();
-  
   return (
     <Tab.Navigator
       tabBar={props => <FloatingTabBar {...props} />}
@@ -97,12 +94,33 @@ function App() {
 
   // Determine active theme
   const isDark = themeMode === 'dark' || (themeMode === 'system' && systemColorScheme === 'dark');
-  const paperTheme = isDark ? MD3DarkTheme : MD3LightTheme;
+  const appTheme = getFiipTheme(isDark, Platform.OS);
+  const paperBaseTheme = isDark ? MD3DarkTheme : MD3LightTheme;
+  const paperTheme = {
+    ...paperBaseTheme,
+    colors: {
+      ...paperBaseTheme.colors,
+      primary: appTheme.primary,
+      onPrimary: appTheme.onPrimary,
+      primaryContainer: appTheme.primaryContainer,
+      onPrimaryContainer: appTheme.onPrimaryContainer,
+      secondaryContainer: appTheme.secondaryContainer ?? appTheme.surfaceContainerHigh,
+      background: appTheme.background,
+      surface: appTheme.surface,
+      surfaceVariant: appTheme.surfaceContainerHighest,
+      surfaceDisabled: appTheme.surfaceContainerHigh,
+      onSurface: appTheme.text,
+      onSurfaceVariant: appTheme.textSecondary,
+      outline: appTheme.outline,
+      outlineVariant: appTheme.outlineVariant,
+      error: appTheme.danger,
+    },
+  };
 
   if (Platform.OS === 'ios') {
     return (
       <I18nextProvider i18n={i18n}>
-        <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#F3F4F6' }]}>
+        <View style={[styles.container, { backgroundColor: appTheme.background }]}>
           <LiquidGlassView style={StyleSheet.absoluteFill} />
           <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
             <Stack.Navigator screenOptions={{ headerShown: false }}>

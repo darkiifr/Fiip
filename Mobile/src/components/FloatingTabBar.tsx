@@ -1,28 +1,29 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Platform, Text, Dimensions } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform, Text } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { Icon } from './ui/Icon';
 import { triggerHaptic } from '../utils/hapticEngine';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
-
 export function FloatingTabBar({ state, descriptors, navigation }: any) {
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
-
-  const activeAccent = '#A48A7B'; // Editorial Brand rose-taupe accent from mockup
+  const isIOS = Platform.OS === 'ios';
 
   return (
     <View style={[
       styles.container, 
       { 
-        backgroundColor: isDark ? 'rgba(15, 15, 15, 0.85)' : 'rgba(255, 255, 255, 0.88)',
-        borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+        backgroundColor: isIOS
+          ? (isDark ? 'rgba(12, 12, 14, 0.58)' : 'rgba(255, 255, 255, 0.58)')
+          : colors.surfaceContainer,
+        borderTopColor: isIOS
+          ? (isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(60, 60, 67, 0.12)')
+          : colors.outlineVariant,
         paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
       }
     ]}>
-      {Platform.OS === 'ios' && (
+      {isIOS && (
         <View style={styles.blurWrapper}>
           {/* iOS Native glass blur view */}
           {(() => {
@@ -104,53 +105,62 @@ export function FloatingTabBar({ state, descriptors, navigation }: any) {
               activeOpacity={0.7}
             >
               {isNewAction ? (
-                // "Nouveau" custom floating round glass action button
                 <View style={styles.newButtonContainer}>
                   <View style={[
                     styles.newIconCircle, 
                     { 
-                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-                      borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'
+                      backgroundColor: isIOS
+                        ? (isDark ? 'rgba(255, 255, 255, 0.13)' : 'rgba(255, 255, 255, 0.72)')
+                        : colors.primaryContainer,
+                      borderColor: isIOS
+                        ? (isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(60, 60, 67, 0.18)')
+                        : colors.primaryContainer,
                     }
                   ]}>
+                    {isIOS && (
+                      <View style={styles.newLiquidOverlay} pointerEvents="none" />
+                    )}
                     <Icon 
                       sfSymbol={iconProps.sfSymbol} 
                       mdIcon={iconProps.mdIcon} 
                       size={20} 
-                      color={isDark ? '#FFF' : '#000'} 
+                      color={isIOS ? (isDark ? '#FFF' : '#000') : colors.onPrimaryContainer} 
                       weight="medium"
                     />
                   </View>
                   <Text style={[styles.tabLabel, { color: colors.textSecondary }]}>Nouveau</Text>
                 </View>
               ) : (
-                // Regular tabs with capsule highlight and active dot indicator
                 <View style={styles.regularTabContainer}>
                   <View style={[
                     styles.iconCapsule,
                     isFocused && { 
-                      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)' 
+                      backgroundColor: isIOS
+                        ? (isDark ? 'rgba(255, 255, 255, 0.11)' : 'rgba(255, 255, 255, 0.64)')
+                        : colors.primaryContainer,
+                      borderColor: isIOS
+                        ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(60,60,67,0.12)')
+                        : colors.primaryContainer,
                     }
                   ]}>
                     <Icon 
                       sfSymbol={iconProps.sfSymbol} 
                       mdIcon={iconProps.mdIcon} 
                       size={22} 
-                      color={isFocused ? colors.text : colors.textSecondary} 
+                      color={isFocused ? (isIOS ? colors.primary : colors.onPrimaryContainer) : colors.textSecondary} 
                       weight={isFocused ? 'bold' : 'regular'}
                     />
                   </View>
                   <Text style={[
                     styles.tabLabel, 
-                    { color: isFocused ? colors.text : colors.textSecondary, fontWeight: isFocused ? '600' : '500' }
+                    { color: isFocused ? (isIOS ? colors.primary : colors.onPrimaryContainer) : colors.textSecondary, fontWeight: isFocused ? '600' : '500' }
                   ]}>
                     {options.title || route.name}
                   </Text>
                   
-                  {/* Delicate active dot indicator from mockup */}
                   <View style={[
                     styles.activeDot, 
-                    { backgroundColor: isFocused ? activeAccent : 'transparent' }
+                    { backgroundColor: isFocused ? (isIOS ? colors.primary : colors.primary) : 'transparent' }
                   ]} />
                 </View>
               )}
@@ -167,13 +177,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     width: '100%',
-    height: Platform.OS === 'ios' ? 92 : 82,
+    height: Platform.OS === 'ios' ? 96 : 92,
     borderTopWidth: 1,
-    elevation: 8,
+    elevation: Platform.OS === 'android' ? 3 : 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: Platform.OS === 'ios' ? 0.08 : 0.1,
+    shadowRadius: Platform.OS === 'ios' ? 22 : 8,
   },
   blurWrapper: {
     ...StyleSheet.absoluteFillObject,
@@ -198,9 +208,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   iconCapsule: {
-    paddingHorizontal: 16,
-    paddingVertical: 5,
-    borderRadius: 14,
+    minWidth: Platform.OS === 'android' ? 64 : undefined,
+    height: Platform.OS === 'android' ? 32 : undefined,
+    paddingHorizontal: Platform.OS === 'android' ? 18 : 16,
+    paddingVertical: Platform.OS === 'android' ? 0 : 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'transparent',
     marginBottom: 4,
     alignItems: 'center',
     justifyContent: 'center',
@@ -220,12 +234,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   newIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: Platform.OS === 'android' ? 56 : 42,
+    height: Platform.OS === 'android' ? 56 : 42,
+    borderRadius: Platform.OS === 'android' ? 16 : 21,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
+    overflow: 'hidden',
+    elevation: Platform.OS === 'android' ? 6 : 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+  },
+  newLiquidOverlay: {
+    position: 'absolute',
+    top: 1,
+    left: 3,
+    right: 3,
+    height: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.36)',
   }
 });

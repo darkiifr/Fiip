@@ -19,6 +19,26 @@ const renderMarkdown = (text) => {
   return { __html: sanitizedHtml };
 };
 
+const SAFE_DATA_MEDIA_PATTERN = /^data:(image|audio|video)\/[a-z0-9.+-]+;base64,/i;
+
+const getSafePublicUrl = (value, { allowDataMedia = false } = {}) => {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (allowDataMedia && SAFE_DATA_MEDIA_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed, window.location.origin);
+    return ['http:', 'https:', 'blob:'].includes(parsed.protocol) ? trimmed : '';
+  } catch {
+    return '';
+  }
+};
+
 export default function PublicNoteView() {
   const [note, setNote] = useState(null);
   const [slug] = useState(() => {
@@ -170,7 +190,7 @@ export default function PublicNoteView() {
           {mediaAttachments.length > 0 && (
             <div className="attachments">
               {mediaAttachments.map((attachment, index) => {
-                const src = attachment.url || attachment.data;
+                const src = getSafePublicUrl(attachment.url || attachment.data, { allowDataMedia: true });
                 if (!src) {
                   return null;
                 }
@@ -196,17 +216,24 @@ export default function PublicNoteView() {
 
           {(note.attachments || []).length > 0 && (
             <div className="attachments">
-              {(note.attachments || []).map((attachment, index) => (
-                <a
-                  key={`${attachment.name || 'file'}-${index}`}
-                  href={attachment.url || attachment.data || '#'}
-                  download={attachment.name || 'Fichier'}
-                  className="attachment-card"
-                >
-                  <IconifyIcon icon="mingcute:attachment-fill" />
-                  <span>{attachment.name || 'Fichier joint'}</span>
-                </a>
-              ))}
+              {(note.attachments || []).map((attachment, index) => {
+                const href = getSafePublicUrl(attachment.url || attachment.data);
+                if (!href) {
+                  return null;
+                }
+
+                return (
+                  <a
+                    key={`${attachment.name || 'file'}-${index}`}
+                    href={href}
+                    download={attachment.name || 'Fichier'}
+                    className="attachment-card"
+                  >
+                    <IconifyIcon icon="mingcute:attachment-fill" />
+                    <span>{attachment.name || 'Fichier joint'}</span>
+                  </a>
+                );
+              })}
             </div>
           )}
         </article>

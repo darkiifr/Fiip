@@ -1,3 +1,5 @@
+import { FIIP_PUBLIC_SITE_URL } from '../config/links';
+
 import { keyAuthService } from './keyauth';
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
@@ -118,7 +120,7 @@ export const generateText = async (input, model, signal) => {
         headers: {
           Authorization: `Bearer ${OPENROUTER_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://fiip.app',
+          'HTTP-Referer': FIIP_PUBLIC_SITE_URL,
           'X-Title': 'Fiip',
         },
         body: JSON.stringify(body),
@@ -170,14 +172,21 @@ export const aiService = {
   listModels: listOpenRouterModels,
   subscribeToUsage: subscribeToAIUsage,
 
-  async enhanceNote(content) {
+  async enhanceNote(input) {
+    const payload = typeof input === 'string'
+      ? { content: input, title: '', tags: [], goal: 'améliorer la note' }
+      : input || {};
+
     return generateText({
       messages: [
         {
           role: 'system',
-          content: 'Améliore cette note en français en gardant le sens, la structure utile et un ton clair. Retourne uniquement le contenu amélioré.',
+          content: "Améliore cette note en français en gardant le sens, la structure utile et un ton clair. Corrige les fautes, clarifie les phrases, conserve le HTML utile et retourne uniquement le contenu amélioré.",
         },
-        { role: 'user', content: content || '' },
+        {
+          role: 'user',
+          content: `Titre: ${payload.title || 'Sans titre'}\nTags: ${(payload.tags || []).join(', ') || 'aucun'}\nObjectif: ${payload.goal || 'clarifier'}\n\nContenu:\n${payload.content || ''}`,
+        },
       ],
     });
   },

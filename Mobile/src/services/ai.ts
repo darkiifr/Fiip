@@ -1,5 +1,6 @@
 import { VITE_OPENROUTER_KEY } from '@env';
 
+import { FIIP_PUBLIC_SITE_URL } from '../config/links';
 import { keyAuthService } from './keyauth';
 
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
@@ -118,7 +119,7 @@ export const generateText = async ({ messages, signal, jsonMode }: GenerateTextA
         headers: {
           Authorization: `Bearer ${OPENROUTER_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://fiip.app',
+          'HTTP-Referer': FIIP_PUBLIC_SITE_URL,
           'X-Title': 'Fiip Mobile',
         },
         body: JSON.stringify(body),

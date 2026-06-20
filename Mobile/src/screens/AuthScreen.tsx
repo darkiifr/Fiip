@@ -51,6 +51,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = (props) => {
     onClose();
   };
 
+  if (isIOS) {
+    return (
+      <GlassModal visible={visible} onClose={onClose} title={t('Licence Fiip')}>
+        <View style={styles.container}>
+          <Text style={[styles.descIOS, { color: colors.textSecondary }]}>
+            {t("Sur iOS, Fiip fonctionne en mode gratuit. Les abonnements et achats numériques seront gérés uniquement par l'App Store lorsqu'ils seront disponibles.")}
+          </Text>
+
+          <TouchableOpacity 
+            style={[styles.btnPrimary, styles.btnPrimaryIOS, { backgroundColor: isDark ? colors.primary : '#007AFF' }]} 
+            onPress={onClose}
+          >
+            <Text style={[styles.btnTextIOS, { color: '#ffffff' }]}>
+              {t('Continuer')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </GlassModal>
+    );
+  }
+
   return (
     <GlassModal visible={visible} onClose={onClose} title={t('Licence Fiip')}>
       <View style={styles.container}>

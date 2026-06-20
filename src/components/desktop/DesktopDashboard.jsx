@@ -8,7 +8,7 @@ export default function DesktopDashboard({ featuredNote, recentNotes, onSelectNo
       <button type="button" className="fiip-search-hero" onClick={onSearchFocus}>
         <Search size={18} />
         <span>Rechercher dans vos notes ou tapez une commande...</span>
-        <kbd>⌘K</kbd>
+        <kbd>Ctrl K</kbd>
       </button>
 
       {featuredNote && (

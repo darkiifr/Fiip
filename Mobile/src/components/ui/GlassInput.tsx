@@ -13,7 +13,7 @@ export const GlassInput: React.FC<GlassInputProps> = ({ icon, style, ...props })
 
   if (isIOS) {
     return (
-      <GlassCard intensity={isDark ? 30 : 50} cornerRadius={12} style={[styles.containerIOS, style]}>
+      <GlassCard intensity={isDark ? 44 : 58} cornerRadius={18} interactive style={[styles.containerIOS, style]}>
         <View style={styles.content}>
           {icon && <View style={styles.iconWrapper}>{icon}</View>}
           <TextInput
@@ -27,7 +27,11 @@ export const GlassInput: React.FC<GlassInputProps> = ({ icon, style, ...props })
   }
 
   return (
-    <View style={[styles.containerAndroid, { backgroundColor: colors.card, borderBottomColor: colors.primary }, style]}>
+    <View style={[styles.containerAndroid, {
+      backgroundColor: colors.surfaceContainerHighest,
+      borderColor: colors.outlineVariant,
+      shadowColor: isDark ? '#000' : '#6750A4',
+    }, style]}>
       {icon && <View style={styles.iconWrapper}>{icon}</View>}
       <TextInput
         style={[styles.inputAndroid, { color: colors.text }]}
@@ -40,16 +44,21 @@ export const GlassInput: React.FC<GlassInputProps> = ({ icon, style, ...props })
 
 const styles = StyleSheet.create({
   containerIOS: {
-    height: 48,
+    minHeight: 52,
     marginBottom: 12,
   },
   containerAndroid: {
-    height: 48,
-    borderRadius: 8,
+    minHeight: 56,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    borderBottomWidth: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
   },
   content: {
     flex: 1,
@@ -73,5 +82,5 @@ const styles = StyleSheet.create({
     height: '100%',
     paddingHorizontal: 12,
     fontSize: 16,
-  }
+  },
 });

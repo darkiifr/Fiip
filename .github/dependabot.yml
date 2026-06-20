@@ -7,8 +7,17 @@ updates:
       day: monday
       time: "07:00"
       timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - security
     groups:
-      frontend:
+      frontend-production:
+        dependency-type: production
+        patterns:
+          - "*"
+      frontend-development:
+        dependency-type: development
         patterns:
           - "*"
 
@@ -19,6 +28,11 @@ updates:
       day: monday
       time: "07:30"
       timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - rust
+      - security
     groups:
       rust:
         patterns:
@@ -31,8 +45,18 @@ updates:
       day: monday
       time: "07:45"
       timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - mobile
+      - security
     groups:
-      mobile:
+      mobile-production:
+        dependency-type: production
+        patterns:
+          - "*"
+      mobile-development:
+        dependency-type: development
         patterns:
           - "*"
 
@@ -43,8 +67,18 @@ updates:
       day: monday
       time: "07:50"
       timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - public-linksite
+      - security
     groups:
-      public-linksite:
+      public-linksite-production:
+        dependency-type: production
+        patterns:
+          - "*"
+      public-linksite-development:
+        dependency-type: development
         patterns:
           - "*"
 
@@ -55,3 +89,8 @@ updates:
       day: monday
       time: "08:00"
       timezone: Europe/Paris
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+      - security

@@ -47,4 +47,38 @@ describe('OpenRouter AI service', () => {
       }),
     );
   });
+
+  it('rejects AI calls when the OpenRouter secret is missing', async () => {
+    vi.resetModules();
+    import.meta.env.VITE_OPENROUTER_KEY = '';
+    global.fetch = vi.fn();
+
+    const { generateText } = await import('./ai');
+
+    await expect(generateText('Résumé rapide')).rejects.toThrow('VITE_OPENROUTER_KEY');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('filters OpenRouter models to free models only by default', async () => {
+    vi.resetModules();
+    import.meta.env.VITE_OPENROUTER_KEY = 'test-openrouter-key';
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: [
+          { id: 'provider/free-model:free', pricing: { prompt: '0', completion: '0' } },
+          { id: 'provider/paid-model', pricing: { prompt: '0.0001', completion: '0.0001' } },
+          { id: 'provider/free-priced-model', pricing: { prompt: '0', completion: '0' } },
+        ],
+      }),
+    });
+
+    const { listOpenRouterModels } = await import('./ai');
+    const models = await listOpenRouterModels();
+
+    expect(models.map((model) => model.id)).toEqual([
+      'provider/free-model:free',
+      'provider/free-priced-model',
+    ]);
+  });
 });

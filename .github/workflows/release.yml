@@ -193,6 +193,7 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_OPENROUTER_KEY: ${{ secrets.VITE_OPENROUTER_KEY }}
+          VITE_HOCUSPOCUS_URL: ${{ secrets.VITE_HOCUSPOCUS_URL }}
         with:
           tagName: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           releaseName: 'App v__VERSION__'
@@ -457,6 +458,20 @@ jobs:
     needs: bump-version
     if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
     runs-on: ubuntu-latest
+    env:
+      VITE_OPENROUTER_KEY: ${{ secrets.VITE_OPENROUTER_KEY }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_KEYAUTH_NAME: ${{ vars.VITE_KEYAUTH_NAME || 'Fiip' }}
+      VITE_KEYAUTH_OWNERID: ${{ secrets.VITE_KEYAUTH_OWNERID }}
+      VITE_KEYAUTH_SECRET: ${{ secrets.VITE_KEYAUTH_SECRET }}
+      VITE_KEYAUTH_APIURL: ${{ vars.VITE_KEYAUTH_APIURL || 'https://keyauth.win/api/1.2/' }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_KEYAUTH_NAME: ${{ vars.VITE_KEYAUTH_NAME || 'Fiip' }}
+      EXPO_PUBLIC_KEYAUTH_OWNERID: ${{ secrets.VITE_KEYAUTH_OWNERID }}
+      EXPO_PUBLIC_KEYAUTH_SECRET: ${{ secrets.VITE_KEYAUTH_SECRET }}
+      EXPO_PUBLIC_KEYAUTH_APIURL: ${{ vars.VITE_KEYAUTH_APIURL || 'https://keyauth.win/api/1.2/' }}
     permissions:
       contents: write
     steps:
@@ -519,6 +534,20 @@ jobs:
     needs: bump-version
     if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
     runs-on: macos-latest
+    env:
+      VITE_OPENROUTER_KEY: ${{ secrets.VITE_OPENROUTER_KEY }}
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_KEYAUTH_NAME: ${{ vars.VITE_KEYAUTH_NAME || 'Fiip' }}
+      VITE_KEYAUTH_OWNERID: ${{ secrets.VITE_KEYAUTH_OWNERID }}
+      VITE_KEYAUTH_SECRET: ${{ secrets.VITE_KEYAUTH_SECRET }}
+      VITE_KEYAUTH_APIURL: ${{ vars.VITE_KEYAUTH_APIURL || 'https://keyauth.win/api/1.2/' }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_KEYAUTH_NAME: ${{ vars.VITE_KEYAUTH_NAME || 'Fiip' }}
+      EXPO_PUBLIC_KEYAUTH_OWNERID: ${{ secrets.VITE_KEYAUTH_OWNERID }}
+      EXPO_PUBLIC_KEYAUTH_SECRET: ${{ secrets.VITE_KEYAUTH_SECRET }}
+      EXPO_PUBLIC_KEYAUTH_APIURL: ${{ vars.VITE_KEYAUTH_APIURL || 'https://keyauth.win/api/1.2/' }}
     permissions:
       contents: write
     steps:

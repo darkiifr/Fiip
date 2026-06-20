@@ -1,15 +1,11 @@
-import { open } from '@tauri-apps/plugin-dialog';
-import { readFile } from '@tauri-apps/plugin-fs';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { generateText } from '../services/ai';
-import { extractTextFromPdf } from '../services/pdf';
 
 // Icons Import
-import IconAttachment from '~icons/mingcute/attachment-fill';
 import IconCalendar from '~icons/mingcute/calendar-fill';
 import IconCheck from '~icons/mingcute/check-fill';
 import IconClose from '~icons/mingcute/close-fill';
@@ -52,7 +48,7 @@ export default function Dexter({
     const abortController = useRef(null);
 
     const [messages, setMessages] = useState([
-        { role: 'system', content: t('dexter.welcome', 'Bonjour ! Je suis Dexter, votre assistant de rédaction intelligent. Comment puis-je vous aider aujourd\'hui ?') }
+        { role: 'assistant', content: t('dexter.welcome', "Bonjour. Je suis Dexter, l'assistant de rédaction de Fiip. Je peux clarifier une note, corriger un passage, résumer ou proposer une structure.") }
     ]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
@@ -61,7 +57,6 @@ export default function Dexter({
     const [recentPrompts, setRecentPrompts] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [selectedSuggestion, setSelectedSuggestion] = useState(0);
-    const [attachments, setAttachments] = useState([]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -186,60 +181,38 @@ export default function Dexter({
         setIsThinking(false);
     };
 
-    const handleAttach = async () => {
-        try {
-            const selected = await open({
-                multiple: true,
-                filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
-            });
-
-            if (selected) {
-                const files = Array.isArray(selected) ? selected : [selected];
-                for (const path of files) {
-                    const name = path.split(/[/\\]/).pop() || 'document.pdf';
-                    const newAttachment = { name, path };
-                    setAttachments(prev => [...prev, newAttachment]);
-                }
-            }
-        } catch (err) {
-            console.error("Failed to attach file", err);
-        }
-    };
-
-    const removeAttachment = (idx) => {
-        setAttachments(prev => prev.filter((_, i) => i !== idx));
-    };
-
     const handleSend = async () => {
         const text = input.trim();
-        if (!text && attachments.length === 0) return;
+        if (!text) return;
 
         setInput('');
         setShowSuggestions(false);
         setRecentPrompts(prev => [text, ...prev.filter(p => p !== text)].slice(0, 5));
 
-        const userMsg = { role: 'user', content: text, attachments: [...attachments] };
+        const userMsg = { role: 'user', content: text };
         setMessages(prev => [...prev, userMsg]);
         setIsThinking(true);
 
         abortController.current = new AbortController();
 
         try {
-            let fileTexts = '';
-            for (const file of attachments) {
-                try {
-                    const text = await extractTextFromPdf(file.path);
-                    fileTexts += `\n[Fichier joint: ${file.name}]\n${text}\n`;
-                } catch (e) {
-                    console.error("Failed to parse PDF", e);
-                }
-            }
-            setAttachments([]);
+            const noteContext = currentNote
+                ? `Titre: ${currentNote.title || 'Sans titre'}\nContenu HTML de la note:\n${currentNote.content || ''}`
+                : 'Aucune note active.';
 
-            const context = currentNote ? `Contenu de la note actuelle:\n${currentNote.content}\n` : '';
-            const prompt = `${context}${fileTexts}${text}`;
-
-            const response = await generateText(prompt, undefined, abortController.current.signal);
+            const response = await generateText({
+                signal: abortController.current.signal,
+                messages: [
+                    {
+                        role: 'system',
+                        content: "Tu es Dexter, assistant de rédaction intégré à Fiip. Tu aides à écrire, structurer, corriger et résumer des notes. Réponds en français clair par défaut, sois concis, n'invente pas de faits, ne promets pas de lire des fichiers et rappelle que le modèle gratuit ne lit pas les PDF.",
+                    },
+                    {
+                        role: 'user',
+                        content: `${noteContext}\n\nDemande utilisateur:\n${text}`,
+                    },
+                ],
+            });
             
             // Check for JSON structural block for notes creation/updates
             let parsedAction = null;
@@ -399,27 +372,17 @@ export default function Dexter({
                                 <span>Action ignorée.</span>
                             </div>
                         ) : (
-                            <div className={`p-4 rounded-2xl text-xs leading-relaxed max-w-[85%] border shadow-sm ${
+                            <div className={`p-3 rounded-2xl text-[11px] leading-relaxed max-w-[85%] border shadow-sm ${
                                 msg.role === 'user' 
                                     ? 'bg-[#1C1C1E] text-white dark:bg-white dark:text-zinc-950 border-transparent rounded-tr-none' 
-                                    : 'bg-warm-card-light dark:bg-zinc-800 border-warm-border-light dark:border-warm-border-dark rounded-tl-none'
+                                    : 'bg-white text-warm-text-primary-light dark:bg-zinc-800 dark:text-warm-text-primary-dark border-warm-border-light dark:border-warm-border-dark rounded-tl-none'
                             }`}>
                                 <div 
-                                    className="markdown-content space-y-1.5"
+                                    className="dexter-markdown space-y-1.5"
                                     dangerouslySetInnerHTML={{ 
                                         __html: DOMPurify.sanitize(marked.parse(msg.displayContent || msg.content || '')) 
                                     }}
                                 />
-                                {msg.attachments && msg.attachments.length > 0 && (
-                                    <div className="mt-2 pt-2 border-t border-warm-border-light dark:border-warm-border-dark flex flex-wrap gap-1.5">
-                                        {msg.attachments.map((att, idx) => (
-                                            <span key={idx} className="flex items-center gap-1 text-[9px] font-mono text-warm-text-muted-light px-2 py-0.5 bg-warm-sidebar-light dark:bg-zinc-900 border border-warm-border-light dark:border-warm-border-dark rounded-lg">
-                                                <IconAttachment className="w-2.5 h-2.5" />
-                                                {att.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         )}
                     </div>
@@ -438,33 +401,7 @@ export default function Dexter({
 
             {/* Input Footer */}
             <div className="p-3 border-t border-warm-border-light dark:border-warm-border-dark bg-warm-sidebar-light/50 dark:bg-zinc-900/30 flex flex-col gap-2 relative">
-                {/* Pending Attachments */}
-                {attachments.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 px-1 py-1">
-                        {attachments.map((att, idx) => (
-                            <span key={idx} className="flex items-center gap-1 text-[9px] font-mono text-warm-text-muted-light bg-warm-card-light dark:bg-zinc-800 px-2.5 py-1 rounded-xl border border-warm-border-light dark:border-warm-border-dark group">
-                                <IconAttachment className="w-3 h-3" />
-                                <span className="truncate max-w-[120px]">{att.name}</span>
-                                <button 
-                                    onClick={() => removeAttachment(idx)}
-                                    className="ml-1 text-red-500"
-                                >
-                                    ×
-                                </button>
-                            </span>
-                        ))}
-                    </div>
-                )}
-
                 <div className="flex items-center gap-2">
-                    <button 
-                        onClick={handleAttach}
-                        className="p-2 rounded-xl border border-warm-border-light dark:border-warm-border-dark hover:bg-warm-sidebar-item-active transition-all text-warm-text-muted-light shrink-0"
-                        title="Joindre un PDF"
-                    >
-                        <IconAttachment className="w-4 h-4" />
-                    </button>
-
                     <div className="flex-1 relative">
                         <input
                             type="text"
@@ -493,7 +430,7 @@ export default function Dexter({
                     ) : (
                         <button 
                             onClick={handleSend}
-                            disabled={!input.trim() && attachments.length === 0}
+                            disabled={!input.trim()}
                             aria-label="Envoyer à Dexter"
                             className="p-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl disabled:opacity-50 transition-all shrink-0"
                         >

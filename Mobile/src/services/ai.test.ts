@@ -1,4 +1,4 @@
-import { FREE_MODEL_ROUTER, generateText } from './ai';
+import { FREE_MODEL_ROUTER, generateText, listOpenRouterModels } from './ai';
 
 jest.mock('@env', () => ({
   VITE_OPENROUTER_KEY: 'test-openrouter-key',
@@ -37,6 +37,31 @@ describe('mobile OpenRouter client', () => {
       'https://openrouter.ai/api/v1/chat/completions',
       expect.objectContaining({
         body: expect.stringContaining(`"model":"${FREE_MODEL_ROUTER}"`),
+      }),
+    );
+  });
+
+  it('filters model listings to free OpenRouter models', async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: [
+          { id: 'provider/free:free', pricing: { prompt: '0', completion: '0' } },
+          { id: 'provider/free-priced', pricing: { prompt: '0', completion: '0' } },
+          { id: 'provider/paid', pricing: { prompt: '0.01', completion: '0.01' } },
+        ],
+      }),
+    }) as jest.Mock;
+
+    const models = await listOpenRouterModels();
+
+    expect(models.map((model: any) => model.id)).toEqual(['provider/free:free', 'provider/free-priced']);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/models',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: expect.stringMatching(/^Bearer\s+\S+/),
+        }),
       }),
     );
   });

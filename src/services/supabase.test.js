@@ -104,18 +104,25 @@ describe('Supabase dataService', () => {
     });
 
     it('publishNote should update is_public to true', async () => {
-        const mockEq2 = { 
-            select: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { id: 'note-1' }, error: null }) }) 
-        };
-        const mockEq1 = { eq: vi.fn().mockReturnValue(mockEq2) };
-        supabase.from.mockReturnValueOnce({
-            update: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue(mockEq1)
+        const ownerEq = vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({ data: { id: 'note-1' }, error: null })
             })
+        });
+        const noteEq = vi.fn().mockReturnValue({ eq: ownerEq });
+        const update = vi.fn().mockReturnValue({ eq: noteEq });
+        supabase.from.mockReturnValueOnce({
+            update
         });
 
         await dataService.publishNote('note-1');
         expect(supabase.from).toHaveBeenCalledWith('notes');
+        expect(noteEq).toHaveBeenCalledWith('id', 'note-1');
+        expect(ownerEq).toHaveBeenCalledWith('user_id', 'user-1');
+        expect(update).toHaveBeenCalledWith(expect.objectContaining({
+            public_slug: expect.any(String),
+            updated_at: expect.any(String),
+        }));
     });
 
     it('fetchProfile should fetch from profiles table', async () => {

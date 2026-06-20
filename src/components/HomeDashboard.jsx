@@ -5,6 +5,7 @@ import IconMore from '~icons/mingcute/more-2-line';
 import IconSearch from '~icons/mingcute/search-line';
 import IconTime from '~icons/mingcute/time-line';
 import IconBook from '~icons/mingcute/book-line';
+import { getNoteStats, pickFeaturedNote, stripNoteText } from '../utils/notePresentation';
 
 const getNoteTimestamp = (note) => note?.updatedAt || note?.createdAt || 0;
 
@@ -15,17 +16,11 @@ export default function HomeDashboard({
     onSearchClick
 }) {
     const { t } = useTranslation();
-
-    const getNoteStats = (note) => {
-        const text = note.content?.replace(/<[^>]*>/g, '') || '';
-        const wordCount = text.split(/\s+/).filter(Boolean).length;
-        const readTime = Math.max(1, Math.ceil(wordCount / 200));
-        return { wordCount, readTime };
-    };
+    const spotlightNote = pickFeaturedNote(featuredNote ? [featuredNote, ...recentNotes] : recentNotes);
 
     const handleFeaturedClick = () => {
-        if (featuredNote) {
-            onSelectNote(featuredNote.id);
+        if (spotlightNote) {
+            onSelectNote(spotlightNote.id);
         }
     };
 
@@ -44,14 +39,14 @@ export default function HomeDashboard({
                         <span className="text-xs font-semibold">{t('home.search_placeholder', 'Rechercher dans vos notes ou tapez une commande...')}</span>
                     </div>
                     <div className="px-2 py-0.5 bg-warm-sidebar-item-active dark:bg-zinc-800 rounded-lg border border-warm-border-light dark:border-warm-border-dark text-[9px] font-bold text-warm-text-muted-light flex items-center gap-1">
-                        <span>⌘</span>
+                        <span>Ctrl</span>
                         <span>K</span>
                     </div>
                 </div>
             </button>
 
             {/* Featured Note (Spotlight) Card */}
-            {featuredNote ? (
+            {spotlightNote ? (
                 <button 
                     type="button"
                     onClick={handleFeaturedClick}
@@ -75,18 +70,18 @@ export default function HomeDashboard({
                                     Mise en vedette
                                 </span>
                                 <span className="text-[9px] font-black uppercase tracking-widest text-warm-text-muted-light">
-                                    {new Date(getNoteTimestamp(featuredNote)).toLocaleDateString()}
+                                    {new Date(getNoteTimestamp(spotlightNote)).toLocaleDateString()}
                                 </span>
                             </div>
 
                             {/* Note Title */}
                             <h2 className="text-3xl font-extrabold tracking-tight text-warm-text-primary-light dark:text-warm-text-primary-dark mb-4 leading-tight max-w-lg group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                                {featuredNote.title || t('common.untitled', 'Sans titre')}
+                                {spotlightNote.title || t('common.untitled', 'Sans titre')}
                             </h2>
                             
                             {/* Note Content preview */}
                             <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark line-clamp-3 leading-relaxed max-w-md">
-                                {featuredNote.content?.replace(/<[^>]*>/g, '') || t('common.no_content', 'Pas de contenu')}
+                                {stripNoteText(spotlightNote.content) || t('common.no_content', 'Pas de contenu')}
                             </p>
                         </div>
 
@@ -94,16 +89,18 @@ export default function HomeDashboard({
                         <div className="mt-8 pt-6 border-t border-warm-border-light dark:border-warm-border-dark flex items-center gap-6 text-[10px] font-bold text-warm-text-muted-light">
                             <div className="flex items-center gap-1.5">
                                 <IconCalendar className="w-3.5 h-3.5" />
-                                <span>Modifié le {new Date(getNoteTimestamp(featuredNote)).toLocaleDateString()}</span>
+                                <span>Modifié le {new Date(getNoteTimestamp(spotlightNote)).toLocaleDateString()}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <IconBook className="w-3.5 h-3.5" />
-                                <span>{getNoteStats(featuredNote).wordCount} mots</span>
+                                <span>{getNoteStats(spotlightNote).wordCount} mots</span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                                <IconTime className="w-3.5 h-3.5" />
-                                <span>{getNoteStats(featuredNote).readTime} min de lecture</span>
-                            </div>
+                            {getNoteStats(spotlightNote).readTimeLabel ? (
+                                <div className="flex items-center gap-1.5">
+                                    <IconTime className="w-3.5 h-3.5" />
+                                    <span>{getNoteStats(spotlightNote).readTimeLabel}</span>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </button>
@@ -136,7 +133,7 @@ export default function HomeDashboard({
                                         {note.title || t('common.untitled', 'Sans titre')}
                                     </h4>
                                     <p className="text-[11px] text-warm-text-secondary-light/80 dark:text-warm-text-secondary-dark/80 line-clamp-3 leading-relaxed">
-                                        {note.content?.replace(/<[^>]*>/g, '') || t('common.no_content', 'Pas de contenu')}
+                                        {stripNoteText(note.content) || t('common.no_content', 'Pas de contenu')}
                                     </p>
                                 </div>
                                 

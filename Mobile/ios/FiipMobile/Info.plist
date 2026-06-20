@@ -47,8 +47,6 @@
     <string>Fiip utilise Face ID ou Touch ID pour protéger vos notes privées.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Fiip a besoin d'accéder à vos photos pour y piocher des pièces jointes.</string>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>This app is in actual alpha phase</string>
     <key>RCTNewArchEnabled</key>
     <true/>
     <key>UILaunchStoryboardName</key>

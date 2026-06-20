@@ -40,6 +40,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     } else {
       document.body.classList.remove('theme-liquid-glass-original');
     }
+    document.documentElement.dataset.material = theme;
   }, [theme]);
 
   return (

@@ -1,6 +1,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+import { FIIP_PUBLIC_NOTES_URL } from '../config/links';
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -77,11 +79,33 @@ export const authService = {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider,
       options: {
-        redirectTo: 'fiip://login-callback',
+        redirectTo: new URL('/auth/callback', FIIP_PUBLIC_NOTES_URL).toString(),
         skipBrowserRedirect: true
       }
     });
     return { data, error };
+  },
+
+  async completeOAuthCallback(callbackUrl) {
+    const parsedUrl = new URL(callbackUrl);
+    const params = new URLSearchParams(parsedUrl.search);
+    const hashParams = new URLSearchParams(parsedUrl.hash.replace(/^#/, ''));
+    const code = params.get('code') || hashParams.get('code');
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+
+    if (code) {
+      return await supabase.auth.exchangeCodeForSession(code);
+    }
+
+    if (accessToken && refreshToken) {
+      return await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+    }
+
+    return { data: null, error: { message: 'Callback Google incomplet.' } };
   },
 
   async signOut() {
@@ -341,9 +365,39 @@ export const dataService = {
   async getCollaborators(noteId) {
       const { data, error } = await supabase
           .from('note_collaborators')
-          .select('*, profiles(username, avatar_url)')
+          .select('*')
           .eq('note_id', noteId);
-      return { data, error };
+
+      if (error || !data?.length) {
+          return { data: data || [], error };
+      }
+
+      const userIds = data.map((collaborator) => collaborator.user_id).filter(Boolean);
+      if (userIds.length === 0) {
+          return { data, error: null };
+      }
+
+      try {
+          const { data: profiles, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, username, nickname, avatar_url')
+              .in('id', userIds);
+
+          if (profilesError) {
+              return { data, error: null };
+          }
+
+          const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+          return {
+              data: data.map((collaborator) => ({
+                  ...collaborator,
+                  profiles: profilesById.get(collaborator.user_id) || null,
+              })),
+              error: null,
+          };
+      } catch {
+          return { data, error: null };
+      }
   },
 
   async addCollaborator(noteId, username, role = 'viewer') {
@@ -401,9 +455,17 @@ export const dataService = {
           return { data: createdData, error: null };
       }
       
-      // Sync legacy 'username' column to 'nickname' column if nickname is empty but username exists
-      if (data && !data.nickname && data.username) {
-          const updatedProfile = { ...data, nickname: data.username };
+      const metadataName = user.user_metadata?.nickname || user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.username || user.email?.split('@')[0] || 'Utilisateur';
+      const metadataAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
+
+      // Sync legacy or OAuth metadata when useful fields are missing.
+      if (data && (!data.nickname || !data.avatar_url)) {
+          const updatedProfile = {
+              ...data,
+              nickname: data.nickname || data.username || metadataName,
+              avatar_url: data.avatar_url || metadataAvatar,
+              username: data.username || metadataName,
+          };
           const { data: fixedData } = await supabase.from('profiles').upsert(updatedProfile, { onConflict: 'id' }).select().single();
           return { data: fixedData, error: null };
       }

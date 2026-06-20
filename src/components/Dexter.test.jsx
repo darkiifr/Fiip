@@ -49,4 +49,19 @@ describe('Dexter Assistant', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Fermer Dexter' }));
         expect(handleClose).toHaveBeenCalled();
     });
+
+    it('does not expose PDF attachment upload in the free model flow', () => {
+        render(
+            <Dexter 
+                isOpen={true} 
+                onClose={vi.fn()} 
+                settings={{}} 
+                onCreateNote={vi.fn()}
+                onUpdateNote={vi.fn()}
+                onDeleteNote={vi.fn()}
+            />
+        );
+
+        expect(screen.queryByTitle(/Joindre un PDF/i)).not.toBeInTheDocument();
+    });
 });

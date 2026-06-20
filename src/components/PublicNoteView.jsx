@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { useEffect, useState } from 'react';
 
+import { FIIP_PUBLIC_SITE_URL } from '../config/links';
 import { dataService } from '../services/supabase';
 import 'katex/dist/katex.min.css';
 
@@ -202,7 +203,7 @@ export default function PublicNoteView() {
 
             {/* Footer */}
             <footer className="border-t border-white/10 py-8 text-center text-sm text-gray-500">
-                <p>Publié avec <a href="https://fiip-app.netlify.app" className="text-blue-400 hover:text-blue-300">Fiip</a> - L&apos;application de prise de notes sécurisée.</p>
+                <p>Publié avec <a href={FIIP_PUBLIC_SITE_URL} className="text-blue-400 hover:text-blue-300">Fiip</a> - L&apos;application de prise de notes sécurisée.</p>
             </footer>
         </div>
     );

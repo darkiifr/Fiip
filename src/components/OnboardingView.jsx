@@ -1,369 +1,317 @@
-import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { open } from '@tauri-apps/plugin-shell';
-import { authService, supabase, dataService } from '../services/supabase';
-import { keyAuthService } from '../services/keyauth';
-import { GlassSwitch } from './ui/GlassSwitch';
+import { useState } from 'react';
+
+import { authService } from '../services/supabase';
 
 import IconGoogle from '~icons/logos/google-icon';
+import IconArrowRight from '~icons/mingcute/arrow-right-line';
 import IconCheck from '~icons/mingcute/check-fill';
-import IconKey from '~icons/mingcute/key-2-fill';
 import IconLock from '~icons/mingcute/lock-fill';
 import IconMail from '~icons/mingcute/mail-send-fill';
+import IconSparkles from '~icons/mingcute/sparkles-2-fill';
 import IconUser from '~icons/mingcute/user-4-fill';
-import IconBot from '~icons/mingcute/robot-fill';
+
+const tabs = [
+  { id: 'trial', label: 'Essai local' },
+  { id: 'login', label: 'Connexion' },
+  { id: 'register', label: "S'inscrire" },
+];
+
+const localBenefits = [
+  'Notes locales illimitées',
+  'Éditeur Tiptap rapide',
+  'Synchronisation activable après connexion',
+];
 
 export default function OnboardingView({ onComplete, onLoginSuccess }) {
-    const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState('trial');
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
-        username: ''
-    });
-    const [licenseKey, setLicenseKey] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
+  const [activeTab, setActiveTab] = useState('trial');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    username: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
-    const handleInputChange = (e) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    };
+  const switchTab = (tabId) => {
+    setActiveTab(tabId);
+    setError(null);
+    setSuccess(null);
+  };
 
-    const handleFreeTrial = () => {
+  const handleInputChange = (event) => {
+    setFormData((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+  };
+
+  const handleFreeTrial = () => {
+    localStorage.setItem('fiip-onboarding-completed', 'true');
+    localStorage.setItem('fiip-mode-local', 'true');
+    onComplete();
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const { data, error: oauthError } = await authService.signInWithOAuth('google');
+      if (oauthError) {
+        throw oauthError;
+      }
+      if (!data?.url) {
+        throw new Error("Supabase n'a pas renvoyé d'URL de connexion Google.");
+      }
+
+      try {
+        await open(data.url);
+      } catch (shellError) {
+        console.warn('Tauri shell open failed, falling back to browser navigation.', shellError);
+        window.location.assign(data.url);
+      }
+
+      setSuccess('Connexion Google ouverte. Terminez la validation dans votre navigateur.');
+    } catch (err) {
+      setError(err.message || 'Une erreur est survenue lors de la connexion Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitAuth = async (event) => {
+    event.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    try {
+      if (activeTab === 'login') {
+        const { error: loginError } = await authService.signIn(formData.email, formData.password);
+        if (loginError) {
+          throw loginError;
+        }
+
+        setSuccess('Connexion réussie.');
         localStorage.setItem('fiip-onboarding-completed', 'true');
-        localStorage.setItem('fiip-mode-local', 'true');
-        onComplete();
-    };
+        localStorage.removeItem('fiip-mode-local');
+        window.setTimeout(() => {
+          onLoginSuccess();
+          onComplete();
+        }, 700);
+      }
 
-    const handleGoogleLogin = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const { data, error } = await authService.signInWithOAuth('google');
-            if (error) {
-                setError(error.message);
-            }
-        } catch (err) {
-            setError(err.message || 'Une erreur est survenue lors de la connexion Google.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubmitAuth = async (e) => {
-        e.preventDefault();
-        setError(null);
-        setSuccess(null);
-        setLoading(true);
-
-        try {
-            if (activeTab === 'login') {
-                const { error } = await authService.signIn(formData.email, formData.password);
-                if (error) {
-                    setError(error.message);
-                } else {
-                    setSuccess("Connexion réussie !");
-                    localStorage.setItem('fiip-onboarding-completed', 'true');
-                    localStorage.removeItem('fiip-mode-local');
-                    setTimeout(() => {
-                        onLoginSuccess();
-                        onComplete();
-                    }, 1000);
-                }
-            } else if (activeTab === 'register') {
-                const { error } = await authService.signUp(formData.email, formData.password, formData.username);
-                if (error) {
-                    setError(error.message);
-                } else {
-                    setSuccess("Inscription réussie ! Vérifiez votre email pour confirmer.");
-                    setTimeout(() => setActiveTab('login'), 3000);
-                }
-            }
-        } catch (err) {
-            setError(err.message || "Une erreur est survenue.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubmitLicense = async (e) => {
-        e.preventDefault();
-        const keyToVerify = licenseKey.trim();
-        if (!keyToVerify) {
-            setError("La clé de licence ne peut pas être vide.");
-            return;
+      if (activeTab === 'register') {
+        const { error: registerError } = await authService.signUp(
+          formData.email,
+          formData.password,
+          formData.username,
+        );
+        if (registerError) {
+          throw registerError;
         }
 
-        setLoading(true);
-        setError(null);
-        setSuccess(null);
+        setSuccess('Compte créé. Vérifiez votre e-mail pour finaliser la connexion.');
+        window.setTimeout(() => switchTab('login'), 1200);
+      }
+    } catch (err) {
+      setError(err.message || 'Une erreur est survenue.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        try {
-            const res = await keyAuthService.validateLicense(keyToVerify);
-            if (res.success) {
-                const currentUser = await authService.getUser();
-                if (currentUser) {
-                    const { data, error: updateError } = await authService.updateSubscription(res.level, keyToVerify);
-                    if (updateError) {
-                        setError("Licence valide mais erreur de sauvegarde: " + updateError.message);
-                    } else {
-                        setSuccess("Licence activée et associée au compte avec succès !");
-                        keyAuthService.setLocalLevel(res.level, currentUser.email);
-                        keyAuthService.licenseKey = keyToVerify;
-                        localStorage.setItem('fiip-onboarding-completed', 'true');
-                        localStorage.removeItem('fiip-mode-local');
-                        setTimeout(() => {
-                            onLoginSuccess();
-                            onComplete();
-                        }, 1200);
-                    }
-                } else {
-                    localStorage.setItem('saved_license_key', keyToVerify);
-                    keyAuthService.setLocalLevel(res.level);
-                    keyAuthService.licenseKey = keyToVerify;
-                    setSuccess("Licence activée localement avec succès !");
-                    localStorage.setItem('fiip-onboarding-completed', 'true');
-                    setTimeout(() => {
-                        onComplete();
-                    }, 1200);
-                }
-            } else {
-                setError(res.message || "La clé de licence est invalide ou expirée.");
-            }
-        } catch (err) {
-            console.error(err);
-            setError("Erreur lors de l'activation. Vérifiez votre connexion.");
-        } finally {
-            setLoading(false);
-        }
-    };
+  return (
+    <main className="min-h-screen w-screen overflow-hidden bg-[#f7f5f1] text-[#151515] antialiased dark:bg-[#0f0f0f] dark:text-[#f7f7f4]">
+      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(255,255,255,0)_42%),radial-gradient(circle_at_top_right,rgba(251,191,36,0.16),rgba(251,191,36,0)_32%)] dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.07),rgba(255,255,255,0)_42%),radial-gradient(circle_at_top_right,rgba(251,191,36,0.12),rgba(251,191,36,0)_32%)]" />
 
-    return (
-        <div className="w-screen h-screen flex bg-[#FAF9F8] dark:bg-[#161615] text-[#1C1C1E] dark:text-[#F5F5F7] select-none font-sans overflow-hidden">
-            {/* CÔTÉ GAUCHE : Brand Spotlight */}
-            <div className="hidden lg:flex lg:w-1/2 relative bg-[#F3F3F2] dark:bg-[#1E1E1E] p-16 flex-col justify-between items-start border-r border-warm-border-light dark:border-warm-border-dark overflow-hidden">
-                <div className="absolute inset-0 z-0 opacity-80 pointer-events-none">
-                    <img 
-                        src="/assets/stone_sprout.png" 
-                        alt="Fiip Aesthetic Stone Sprout" 
-                        className="w-full h-full object-cover scale-105 select-none"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#F3F3F2] via-transparent to-transparent dark:from-[#1E1E1E]"></div>
-                </div>
+      <section className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-10 px-6 py-10 sm:px-10 lg:grid-cols-[0.95fr_1.05fr] lg:px-12">
+        <div className="space-y-6">
+          <div className="max-w-xl space-y-4">
+            <p className="inline-flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+              <IconSparkles className="h-3.5 w-3.5" />
+              Écriture, synchronisation et IA dans un espace calme
+            </p>
+            <h1 className="text-balance text-4xl font-black leading-[0.98] tracking-tight sm:text-5xl lg:text-[3.55rem]">
+              Un départ clair, sans friction.
+            </h1>
+            <p className="max-w-lg text-sm leading-6 text-[#5f5c56] dark:text-[#c7c3ba] sm:text-[15px]">
+              Commencez en local ou connectez votre compte Supabase. La licence est retirée de cet écran : le compte se lie dès la création et la connexion.
+            </p>
+          </div>
 
-                <div className="z-10 flex items-center gap-2">
-                    <span className="text-2xl font-extrabold tracking-tighter text-amber-600 dark:text-amber-400 bg-white/40 dark:bg-black/20 backdrop-blur-md px-3 py-1 rounded-xl border border-white/20">Fiip</span>
-                </div>
-
-                <div className="z-10 max-w-md space-y-4 bg-white/30 dark:bg-black/20 backdrop-blur-lg p-6 rounded-3xl border border-white/20 dark:border-white/5">
-                    <h1 className="text-3xl font-extrabold tracking-tight leading-tight">Votre espace de pensée minimaliste et fluide.</h1>
-                    <p className="text-sm text-[#4E4E4C] dark:text-[#A5A5A5] leading-relaxed">
-                        Prenez des notes, collaborez en temps réel avec vos proches, et sublimez vos écrits grâce à notre assistant Dexter. Conçu pour Windows, macOS, iOS et Android.
-                    </p>
-                </div>
-            </div>
-
-            {/* CÔTÉ DROIT : Auth/License Form */}
-            <div className="w-full lg:w-1/2 flex flex-col justify-center items-center px-6 sm:px-12 md:px-20 py-10 relative">
-                <div className="w-full max-w-md space-y-6">
-                    {/* Header */}
-                    <div className="text-center lg:text-left space-y-2">
-                        <h2 className="text-2xl font-extrabold tracking-tight">Bienvenue sur Fiip</h2>
-                        <p className="text-xs text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
-                            Choisissez une option pour démarrer votre voyage d'écriture minimaliste.
-                        </p>
-                    </div>
-
-                    {/* Tabs Segmented Control */}
-                    <div className="bg-[#F3F3F2] dark:bg-[#262625] p-1 rounded-2xl flex border border-warm-border-light dark:border-warm-border-dark select-none text-[11px] font-bold tracking-tight">
-                        {[
-                            { id: 'trial', label: 'Essai Gratuit' },
-                            { id: 'login', label: 'Connexion' },
-                            { id: 'register', label: 'S\'inscrire' },
-                            { id: 'license', label: 'Licence' }
-                        ].map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => {
-                                    setActiveTab(tab.id);
-                                    setError(null);
-                                    setSuccess(null);
-                                }}
-                                className={`flex-1 py-2 text-center rounded-xl transition-all ${
-                                    activeTab === tab.id 
-                                        ? 'bg-white dark:bg-zinc-800 text-warm-text-primary-light dark:text-warm-text-primary-dark shadow-sm border border-warm-border-light dark:border-warm-border-dark' 
-                                        : 'text-warm-text-muted-light dark:text-warm-text-muted-dark hover:text-warm-text-primary-light dark:hover:text-warm-text-primary-dark'
-                                }`}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Notification Alerts */}
-                    {error && (
-                        <div className="p-3.5 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-xs leading-relaxed">
-                            {error}
-                        </div>
-                    )}
-                    {success && (
-                        <div className="p-3.5 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 rounded-xl text-xs leading-relaxed">
-                            {success}
-                        </div>
-                    )}
-
-                    {/* TAB CONTENT: Essai Gratuit */}
-                    {activeTab === 'trial' && (
-                        <div className="space-y-6 animate-in fade-in duration-200">
-                            <div className="bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark p-5 rounded-2xl space-y-4">
-                                <h3 className="text-sm font-bold">Démarrer immédiatement</h3>
-                                <p className="text-xs text-warm-text-secondary-light dark:text-warm-text-secondary-dark leading-relaxed">
-                                    L'essai gratuit vous donne un accès immédiat en local. Vos notes restent à 100% privées sur votre ordinateur. Vous pourrez activer la synchronisation cloud à tout moment.
-                                </p>
-                                <ul className="space-y-2 text-xs">
-                                    <li className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                                        <IconCheck className="w-3.5 h-3.5" />
-                                        <span>Notes locales illimitées</span>
-                                    </li>
-                                    <li className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                                        <IconCheck className="w-3.5 h-3.5" />
-                                        <span>Éditeur TipTap riche et rapide</span>
-                                    </li>
-                                    <li className="flex items-center gap-2 text-green-600 dark:text-green-400">
-                                        <IconCheck className="w-3.5 h-3.5" />
-                                        <span>Sans création de compte requise</span>
-                                    </li>
-                                </ul>
-                            </div>
-                            <button
-                                onClick={handleFreeTrial}
-                                className="w-full py-3 bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#E5E5E3] text-white dark:text-black font-semibold rounded-2xl text-xs transition-colors shadow-sm"
-                            >
-                                Commencer l'essai gratuit en local
-                            </button>
-                        </div>
-                    )}
-
-                    {/* TAB CONTENT: Connexion / Inscription */}
-                    {(activeTab === 'login' || activeTab === 'register') && (
-                        <form onSubmit={handleSubmitAuth} className="space-y-4 animate-in fade-in duration-200">
-                            {activeTab === 'register' && (
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold uppercase tracking-wider text-warm-text-muted-light">Nom d'utilisateur</label>
-                                    <div className="relative">
-                                        <IconUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-text-muted-light" />
-                                        <input
-                                            type="text"
-                                            name="username"
-                                            required
-                                            value={formData.username}
-                                            onChange={handleInputChange}
-                                            placeholder="julien26"
-                                            className="w-full pl-10 pr-3.5 py-3 bg-white dark:bg-[#262625] border border-warm-border-light dark:border-warm-border-dark rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-[#1C1C1E] dark:text-[#F5F5F7]"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-warm-text-muted-light">Adresse e-mail</label>
-                                <div className="relative">
-                                    <IconMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-text-muted-light" />
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        required
-                                        value={formData.email}
-                                        onChange={handleInputChange}
-                                        placeholder="adresse@exemple.com"
-                                        className="w-full pl-10 pr-3.5 py-3 bg-white dark:bg-[#262625] border border-warm-border-light dark:border-warm-border-dark rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-[#1C1C1E] dark:text-[#F5F5F7]"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-warm-text-muted-light">Mot de passe</label>
-                                <div className="relative">
-                                    <IconLock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-text-muted-light" />
-                                    <input
-                                        type="password"
-                                        name="password"
-                                        required
-                                        value={formData.password}
-                                        onChange={handleInputChange}
-                                        placeholder="••••••••"
-                                        className="w-full pl-10 pr-3.5 py-3 bg-white dark:bg-[#262625] border border-warm-border-light dark:border-warm-border-dark rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-[#1C1C1E] dark:text-[#F5F5F7]"
-                                    />
-                                </div>
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-3 bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#E5E5E3] text-white dark:text-black font-semibold rounded-2xl text-xs transition-colors shadow-sm disabled:opacity-50"
-                            >
-                                {loading ? "Chargement..." : activeTab === 'login' ? "Se connecter" : "S'inscrire"}
-                            </button>
-
-                            {activeTab === 'login' && (
-                                <div className="pt-2">
-                                    <div className="relative flex py-2 items-center">
-                                        <div className="flex-grow border-t border-warm-border-light dark:border-warm-border-dark"></div>
-                                        <span className="flex-shrink mx-4 text-[10px] text-warm-text-muted-light dark:text-warm-text-muted-dark uppercase tracking-wider font-bold">ou</span>
-                                        <div className="flex-grow border-t border-warm-border-light dark:border-warm-border-dark"></div>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={handleGoogleLogin}
-                                        disabled={loading}
-                                        className="w-full py-2.5 bg-white hover:bg-zinc-50 border border-warm-border-light dark:border-warm-border-dark text-xs font-semibold rounded-2xl flex items-center justify-center gap-2.5 text-[#1C1C1E] transition-colors"
-                                    >
-                                        <IconGoogle className="w-4 h-4" />
-                                        Continuer avec Google
-                                    </button>
-                                </div>
-                            )}
-                        </form>
-                    )}
-
-                    {/* TAB CONTENT: Clé de Licence */}
-                    {activeTab === 'license' && (
-                        <form onSubmit={handleSubmitLicense} className="space-y-4 animate-in fade-in duration-200">
-                            <div className="bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark p-4 rounded-2xl space-y-2">
-                                <h3 className="text-xs font-bold flex items-center gap-2">
-                                    <IconKey className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                                    Activer une licence Premium
-                                </h3>
-                                <p className="text-[11px] text-warm-text-secondary-light dark:text-warm-text-secondary-dark leading-relaxed">
-                                    Si vous avez acheté Fiip Premium, entrez votre clé d'activation ci-dessous pour débloquer l'accès à Dexter l'IA et aux fonctionnalités collaboratives.
-                                </p>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-warm-text-muted-light">Clé de Licence</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={licenseKey}
-                                    onChange={(e) => setLicenseKey(e.target.value)}
-                                    placeholder="FIIP-XXXX-XXXX-XXXX"
-                                    className="w-full px-3.5 py-3 bg-white dark:bg-[#262625] border border-warm-border-light dark:border-warm-border-dark rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-[#1C1C1E] dark:text-[#F5F5F7] font-mono"
-                                />
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full py-3 bg-[#1C1C1E] hover:bg-[#2C2C2E] dark:bg-white dark:hover:bg-[#E5E5E3] text-white dark:text-black font-semibold rounded-2xl text-xs transition-colors shadow-sm disabled:opacity-50"
-                            >
-                                {loading ? "Vérification..." : "Activer la clé"}
-                            </button>
-                        </form>
-                    )}
-                </div>
-            </div>
+          <div className="grid max-w-xl gap-3 sm:grid-cols-3">
+            {localBenefits.map((benefit) => (
+              <div
+                key={benefit}
+                className="rounded-[1.15rem] border border-black/10 bg-white/54 p-3 text-xs font-semibold leading-5 shadow-[0_12px_30px_rgba(20,20,20,0.06)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:bg-white/70 dark:border-white/10 dark:bg-white/8 dark:hover:bg-white/12 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+              >
+                <IconCheck className="mb-2 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
+                {benefit}
+              </div>
+            ))}
+          </div>
         </div>
-    );
+
+        <div className="mx-auto w-full max-w-[31rem]">
+          <div className="rounded-[2rem] border border-black/10 bg-white/72 p-4 shadow-[0_24px_80px_rgba(20,20,20,0.16)] backdrop-blur-3xl dark:border-white/10 dark:bg-[#1a1a18]/78 dark:shadow-[0_24px_90px_rgba(0,0,0,0.45)] sm:p-5">
+            <div className="mb-5 rounded-[1.55rem] border border-black/10 bg-[#f5f2ec]/80 p-1 dark:border-white/10 dark:bg-white/8" role="tablist" aria-label="Choix de démarrage">
+              <div className="grid grid-cols-3 gap-1">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    onClick={() => switchTab(tab.id)}
+                    className={`rounded-[1.1rem] px-3 py-3 text-sm font-bold transition duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 motion-reduce:transition-none ${
+                      activeTab === tab.id
+                        ? 'bg-white text-[#151515] shadow-[0_10px_26px_rgba(20,20,20,0.11)] dark:bg-white dark:text-black'
+                        : 'text-[#77736b] hover:bg-white/45 hover:text-[#151515] dark:text-[#a9a59d] dark:hover:bg-white/10 dark:hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="min-h-[24rem] rounded-[1.5rem] border border-black/10 bg-white/64 p-5 dark:border-white/10 dark:bg-black/18 sm:p-6">
+              <div className="mb-6 space-y-2">
+                <h2 className="text-2xl font-black tracking-tight">
+                  {activeTab === 'trial' && 'Bienvenue sur Fiip'}
+                  {activeTab === 'login' && 'Connectez-vous'}
+                  {activeTab === 'register' && 'Créez votre compte'}
+                </h2>
+                <p className="text-sm leading-6 text-[#69665f] dark:text-[#c4c0b8]">
+                  {activeTab === 'trial' && 'Démarrez immédiatement, puis ajoutez la synchronisation quand vous en avez besoin.'}
+                  {activeTab === 'login' && 'Retrouvez vos notes, vos préférences et vos espaces synchronisés.'}
+                  {activeTab === 'register' && 'Le lien de compte est créé ici, sans étape licence séparée.'}
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-4 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-700 dark:text-red-300" role="alert">
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div className="mb-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm leading-6 text-emerald-700 dark:text-emerald-300" role="status">
+                  {success}
+                </div>
+              )}
+
+              {activeTab === 'trial' && (
+                <div className="animate-[fadeIn_220ms_ease-out] space-y-5 motion-reduce:animate-none">
+                  <div className="space-y-3">
+                    {localBenefits.map((benefit) => (
+                      <div key={benefit} className="flex items-center gap-3 text-sm font-semibold text-[#34312d] dark:text-[#ede9df]">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/12 text-emerald-700 dark:text-emerald-300">
+                          <IconCheck className="h-4 w-4" />
+                        </span>
+                        {benefit}
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleFreeTrial}
+                    className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-[#151515] px-5 py-4 text-base font-bold text-white shadow-[0_18px_40px_rgba(20,20,20,0.22)] transition duration-300 hover:-translate-y-0.5 hover:bg-black active:translate-y-0 dark:bg-white dark:text-black dark:hover:bg-[#f0ede6] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  >
+                    Commencer en local
+                    <IconArrowRight className="h-5 w-5 transition duration-300 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
+                  </button>
+                </div>
+              )}
+
+              {(activeTab === 'login' || activeTab === 'register') && (
+                <form onSubmit={handleSubmitAuth} className="animate-[fadeIn_220ms_ease-out] space-y-4 motion-reduce:animate-none">
+                  {activeTab === 'register' && (
+                    <TextField
+                      icon={<IconUser className="h-5 w-5" />}
+                      label="Nom d'utilisateur"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      placeholder="julien"
+                      autoComplete="username"
+                      required
+                    />
+                  )}
+
+                  <TextField
+                    icon={<IconMail className="h-5 w-5" />}
+                    label="Adresse e-mail"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="adresse@exemple.com"
+                    autoComplete="email"
+                    required
+                  />
+
+                  <TextField
+                    icon={<IconLock className="h-5 w-5" />}
+                    label="Mot de passe"
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="8 caractères minimum"
+                    autoComplete={activeTab === 'login' ? 'current-password' : 'new-password'}
+                    required
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full rounded-2xl bg-[#151515] px-5 py-4 text-base font-bold text-white shadow-[0_18px_40px_rgba(20,20,20,0.20)] transition duration-300 hover:-translate-y-0.5 hover:bg-black disabled:cursor-not-allowed disabled:opacity-55 dark:bg-white dark:text-black dark:hover:bg-[#f0ede6] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  >
+                    {loading ? 'Chargement...' : activeTab === 'login' ? 'Se connecter' : "S'inscrire"}
+                  </button>
+
+                  {activeTab === 'login' && (
+                    <div className="space-y-4 pt-1">
+                      <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.18em] text-[#858078] dark:text-[#9f9a91]">
+                        <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
+                        ou
+                        <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        disabled={loading}
+                        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white px-5 py-4 text-base font-bold text-[#151515] shadow-[0_12px_28px_rgba(20,20,20,0.08)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-55 dark:border-white/10 dark:bg-white/92 dark:hover:bg-white motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                      >
+                        <IconGoogle className="h-5 w-5" />
+                        Se connecter avec Google
+                      </button>
+                    </div>
+                  )}
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function TextField({ icon, label, ...inputProps }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-bold text-[#504d47] dark:text-[#ded9cf]">{label}</span>
+      <span className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white/78 px-4 py-3.5 text-[#77736b] shadow-[0_8px_22px_rgba(20,20,20,0.05)] transition duration-300 focus-within:border-amber-500/50 focus-within:ring-4 focus-within:ring-amber-500/12 dark:border-white/10 dark:bg-white/8 dark:text-[#aaa59d] motion-reduce:transition-none">
+        {icon}
+        <input
+          {...inputProps}
+          className="min-w-0 flex-1 bg-transparent text-base font-semibold text-[#151515] outline-none placeholder:text-[#9a958b] dark:text-white dark:placeholder:text-[#77736b]"
+        />
+      </span>
+    </label>
+  );
 }

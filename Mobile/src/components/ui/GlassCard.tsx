@@ -8,24 +8,26 @@ interface GlassCardProps {
   style?: StyleProp<ViewStyle>;
   intensity?: number;
   cornerRadius?: number;
+  interactive?: boolean;
 }
 
 export const GlassCard: React.FC<GlassCardProps> = ({ 
   children, 
   style, 
   intensity = 30, 
-  cornerRadius = fiipRadius.lg 
+  cornerRadius = fiipRadius.lg,
+  interactive = false,
 }) => {
-  const { isDark } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
-  // Premium glass colors
-  const glassBg = isDark 
-    ? `rgba(28, 28, 30, ${0.45 + (intensity - 30) * 0.005})` 
-    : `rgba(255, 255, 255, ${0.68 + (intensity - 30) * 0.004})`;
+  const normalizedIntensity = Math.max(0, Math.min(80, intensity));
+  const glassBg = isDark
+    ? `rgba(22, 22, 24, ${0.48 + normalizedIntensity * 0.003})`
+    : `rgba(255, 255, 255, ${0.58 + normalizedIntensity * 0.0035})`;
 
   const glassBorderColor = isDark 
-    ? 'rgba(255, 255, 255, 0.09)' 
-    : 'rgba(255, 255, 255, 0.45)';
+    ? 'rgba(255, 255, 255, 0.12)' 
+    : 'rgba(255, 255, 255, 0.62)';
 
   const cardStyle: ViewStyle = {
     borderRadius: cornerRadius,
@@ -36,12 +38,13 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     ...Platform.select({
       ios: {
         shadowColor: isDark ? '#000' : '#4E4844',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: isDark ? 0.3 : 0.06,
-        shadowRadius: 18,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: isDark ? 0.34 : 0.08,
+        shadowRadius: 24,
       },
       android: {
-        elevation: 2,
+        elevation: interactive ? 8 : 5,
+        shadowColor: '#000',
       }
     })
   };
@@ -53,13 +56,17 @@ export const GlassCard: React.FC<GlassCardProps> = ({
       <View testID="glass-card" style={[cardStyle, style]}>
         <LiquidGlassView 
           style={StyleSheet.absoluteFill} 
-          intensity={intensity} 
+          intensity={normalizedIntensity}
+          interactive={interactive}
         />
-        {/* Soft inner glow highlight */}
+        <View style={[StyleSheet.absoluteFill, {
+          backgroundColor: isDark ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.22)',
+          borderRadius: cornerRadius,
+        }]} pointerEvents="none" />
         <View style={[StyleSheet.absoluteFill, { 
           borderTopWidth: 1,
-          borderLeftWidth: 0.5,
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.6)',
+          borderLeftWidth: 1,
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.75)',
           borderRadius: cornerRadius
         }]} pointerEvents="none" />
         {children}
@@ -67,10 +74,57 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     );
   }
 
-  // High-fidelity fallback for Android that emulates Liquid Glass beautifully
+  if (Platform.OS === 'android') {
+    const androidStyle: ViewStyle = {
+      borderRadius: cornerRadius,
+      backgroundColor: interactive ? colors.surfaceContainerHigh : colors.surfaceContainer,
+      borderColor: colors.outlineVariant,
+      borderWidth: StyleSheet.hairlineWidth,
+      overflow: 'hidden',
+      elevation: interactive ? 3 : 1,
+    };
+
+    return (
+      <View testID="glass-card" style={[androidStyle, style]}>
+        <View style={[StyleSheet.absoluteFill, {
+          backgroundColor: interactive ? colors.stateLayer : 'transparent',
+          opacity: interactive ? 0.42 : 0,
+        }]} pointerEvents="none" />
+        {children}
+      </View>
+    );
+  }
+
   return (
     <View testID="glass-card" style={[cardStyle, style]}>
+      <View style={[StyleSheet.absoluteFill, {
+        borderRadius: cornerRadius,
+        backgroundColor: isDark ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.3)',
+      }]} pointerEvents="none" />
+      <View style={[styles.androidSpecular, {
+        borderRadius: cornerRadius,
+        backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.55)',
+      }]} pointerEvents="none" />
+      <View style={[styles.androidDepthLine, {
+        borderRadius: cornerRadius,
+        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(70,60,48,0.08)',
+      }]} pointerEvents="none" />
       {children}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  androidSpecular: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '42%',
+    opacity: 0.75,
+  },
+  androidDepthLine: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 1,
+  },
+});

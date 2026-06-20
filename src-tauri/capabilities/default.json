@@ -28,6 +28,10 @@
       "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
     },
     {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+    },
+    {
       "identifier": "fs:allow-write-file",
       "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
     },
@@ -45,6 +49,10 @@
     },
     {
       "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+    },
+    {
+      "identifier": "fs:allow-stat",
       "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
     },
     {

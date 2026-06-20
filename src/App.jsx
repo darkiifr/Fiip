@@ -4,6 +4,7 @@ import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { type } from '@tauri-apps/plugin-os';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { Bot, Crown, Database, FileText, Link, Monitor, Moon, Plus, Search, Settings, Share2, Sun } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +20,7 @@ import UnifiedSidebar from "./components/UnifiedSidebar";
 import HomeDashboard from "./components/HomeDashboard";
 import Titlebar from "./components/Titlebar";
 import UserProfileModal from "./components/UserProfileModal";
+import { buildPublicNoteUrl } from "./config/links";
 import { calculateTotalUsage } from "./services/fileManager";
 import { initializeFonts } from "./services/fontStore";
 import { keyAuthService } from "./services/keyauth";
@@ -88,6 +90,7 @@ function App() {
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('general');
 
   // --- Refs ---
   const notesRef = useRef(notes);
@@ -103,6 +106,23 @@ function App() {
         limit,
         percent: limit > 0 ? (used / limit) * 100 : 0
     };
+  }, [notes]);
+
+  const tagSuggestions = useMemo(() => {
+    const frequency = new Map();
+    notes.forEach((note) => {
+      (note.tags || []).forEach((tag) => {
+        const normalized = String(tag || '').trim();
+        if (!normalized) return;
+        const current = frequency.get(normalized) || { tag: normalized, count: 0, lastUsed: 0 };
+        current.count += 1;
+        current.lastUsed = Math.max(current.lastUsed, Number(note.updatedAt || note.updated_at || note.createdAt || 0));
+        frequency.set(normalized, current);
+      });
+    });
+    return Array.from(frequency.values())
+      .sort((a, b) => b.count - a.count || b.lastUsed - a.lastUsed || a.tag.localeCompare(b.tag, 'fr'))
+      .map((item) => item.tag);
   }, [notes]);
 
   // --- Supabase Data Sync & Realtime ---
@@ -147,6 +167,7 @@ function App() {
       console.error("Sync error", e);
     } finally {
       setIsSyncing(false);
+      localStorage.setItem('fiip-last-sync-at', new Date().toISOString());
     }
   }
 
@@ -165,6 +186,18 @@ function App() {
               for (const url of urls) {
                 try {
                     const parsedUrl = new URL(url);
+                    if (parsedUrl.host === 'login-callback' || parsedUrl.pathname.includes('/login-callback')) {
+                        const { data, error } = await authService.completeOAuthCallback(url);
+                        if (error) {
+                            await message(`Connexion Google impossible : ${error.message}`, { title: 'Fiip', kind: 'error' }).catch(console.error);
+                        } else if (data?.session?.user) {
+                            setUser(data.session.user);
+                            localStorage.setItem('fiip-onboarding-completed', 'true');
+                            localStorage.removeItem('fiip-mode-local');
+                            setOnboardingCompleted(true);
+                            await loadDataFromSupabase();
+                        }
+                    }
                     if (parsedUrl.host === 'license' || parsedUrl.pathname.includes('/license')) {
                         const key = parsedUrl.searchParams.get('key');
                         if (key) {
@@ -277,7 +310,14 @@ function App() {
       return settings.theme === 'light' ? 'light' : 'dark';
     };
     const resolvedTheme = resolveTheme();
-    document.documentElement.className = resolvedTheme;
+    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+    document.body.classList.toggle('dark', resolvedTheme === 'dark');
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.body.dataset.theme = resolvedTheme;
+    document.documentElement.dataset.fontSize = settings.fontSize || 'medium';
+    document.documentElement.dataset.windowEffect = settings.windowEffect || 'none';
+    document.documentElement.style.colorScheme = resolvedTheme;
+    document.body.style.backgroundColor = resolvedTheme === 'dark' ? '#1E1E1E' : '#FFFFFF';
     
     soundManager.setAppSoundEnabled(settings.appSound);
     soundManager.setChatSoundEnabled(settings.chatSound);
@@ -291,6 +331,39 @@ function App() {
         }
     }
   }, [settings]);
+
+  useEffect(() => {
+    if (settings.theme !== 'system') return undefined;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const syncSystemTheme = () => {
+      const resolvedTheme = media.matches ? 'dark' : 'light';
+      document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+      document.body.classList.toggle('dark', resolvedTheme === 'dark');
+      document.documentElement.dataset.theme = resolvedTheme;
+      document.body.dataset.theme = resolvedTheme;
+      document.documentElement.style.colorScheme = resolvedTheme;
+      document.body.style.backgroundColor = resolvedTheme === 'dark' ? '#1E1E1E' : '#FFFFFF';
+    };
+    media.addEventListener('change', syncSystemTheme);
+    syncSystemTheme();
+    return () => media.removeEventListener('change', syncSystemTheme);
+  }, [settings.theme]);
+
+  useEffect(() => {
+    let lastSoundAt = 0;
+    const playInteractionSound = (event) => {
+      const target = event.target;
+      if (!target?.closest) return;
+      const interactive = target.closest('button, [role="button"], a, select, [data-sound="interaction"]');
+      if (!interactive || interactive.disabled || interactive.getAttribute('aria-disabled') === 'true') return;
+      const now = Date.now();
+      if (now - lastSoundAt < 90) return;
+      lastSoundAt = now;
+      soundManager.play('interaction').catch(() => {});
+    };
+    window.addEventListener('pointerup', playInteractionSound, { capture: true });
+    return () => window.removeEventListener('pointerup', playInteractionSound, { capture: true });
+  }, []);
 
   const handleCreateNote = useCallback(async (title = "", content = "") => {
     const now = getCurrentTimestamp();
@@ -316,7 +389,7 @@ function App() {
     return newNote;
   }, [t]);
 
-  // Global Keyboard listener for Command Palette (⌘K) & New Note (⌘N)
+  // Global Keyboard listener for Command Palette (Ctrl/Cmd+K) & New Note (Ctrl/Cmd+N)
   useEffect(() => {
     const handleKeyDown = (e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -421,27 +494,103 @@ function App() {
 
   // Command palette items creation
   const commandItems = useMemo(() => {
+    const openSettingsTab = (tab) => {
+      setSettingsInitialTab(tab);
+      setActiveNav('settings');
+    };
+
     const actions = [
       {
         id: 'new-note',
         label: 'Nouvelle Note',
         description: 'Créer une nouvelle note',
-        shortcut: ['⌘', 'N'],
+        icon: <Plus size={15} />,
+        shortcut: ['Ctrl', 'N'],
         group: 'Actions',
         onSelect: () => handleCreateNote()
+      },
+      {
+        id: 'focus-editor',
+        label: "Focus éditeur",
+        description: 'Revenir à la note active',
+        icon: <Search size={15} />,
+        group: 'Édition',
+        onSelect: () => setActiveNav('home')
+      },
+      {
+        id: 'open-dexter',
+        label: 'Ouvrir Dexter',
+        description: "Assistant d'écriture Fiip",
+        icon: <Bot size={15} />,
+        group: 'IA',
+        onSelect: () => setIsDexterOpen(true)
+      },
+      {
+        id: 'share-current',
+        label: 'Partager la note',
+        description: 'Ouvrir le partage de la note active',
+        icon: <Share2 size={15} />,
+        group: 'Partage',
+        onSelect: () => activeNote && setIsShareModalOpen(true)
+      },
+      {
+        id: 'copy-public-link',
+        label: 'Copier le lien public',
+        description: 'Copier le lien public si la note est publiée',
+        icon: <Link size={15} />,
+        group: 'Partage',
+        onSelect: () => {
+          if (activeNote?.public_slug) {
+            navigator.clipboard.writeText(buildPublicNoteUrl(activeNote.public_slug));
+          }
+        }
       },
       {
         id: 'settings',
         label: 'Préférences',
         description: 'Ouvrir les réglages',
-        shortcut: ['⌘', ','],
-        group: 'Actions',
-        onSelect: () => setActiveNav('settings')
+        icon: <Settings size={15} />,
+        shortcut: ['Ctrl', ','],
+        group: 'Réglages',
+        onSelect: () => openSettingsTab('general')
+      },
+      {
+        id: 'settings-sync',
+        label: 'Synchronisation',
+        description: 'Voir le statut Supabase',
+        icon: <Database size={15} />,
+        group: 'Réglages',
+        onSelect: () => openSettingsTab('sync')
+      },
+      {
+        id: 'settings-ai',
+        label: 'Intelligence artificielle',
+        description: 'Voir le routeur OpenRouter et les statistiques',
+        icon: <Bot size={15} />,
+        group: 'Réglages',
+        onSelect: () => openSettingsTab('ai')
+      },
+      {
+        id: 'settings-premium',
+        label: 'Fiip Premium',
+        description: 'Compte, licence et achat SellAuth',
+        icon: <Crown size={15} />,
+        group: 'Réglages',
+        onSelect: () => openSettingsTab('premium')
+      },
+      {
+        id: 'settings-cache',
+        label: 'Cache local',
+        description: 'Voir et nettoyer le cache AppData',
+        icon: <Database size={15} />,
+        group: 'Réglages',
+        onSelect: () => openSettingsTab('cache')
       },
       {
         id: 'theme-light',
         label: 'Activer le Thème Clair',
         description: 'Changer l\'apparence',
+        icon: <Sun size={15} />,
         group: 'Apparence',
         onSelect: () => setSettings(prev => ({ ...prev, theme: 'light' }))
       },
@@ -449,8 +598,17 @@ function App() {
         id: 'theme-dark',
         label: 'Activer le Thème Sombre',
         description: 'Changer l\'apparence',
+        icon: <Moon size={15} />,
         group: 'Apparence',
         onSelect: () => setSettings(prev => ({ ...prev, theme: 'dark' }))
+      },
+      {
+        id: 'theme-system',
+        label: 'Suivre le thème système',
+        description: 'Utiliser le thème de Windows/macOS',
+        icon: <Monitor size={15} />,
+        group: 'Apparence',
+        onSelect: () => setSettings(prev => ({ ...prev, theme: 'system' }))
       }
     ];
 
@@ -458,6 +616,7 @@ function App() {
         id: `note-${n.id}`,
         label: n.title || 'Sans titre',
         description: 'Ouvrir cette note',
+        icon: <FileText size={15} />,
         group: 'Notes Récentes',
         onSelect: () => {
             setSelectedNoteId(n.id);
@@ -467,7 +626,7 @@ function App() {
 
     return [...actions, ...noteItems];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes]);
+  }, [notes, activeNote, handleCreateNote]);
 
   // If Onboarding is not completed, route to OnboardingView
   if (!onboardingCompleted) {
@@ -486,7 +645,7 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-screen bg-transparent text-white overflow-hidden flex flex-col font-sans select-none relative">
+    <div className="h-screen w-screen bg-transparent text-warm-text-primary-light dark:text-warm-text-primary-dark overflow-hidden flex flex-col font-sans select-none relative">
       <div className="mica-noise-overlay" />
       <Titlebar style={settings.titlebarStyle} />
       
@@ -521,6 +680,7 @@ function App() {
                     onUpdateSettings={setSettings}
                     storageUsage={storageUsage}
                     onSync={() => loadDataFromSupabase()}
+                    initialTab={settingsInitialTab}
                     onBack={() => {
                         setActiveNav('home');
                         setSelectedNoteId(null);
@@ -545,6 +705,7 @@ function App() {
                     onOpenDexter={() => setIsDexterOpen(true)}
                     onOpenLicense={() => setIsLicenseModalOpen(true)}
                     onCreateNote={() => handleCreateNote()}
+                    tagSuggestions={tagSuggestions}
                 />
             ) : (
                 <HomeDashboard 

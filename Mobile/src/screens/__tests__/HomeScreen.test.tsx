@@ -37,8 +37,16 @@ jest.mock('../../hooks/useAppTheme', () => ({
       textSecondary: '#6b7280',
       border: '#e5e7eb',
       primary: '#111827',
+      onPrimary: '#ffffff',
+      primaryContainer: '#eaddff',
+      onPrimaryContainer: '#21005d',
       accent: '#2563eb',
       success: '#10b981',
+      surfaceContainerLow: '#f7f2fa',
+      surfaceContainerHigh: '#ece6f0',
+      surfaceContainerHighest: '#e6e0e9',
+      outlineVariant: '#cac4d0',
+      stateLayer: 'rgba(103,80,164,0.12)',
     },
   }),
 }));
@@ -79,8 +87,8 @@ describe('HomeScreen', () => {
   it('renders the mobile dashboard with note metrics', () => {
     const { getByText } = render(<HomeScreen />);
 
-    expect(getByText('Fiip Mobile')).toBeTruthy();
-    expect(getByText('Capturez, clarifiez, retrouvez.')).toBeTruthy();
+    expect(getByText('Fiip')).toBeTruthy();
+    expect(getByText('Accueil')).toBeTruthy();
     expect(getByText('Notes récentes')).toBeTruthy();
   });
 

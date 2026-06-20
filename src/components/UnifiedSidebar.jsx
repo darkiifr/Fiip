@@ -5,17 +5,13 @@ import {
     Trash2, 
     Settings, 
     LogOut, 
-    User,
     Plus,
     SearchX
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { authService } from '../services/supabase';
-import { open } from '@tauri-apps/plugin-shell';
 
-import IconAward from '~icons/mingcute/trophy-fill';
-import IconArrowRight from '~icons/mingcute/arrow-right-fill';
+import { authService, dataService } from '../services/supabase';
 
 export default function UnifiedSidebar({ 
     notes = [], 
@@ -33,7 +29,20 @@ export default function UnifiedSidebar({
     const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
     const [user, setUser] = useState(null);
+    const [profile, setProfile] = useState(null);
     const isLocalMode = localStorage.getItem('fiip-mode-local') === 'true';
+
+    const getDisplayName = () => (
+        profile?.nickname ||
+        profile?.username ||
+        user?.user_metadata?.full_name ||
+        user?.user_metadata?.name ||
+        user?.user_metadata?.nickname ||
+        user?.email?.split('@')[0] ||
+        'Compte Fiip'
+    );
+
+    const avatarUrl = profile?.avatar_url || profile?.avatar || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '';
 
     // Track user session
     useEffect(() => {
@@ -41,14 +50,35 @@ export default function UnifiedSidebar({
         authService.getUser().then(u => {
             if (isMounted) setUser(u);
         }).catch(console.error);
+        dataService.fetchProfile().then(({ data }) => {
+            if (isMounted) setProfile(data || null);
+        }).catch(() => {});
 
         // Sub to auth changes
         const { data: { subscription } } = authService.onAuthStateChange((event, session) => {
             if (isMounted) setUser(session?.user || null);
+            if (session?.user) {
+                dataService.fetchProfile().then(({ data }) => {
+                    if (isMounted) setProfile(data || null);
+                }).catch(() => {});
+            } else {
+                setProfile(null);
+            }
         });
+
+        const refreshLocalProfile = () => {
+            try {
+                const localProfile = JSON.parse(localStorage.getItem('fiip_public_profile') || 'null');
+                if (localProfile && isMounted) setProfile((current) => ({ ...current, ...localProfile }));
+            } catch {
+                // Ignore invalid local profile cache.
+            }
+        };
+        window.addEventListener('storage', refreshLocalProfile);
 
         return () => {
             isMounted = false;
+            window.removeEventListener('storage', refreshLocalProfile);
             subscription?.unsubscribe();
         };
     }, []);
@@ -150,9 +180,6 @@ export default function UnifiedSidebar({
             {/* Header Area */}
             <div className="p-4 flex flex-col gap-4">
                 <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-sm">
-                        <span className="text-xs font-black text-amber-600 dark:text-amber-400">Fi</span>
-                    </div>
                     <span className="font-extrabold text-sm tracking-tight">Fiip</span>
                 </div>
 
@@ -245,27 +272,6 @@ export default function UnifiedSidebar({
                 </div>
             </div>
 
-            {/* Bottom Promo Card */}
-            <div className="px-4 mb-2">
-                <div 
-                    onClick={() => open('https://fiip.app')}
-                    className="p-3.5 bg-gradient-to-br from-[#FCFBF9] to-[#FAF9F7] dark:from-[#262625] dark:to-[#1E1E1E] border border-warm-border-light dark:border-warm-border-dark rounded-2xl cursor-pointer hover:scale-[1.01] hover:-translate-y-0.5 transition-all duration-200 group relative overflow-hidden"
-                >
-                    <div className="absolute right-[-10px] bottom-[-10px] w-16 h-16 rounded-full bg-amber-500/5 group-hover:scale-125 transition-transform" />
-                    <h4 className="text-[10px] font-extrabold flex items-center gap-1.5 mb-1 text-amber-600 dark:text-amber-400">
-                        <IconAward className="w-3.5 h-3.5" />
-                        FIIP PREMIUM
-                    </h4>
-                    <p className="text-[9px] text-warm-text-secondary-light dark:text-warm-text-secondary-dark font-medium leading-normal mb-2">
-                        Fiip sur tous vos appareils. Vos notes, toujours avec vous.
-                    </p>
-                    <span className="text-[9px] font-bold flex items-center gap-1 text-warm-text-primary-light group-hover:underline">
-                        Découvrir Fiip Cloud
-                        <IconArrowRight className="w-3 h-3 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
-                    </span>
-                </div>
-            </div>
-
             {/* Footer Area */}
             <div className="p-3 border-t border-warm-border-light dark:border-warm-border-dark bg-warm-sidebar-light/50 dark:bg-warm-sidebar-dark/30">
                 <div className="flex items-center justify-between">
@@ -274,12 +280,16 @@ export default function UnifiedSidebar({
                             onClick={onOpenProfile}
                             className="flex items-center gap-2 p-1.5 hover:bg-warm-sidebar-item-active/50 rounded-xl transition-all group max-w-[65%]"
                         >
-                            <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                                <User size={13} />
-                            </div>
+                            {avatarUrl ? (
+                                <img src={avatarUrl} alt={getDisplayName()} className="h-7 w-7 rounded-lg border border-warm-border-light object-cover dark:border-white/10" />
+                            ) : (
+                                <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-[10px] font-black text-amber-700 dark:text-amber-300 shrink-0">
+                                    {getDisplayName().slice(0, 2).toUpperCase()}
+                                </div>
+                            )}
                             <div className="flex flex-col text-left overflow-hidden">
                                 <span className="text-[10px] font-bold text-warm-text-primary-light dark:text-warm-text-primary-dark leading-tight truncate">
-                                    {user.email}
+                                    {getDisplayName()}
                                 </span>
                                 <span className="text-[8px] text-warm-text-muted-light font-semibold uppercase tracking-tighter">Premium</span>
                             </div>

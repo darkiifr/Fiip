@@ -110,6 +110,11 @@
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes slideDownAndFade {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -173,7 +178,7 @@ html, body {
   padding: 0;
   width: 100%;
   height: 100%;
-  background-color: transparent !important;
+  background-color: var(--bg-content);
   color: var(--text-primary);
   font-family: var(--font-ui);
   transition: background-color var(--duration-base) var(--motion-smooth), color var(--duration-base) var(--motion-smooth);
@@ -185,6 +190,49 @@ html, body {
   height: 100%;
   background-color: var(--bg-content);
   transition: background-color var(--duration-base) var(--motion-smooth);
+}
+
+html[data-material="liquid-glass"] {
+  --glass-bg: color-mix(in srgb, var(--bg-content) 68%, transparent);
+  --glass-border: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --glass-highlight: color-mix(in srgb, white 68%, transparent);
+  --glass-shadow: rgba(0, 0, 0, 0.24);
+  --glass-blur: 54px;
+}
+
+html[data-material="original"] {
+  --glass-blur: 28px;
+}
+
+html[data-window-effect="mica"] #root,
+html[data-window-effect="acrylic"] #root,
+html[data-window-effect="blur"] #root {
+  background-color: color-mix(in srgb, var(--bg-content) 72%, transparent);
+}
+
+html[data-window-effect="transparent"] #root {
+  background-color: transparent;
+}
+
+html[data-font-size="small"] {
+  --editor-font-size: 0.98rem;
+  --editor-heading-scale: 0.92;
+}
+
+html[data-font-size="medium"],
+html[data-font-size="normal"] {
+  --editor-font-size: 1.125rem;
+  --editor-heading-scale: 1;
+}
+
+html[data-font-size="large"] {
+  --editor-font-size: 1.25rem;
+  --editor-heading-scale: 1.08;
+}
+
+html[data-font-size="xlarge"] {
+  --editor-font-size: 1.42rem;
+  --editor-heading-scale: 1.16;
 }
 
 /* Translucent surfaces if window effect is active in Tauri */
@@ -340,12 +388,12 @@ html, body {
   font-family: var(--font-body);
   line-height: 1.7;
   color: var(--text-primary);
-  font-size: 1.125rem;
+  font-size: var(--editor-font-size, 1.125rem);
 }
 
 .markdown-content h1, .tiptap h1 {
   font-family: var(--font-heading);
-  font-size: 2.25rem;
+  font-size: calc(2.25rem * var(--editor-heading-scale, 1));
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1.25;
@@ -356,7 +404,7 @@ html, body {
 
 .markdown-content h2, .tiptap h2 {
   font-family: var(--font-heading);
-  font-size: 1.5rem;
+  font-size: calc(1.5rem * var(--editor-heading-scale, 1));
   font-weight: 700;
   letter-spacing: 0;
   color: var(--text-primary);
@@ -366,7 +414,7 @@ html, body {
 
 .markdown-content h3, .tiptap h3 {
   font-family: var(--font-heading);
-  font-size: 1.25rem;
+  font-size: calc(1.25rem * var(--editor-heading-scale, 1));
   font-weight: 600;
   color: var(--text-primary);
   margin-top: 1rem;
@@ -447,6 +495,22 @@ html, body {
   padding: 0;
   color: inherit;
   font-size: 0.875rem;
+}
+
+.dexter-markdown {
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: inherit;
+}
+
+.dexter-markdown p,
+.dexter-markdown ul,
+.dexter-markdown ol {
+  margin-bottom: 0.45rem;
+}
+
+.dexter-markdown p:last-child {
+  margin-bottom: 0;
 }
 
 /* ProseMirror Grammar highlight lines */

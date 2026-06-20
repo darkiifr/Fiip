@@ -1,8 +1,10 @@
-import { Icon as IconifyIcon } from '@iconify/react';
 import { open } from '@tauri-apps/plugin-shell';
+import { IconDiscord, IconLinkedin, IconReddit, IconXTwitter } from 'nucleo-social-media';
 import { useState, useEffect } from 'react';
 
+import { FIIP_PUBLIC_SITE_URL, buildPublicNoteUrl } from '../config/links';
 import { dataService, authService } from '../services/supabase';
+
 import CustomSelect from './CustomSelect';
 
 // Icons Import
@@ -13,7 +15,6 @@ import IconGlobe from '~icons/mingcute/earth-2-fill';
 import IconFileText from '~icons/mingcute/file-fill';
 import IconLoading from '~icons/mingcute/loading-fill';
 import IconLock from '~icons/mingcute/lock-fill';
-import IconShare from '~icons/mingcute/share-2-fill';
 
 export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdateNote }) {
     const [selectedNote, setSelectedNote] = useState(note);
@@ -68,7 +69,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
         if (selectedNote) {
             if (selectedNote.public_slug) {
                 setIsPublic(true);
-                setPublicUrl(`https://fiip-app.netlify.app/n/${selectedNote.public_slug}`);
+                setPublicUrl(buildPublicNoteUrl(selectedNote.public_slug));
             } else {
                 setIsPublic(false);
                 setPublicUrl('');
@@ -125,7 +126,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                 const { data, error } = await dataService.publishNote(selectedNote.id);
                 if (error) throw error;
                 setIsPublic(true);
-                setPublicUrl(`https://fiip-app.netlify.app/n/${data.public_slug}`);
+                setPublicUrl(buildPublicNoteUrl(data.public_slug));
                 setStatus({ type: 'success', message: 'Note publiée avec succès !' });
                 onUpdateNote({ ...selectedNote, public_slug: data.public_slug, shared: true });
             }
@@ -150,7 +151,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
         const text = `Je partage cette note depuis Fiip: ${selectedNote.title || 'Sans titre'}`;
         const contentPreview = (selectedNote.content?.substring(0, 100) || '') + '...';
         
-        let shareUrl = isPublic && publicUrl ? publicUrl : 'https://fiip.app';
+        const shareUrl = isPublic && publicUrl ? publicUrl : FIIP_PUBLIC_SITE_URL;
         const encodedText = encodeURIComponent(text);
         const encodedUrl = encodeURIComponent(shareUrl);
         
@@ -189,12 +190,12 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                 {/* Header */}
                 <div className="h-14 px-5 border-b border-warm-border-light dark:border-warm-border-dark flex items-center justify-between bg-warm-sidebar-light/50 dark:bg-zinc-800/30">
                     <div className="flex items-center gap-2.5">
-                        <IconShare className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        <IconGlobe className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                         <h2 className="text-sm font-bold tracking-tight">Partager la note</h2>
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-1.5 rounded-lg hover:bg-warm-sidebar-item-active text-warm-text-muted-light"
+                        className="p-1.5 rounded-lg hover:bg-warm-sidebar-item-active text-warm-text-muted-light dark:text-warm-text-muted-dark"
                     >
                         <IconClose className="w-4 h-4" />
                     </button>
@@ -248,7 +249,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                             <div className="bg-warm-sidebar-light/50 dark:bg-zinc-800/30 rounded-2xl p-4 border border-warm-border-light dark:border-warm-border-dark space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-xl border ${isPublic ? 'bg-green-500/15 border-green-500/10 text-green-600 dark:text-green-400' : 'bg-warm-sidebar-light dark:bg-zinc-800 border-warm-border-light text-warm-text-muted-light'}`}>
+                                    <div className={`p-2 rounded-xl border ${isPublic ? 'bg-green-500/15 border-green-500/10 text-green-600 dark:text-green-400' : 'bg-warm-sidebar-light dark:bg-zinc-800 border-warm-border-light dark:border-warm-border-dark text-warm-text-muted-light dark:text-warm-text-muted-dark'}`}>
                                             <IconGlobe className="w-4 h-4" />
                                         </div>
                                         <div>
@@ -277,7 +278,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
 
                                 {isPublic && (
                                     <div className="flex items-center gap-2 bg-white dark:bg-zinc-800 p-2 rounded-xl border border-warm-border-light dark:border-warm-border-dark">
-                                        <span className="flex-1 text-[10px] text-warm-text-primary-light font-mono truncate px-1 select-all">
+                                        <span className="flex-1 text-[10px] text-warm-text-primary-light dark:text-warm-text-primary-dark font-mono truncate px-1 select-all">
                                             {publicUrl}
                                         </span>
                                         <button 
@@ -292,7 +293,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                             className="p-1.5 hover:bg-warm-sidebar-item-active rounded-lg text-warm-text-muted-light transition-colors"
                                             title="Ouvrir dans le navigateur"
                                         >
-                                            <IconShare className="w-3.5 h-3.5" />
+                                            <IconGlobe className="w-3.5 h-3.5" />
                                         </button>
                                     </div>
                                 )}
@@ -342,7 +343,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                         placeholder="Nom d'utilisateur"
                                         value={newCollabUsername}
                                         onChange={(e) => setNewCollabUsername(e.target.value)}
-                                        className="flex-1 bg-white dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl px-3 py-1.5 text-xs text-warm-text-primary-light focus:outline-none"
+                                        className="flex-1 bg-white dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl px-3 py-1.5 text-xs text-warm-text-primary-light dark:text-warm-text-primary-dark focus:outline-none"
                                         disabled={isLoadingCollab}
                                     />
                                     <button
@@ -396,12 +397,12 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                         <span className="text-[9px] font-bold text-warm-text-muted-light uppercase tracking-widest">Partager sur les réseaux</span>
                         <div className="flex justify-center gap-3">
                             {['twitter', 'reddit', 'discord', 'linkedin'].map(platform => {
-                                const logos = {
-                                    twitter: "logos:twitter",
-                                    reddit: "logos:reddit-icon",
-                                    discord: "logos:discord-icon",
-                                    linkedin: "logos:linkedin-icon"
-                                };
+                                const SocialIcon = {
+                                    twitter: IconXTwitter,
+                                    reddit: IconReddit,
+                                    discord: IconDiscord,
+                                    linkedin: IconLinkedin
+                                }[platform];
                                 return (
                                     <button 
                                         key={platform}
@@ -410,7 +411,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                         className="p-2.5 bg-warm-sidebar-light hover:bg-warm-sidebar-item-active dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl transition-all duration-200 hover:scale-105"
                                         title={`Partager sur ${platform}`}
                                     >
-                                        <IconifyIcon icon={logos[platform]} className="w-3.5 h-3.5" />
+                                        <SocialIcon size={15} className="text-warm-text-primary-light dark:text-warm-text-primary-dark" />
                                     </button>
                                 );
                             })}

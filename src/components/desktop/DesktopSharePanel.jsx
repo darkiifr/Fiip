@@ -1,10 +1,12 @@
 import { Globe, Link2, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { authService, dataService } from '../../services/supabase';
+
+import { buildPublicNoteUrl } from '../../config/links';
+import { dataService } from '../../services/supabase';
 
 export default function DesktopSharePanel({ note, onClose, onUpdateNote }) {
   const [isPublic, setIsPublic] = useState(Boolean(note?.public_slug));
-  const [publicUrl, setPublicUrl] = useState(note?.public_slug ? `https://fiip-app.netlify.app/n/${note.public_slug}` : '');
+  const [publicUrl, setPublicUrl] = useState(note?.public_slug ? buildPublicNoteUrl(note.public_slug) : '');
   const [status, setStatus] = useState('');
   const [username, setUsername] = useState('');
   const [collaborators, setCollaborators] = useState([]);
@@ -35,7 +37,7 @@ export default function DesktopSharePanel({ note, onClose, onUpdateNote }) {
 
     const { data, error } = await dataService.publishNote(note.id);
     if (!error && data?.public_slug) {
-      const url = `https://fiip-app.netlify.app/n/${data.public_slug}`;
+      const url = buildPublicNoteUrl(data.public_slug);
       setIsPublic(true);
       setPublicUrl(url);
       setStatus('Note publiée avec succès.');

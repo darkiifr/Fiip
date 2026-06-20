@@ -1,10 +1,11 @@
-import { Icon } from '@iconify/react';
 import { type } from '@tauri-apps/plugin-os';
 import { relaunch, exit } from '@tauri-apps/plugin-process';
 import { open } from '@tauri-apps/plugin-shell';
+import { IconMastercard, IconPaypal, IconVisa } from 'nucleo-credit-cards';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { FIIP_LICENSE_PURCHASE_URL } from '../config/links';
 import { keyAuthService } from '../services/keyauth';
 
 // Icons Import (Pim's Edition)
@@ -123,7 +124,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
   };
 
   const handleBuy = async () => {
-    await open('https://vinsstudio.mysellauth.com/');
+    await open(FIIP_LICENSE_PURCHASE_URL);
   };
 
   if (!isOpen) {return null;}
@@ -276,11 +277,11 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                   {/* Moyens de paiement acceptés */}
                   <div className="flex flex-col items-center gap-2 mt-4 opacity-50 hover:opacity-100 transition-opacity duration-300">
                       <div className="flex justify-center items-center gap-4">
-                          <Icon icon="logos:paypal" className="w-6 h-6 grayscale hover:grayscale-0 transition-all duration-300 cursor-help" title="PayPal" />
+                          <IconPaypal size={28} className="grayscale hover:grayscale-0 transition-all duration-300 cursor-help" title="PayPal" />
                           <div className="w-px h-6 bg-gray-700"></div>
                           <div className="flex items-center gap-2" title="Cartes bancaires acceptées via PayPal">
-                              <Icon icon="logos:visa" className="w-8 h-auto grayscale hover:grayscale-0 transition-all duration-300 cursor-help" />
-                              <Icon icon="logos:mastercard" className="w-6 h-auto grayscale hover:grayscale-0 transition-all duration-300 cursor-help" />
+                              <IconVisa size={34} className="grayscale hover:grayscale-0 transition-all duration-300 cursor-help" title="Visa" />
+                              <IconMastercard size={30} className="grayscale hover:grayscale-0 transition-all duration-300 cursor-help" title="Mastercard" />
                           </div>
                       </div>
                       <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">PayPal & CB via PayPal</span>

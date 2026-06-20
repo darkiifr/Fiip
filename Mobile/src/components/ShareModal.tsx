@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { triggerHaptic } from '../utils/hapticEngine';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FIIP_PUBLIC_SITE_URL, buildPublicNoteUrl } from '../config/links';
 
 /* 
  * Animated, Liquid-Glass stylized Share Modal
@@ -39,7 +40,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const insets = useSafeAreaInsets();
   
   const [loading, setLoading] = useState(false);
-  const publicUrl = publicSlug ? `https://fiip-app.netlify.app/n/${publicSlug}` : null;
+  const publicUrl = publicSlug ? buildPublicNoteUrl(publicSlug) : null;
 
   // Custom animations
   const [showModal, setShowModal] = useState(visible);
@@ -118,10 +119,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const handleShareNative = async () => {
     triggerHaptic('selection');
     try {
-      const urlToShare = publicUrl ? publicUrl : `https://fiip-app.netlify.app/install`;
+      const urlToShare = publicUrl ? publicUrl : FIIP_PUBLIC_SITE_URL;
       const messageToShare = publicUrl 
         ? t('Découvrez ma note Fiip : ') + urlToShare
-        : t('Découvrez Fiip, le bloc-notes ultra-rapide et intelligent !');
+        : `${t('Découvrez Fiip, le bloc-notes ultra-rapide et intelligent !')} ${urlToShare}`;
       
       await Share.share({
         message: Platform.OS === 'android' ? messageToShare : t('Découvrez ma note Fiip'),

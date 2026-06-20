@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GlassCard } from '../components/ui/GlassCard';
@@ -18,6 +18,7 @@ const quickPrompts = [
 
 export function AiChatScreen({ navigation }: any) {
   const { colors } = useAppTheme();
+  const isIOS = Platform.OS === 'ios';
   const notes = useNotesStore((state) => state.getNotesList());
   const updateNote = useNotesStore((state) => state.updateNote);
   const activeNote = notes[0];
@@ -88,7 +89,7 @@ export function AiChatScreen({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <GlassCard intensity={34} cornerRadius={fiipRadius.xl} style={styles.noteCard}>
+        <GlassCard intensity={isIOS ? 38 : 0} cornerRadius={isIOS ? fiipRadius.xl : 28} interactive style={styles.noteCard}>
           <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Note active</Text>
           <Text style={[styles.noteTitle, { color: colors.text }]}>{activeNote?.title || 'Aucune note'}</Text>
           <Text style={[styles.noteText, { color: colors.textSecondary }]} numberOfLines={4}>{activeNote?.content || 'Créez une note pour obtenir une aide contextuelle.'}</Text>
@@ -97,7 +98,7 @@ export function AiChatScreen({ navigation }: any) {
         <View style={styles.quickGrid}>
           {quickPrompts.map((item) => (
             <TouchableOpacity key={item.label} accessibilityRole="button" activeOpacity={0.78} onPress={() => askFiip(item.prompt)} style={styles.quickItem}>
-              <GlassCard intensity={22} cornerRadius={fiipRadius.md} style={styles.quickCard}>
+              <GlassCard intensity={isIOS ? 24 : 0} cornerRadius={isIOS ? fiipRadius.md : 20} interactive style={styles.quickCard}>
                 <Icon sfSymbol="sparkles" mdIcon="sparkles" size={16} color={colors.primary} />
                 <Text style={[styles.quickText, { color: colors.text }]}>{item.label}</Text>
               </GlassCard>
@@ -105,18 +106,18 @@ export function AiChatScreen({ navigation }: any) {
           ))}
         </View>
 
-        <GlassCard intensity={30} cornerRadius={fiipRadius.xl} style={styles.answerCard}>
+        <GlassCard intensity={isIOS ? 34 : 0} cornerRadius={isIOS ? fiipRadius.xl : 28} interactive style={styles.answerCard}>
           <View style={styles.answerHeader}>
             <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Réponse</Text>
             {loading && <ActivityIndicator size="small" color={colors.primary} />}
           </View>
           <Text style={[styles.answerText, { color: colors.text }]}>{answer}</Text>
-          <TouchableOpacity accessibilityRole="button" onPress={replaceNote} activeOpacity={0.78} style={[styles.replaceButton, { backgroundColor: colors.accent }]}>
+          <TouchableOpacity accessibilityRole="button" onPress={replaceNote} activeOpacity={0.78} style={[isIOS ? styles.replaceButton : styles.replaceButtonAndroid, { backgroundColor: isIOS ? colors.primary : colors.primary }]}>
             <Text style={styles.replaceText}>Remplacer la note</Text>
           </TouchableOpacity>
         </GlassCard>
 
-        <GlassCard intensity={18} cornerRadius={fiipRadius.lg} style={styles.usageCard}>
+        <GlassCard intensity={isIOS ? 20 : 0} cornerRadius={isIOS ? fiipRadius.lg : 20} style={styles.usageCard}>
           <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Statistiques d’utilisation</Text>
           <Text style={[styles.usageText, { color: colors.text }]}>{usageLabel}</Text>
           <Text style={[styles.noteText, { color: colors.textSecondary }]}>Coûts limités par le routeur gratuit OpenRouter et les limites du compte.</Text>
@@ -124,7 +125,7 @@ export function AiChatScreen({ navigation }: any) {
       </ScrollView>
 
       <View style={styles.composer}>
-        <GlassCard intensity={32} cornerRadius={28} style={styles.inputCard}>
+        <GlassCard intensity={isIOS ? 36 : 0} cornerRadius={isIOS ? 28 : 28} interactive style={styles.inputCard}>
           <TextInput
             value={input}
             onChangeText={setInput}
@@ -134,8 +135,8 @@ export function AiChatScreen({ navigation }: any) {
             style={[styles.input, { color: colors.text }]}
             returnKeyType="send"
           />
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Envoyer" onPress={() => askFiip(input)} style={[styles.sendButton, { backgroundColor: colors.primary }]}>
-            <Icon sfSymbol="arrow.up" mdIcon="arrow-up" size={18} color="#FFF" />
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Envoyer" onPress={() => askFiip(input)} style={[styles.sendButton, { backgroundColor: isIOS ? colors.primary : colors.primaryContainer }]}>
+            <Icon sfSymbol="arrow.up" mdIcon="arrow-up" size={18} color={isIOS ? '#FFF' : colors.onPrimaryContainer} />
           </TouchableOpacity>
         </GlassCard>
       </View>
@@ -164,11 +165,12 @@ const styles = StyleSheet.create({
   answerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   answerText: { marginTop: 12, fontSize: 16, lineHeight: 24 },
   replaceButton: { marginTop: 16, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  replaceButtonAndroid: { marginTop: 16, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', elevation: 1 },
   replaceText: { color: '#FFF', fontWeight: '900' },
   usageCard: { padding: 16 },
   usageText: { marginTop: 8, fontSize: 18, fontWeight: '900' },
   composer: { position: 'absolute', left: 16, right: 16, bottom: 24 },
   inputCard: { minHeight: 58, flexDirection: 'row', alignItems: 'center', paddingLeft: 18, paddingRight: 8 },
   input: { flex: 1, fontSize: 16, paddingVertical: 12 },
-  sendButton: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  sendButton: { width: 42, height: 42, borderRadius: Platform.OS === 'android' ? 14 : 21, alignItems: 'center', justifyContent: 'center' },
 });

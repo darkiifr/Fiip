@@ -4,11 +4,13 @@ import { GlassCard } from './ui/GlassCard';
 import { Icon } from './ui/Icon';
 import { triggerHaptic } from '../utils/hapticEngine';
 import { Surface, TouchableRipple } from 'react-native-paper';
+import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useNotesStore } from '../store/notesStore';
 
 export const NoteList = ({ onNotePress }: { onNotePress: (note: any) => void }) => {
   const { colors, isDark } = useAppTheme();
+  const { t } = useTranslation();
   const isIOS = Platform.OS === 'ios';
   
   // Use Zustand selector to force re-render when notes change
@@ -51,7 +53,7 @@ export const NoteList = ({ onNotePress }: { onNotePress: (note: any) => void }) 
             <View key={note.id}>
               {isIOS ? (
               <TouchableOpacity activeOpacity={0.7} onPress={() => handlePress(note)}>
-                <GlassCard intensity={25} cornerRadius={16} style={[styles.cardContainerIOS, { backgroundColor: colors.card }]}>
+                <GlassCard intensity={32} cornerRadius={22} interactive style={styles.cardContainerIOS}>
                   <View>
                     <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'}}>
                       <Text style={[styles.titleIOS, { color: colors.text, flex: 1 }]} numberOfLines={1}>{note.title}</Text>
@@ -72,8 +74,8 @@ export const NoteList = ({ onNotePress }: { onNotePress: (note: any) => void }) 
                 </GlassCard>
               </TouchableOpacity>
             ) : (
-              <Surface style={[styles.cardContainerAndroid, { backgroundColor: colors.card }]} elevation={1}>
-                <TouchableRipple onPress={() => handlePress(note)} style={styles.ripplePad}>
+              <Surface style={[styles.cardContainerAndroid, { backgroundColor: colors.surfaceContainer }]} elevation={1}>
+                <TouchableRipple onPress={() => handlePress(note)} style={styles.ripplePad} rippleColor={colors.stateLayer}>
                   <View style={{flex: 1, justifyContent: 'space-between'}}>
                     <View>
                       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start'}}>
@@ -83,7 +85,7 @@ export const NoteList = ({ onNotePress }: { onNotePress: (note: any) => void }) 
                       {note.badges.length > 0 && (
                         <View style={styles.badgeContainer}>
                           {note.badges.slice(0, 2).map((b, i) => (
-                             <View key={i} style={[styles.badge, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }]}>
+                             <View key={i} style={[styles.badge, { backgroundColor: colors.primaryContainer }]}>
                                <Text style={[styles.badgeText, { color: colors.textSecondary }]}>{b}</Text>
                              </View>
                           ))}
@@ -116,8 +118,7 @@ const styles = StyleSheet.create({
   },
   headerAndroid: {
     fontSize: 18,
-    fontWeight: '500',
-    color: '#1C1B1F',
+    fontWeight: '600',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 16,
     marginRight: 12,
-    backgroundColor: '#fff'
+    overflow: 'hidden',
   },
   ripplePad: {
     padding: 16,
@@ -143,7 +144,7 @@ const styles = StyleSheet.create({
   },
   titleIOS: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     fontFamily: 'System',
   },
   titleAndroid: {

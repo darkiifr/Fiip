@@ -1,3 +1,7 @@
+import { Platform } from 'react-native';
+
+type FiipPlatform = 'ios' | 'android' | 'web' | 'windows' | 'macos';
+
 export const fiipPalette = {
   ink: '#141312',
   paper: '#F7F5F1',
@@ -13,6 +17,86 @@ export const fiipPalette = {
   glassDark: 'rgba(24,24,27,0.58)',
 };
 
+export const material3Palette = {
+  light: {
+    primary: '#6750A4',
+    onPrimary: '#FFFFFF',
+    primaryContainer: '#EADDFF',
+    onPrimaryContainer: '#21005D',
+    secondary: '#625B71',
+    secondaryContainer: '#E8DEF8',
+    tertiary: '#7D5260',
+    background: '#FFFBFE',
+    onBackground: '#1C1B1F',
+    surface: '#FFFBFE',
+    surfaceDim: '#DED8E1',
+    surfaceBright: '#FFFBFE',
+    surfaceContainerLowest: '#FFFFFF',
+    surfaceContainerLow: '#F7F2FA',
+    surfaceContainer: '#F3EDF7',
+    surfaceContainerHigh: '#ECE6F0',
+    surfaceContainerHighest: '#E6E0E9',
+    onSurface: '#1C1B1F',
+    onSurfaceVariant: '#49454F',
+    outline: '#79747E',
+    outlineVariant: '#CAC4D0',
+    error: '#B3261E',
+    success: '#386A20',
+  },
+  dark: {
+    primary: '#D0BCFF',
+    onPrimary: '#381E72',
+    primaryContainer: '#4F378B',
+    onPrimaryContainer: '#EADDFF',
+    secondary: '#CCC2DC',
+    secondaryContainer: '#4A4458',
+    tertiary: '#EFB8C8',
+    background: '#141218',
+    onBackground: '#E6E0E9',
+    surface: '#141218',
+    surfaceDim: '#141218',
+    surfaceBright: '#3B383E',
+    surfaceContainerLowest: '#0F0D13',
+    surfaceContainerLow: '#1D1B20',
+    surfaceContainer: '#211F26',
+    surfaceContainerHigh: '#2B2930',
+    surfaceContainerHighest: '#36343B',
+    onSurface: '#E6E0E9',
+    onSurfaceVariant: '#CAC4D0',
+    outline: '#938F99',
+    outlineVariant: '#49454F',
+    error: '#F2B8B5',
+    success: '#B6F397',
+  },
+};
+
+export const applePalette = {
+  light: {
+    background: '#F5F5F7',
+    backgroundAlt: '#FFFFFF',
+    text: '#1D1D1F',
+    textSecondary: 'rgba(60,60,67,0.68)',
+    border: 'rgba(60,60,67,0.18)',
+    card: 'rgba(255,255,255,0.62)',
+    primary: '#007AFF',
+    accent: '#FF9F0A',
+    danger: '#FF3B30',
+    success: '#34C759',
+  },
+  dark: {
+    background: '#000000',
+    backgroundAlt: '#1C1C1E',
+    text: '#F5F5F7',
+    textSecondary: 'rgba(235,235,245,0.64)',
+    border: 'rgba(235,235,245,0.16)',
+    card: 'rgba(28,28,30,0.58)',
+    primary: '#0A84FF',
+    accent: '#FF9F0A',
+    danger: '#FF453A',
+    success: '#30D158',
+  },
+};
+
 export const fiipRadius = {
   sm: 12,
   md: 18,
@@ -25,9 +109,77 @@ export const fiipType = {
   body: 'System',
 };
 
-export function getFiipTheme(isDark: boolean) {
+export function getFiipTheme(isDark: boolean, os: FiipPlatform = Platform.OS) {
+  if (os === 'android') {
+    const m3 = isDark ? material3Palette.dark : material3Palette.light;
+    return {
+      isDark,
+      platform: 'android',
+      background: m3.background,
+      backgroundAlt: m3.surfaceContainerLow,
+      card: m3.surfaceContainer,
+      text: m3.onSurface,
+      textSecondary: m3.onSurfaceVariant,
+      border: m3.outlineVariant,
+      accent: m3.tertiary,
+      blue: m3.primary,
+      primary: m3.primary,
+      onPrimary: m3.onPrimary,
+      primaryContainer: m3.primaryContainer,
+      onPrimaryContainer: m3.onPrimaryContainer,
+      secondaryContainer: m3.secondaryContainer,
+      surface: m3.surface,
+      surfaceContainerLowest: m3.surfaceContainerLowest,
+      surfaceContainerLow: m3.surfaceContainerLow,
+      surfaceContainer: m3.surfaceContainer,
+      surfaceContainerHigh: m3.surfaceContainerHigh,
+      surfaceContainerHighest: m3.surfaceContainerHighest,
+      outline: m3.outline,
+      outlineVariant: m3.outlineVariant,
+      stateLayer: isDark ? 'rgba(208,188,255,0.12)' : 'rgba(103,80,164,0.12)',
+      green: m3.success,
+      red: m3.error,
+      success: m3.success,
+      danger: m3.error,
+    };
+  }
+
+  if (os === 'ios') {
+    const apple = isDark ? applePalette.dark : applePalette.light;
+    return {
+      isDark,
+      platform: 'ios',
+      background: apple.background,
+      backgroundAlt: apple.backgroundAlt,
+      card: apple.card,
+      text: apple.text,
+      textSecondary: apple.textSecondary,
+      border: apple.border,
+      accent: apple.accent,
+      blue: apple.primary,
+      primary: apple.primary,
+      onPrimary: '#FFFFFF',
+      primaryContainer: isDark ? 'rgba(10,132,255,0.24)' : 'rgba(0,122,255,0.14)',
+      onPrimaryContainer: apple.primary,
+      surface: apple.backgroundAlt,
+      surfaceContainerLowest: apple.backgroundAlt,
+      surfaceContainerLow: apple.card,
+      surfaceContainer: apple.card,
+      surfaceContainerHigh: isDark ? 'rgba(44,44,46,0.7)' : 'rgba(255,255,255,0.78)',
+      surfaceContainerHighest: isDark ? 'rgba(58,58,60,0.78)' : 'rgba(255,255,255,0.9)',
+      outline: apple.border,
+      outlineVariant: apple.border,
+      stateLayer: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+      green: apple.success,
+      red: apple.danger,
+      success: apple.success,
+      danger: apple.danger,
+    };
+  }
+
   return {
     isDark,
+    platform: os,
     background: isDark ? '#080808' : fiipPalette.paper,
     backgroundAlt: isDark ? '#111113' : '#FFFDF9',
     card: isDark ? fiipPalette.glassDark : fiipPalette.glassLight,
@@ -36,6 +188,19 @@ export function getFiipTheme(isDark: boolean) {
     border: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(75,64,54,0.10)',
     accent: fiipPalette.copper,
     blue: fiipPalette.blue,
+    primary: fiipPalette.blue,
+    onPrimary: '#FFFFFF',
+    primaryContainer: isDark ? 'rgba(10,132,255,0.22)' : 'rgba(10,132,255,0.12)',
+    onPrimaryContainer: fiipPalette.blue,
+    surface: isDark ? '#111113' : '#FFFDF9',
+    surfaceContainerLowest: isDark ? '#080808' : '#FFFFFF',
+    surfaceContainerLow: isDark ? '#111113' : '#FAF8F4',
+    surfaceContainer: isDark ? fiipPalette.glassDark : fiipPalette.glassLight,
+    surfaceContainerHigh: isDark ? '#1D1D21' : '#F0ECE4',
+    surfaceContainerHighest: isDark ? '#29292F' : '#E7E1D8',
+    outline: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(75,64,54,0.18)',
+    outlineVariant: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(75,64,54,0.10)',
+    stateLayer: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(20,19,18,0.06)',
     success: fiipPalette.green,
     danger: fiipPalette.red,
   };

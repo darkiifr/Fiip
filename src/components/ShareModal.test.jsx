@@ -1,18 +1,22 @@
-import { render, screen, waitFor } from '@testing-library/react';    
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { buildPublicNoteUrl } from '../config/links';
 
 import ShareModal from './ShareModal';
 
 // Mock dependencies
 const mockGetCurrentUser = vi.fn();
+const mockPublishNote = vi.fn();
 
 vi.mock('../services/supabase', () => ({
   authService: {
     getUser: () => mockGetCurrentUser(),
   },
   dataService: {
-    setPublicSlug: vi.fn(),
-    removePublicSlug: vi.fn(),
+    saveNote: vi.fn().mockResolvedValue({ error: null }),
+    publishNote: (...args) => mockPublishNote(...args),
+    unpublishNote: vi.fn().mockResolvedValue({ error: null }),
     addCollaborator: vi.fn(),
     getCollaborators: vi.fn().mockResolvedValue({ data: [], error: null })
   }
@@ -22,6 +26,7 @@ describe('ShareModal Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockGetCurrentUser.mockResolvedValue(null);
+        mockPublishNote.mockResolvedValue({ data: { public_slug: 'published-note' }, error: null });
     });
 
     const mockNote = { 
@@ -58,5 +63,31 @@ describe('ShareModal Component', () => {
 
         // They should NOT see the public sharing toggles due to ownership
         expect(screen.queryByText(/Lien Public/i)).not.toBeInTheDocument();
+    });
+
+    it('shows existing public note links on the production public site', async () => {
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: 'test@test.com' });
+        const publicNote = { ...mockNote, public_slug: 'already-public' };
+
+        render(<ShareModal isOpen={true} onClose={vi.fn()} note={publicNote} notes={[publicNote]} />);
+
+        await waitFor(() => {
+            expect(screen.getByText(buildPublicNoteUrl('already-public'))).toBeInTheDocument();
+        });
+    });
+
+    it('generates public note links on the production public site when publishing', async () => {
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: 'test@test.com' });
+
+        render(<ShareModal isOpen={true} onClose={vi.fn()} note={mockNote} notes={[mockNote]} onUpdateNote={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Lien Public/i)).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByRole('button', { name: /publier/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(buildPublicNoteUrl('published-note'))).toBeInTheDocument();
+        });
     });
 });

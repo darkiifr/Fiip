@@ -42,6 +42,10 @@ export default function SubscriptionScreen() {
   const { subscriptionPlan, setSubscriptionPlan } = useSettingsStore();
 
   const handleSelectPlan = (planId: 'free' | 'pro' | 'pro+') => {
+    if (Platform.OS === 'ios' && planId !== 'free') {
+      return;
+    }
+
     triggerHaptic('notificationSuccess');
     setSubscriptionPlan(planId);
   };
@@ -63,7 +67,11 @@ export default function SubscriptionScreen() {
           <Text style={[isIOS ? styles.titleIOS : styles.titleAndroid, { color: colors.text }]}>Abonnements</Text>
         </View>
 
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Choisissez le plan qui vous correspond le mieux.</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          {isIOS
+            ? 'La version iOS utilise le mode gratuit. Les achats seront proposés uniquement via l’App Store quand StoreKit sera activé.'
+            : 'Choisissez le plan qui vous correspond le mieux.'}
+        </Text>
 
         {plans.map((plan) => {
           const isActive = subscriptionPlan === plan.id;
@@ -98,10 +106,11 @@ export default function SubscriptionScreen() {
               {!isActive && (
                 isIOS ? (
                   <TouchableOpacity 
-                    style={[styles.subscribeButtonIOS, { backgroundColor: plan.color }]} 
+                    style={[styles.subscribeButtonIOS, { backgroundColor: plan.id === 'free' ? plan.color : colors.border }]} 
                     onPress={() => handleSelectPlan(plan.id as any)}
+                    disabled={plan.id !== 'free'}
                   >
-                    <Text style={styles.subscribeButtonTextIOS}>Choisir ce plan</Text>
+                    <Text style={styles.subscribeButtonTextIOS}>{plan.id === 'free' ? 'Choisir ce plan' : 'Bientôt via App Store'}</Text>
                   </TouchableOpacity>
                 ) : (
                   <Button 

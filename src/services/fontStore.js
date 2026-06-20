@@ -19,7 +19,7 @@ export async function searchFonts(query) {
             category: f.category,
             weights: f.weights,
             styles: f.styles
-        }));
+        })).sort((a, b) => a.family.localeCompare(b.family));
     } catch (e) {
         console.error("Erreur recherche de police:", e);
         return [];
@@ -111,11 +111,9 @@ export async function getInstalledFonts() {
         const fontsDir = 'fonts';
         const hasFontsDir = await exists(fontsDir, { baseDir: BaseDirectory.AppData });
         if (!hasFontsDir) {
-            console.log("hasFontsDir is false");
             return [];
         }
         
-        console.log("hasFontsDir is true, reading dir");
         const entries = await readDir(fontsDir, { baseDir: BaseDirectory.AppData });
         const installedFonts = [];
         
@@ -131,8 +129,7 @@ export async function getInstalledFonts() {
             }
         }
         
-        console.log("Found fonts:", installedFonts.length);
-        return installedFonts;
+        return installedFonts.sort((a, b) => a.family.localeCompare(b.family));
     } catch (e) {
         console.error("Erreur lecture polices installées:", e);
         return [];
@@ -143,7 +140,18 @@ export async function getInstalledFonts() {
 export async function initializeFonts() {
     const fonts = await getInstalledFonts();
     fonts.forEach(fiif => injectFont(fiif));
-    console.log(`${fonts.length} polices personnalisées chargées`);
+}
+
+export async function getFontCacheSize() {
+    try {
+        const fontsDir = 'fonts';
+        const hasFontsDir = await exists(fontsDir, { baseDir: BaseDirectory.AppData });
+        if (!hasFontsDir) {return 0;}
+        const entries = await readDir(fontsDir, { baseDir: BaseDirectory.AppData });
+        return entries.reduce((total, entry) => total + Number(entry.size || 0), 0);
+    } catch {
+        return 0;
+    }
 }
 
 // 6. Uninstall Font

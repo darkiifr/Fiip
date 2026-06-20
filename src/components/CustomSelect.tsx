@@ -95,7 +95,7 @@ export default function CustomSelect({
             <div 
                 ref={menuRef}
                 role="listbox"
-                className="fixed z-9999 bg-sidebar-dark/80 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out max-h-60 overflow-y-auto custom-scrollbar"
+                className="fixed z-9999 bg-white/95 dark:bg-zinc-950/92 backdrop-blur-2xl border border-warm-border-light dark:border-warm-border-dark rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 ease-out max-h-72 overflow-y-auto custom-scrollbar"
                 style={{
                     top: menuPosition.top,
                     left: menuPosition.left,
@@ -105,7 +105,7 @@ export default function CustomSelect({
                 onMouseDown={(e) => { e.stopPropagation(); }} // Prevent closing when clicking inside menu
             >
                 {options.length === 0 ? (
-                    <div className="px-3 py-2.5 text-sm text-gray-500 italic text-center">Aucune option</div>
+                    <div className="px-3 py-2.5 text-sm text-warm-text-muted-light dark:text-warm-text-muted-dark italic text-center">Aucune option</div>
                 ) : (
                     options.map((option) => (
                         <button
@@ -114,7 +114,9 @@ export default function CustomSelect({
                             onClick={() => { handleSelect(option.value); }}
                             className={cn(
                                 "w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors",
-                                value === option.value ? "bg-blue-600 text-white" : "text-gray-200 hover:bg-white/10"
+                                value === option.value
+                                    ? "bg-amber-500 text-white"
+                                    : "text-warm-text-primary-light dark:text-warm-text-primary-dark hover:bg-warm-sidebar-item-active dark:hover:bg-white/10"
                             )}
                         >
                             <div className="flex items-center gap-3 truncate">
@@ -141,7 +143,7 @@ export default function CustomSelect({
                 ref={triggerRef}
                 onClick={() => { if (!disabled) { setIsOpen(!isOpen); } }}
                 className={cn(
-                    "w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-100 outline-none flex items-center justify-between hover:bg-white/10 transition-colors shadow-sm",
+                    "w-full bg-white/70 dark:bg-zinc-900/70 border border-warm-border-light dark:border-warm-border-dark rounded-lg px-3 py-2 text-sm text-warm-text-primary-light dark:text-warm-text-primary-dark outline-none flex items-center justify-between hover:bg-warm-sidebar-item-active dark:hover:bg-zinc-800 transition-colors shadow-sm",
                     disabled ? "opacity-50 cursor-not-allowed" : "cursor-default",
                     isOpen && "ring-2 ring-blue-500/50 border-blue-500/50",
                     className
@@ -157,11 +159,11 @@ export default function CustomSelect({
                             </>
                         )
                     ) : (
-                        <span className="text-gray-400">{placeholder}</span>
+                        <span className="text-warm-text-muted-light dark:text-warm-text-muted-dark">{placeholder}</span>
                     )}
                 </div>
                 <IconChevronDown className={cn(
-                    "w-4 h-4 text-gray-500 transition-transform duration-200 shrink-0",
+                    "w-4 h-4 text-warm-text-muted-light transition-transform duration-200 shrink-0",
                     isOpen && "rotate-180"
                 )} />
             </button>

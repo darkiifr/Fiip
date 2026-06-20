@@ -65,36 +65,36 @@ export default function Titlebar({ style = 'macos' }) {
 
         return (
             <LiquidGlassPrimitive
-                className="h-[52px] w-full border-b border-white/20 flex items-center select-none transition-all duration-300 backdrop-blur-3xl saturate-200"
+                className="h-8 w-full border-b border-white/20 flex items-center select-none transition-all duration-300 backdrop-blur-3xl saturate-200"
+                data-tauri-drag-region
                 variant={theme === 'liquid-glass' ? 'default' : 'subtle'}
                 style={{ 
                     borderRadius: 0,
                     background: theme === 'liquid-glass' ? undefined : 'rgba(28, 28, 30, 0.4)'
                 }}
             >
-                {/* Left Drag Region (Padding) */}
                 <div className="w-3 h-full" data-tauri-drag-region />
 
-                <div className="flex gap-2 z-10 hover:*:brightness-110">
+                <div className="flex gap-1.5 z-10 hover:*:brightness-110 titlebar-no-drag">
                     <button
                         onClick={handleClose}
-                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#FF5F57] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        className="window-btn w-3 h-3 rounded-full bg-[#FF5F57] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                         title={t('settings.close')}
                     />
                     <button
                         onClick={handleMinimize}
-                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#FEBC2E] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        className="window-btn w-3 h-3 rounded-full bg-[#FEBC2E] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                         title={t('settings.minimize')}
                     />
                     <button
                         onClick={handleMaximize}
-                        className="window-btn w-3.5 h-3.5 rounded-full bg-[#28C840] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        className="window-btn w-3 h-3 rounded-full bg-[#28C840] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                         title={t('settings.maximize')}
                     />
                 </div>
 
                 {/* Title */}
-                <div className="absolute left-1/2 -translate-x-1/2 text-[13px] font-semibold text-white/40 tracking-[0.05em] uppercase h-full flex items-center pointer-events-none">
+                <div className="absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold text-white/35 tracking-[0.05em] uppercase h-full flex items-center pointer-events-none">
                     Fiip
                 </div>
             </LiquidGlassPrimitive>
@@ -108,6 +108,7 @@ export default function Titlebar({ style = 'macos' }) {
         return (
             <LiquidGlassPrimitive
                 className="h-8 w-full border-b border-white/10 flex items-center select-none transition-all duration-300"
+                data-tauri-drag-region
                 variant={theme === 'liquid-glass' ? 'default' : 'subtle'}
                 style={{ 
                     borderRadius: 0,

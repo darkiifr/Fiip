@@ -48,6 +48,13 @@ Fiip utilise Deno comme interface principale du desktop/web, npm pour les sous-p
 - Site public: Vite/React, rendu public des notes via Supabase, Markdown sanitise avec DOMPurify.
 - IA: OpenRouter uniquement via `VITE_OPENROUTER_KEY`; aucune saisie de cle utilisateur.
 
+## URLs Produit
+
+- Site public Fiip: `https://fiip.netlify.app/`
+- Notes publiques: `https://fiip-app.netlify.app/n/{slug}`
+- Achat licence: `https://vinsstudio.mysellauth.com/`
+- Utiliser les constantes de liens du projet au lieu de hardcoder ces URLs dans les composants.
+
 ## IA et OpenRouter
 
 - Services principaux: `src/services/ai.js` et `Mobile/src/services/ai.ts`.
@@ -56,6 +63,26 @@ Fiip utilise Deno comme interface principale du desktop/web, npm pour les sous-p
 - Ne pas reintroduire de champ de cle API, modele payant ou modele personnalise dans l'UI.
 - Les statistiques d'usage doivent venir de la reponse OpenRouter et de `/generation`.
 - Les secrets doivent rester dans GitHub Actions ou dans l'environnement local non versionne.
+
+## Secrets GitHub Actions
+
+Secrets attendus:
+
+- `VITE_OPENROUTER_KEY`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_KEYAUTH_OWNERID`
+- `VITE_KEYAUTH_SECRET`
+- `VITE_HOCUSPOCUS_URL`
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+Variables GitHub optionnelles:
+
+- `VITE_KEYAUTH_NAME` (fallback: `Fiip`)
+- `VITE_KEYAUTH_APIURL` (fallback: `https://keyauth.win/api/1.2/`)
+
+Les workflows injectent aussi les alias mobile `EXPO_PUBLIC_SUPABASE_*` et `EXPO_PUBLIC_KEYAUTH_*` a partir des memes secrets.
 
 ## Design System
 
