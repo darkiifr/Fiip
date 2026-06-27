@@ -2,10 +2,7 @@ import {
     ChevronLeft, 
     Share2, 
     Trash2, 
-    Sparkles, 
     Type, 
-    Mic, 
-    Volume2, 
     Save,
     Image as ImageIcon,
     FileText,
@@ -18,20 +15,153 @@ import {
     EyeOff,
     History,
     CheckCircle2,
-    Lock,
     Plus,
-    Tag,
-    X
+    X,
+    LockKeyhole,
+    UnlockKeyhole,
+    CheckSquare,
+    FileDown,
+    ScanLine,
+    PenLine,
+    CalendarDays,
+    Clock,
+    AlertCircle,
+    ChevronRight,
+    ChevronDown
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import AttachmentViewer from './AttachmentViewer';
+import CanvasDraw from './CanvasDraw';
+import DocumentScanner from './DocumentScanner';
+import EditorActionBar from './EditorActionBar';
 import RichTextEditor from './RichTextEditor';
-import { aiService } from '../services/ai';
+import { createTask } from '../services/fiipV1';
 import { cacheAttachment, classifyAttachment, formatBytes, getAttachmentPreviewUrl } from '../services/attachmentCache';
+import { extractImageOcr } from '../services/ocr';
+import { dataService } from '../services/supabase';
 import { soundManager } from '../services/soundManager';
-import { getNoteStats, stripNoteText } from '../utils/notePresentation';
+import { decryptData, encryptData } from '../utils/crypto';
+import { getTagColorClasses, normalizeNoteTags, serializeNoteTags } from '../utils/noteTags';
+import { getNoteStats } from '../utils/notePresentation';
 
 const getCurrentTimestamp = () => new Date().getTime();
+
+const escapeHtml = (value = '') => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+function buildDateTimeLocal(dateValue = '', timeValue = '') {
+    if (!dateValue) return '';
+    const time = /^\d{2}:\d{2}$/.test(timeValue) ? timeValue : '09:00';
+    return `${dateValue}T${time}`;
+}
+
+function formatDateInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function parseDateInput(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+    const [year, month, day] = value.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function TaskDatePicker({ value, onChange }) {
+    const selectedDate = parseDateInput(value);
+    const [open, setOpen] = useState(false);
+    const [visibleMonth, setVisibleMonth] = useState(() => selectedDate || new Date());
+    const monthStart = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1);
+    const gridStart = new Date(monthStart);
+    gridStart.setDate(gridStart.getDate() - ((gridStart.getDay() + 6) % 7));
+    const days = Array.from({ length: 42 }, (_, index) => {
+        const date = new Date(gridStart);
+        date.setDate(gridStart.getDate() + index);
+        return date;
+    });
+
+    const shiftMonth = (amount) => {
+        setVisibleMonth((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
+    };
+
+    const pickDate = (date) => {
+        onChange(formatDateInput(date));
+        setOpen(false);
+    };
+
+    return (
+        <div className="relative">
+            <button
+                type="button"
+                onClick={() => setOpen((current) => !current)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light bg-white px-3 text-xs font-semibold dark:border-white/10 dark:bg-[#111316]"
+            >
+                <CalendarDays size={13} className="text-warm-text-muted-light" />
+                <span className={value ? '' : 'text-warm-text-muted-light'}>{value || 'Date'}</span>
+                <ChevronDown size={12} className="text-warm-text-muted-light" />
+            </button>
+            {open && (
+                <div className="absolute left-0 top-11 z-[80] w-72 rounded-3xl border border-black/10 bg-[#fbfaf6]/96 p-3 shadow-[0_22px_70px_rgba(0,0,0,0.24)] backdrop-blur-3xl dark:border-white/10 dark:bg-[#111316]/96">
+                    <div className="mb-3 flex items-center justify-between">
+                        <button type="button" onClick={() => shiftMonth(-1)} className="rounded-xl p-2 hover:bg-black/[0.04] dark:hover:bg-white/10" aria-label="Mois précédent">
+                            <ChevronLeft size={16} />
+                        </button>
+                        <p className="text-sm font-semibold">
+                            {visibleMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                        </p>
+                        <button type="button" onClick={() => shiftMonth(1)} className="rounded-xl p-2 hover:bg-black/[0.04] dark:hover:bg-white/10" aria-label="Mois suivant">
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                    <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-warm-text-muted-light">
+                        {['lu', 'ma', 'me', 'je', 've', 'sa', 'di'].map((day) => <span key={day}>{day}</span>)}
+                    </div>
+                    <div className="mt-1 grid grid-cols-7 gap-1">
+                        {days.map((date) => {
+                            const key = formatDateInput(date);
+                            const isCurrentMonth = date.getMonth() === visibleMonth.getMonth();
+                            const isSelected = value === key;
+                            const isToday = key === formatDateInput(new Date());
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => pickDate(date)}
+                                    className={`flex h-8 items-center justify-center rounded-xl text-xs font-semibold transition-all ${
+                                        isSelected
+                                            ? 'bg-emerald-600 text-white'
+                                            : isToday
+                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                                : isCurrentMonth
+                                                    ? 'hover:bg-black/[0.04] dark:hover:bg-white/10'
+                                                    : 'text-warm-text-muted-light/45 hover:bg-black/[0.03] dark:hover:bg-white/5'
+                                    }`}
+                                >
+                                    {date.getDate()}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="mt-3 flex justify-between border-t border-black/10 pt-3 dark:border-white/10">
+                        <button type="button" onClick={() => onChange('')} className="rounded-xl px-3 py-2 text-xs font-semibold text-warm-text-muted-light hover:bg-black/[0.04] dark:hover:bg-white/10">
+                            Effacer
+                        </button>
+                        <button type="button" onClick={() => pickDate(new Date())} className="rounded-xl px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300">
+                            Aujourd'hui
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 const attachmentIcons = {
     image: ImageIcon,
@@ -46,14 +176,25 @@ const attachmentIcons = {
     file: FileText,
 };
 
-const MediaAttachment = ({ type, url, name, size, mimeType, previewable, showPreview, onRemove }) => {
+const MediaAttachment = ({ type, url, name, size, mimeType, previewable, showPreview, ocrStatus, ocrLabel, ocrConfidence, onRemove, onOpen }) => {
     const meta = classifyAttachment({ name, mimeType });
     const kind = type || meta.kind;
     const Icon = attachmentIcons[kind] || FileText;
     const canPreview = showPreview && previewable !== false && url;
     
     return (
-        <div className="group relative w-36 h-32 rounded-2xl overflow-hidden border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark transition-all hover:border-amber-500/50 hover:-translate-y-0.5 shadow-md">
+        <div
+            role="button"
+            tabIndex={0}
+            onClick={onOpen}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onOpen();
+                }
+            }}
+            className="group relative h-32 w-36 overflow-hidden rounded-2xl border border-warm-border-light bg-warm-card-light text-left shadow-md transition-all hover:-translate-y-0.5 hover:border-amber-500/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/35 dark:border-warm-border-dark dark:bg-warm-card-dark"
+        >
             {canPreview && kind === 'image' ? (
                 <img src={url} alt={name} className="w-full h-full object-cover" />
             ) : canPreview && kind === 'video' ? (
@@ -70,8 +211,17 @@ const MediaAttachment = ({ type, url, name, size, mimeType, previewable, showPre
                     {size ? <span className="mt-1 text-[9px] text-warm-text-muted-light">{formatBytes(size)}</span> : null}
                 </div>
             )}
+            {ocrStatus && !['skipped', 'skipped-protected'].includes(ocrStatus) ? (
+                <div className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg border border-black/10 bg-white/88 px-2 py-1 text-[8px] font-semibold text-zinc-700 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-950/78 dark:text-zinc-200">
+                    <span className="block truncate">{ocrLabel || 'OCR terminé'}</span>
+                    {ocrConfidence ? <span className="text-[7px] text-warm-text-muted-light">{Math.round(ocrConfidence)}% fiable</span> : null}
+                </div>
+            ) : null}
             <button 
-                onClick={onRemove}
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onRemove();
+                }}
                 className="absolute top-1.5 right-1.5 p-1.5 bg-black/60 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/80"
             >
                 <Trash2 size={12} />
@@ -90,20 +240,30 @@ export default function Editor({
     onOpenDexter,
     onOpenLicense,
     onCreateNote,
-    tagSuggestions = []
+    tagSuggestions = [],
+    notebooks = [],
+    tasks = [],
+    onSaveTask
 }) {
     const { t } = useTranslation();
     const [title, setTitle] = useState(note.title);
     const [isSaving, setIsSaving] = useState(false);
-    const [isAILoading, setIsAILoading] = useState(false);
-    const [aiSuggestions, setAiSuggestions] = useState([]);
     const [isDragging, setIsDragging] = useState(false);
     const [attachments, setAttachments] = useState(note.attachments || []);
-    const [tags, setTags] = useState(note.tags || ['Réflexion']);
-    const [newTagInput, setNewTagInput] = useState('');
-    const [showTagInput, setShowTagInput] = useState(false);
+    const [tags, setTags] = useState(() => normalizeNoteTags(note.tags || ['Réflexion']));
     const [showAttachmentPreviews, setShowAttachmentPreviews] = useState(settings?.attachmentPreviews !== false);
     const [contextMenu, setContextMenu] = useState(null);
+    const [selectedAttachment, setSelectedAttachment] = useState(null);
+    const [isDrawing, setIsDrawing] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+    const [taskTitle, setTaskTitle] = useState('');
+    const [taskDueDate, setTaskDueDate] = useState('');
+    const [taskDueTime, setTaskDueTime] = useState('');
+    const [passwordDialog, setPasswordDialog] = useState(null);
+    const [passwordValue, setPasswordValue] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [isDictating, setIsDictating] = useState(false);
+    const recognitionRef = useRef(null);
     
     const editorRef = useRef(null);
     const titleRef = useRef(null);
@@ -112,7 +272,7 @@ export default function Editor({
     useEffect(() => {
         setTitle(note.title);
         setAttachments(note.attachments || []);
-        setTags(note.tags || ['Réflexion']);
+        setTags(normalizeNoteTags(note.tags || ['Réflexion']));
     }, [note]);
 
     useEffect(() => {
@@ -164,26 +324,165 @@ export default function Editor({
     };
 
     const handleManualSave = () => {
-        onUpdateNote({ ...note, title, tags, attachments, updatedAt: getCurrentTimestamp() });
+        onUpdateNote({ ...note, title, tags: serializeNoteTags(tags), attachments, updatedAt: getCurrentTimestamp() });
         setIsSaving(false);
         soundManager.play('interaction').catch(console.error);
+    };
+
+    const handleExportPdf = () => {
+        const printWindow = window.open('', '_blank', 'popup,width=900,height=1100');
+        if (!printWindow) return;
+        printWindow.document.write(`<!doctype html><html><head><title>${escapeHtml(title || 'Fiip note')}</title><style>body{font-family:Inter,Arial,sans-serif;max-width:760px;margin:40px auto;line-height:1.6;color:#171717}h1{font-size:32px}.meta{color:#777;font-size:12px;margin-bottom:24px}img,video{max-width:100%;height:auto}pre{white-space:pre-wrap}</style></head><body><h1>${escapeHtml(title || 'Sans titre')}</h1><p class="meta">Export Fiip - ${new Date().toLocaleString()}</p>${note.content || ''}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),120));</script></body></html>`);
+        printWindow.document.close();
+        printWindow.focus();
+    };
+
+    const submitPasswordDialog = async (event) => {
+        event?.preventDefault();
+        if (!passwordDialog || !passwordValue) return;
+        setPasswordError('');
+        const password = passwordValue;
+        if (passwordDialog.mode === 'unlock') {
+            try {
+                const decrypted = await decryptData(note.encryptedContent || note.encrypted_content, password);
+                onUpdateNote({
+                    ...note,
+                    title: decrypted.title || note.title,
+                    content: decrypted.content || '',
+                    attachments: decrypted.attachments || [],
+                    encryptedContent: null,
+                    encrypted_content: null,
+                    isProtected: false,
+                    is_locked: false,
+                    security: { protected: false, locked: false },
+                    updatedAt: getCurrentTimestamp(),
+                });
+                setPasswordDialog(null);
+                setPasswordValue('');
+            } catch (error) {
+                setPasswordError(error.message || 'Impossible de deverrouiller la note.');
+            }
+            return;
+        }
+
+        const encrypted = await encryptData({ title, content: note.content, attachments }, password);
+        onUpdateNote({
+            ...note,
+            content: '',
+            attachments: [],
+            encryptedContent: encrypted,
+            encrypted_content: encrypted,
+            isProtected: true,
+            is_locked: true,
+            public_slug: null,
+            shared: false,
+            security: { protected: true, locked: true, algorithm: 'AES-GCM-256' },
+            updatedAt: getCurrentTimestamp(),
+        });
+        setPasswordDialog(null);
+        setPasswordValue('');
+    };
+
+    const handleProtectNote = () => {
+        if (note.isProtected || note.is_locked) {
+            setPasswordDialog({ mode: 'unlock' });
+            setPasswordValue('');
+            setPasswordError('');
+            return;
+        }
+
+        setPasswordDialog({ mode: 'lock' });
+        setPasswordValue('');
+        setPasswordError('');
+    };
+
+    const handleAddTask = async (event) => {
+        event.preventDefault();
+        if (!taskTitle.trim()) return;
+        await onSaveTask?.(createTask({
+            noteId: note.id,
+            title: taskTitle,
+            dueAt: buildDateTimeLocal(taskDueDate, taskDueTime) ? new Date(buildDateTimeLocal(taskDueDate, taskDueTime)).toISOString() : null,
+        }));
+        setTaskTitle('');
+        setTaskDueDate('');
+        setTaskDueTime('');
+    };
+
+    const handleStartDictation = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            setPasswordDialog({ mode: 'notice', title: 'Dictée indisponible', message: "La reconnaissance vocale n'est pas disponible dans ce moteur WebView. Activez la dictée système ou utilisez Chrome/Edge pour la version web." });
+            return;
+        }
+        if (recognitionRef.current && isDictating) {
+            recognitionRef.current.stop();
+            return;
+        }
+        const recognition = new SpeechRecognition();
+        recognition.lang = navigator.language || 'fr-FR';
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.onresult = (event) => {
+            const transcript = Array.from(event.results)
+                .slice(event.resultIndex)
+                .map((result) => result[0]?.transcript || '')
+                .join(' ')
+                .trim();
+            if (!transcript) return;
+            editorRef.current?.insertText(`<p>${escapeHtml(transcript)}</p>`);
+        };
+        recognition.onend = () => setIsDictating(false);
+        recognition.onerror = () => setIsDictating(false);
+        recognitionRef.current = recognition;
+        setIsDictating(true);
+        recognition.start();
+    };
+
+    const handleSaveDrawing = async (blob) => {
+        const file = new File([blob], `croquis-${Date.now()}.png`, { type: 'image/png' });
+        await addFiles([file]);
+        setIsDrawing(false);
+    };
+
+    const handleSaveScan = async (blob) => {
+        const file = new File([blob], `scan-webcam-${Date.now()}.png`, { type: 'image/png' });
+        await addFiles([file]);
+        setIsScannerOpen(false);
     };
 
     const addFiles = async (files) => {
         const newFiles = await Promise.all(Array.from(files).map(async (file) => {
             const cached = await cacheAttachment(file, note.id);
             const meta = classifyAttachment({ name: file.name, mimeType: file.type });
+            const ocr = await extractImageOcr(file, { protectedNote: Boolean(note.is_locked || note.encrypted_content) });
             return {
                 ...cached,
                 type: meta.kind,
                 previewable: meta.previewable,
+                ocrText: ocr.text,
+                ocrStatus: ocr.status,
+                ocrConfidence: ocr.confidence,
+                ocrKind: ocr.classification.kind,
+                ocrLabel: ocr.classification.label,
                 url: URL.createObjectURL(file),
             };
         }));
 
         const updatedAttachments = [...attachments, ...newFiles];
         setAttachments(updatedAttachments);
-        onUpdateNote({ ...note, attachments: updatedAttachments, updatedAt: getCurrentTimestamp() });
+        const updatedNote = { ...note, attachments: updatedAttachments, updatedAt: getCurrentTimestamp() };
+        onUpdateNote(updatedNote);
+
+        if (!updatedNote.is_locked && !updatedNote.encrypted_content) {
+            const attachmentTexts = updatedAttachments
+                .filter((attachment) => attachment.ocrText)
+                .map((attachment) => ({ id: attachment.id, text: attachment.ocrText }));
+            await Promise.allSettled([
+                ...newFiles.map((attachment) => dataService.upsertAttachmentMetadata(updatedNote.id, attachment)),
+                dataService.upsertSearchIndex(updatedNote, { attachmentTexts }),
+            ]);
+        }
     };
 
     const handleDrop = async (e) => {
@@ -192,66 +491,15 @@ export default function Editor({
         await addFiles(e.dataTransfer.files);
     };
 
-    const handleAIEnhance = async () => {
-        const readableText = stripNoteText(note.content || '');
-        if (!readableText) return;
-        setIsAILoading(true);
-        try {
-            const result = await aiService.enhanceNote({
-                title: title || note.title,
-                content: note.content,
-                tags,
-                goal: 'clarifier, corriger et améliorer la note sans inventer de faits',
-            });
-            if (result) {
-                onUpdateNote({ ...note, content: result, updatedAt: getCurrentTimestamp() });
-                soundManager.play('crystal-chime').catch(console.error);
-            }
-        } catch (error) {
-            console.error("AI Error", error);
-        } finally {
-            setIsAILoading(false);
-        }
+    const handlePaste = async (event) => {
+        const files = Array.from(event.clipboardData?.files || []);
+        if (!files.length) return;
+        event.preventDefault();
+        await addFiles(files);
     };
 
-    const handleAIRegenSuggestions = async () => {
-        setIsAILoading(true);
-        try {
-            const result = await aiService.getSmartSuggestions(note.content);
-            setAiSuggestions(result || []);
-        } catch (_) {
-            console.error("AI Suggestion Error");
-        } finally {
-            setIsAILoading(false);
-        }
-    };
-
-    const handleAddTag = (e) => {
-        e.preventDefault();
-        const tag = newTagInput.trim();
-        if (tag && !tags.some((item) => item.toLowerCase() === tag.toLowerCase())) {
-            const updatedTags = [...tags, tag].sort((a, b) => a.localeCompare(b, 'fr'));
-            setTags(updatedTags);
-            onUpdateNote({ ...note, tags: updatedTags, updatedAt: getCurrentTimestamp() });
-        }
-        setNewTagInput('');
-        setShowTagInput(false);
-    };
-
-    const addTag = (tag) => {
-        const normalized = String(tag || '').trim();
-        if (!normalized || tags.some((item) => item.toLowerCase() === normalized.toLowerCase())) {
-            return;
-        }
-        const updatedTags = [...tags, normalized].sort((a, b) => a.localeCompare(b, 'fr'));
-        setTags(updatedTags);
-        onUpdateNote({ ...note, tags: updatedTags, updatedAt: getCurrentTimestamp() });
-        setNewTagInput('');
-        setShowTagInput(false);
-    };
-
-    const handleRemoveTag = (tagToRemove) => {
-        const updatedTags = tags.filter(t => t !== tagToRemove);
+    const handleTagsChange = (nextTags) => {
+        const updatedTags = serializeNoteTags(nextTags);
         setTags(updatedTags);
         onUpdateNote({ ...note, tags: updatedTags, updatedAt: getCurrentTimestamp() });
     };
@@ -269,10 +517,7 @@ export default function Editor({
 
     const noteStats = getNoteStats(note);
     const hasContent = noteStats.hasReadableText;
-    const availableTagSuggestions = tagSuggestions
-        .filter((tag) => !tags.some((item) => item.toLowerCase() === String(tag).toLowerCase()))
-        .filter((tag) => !newTagInput.trim() || String(tag).toLowerCase().includes(newTagInput.trim().toLowerCase()))
-        .slice(0, 8);
+    const visibleTags = normalizeNoteTags(tags).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
 
     return (
         <div 
@@ -282,6 +527,7 @@ export default function Editor({
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
+            onPaste={handlePaste}
             onContextMenu={handleContextMenu}
         >
             {/* Header Actions */}
@@ -302,7 +548,7 @@ export default function Editor({
                                 type="text"
                                 value={title}
                                 onChange={handleTitleChange}
-                                className="bg-transparent border-none text-xl font-extrabold text-warm-text-primary-light dark:text-warm-text-primary-dark placeholder:text-warm-text-muted-light/30 focus:outline-none focus:ring-0 p-0 m-0 w-64 md:w-80"
+                                className="bg-transparent border-none text-lg font-semibold text-warm-text-primary-light dark:text-warm-text-primary-dark placeholder:text-warm-text-muted-light/30 focus:outline-none focus:ring-0 p-0 m-0 w-64 md:w-80"
                                 placeholder={t('editor.placeholder_title', 'Sans Titre')}
                             />
                         </div>
@@ -327,59 +573,25 @@ export default function Editor({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Tags Container */}
-                    <div className="hidden sm:flex items-center gap-1.5 mr-2">
-                        {[...tags].sort((a, b) => a.localeCompare(b, 'fr')).map(tag => (
+                    <div className="hidden max-w-[24rem] items-center gap-1.5 overflow-hidden sm:flex">
+                        {visibleTags.slice(0, 4).map(tag => {
+                            const colorClasses = getTagColorClasses(tag.color);
+                            return (
                             <span 
-                                key={tag} 
-                                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-1 rounded-lg border border-amber-500/20"
+                                key={tag.id} 
+                                className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-semibold ${colorClasses.bg} ${colorClasses.border} ${colorClasses.text}`}
                             >
-                                {tag}
+                                <span className={`h-1.5 w-1.5 rounded-full ${colorClasses.dot}`} />
+                                {tag.label}
                                 <button 
-                                    onClick={() => handleRemoveTag(tag)}
-                                    className="text-amber-700/50 dark:text-amber-300/60 hover:text-red-500"
-                                    aria-label={`Supprimer le tag ${tag}`}
+                                    onClick={() => handleTagsChange(visibleTags.filter((item) => item.id !== tag.id))}
+                                    className="opacity-55 hover:text-red-500 hover:opacity-100"
+                                    aria-label={`Supprimer le tag ${tag.label}`}
                                 >
                                     <X size={10} />
                                 </button>
                             </span>
-                        ))}
-                        {showTagInput ? (
-                            <form onSubmit={handleAddTag} className="relative inline-block">
-                                <input
-                                    type="text"
-                                    value={newTagInput}
-                                    onChange={(e) => setNewTagInput(e.target.value)}
-                                    onBlur={() => setShowTagInput(false)}
-                                    placeholder="Nouveau tag"
-                                    className="px-2 py-1 text-[10px] bg-white dark:bg-zinc-900 border border-warm-border-light dark:border-warm-border-dark rounded-lg outline-none w-28 text-warm-text-primary-light dark:text-warm-text-primary-dark"
-                                    autoFocus
-                                />
-                                {availableTagSuggestions.length > 0 && (
-                                    <div className="absolute right-0 top-7 z-50 w-40 rounded-xl border border-warm-border-light bg-white/95 p-1 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-zinc-950/95">
-                                        {availableTagSuggestions.map((tag) => (
-                                            <button
-                                                key={tag}
-                                                type="button"
-                                                onMouseDown={(event) => event.preventDefault()}
-                                                onClick={() => addTag(tag)}
-                                                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[10px] font-semibold text-warm-text-primary-light hover:bg-amber-500/10 dark:text-warm-text-primary-dark"
-                                            >
-                                                <Tag size={10} className="text-amber-500" />
-                                                <span className="truncate">{tag}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </form>
-                        ) : (
-                            <button 
-                                onClick={() => setShowTagInput(true)}
-                                className="p-1 rounded-lg border border-warm-border-light dark:border-warm-border-dark hover:bg-warm-sidebar-light"
-                            >
-                                <Tag size={10} className="text-warm-text-muted-light" />
-                            </button>
-                        )}
+                        )})}
                     </div>
 
                     {onCreateNote && (
@@ -403,10 +615,30 @@ export default function Editor({
 
                     <button 
                         onClick={onOpenShare}
+                        disabled={note.isProtected || note.is_locked}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 border border-transparent rounded-xl text-xs font-semibold transition-all shadow-sm"
+                        title={note.isProtected || note.is_locked ? 'Les notes protegees ne peuvent pas etre partagees.' : 'Partager'}
                     >
                         <Share2 size={13} />
                         <span>Partager</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={handleProtectNote}
+                        className="p-1.5 rounded-xl border border-warm-border-light dark:border-warm-border-dark hover:bg-amber-500/10 hover:border-amber-500/30 transition-all text-warm-text-muted-light hover:text-amber-600"
+                        title={note.isProtected || note.is_locked ? 'Deverrouiller la note' : 'Proteger par mot de passe'}
+                    >
+                        {note.isProtected || note.is_locked ? <UnlockKeyhole size={15} /> : <LockKeyhole size={15} />}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={handleExportPdf}
+                        className="p-1.5 rounded-xl border border-warm-border-light dark:border-warm-border-dark hover:bg-blue-500/10 hover:border-blue-500/30 transition-all text-warm-text-muted-light hover:text-blue-600"
+                        title="Exporter en PDF"
+                    >
+                        <FileDown size={15} />
                     </button>
 
                     <button 
@@ -424,11 +656,11 @@ export default function Editor({
                 {attachments.length > 0 && (
                     <div className="flex flex-wrap gap-4 mb-6 z-10 relative">
                         <div className="w-full flex items-center justify-between mb-1">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-warm-text-muted-light">Pièces jointes</span>
+                            <span className="text-[11px] font-semibold text-warm-text-muted-light">Pièces jointes</span>
                             <button
                                 type="button"
                                 onClick={() => setShowAttachmentPreviews((value) => !value)}
-                                className="flex items-center gap-1.5 rounded-lg border border-warm-border-light dark:border-warm-border-dark px-2 py-1 text-[10px] font-bold text-warm-text-secondary-light dark:text-warm-text-secondary-dark hover:bg-warm-sidebar-item-active"
+                                className="flex items-center gap-1.5 rounded-lg border border-warm-border-light dark:border-warm-border-dark px-2 py-1 text-[11px] font-semibold text-warm-text-secondary-light dark:text-warm-text-secondary-dark hover:bg-warm-sidebar-item-active"
                             >
                                 {showAttachmentPreviews ? <EyeOff size={12} /> : <Eye size={12} />}
                                 {showAttachmentPreviews ? 'Masquer les aperçus' : 'Afficher les aperçus'}
@@ -439,6 +671,7 @@ export default function Editor({
                                 key={att.id} 
                                 {...att} 
                                 showPreview={showAttachmentPreviews}
+                                onOpen={() => setSelectedAttachment(att)}
                                 onRemove={() => {
                                     const updatedAttachments = attachments.filter(a => a.id !== att.id);
                                     setAttachments(updatedAttachments);
@@ -449,126 +682,108 @@ export default function Editor({
                     </div>
                 )}
 
+                {(note.isProtected || note.is_locked) && !note.content ? (
+                    <div className="mb-6 rounded-3xl border border-amber-500/25 bg-amber-500/10 p-6 text-sm text-amber-800 dark:text-amber-200">
+                        <div className="flex items-center gap-2 font-semibold">
+                            <LockKeyhole size={18} />
+                            Note protegee
+                        </div>
+                        <p className="mt-2 leading-6 text-amber-800/80 dark:text-amber-100/75">
+                            Le contenu, les pieces jointes, l'IA, la recherche cloud, le partage public et la collaboration sont bloques tant que la note reste verrouillee.
+                        </p>
+                    </div>
+                ) : null}
+
+                <div className="mb-6 grid gap-3 rounded-3xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.04] md:grid-cols-[1fr_auto]">
+                    <form onSubmit={handleAddTask} className="flex flex-wrap items-center gap-2">
+                        <CheckSquare size={16} className="text-emerald-500" />
+                        <input
+                            value={taskTitle}
+                            onChange={(event) => setTaskTitle(event.target.value)}
+                            placeholder="Ajouter une tache liee a cette note"
+                            className="h-9 min-w-44 flex-1 rounded-xl border border-warm-border-light bg-white px-3 text-xs font-semibold outline-none dark:border-white/10 dark:bg-[#111316]"
+                        />
+                        <TaskDatePicker value={taskDueDate} onChange={setTaskDueDate} />
+                        <label className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light bg-white px-3 text-xs font-semibold dark:border-white/10 dark:bg-[#111316]">
+                            <Clock size={13} className="text-warm-text-muted-light" />
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                value={taskDueTime}
+                                onChange={(event) => setTaskDueTime(event.target.value)}
+                                placeholder="09:00"
+                                pattern="\d{2}:\d{2}"
+                                className="w-12 bg-transparent outline-none"
+                                aria-label="Heure d'echeance"
+                            />
+                        </label>
+                        <button type="submit" className="h-9 rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white">
+                            Ajouter
+                        </button>
+                    </form>
+                    <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light px-3 text-xs font-semibold hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/10">
+                            <ScanLine size={14} />
+                            Importer
+                        </button>
+                        <button type="button" onClick={() => setIsScannerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light px-3 text-xs font-semibold hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/10">
+                            <ScanLine size={14} />
+                            Webcam
+                        </button>
+                        <button type="button" onClick={() => setIsDrawing(true)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light px-3 text-xs font-semibold hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/10">
+                            <PenLine size={14} />
+                            Croquis
+                        </button>
+                    </div>
+                    {tasks.length > 0 && (
+                        <div className="md:col-span-2 flex flex-wrap gap-2">
+                            {tasks.map((task) => (
+                                <span key={task.id} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                                    <CheckSquare size={12} />
+                                    {task.title}
+                                    {task.due_at ? <span className="text-emerald-700/60 dark:text-emerald-200/60">{new Date(task.due_at).toLocaleDateString()}</span> : null}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
                 <RichTextEditor 
                     ref={editorRef}
-                    value={note.content} 
+                    value={note.isProtected || note.is_locked ? '' : note.content} 
                     onChange={handleContentChange}
                     noteId={note.id}
                 />
             </div>
 
-            {/* Bottom Floating Bar (Dexter Quick Access) */}
-            <div className="absolute bottom-5 right-5 z-40 w-[min(44rem,calc(100%-2.5rem))] select-none">
-                <div className="p-2.5 rounded-2xl border border-black/10 dark:border-white/10 bg-[#fbfaf6]/82 dark:bg-[#171715]/88 backdrop-blur-3xl shadow-[0_20px_70px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_70px_rgba(0,0,0,0.42)] flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <button 
-                            onClick={onOpenDexter}
-                            className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-[0_10px_24px_rgba(245,158,11,0.35)] hover:-translate-y-0.5 active:translate-y-0 transition-all group"
-                            aria-label="Ouvrir Dexter"
-                        >
-                            <Sparkles size={16} className="group-hover:rotate-12 transition-transform" />
-                        </button>
-                        <div className="flex flex-col text-left">
-                            <span className="text-[11px] font-black text-warm-text-primary-light dark:text-warm-text-primary-dark uppercase tracking-wider">Dexter IA</span>
-                            <span className="text-[10px] text-warm-text-muted-light dark:text-warm-text-muted-dark truncate w-40 font-semibold font-sans">Corriger, résumer, réécrire</span>
-                        </div>
-                    </div>
+            <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={async (event) => {
+                    if (event.target.files?.length) {
+                        await addFiles(event.target.files);
+                        event.target.value = '';
+                    }
+                }}
+            />
 
-                    <div className="flex items-center gap-1 bg-warm-sidebar-light/50 dark:bg-zinc-800/50 p-1 rounded-xl border border-warm-border-light dark:border-warm-border-dark">
-                        <button
-                            type="button"
-                            onClick={() => { soundManager.play('interaction').catch(console.error); onOpenDexter?.(); }}
-                            className="p-2 rounded-lg text-warm-text-muted-light hover:text-warm-text-primary-light hover:bg-warm-sidebar-item-active transition-all"
-                            title="Demander une dictée à Dexter"
-                        >
-                            <Mic size={15} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                soundManager.play('interaction').catch(console.error);
-                                const text = stripNoteText(note.content || '');
-                                if (!text || !window.speechSynthesis) return;
-                                window.speechSynthesis.cancel();
-                                window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-                            }}
-                            disabled={!hasContent}
-                            className="p-2 rounded-lg text-warm-text-muted-light hover:text-warm-text-primary-light hover:bg-warm-sidebar-item-active transition-all disabled:opacity-40"
-                            title="Lire la note"
-                        >
-                            <Volume2 size={15} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { soundManager.play('interaction').catch(console.error); editorRef.current?.getEditor()?.chain().focus().toggleHeading({ level: 2 }).run(); }}
-                            className="p-2 rounded-lg text-warm-text-muted-light hover:text-warm-text-primary-light hover:bg-warm-sidebar-item-active transition-all"
-                            title="Transformer en titre"
-                        >
-                            <Type size={15} />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { soundManager.play('interaction').catch(console.error); fileInputRef.current?.click(); }}
-                            className="p-2 rounded-lg text-warm-text-muted-light hover:text-warm-text-primary-light hover:bg-warm-sidebar-item-active transition-all"
-                            title="Joindre un fichier"
-                        >
-                            <ImageIcon size={15} />
-                        </button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            className="hidden"
-                            onChange={async (event) => {
-                                if (event.target.files?.length) {
-                                    await addFiles(event.target.files);
-                                    event.target.value = '';
-                                }
-                            }}
-                        />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <button 
-                            onClick={handleAIEnhance}
-                            disabled={isAILoading || !hasContent}
-                            className={`flex items-center gap-1.5 px-4 py-2 bg-white/70 hover:bg-white dark:bg-white/[0.08] dark:hover:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-xl font-bold text-[10px] uppercase tracking-wider text-warm-text-primary-light dark:text-warm-text-primary-dark transition-all disabled:opacity-50`}
-                        >
-                            {isAILoading ? (
-                                <div className="w-3.5 h-3.5 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                            ) : (
-                                <Sparkles size={12} className="text-amber-500" />
-                            )}
-                            Améliorer
-                        </button>
-                        
-                        <div className="h-6 w-px bg-warm-border-light dark:bg-warm-border-dark mx-1" />
-
-                        <button 
-                            onClick={onOpenLicense}
-                            className="p-2 rounded-lg text-warm-text-muted-light hover:text-amber-500 hover:bg-amber-500/5 transition-all"
-                            title="Licence Premium"
-                        >
-                            <Lock size={15} />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Ghost AI Suggestions Bar */}
-                {note.content?.length > 100 && aiSuggestions.length > 0 && (
-                    <div className="absolute top-[-44px] left-0 w-full flex justify-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <button 
-                            onClick={handleAIRegenSuggestions}
-                            className="px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-md text-[9px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all uppercase tracking-wider"
-                        >
-                            Refaire le plan
-                        </button>
-                        <button className="px-3.5 py-1.5 rounded-xl bg-purple-500/10 border border-purple-500/20 backdrop-blur-md text-[9px] font-bold text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-all uppercase tracking-wider">
-                            Trouver des sources
-                        </button>
-                    </div>
-                )}
-            </div>
+            <EditorActionBar
+                note={{ ...note, tags }}
+                hasContent={hasContent}
+                onOpenDexter={onOpenDexter}
+                onOpenLicense={onOpenLicense}
+                onAttachFile={() => {
+                    soundManager.play('interaction').catch(console.error);
+                    fileInputRef.current?.click();
+                }}
+                onStartDictation={handleStartDictation}
+                isDictating={isDictating}
+                onUpdateTags={handleTagsChange}
+                tagSuggestions={tagSuggestions}
+                editorRef={editorRef}
+            />
 
             {contextMenu && (
                 <div
@@ -649,6 +864,67 @@ export default function Editor({
                     <span className="text-[9px] font-mono text-white/20">CTRL + S</span>
                 </div>
             </div>
+
+            <AttachmentViewer attachment={selectedAttachment} onClose={() => setSelectedAttachment(null)} />
+            {passwordDialog && (
+                <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 p-4 backdrop-blur-xl" role="dialog" aria-modal="true">
+                    <form onSubmit={submitPasswordDialog} className="w-[min(420px,92vw)] overflow-hidden rounded-[28px] border border-white/18 bg-[#fbfaf6]/94 p-5 text-warm-text-primary-light shadow-[0_28px_90px_rgba(0,0,0,0.34)] backdrop-blur-3xl dark:bg-[#111316]/94 dark:text-warm-text-primary-dark">
+                        <div className="flex items-start gap-3">
+                            <div className="rounded-2xl bg-amber-500/12 p-2 text-amber-600 dark:text-amber-300">
+                                {passwordDialog.mode === 'notice' ? <AlertCircle size={20} /> : <LockKeyhole size={20} />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-base font-semibold">
+                                    {passwordDialog.title || (passwordDialog.mode === 'unlock' ? 'Déverrouiller la note' : 'Protéger cette note')}
+                                </h2>
+                                <p className="mt-1 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
+                                    {passwordDialog.message || (passwordDialog.mode === 'unlock'
+                                        ? 'Saisissez le mot de passe de cette note.'
+                                        : 'Choisissez un mot de passe local. Fiip ne pourra pas le récupérer pour vous.')}
+                                </p>
+                            </div>
+                        </div>
+                        {passwordDialog.mode !== 'notice' && (
+                            <input
+                                autoFocus
+                                type="password"
+                                value={passwordValue}
+                                onChange={(event) => setPasswordValue(event.target.value)}
+                                className="mt-5 h-11 w-full rounded-2xl border border-warm-border-light bg-white px-4 text-sm font-semibold outline-none focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/10 dark:border-white/10 dark:bg-white/[0.06]"
+                            />
+                        )}
+                        {passwordError && (
+                            <p className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-200">{passwordError}</p>
+                        )}
+                        <div className="mt-5 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setPasswordDialog(null);
+                                    setPasswordValue('');
+                                    setPasswordError('');
+                                }}
+                                className="rounded-2xl border border-warm-border-light px-4 py-2 text-xs font-semibold hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/10"
+                            >
+                                {passwordDialog.mode === 'notice' ? 'Fermer' : 'Annuler'}
+                            </button>
+                            {passwordDialog.mode !== 'notice' && (
+                                <button type="submit" className="rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-zinc-950" disabled={!passwordValue}>
+                                    {passwordDialog.mode === 'unlock' ? 'Déverrouiller' : 'Protéger'}
+                                </button>
+                            )}
+                        </div>
+                    </form>
+                </div>
+            )}
+            {isDrawing && (
+                <div className="fixed inset-0 z-[130] bg-black/70">
+                    <CanvasDraw onSave={handleSaveDrawing} onClose={() => setIsDrawing(false)} />
+                </div>
+            )}
+            {isScannerOpen && (
+                <DocumentScanner onSave={handleSaveScan} onClose={() => setIsScannerOpen(false)} />
+            )}
         </div>
     );
 }

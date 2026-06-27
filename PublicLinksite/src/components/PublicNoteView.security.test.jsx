@@ -51,4 +51,14 @@ describe('PublicNoteView security', () => {
     expect(screen.queryByText('Fichier piégé')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Document sûr/i })).toHaveAttribute('href', 'https://example.com/doc.pdf');
   });
+
+  it('renders the local demo note without Supabase', async () => {
+    window.history.pushState({}, '', '/n/demo');
+
+    render(<PublicNoteView />);
+
+    expect(await screen.findByRole('heading', { name: 'Carnet de lancement Fiip' })).toBeInTheDocument();
+    expect(screen.getByText(/Préparer une capture de la popup Fiip Clipper/)).toBeInTheDocument();
+    expect(dataService.getPublicNote).not.toHaveBeenCalled();
+  });
 });

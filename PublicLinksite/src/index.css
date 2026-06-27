@@ -67,8 +67,8 @@ button {
 
 .brand-mark {
   font-family: "Host Grotesk", "Geist", sans-serif;
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 700;
 }
 
 .nav-actions,
@@ -79,6 +79,22 @@ button {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.install-note {
+  max-width: 620px;
+  margin-top: 14px;
+  color: rgba(245, 239, 224, 0.72);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.install-note code {
+  border: 1px solid rgba(245, 239, 224, 0.18);
+  border-radius: 8px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 0.92em;
 }
 
 .ghost-link,
@@ -96,7 +112,7 @@ button {
   padding: 0 16px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.44);
-  font-weight: 800;
+  font-weight: 700;
   transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms ease;
 }
 
@@ -118,27 +134,31 @@ button {
 
 .hero-grid {
   max-width: 1180px;
-  margin: 72px auto 0;
+  margin: 86px auto 0;
   display: grid;
   grid-template-columns: minmax(0, 1.03fr) minmax(320px, 0.8fr);
-  gap: 36px;
+  gap: 52px;
   align-items: center;
 }
 
 .hero-copy h1 {
   font-family: "Host Grotesk", "Geist", sans-serif;
   max-width: 760px;
-  margin: 14px 0 18px;
-  font-size: clamp(48px, 8vw, 92px);
-  line-height: 0.92;
+  margin: 18px 0 24px;
+  font-size: clamp(38px, 6.4vw, 72px);
+  line-height: 0.98;
   letter-spacing: 0;
+}
+
+.hero-copy h1 span {
+  display: block;
 }
 
 .hero-copy p {
   max-width: 640px;
   color: var(--muted);
   font-size: 20px;
-  line-height: 1.6;
+  line-height: 1.75;
 }
 
 .eyebrow,
@@ -149,7 +169,7 @@ button {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .public-panel {
@@ -177,9 +197,9 @@ button {
 }
 
 .note-preview {
-  min-height: 430px;
+  min-height: 500px;
   border-radius: 34px;
-  padding: 28px;
+  padding: 34px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -201,17 +221,40 @@ button {
 }
 
 .note-preview h2 {
-  margin: 10px 0;
+  margin: 14px 0 18px;
   font-family: "Host Grotesk", "Geist", sans-serif;
-  font-size: 42px;
-  line-height: 1;
+  font-size: clamp(30px, 4.2vw, 44px);
+  line-height: 1.02;
+}
+
+.preview-lead {
+  margin-top: 0;
+  font-size: 18px;
+  font-weight: 650;
+  color: rgba(24, 21, 19, 0.86) !important;
 }
 
 .note-preview p,
 .feature-card p,
 .note-error p {
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.7;
+}
+
+.demo-note-list {
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  list-style: none;
+}
+
+.demo-note-list li {
+  border-left: 3px solid rgba(245, 158, 11, 0.65);
+  padding-left: 12px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .preview-toolbar span {
@@ -219,12 +262,35 @@ button {
   border-radius: 999px;
   background: rgba(24,21,19,0.07);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
+}
+
+.story-band {
+  max-width: 1180px;
+  margin: 74px auto 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 0.8fr);
+  gap: 48px;
+  align-items: end;
+}
+
+.story-band h2 {
+  margin: 14px 0 0;
+  font-family: "Host Grotesk", "Geist", sans-serif;
+  font-size: clamp(30px, 4.2vw, 50px);
+  line-height: 1.02;
+}
+
+.story-band p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 19px;
+  line-height: 1.75;
 }
 
 .feature-band {
   max-width: 1180px;
-  margin: 42px auto 0;
+  margin: 34px auto 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
@@ -243,6 +309,36 @@ button {
 .feature-card h3 {
   margin: 16px 0 8px;
   font-size: 20px;
+}
+
+.flow-band {
+  max-width: 1180px;
+  margin: 18px auto 0;
+  border-radius: 30px;
+  padding: 26px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.flow-band div {
+  padding: 10px;
+}
+
+.flow-band svg {
+  font-size: 26px;
+  color: var(--blue);
+}
+
+.flow-band h3 {
+  margin: 14px 0 8px;
+  font-size: 20px;
+}
+
+.flow-band p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
 }
 
 .note-shell {
@@ -385,7 +481,9 @@ button {
 
   .hero-grid,
   .note-layout,
-  .feature-band {
+  .feature-band,
+  .story-band,
+  .flow-band {
     grid-template-columns: 1fr;
   }
 

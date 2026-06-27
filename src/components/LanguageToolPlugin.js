@@ -64,6 +64,33 @@ const makeDecorations = (matches, mapping) => {
   return decorations;
 };
 
+const openGrammarMenu = (view, event) => {
+  const target = event.target?.nodeType === Node.ELEMENT_NODE ? event.target : event.target?.parentElement;
+  const grammarTarget = target?.closest?.(".ProseMirror-grammar");
+  if (!grammarTarget) {return false;}
+
+  event.preventDefault();
+  event.stopPropagation();
+  const replacementsStr = grammarTarget.getAttribute("data-replacements");
+  const message = grammarTarget.getAttribute("data-message");
+  const from = parseInt(grammarTarget.getAttribute("data-from"), 10);
+  const to = parseInt(grammarTarget.getAttribute("data-to"), 10);
+
+  const customEvent = new CustomEvent("languagetool:contextmenu", {
+    detail: {
+      x: event.clientX,
+      y: event.clientY,
+      replacementsStr,
+      message,
+      from,
+      to,
+      view
+    }
+  });
+  window.dispatchEvent(customEvent);
+  return true;
+};
+
 const makeLinter = (view, { languageToolCheckURL, languageToolCheck, language }) => {
   let aborter = null;
 
@@ -146,31 +173,11 @@ export const grammarPlugin = (options) => {
         return this.getState(state)?.decorationSet;
       },
       handleDOMEvents: {
+        click(view, event) {
+          return openGrammarMenu(view, event);
+        },
         contextmenu(view, event) {
-          const target = event.target;
-          if (target && target.classList.contains("ProseMirror-grammar")) {
-            event.preventDefault();
-            const replacementsStr = target.getAttribute("data-replacements");
-            // const replacements = replacementsStr ? JSON.parse(replacementsStr) : [];
-            const message = target.getAttribute("data-message");
-            const from = parseInt(target.getAttribute("data-from"), 10);
-            const to = parseInt(target.getAttribute("data-to"), 10);
-
-            const customEvent = new CustomEvent("languagetool:contextmenu", {
-              detail: {
-                x: event.clientX,
-                y: event.clientY,
-                replacementsStr,
-                message,
-                from,
-                to,
-                view
-              }
-            });
-            window.dispatchEvent(customEvent);
-            return true; // handled
-          }
-          return false;
+          return openGrammarMenu(view, event);
         }
       }
     },

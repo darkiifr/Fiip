@@ -194,6 +194,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_OPENROUTER_KEY: ${{ secrets.VITE_OPENROUTER_KEY }}
           VITE_HOCUSPOCUS_URL: ${{ secrets.VITE_HOCUSPOCUS_URL }}
+          VITE_CHROME_EXTENSION_URL: ${{ vars.VITE_CHROME_EXTENSION_URL }}
         with:
           tagName: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           releaseName: 'App v__VERSION__'
@@ -249,6 +250,41 @@ jobs:
           
           # Upload
           gh release upload $TAG_NAME $ZIP_NAME
+
+
+  browser-extensions:
+    needs: [release, bump-version]
+    if: always() && (needs.release.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install frontend dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Test browser extensions
+        run: npm run test:extensions
+
+      - name: Package browser extensions
+        run: npm run package:extensions
+
+      - name: Upload Chrome Store and manual Edge extension packages
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
+          files: |
+            dist/extensions/Fiip-Web-Clipper-Chrome.zip
+            dist/extensions/Fiip-Web-Clipper-Edge.zip
 
 
   generate-updater-json:

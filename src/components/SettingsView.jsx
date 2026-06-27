@@ -1,7 +1,7 @@
 import { getVersion } from '@tauri-apps/api/app';
-import { type } from '@tauri-apps/plugin-os';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { open } from '@tauri-apps/plugin-shell';
+import { check } from '@tauri-apps/plugin-updater';
 import {
     IconFrance,
     IconGermany,
@@ -13,7 +13,7 @@ import {
     IconSpain,
     IconUnitedKingdom,
 } from 'nucleo-flags';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useUI } from '../providers/UIProvider';
@@ -24,26 +24,20 @@ import { getFontCacheSize } from '../services/fontStore';
 import { keyAuthService } from '../services/keyauth';
 import { getPlatformDisplayName } from '../services/platform';
 import { authService } from '../services/supabase';
+import { coerceWindowEffect, getWindowEffectOptions } from '../utils/windowEffects';
 
 import FontManager from './FontManager';
-import CustomSelect from './CustomSelect';
 import { GlassSwitch } from './ui/GlassSwitch';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from './ui/Select';
 
 // Icons Import
-import IconArrowRight from '~icons/mingcute/arrow-right-fill';
 import IconCheck from '~icons/mingcute/check-fill';
 import IconCpu from '~icons/mingcute/chip-fill';
-import IconClose from '~icons/mingcute/close-fill';
 import IconCloud from '~icons/mingcute/cloud-fill';
 import IconDownload from '~icons/mingcute/download-2-fill';
 import IconGlobe from '~icons/mingcute/earth-2-fill';
-import IconFontSize from '~icons/mingcute/font-size-fill';
-import IconMessage from '~icons/mingcute/message-3-fill';
-import IconMic from '~icons/mingcute/mic-fill';
 import IconRefresh from '~icons/mingcute/refresh-3-fill';
 import IconBot from '~icons/mingcute/robot-fill';
-import IconSparkles from '~icons/mingcute/sparkles-fill';
 import IconVolume from '~icons/mingcute/volume-fill';
 import IconLeft from '~icons/mingcute/left-fill';
 import IconSettings from '~icons/mingcute/settings-1-fill';
@@ -59,7 +53,8 @@ export default function SettingsView({
     storageUsage,
     onSync,
     onBack,
-    initialTab = 'general'
+    initialTab = 'general',
+    osType = 'unknown'
 }) {
     const { t, i18n } = useTranslation();
     const { theme: uiTheme, setTheme: setUiTheme } = useUI();
@@ -69,12 +64,12 @@ export default function SettingsView({
     const [platformName, setPlatformName] = useState('');
     const [appVersion, setAppVersion] = useState('');
     const [voices, setVoices] = useState([]);
-    const [isLinux, setIsLinux] = useState(false);
     const [pendingUpdatesCount, setPendingUpdatesCount] = useState(0);
     const [currentUser, setCurrentUser] = useState(null);
     const [lastSyncAt, setLastSyncAt] = useState(() => localStorage.getItem('fiip-last-sync-at') || '');
     const [aiUsage, setAiUsage] = useState(() => getLastAIUsageStats());
     const [cacheStats, setCacheStats] = useState({ attachments: 0, fonts: 0 });
+    const [updateStatus, setUpdateStatus] = useState('Non vérifié');
 
     const languages = [
         { code: 'fr', label: 'Français', short: 'FR', Flag: IconFrance },
@@ -99,15 +94,6 @@ export default function SettingsView({
     }, [initialTab]);
 
     useEffect(() => {
-        const checkOS = async () => {
-            try {
-                const osType = await type();
-                if (osType === 'linux') setIsLinux(true);
-            } catch (e) {
-                console.warn(e);
-            }
-        };
-        checkOS();
         authService.getUser().then(setCurrentUser).catch(() => setCurrentUser(null));
         const unsubscribeAI = subscribeToAIUsage(setAiUsage);
         const refreshCache = async () => {
@@ -171,24 +157,35 @@ export default function SettingsView({
         onUpdateSettings(newSettings);
     };
 
-    const handleRestart = async () => {
-        try {
-            await relaunch();
-        } catch (error) {
-            console.error('Failed to relaunch:', error);
-            alert('Échec du redémarrage : ' + error.message);
-        }
-    };
-
     const syncAvailable = Boolean(currentUser);
     const storagePercent = Number.isFinite(storageUsage?.percent) ? storageUsage.percent : 0;
     const storageLimit = Number(storageUsage?.limit || 0);
     const totalCacheSize = cacheStats.attachments + cacheStats.fonts;
     const currentLicenseName = keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : 'Aucune licence active';
+    const windowEffectOptions = getWindowEffectOptions(osType);
 
     const handleClearAttachmentCache = async () => {
         await clearAttachmentCache();
         setCacheStats((stats) => ({ ...stats, attachments: 0 }));
+    };
+
+    const handleCheckUpdates = async () => {
+        setUpdateStatus('Vérification...');
+        if (!window.__TAURI_INTERNALS__) {
+            setUpdateStatus('Ouvre les versions GitHub');
+            await open('https://github.com/darkiifr/Fiip/releases');
+            return;
+        }
+        try {
+            const update = await check();
+            if (update?.available) {
+                setUpdateStatus(`Version ${update.version} disponible`);
+            } else {
+                setUpdateStatus(`À jour (${appVersion || 'version actuelle'})`);
+            }
+        } catch (error) {
+            setUpdateStatus(error?.message || 'Vérification impossible');
+        }
     };
 
     return (
@@ -243,7 +240,7 @@ export default function SettingsView({
                     {activeTab === 'general' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-xl font-bold tracking-tight mb-1">{t('settings.general', 'Général')}</h3>
+                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.general', 'Général')}</h3>
                                 <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Gérez la langue et les préférences système de base.</p>
                             </div>
 
@@ -317,7 +314,7 @@ export default function SettingsView({
                     {activeTab === 'appearance' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-xl font-bold tracking-tight mb-1">{t('settings.appearance', 'Apparence')}</h3>
+                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.appearance', 'Apparence')}</h3>
                                 <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Personnalisez le style visuel de l'application.</p>
                             </div>
 
@@ -375,22 +372,24 @@ export default function SettingsView({
                             <div className="bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark rounded-2xl p-4 space-y-4">
                                 <label className="text-sm font-semibold block">{t('settings.window_effects_title', 'Effets de Transparence')}</label>
                                 <div className="bg-warm-sidebar-light dark:bg-warm-sidebar-dark rounded-xl p-1 flex gap-1 border border-warm-border-light dark:border-warm-border-dark">
-                                    {['none', 'mica', 'acrylic'].map((effect) => (
+                                    {windowEffectOptions.map((effect) => (
                                         <button
-                                            key={effect}
-                                            onClick={() => handleUpdate({ ...localSettings, windowEffect: effect })}
+                                            key={effect.id}
+                                            disabled={!effect.supported}
+                                            onClick={() => handleUpdate({ ...localSettings, windowEffect: coerceWindowEffect(effect.id, osType) })}
                                             className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
-                                                localSettings.windowEffect === effect
+                                                localSettings.windowEffect === effect.id
                                                     ? 'bg-white dark:bg-zinc-800 text-warm-text-primary-light dark:text-warm-text-primary-dark shadow-sm border border-warm-border-light dark:border-warm-border-dark'
-                                                    : 'text-warm-text-muted-light dark:text-warm-text-muted-dark hover:text-warm-text-primary-light dark:hover:text-warm-text-primary-dark'
+                                                    : 'text-warm-text-muted-light dark:text-warm-text-muted-dark hover:text-warm-text-primary-light dark:hover:text-warm-text-primary-dark disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:text-warm-text-muted-light'
                                             }`}
+                                            title={effect.supported ? undefined : 'Indisponible sur cet OS'}
                                         >
-                                            {effect === 'none' ? 'Aucun' : effect.charAt(0).toUpperCase() + effect.slice(1)}
+                                            {effect.label}
                                         </button>
                                     ))}
                                 </div>
                                 <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                    {t('settings.window_effects_desc', 'Modifie le style de la fenêtre desktop transparente de Tauri.')}
+                                    {t('settings.window_effects_desc', 'Les effets non supportes par votre OS restent desactives. Windows prend en charge Mica/Acrylic/Blur, macOS Vibrancy, Linux aucun effet natif.')}
                                 </p>
                             </div>
                         </div>
@@ -400,39 +399,8 @@ export default function SettingsView({
                     {activeTab === 'editor' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-xl font-bold tracking-tight mb-1">{t('settings.editor', 'Éditeur')}</h3>
+                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.editor', 'Éditeur')}</h3>
                                 <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Ajustez les options de rédaction et d'orthographe.</p>
-                            </div>
-
-                            {/* Taille de police */}
-                            <div className="bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark rounded-2xl p-4 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-0.5">
-                                        <label className="text-sm font-semibold">{t('settings.font_size_label', 'Taille du texte')}</label>
-                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Ajuster la taille du texte dans l'éditeur.</p>
-                                    </div>
-                                    <div className="w-48">
-                                        <Select 
-                                            value={localSettings.fontSize || 'normal'}
-                                            onValueChange={(val) => handleUpdate({ ...localSettings, fontSize: val })}
-                                        >
-                                            <SelectTrigger className="w-full bg-white dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl px-3 py-2 text-sm text-left">
-                                                <div className="flex items-center gap-2">
-                                                    <IconFontSize className="w-4 h-4 text-warm-text-muted-light" />
-                                                    <SelectValue />
-                                                </div>
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-white dark:bg-zinc-900 border border-warm-border-light dark:border-warm-border-dark rounded-xl shadow-lg mt-1 p-1">
-                                                <SelectGroup>
-                                                    <SelectItem value="small" className="px-3 py-2 rounded-lg text-sm hover:bg-warm-sidebar-item-active cursor-pointer">{t('settings.font_size_small', 'Petite')}</SelectItem>
-                                                    <SelectItem value="normal" className="px-3 py-2 rounded-lg text-sm hover:bg-warm-sidebar-item-active cursor-pointer">{t('settings.font_size_normal', 'Normale')}</SelectItem>
-                                                    <SelectItem value="large" className="px-3 py-2 rounded-lg text-sm hover:bg-warm-sidebar-item-active cursor-pointer">{t('settings.font_size_large', 'Grande')}</SelectItem>
-                                                    <SelectItem value="xlarge" className="px-3 py-2 rounded-lg text-sm hover:bg-warm-sidebar-item-active cursor-pointer">{t('settings.font_size_xlarge', 'Très Grande')}</SelectItem>
-                                                </SelectGroup>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
                             </div>
 
                             {/* Correcteur */}
@@ -469,7 +437,7 @@ export default function SettingsView({
                     {activeTab === 'sync' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-xl font-bold tracking-tight mb-1">{t('settings.cloud_sync_title', 'Synchronisation Cloud')}</h3>
+                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.cloud_sync_title', 'Synchronisation Cloud')}</h3>
                                 <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Gérez la réplication de vos données et le stockage multi-appareils.</p>
                             </div>
 
@@ -576,7 +544,7 @@ export default function SettingsView({
                     {activeTab === 'ai' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-xl font-bold tracking-tight mb-1">{t('settings.ai_title', 'Intelligence Artificielle')}</h3>
+                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.ai_title', 'Intelligence Artificielle')}</h3>
                                 <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Gérez l'intégration de Dexter, votre assistant de rédaction intelligent.</p>
                             </div>
 
@@ -638,32 +606,32 @@ export default function SettingsView({
                     {activeTab === 'premium' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-xl font-bold tracking-tight mb-1">Fiip Premium</h3>
+                                <h3 className="text-lg font-semibold tracking-tight mb-1">Fiip Premium</h3>
                                 <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Compte, licence officielle et synchronisation multi-appareils.</p>
                             </div>
 
                             <div className="rounded-3xl border border-amber-500/20 bg-warm-card-light p-6 shadow-sm dark:bg-white/[0.045]">
                                 <div className="flex items-start justify-between gap-6">
                                     <div className="space-y-3">
-                                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                                        <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
                                             <IconKey className="h-3.5 w-3.5" />
                                             Licence SellAuth
                                         </span>
-                                        <h4 className="text-2xl font-extrabold tracking-tight">Votre licence Fiip</h4>
+                                        <h4 className="text-xl font-semibold tracking-tight">Votre licence Fiip</h4>
                                         <p className="max-w-md text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
                                             Activez la synchronisation, les limites étendues et Dexter sans saisir de clé OpenRouter personnelle.
                                         </p>
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light bg-white/70 px-4 py-3 text-right dark:border-white/10 dark:bg-white/[0.06]">
-                                        <p className="text-[10px] font-black uppercase tracking-wider text-warm-text-muted-light">Licence actuelle</p>
-                                        <p className="mt-1 text-sm font-black">{currentLicenseName}</p>
+                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">Licence actuelle</p>
+                                        <p className="mt-1 text-sm font-semibold">{currentLicenseName}</p>
                                     </div>
                                 </div>
                                 <div className="mt-5 flex flex-wrap gap-2 border-t border-warm-border-light pt-4 dark:border-white/10">
                                     <button
                                         type="button"
                                         onClick={() => open(FIIP_LICENSE_PURCHASE_URL)}
-                                        className="rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-black uppercase tracking-wider text-white transition-all hover:-translate-y-0.5 dark:bg-white dark:text-zinc-950"
+                                        className="rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-semibold text-white transition-all hover:-translate-y-0.5 dark:bg-white dark:text-zinc-950"
                                     >
                                         Acheter une licence
                                     </button>
@@ -683,7 +651,7 @@ export default function SettingsView({
                     {activeTab === 'cache' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-xl font-bold tracking-tight mb-1">Cache local</h3>
+                                <h3 className="text-lg font-semibold tracking-tight mb-1">Cache local</h3>
                                 <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Consultez et nettoyez les fichiers stockés dans AppData.</p>
                             </div>
 
@@ -694,8 +662,8 @@ export default function SettingsView({
                                     ['Polices', formatBytes(cacheStats.fonts)],
                                 ].map(([label, value]) => (
                                     <div key={label} className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark p-4">
-                                        <p className="text-[10px] font-black uppercase tracking-wider text-warm-text-muted-light">{label}</p>
-                                        <p className="mt-2 text-lg font-extrabold">{value}</p>
+                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">{label}</p>
+                                        <p className="mt-2 text-lg font-semibold">{value}</p>
                                     </div>
                                 ))}
                             </div>
@@ -720,35 +688,35 @@ export default function SettingsView({
                     {activeTab === 'about' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-xl font-bold tracking-tight mb-1">{t('settings.about', 'À propos')}</h3>
+                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.about', 'À propos')}</h3>
                                 <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Informations techniques de version et d'assistance.</p>
                             </div>
 
                             <div className="overflow-hidden rounded-3xl border border-warm-border-light bg-warm-card-light dark:border-white/10 dark:bg-[#20201f]">
                                 <div className="flex items-start justify-between gap-6 border-b border-warm-border-light bg-gradient-to-br from-white to-warm-sidebar-light p-6 dark:border-white/10 dark:from-white/[0.08] dark:to-transparent">
                                     <div>
-                                        <span className="mb-3 inline-flex items-center gap-2 rounded-lg border border-teal-500/25 bg-teal-500/10 px-2.5 py-1 text-[10px] font-black text-teal-700 dark:text-teal-200">
+                                        <span className="mb-3 inline-flex items-center gap-2 rounded-lg border border-teal-500/25 bg-teal-500/10 px-2.5 py-1 text-[11px] font-semibold text-teal-700 dark:text-teal-200">
                                             <IconDocument className="h-3.5 w-3.5" />
                                             Notes desktop locales
                                         </span>
-                                        <h4 className="text-2xl font-extrabold tracking-tight">Fiip Desktop</h4>
+                                        <h4 className="text-xl font-semibold tracking-tight">Fiip Desktop</h4>
                                         <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
                                             Application de notes locale, synchronisable et assistée par Dexter.
                                         </p>
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-white/70 dark:bg-white/[0.05] px-4 py-3 text-right">
-                                        <p className="text-[10px] font-black uppercase tracking-wider text-warm-text-muted-light">Version</p>
+                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">Version</p>
                                         <p className="text-sm font-bold">{appVersion || '3.0.1'}</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2">
                                     <div className="border-b border-r border-warm-border-light p-4 dark:border-white/10">
-                                        <p className="text-[10px] font-black uppercase tracking-wider text-warm-text-muted-light">Plateforme</p>
+                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">Plateforme</p>
                                         <p className="mt-1 text-sm font-semibold">{platformName || 'Desktop'}</p>
                                     </div>
                                     <div className="border-b border-warm-border-light p-4 dark:border-white/10">
-                                        <p className="text-[10px] font-black uppercase tracking-wider text-warm-text-muted-light">Support</p>
+                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">Support</p>
                                         <p className="mt-1 text-sm font-semibold">darkii_fr@hotmail.com</p>
                                     </div>
                                 </div>
@@ -756,27 +724,27 @@ export default function SettingsView({
                                 <div className="grid gap-3 p-4 md:grid-cols-2">
                                     <div className="rounded-2xl border border-warm-border-light p-4 dark:border-white/10">
                                         <IconCheck className="mb-3 h-5 w-5 text-emerald-600 dark:text-emerald-300" />
-                                        <p className="text-sm font-black">Confidentialité</p>
+                                        <p className="text-sm font-semibold">Confidentialité</p>
                                         <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Vos notes restent locales tant que vous ne choisissez pas la synchronisation ou un lien public.</p>
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light p-4 dark:border-white/10">
                                         <IconSettings className="mb-3 h-5 w-5 text-blue-600 dark:text-blue-300" />
-                                        <p className="text-sm font-black">Extensions</p>
-                                        <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Les fonctionnalités natives passent par les permissions Tauri déclarées.</p>
+                                        <p className="text-sm font-semibold">Confidentialite et synchro</p>
+                                        <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Les notes restent locales par defaut, les liens publics sont explicites et Supabase applique les politiques RLS.</p>
                                     </div>
                                 </div>
 
                                 <div className="m-4 mt-0 flex items-center justify-between rounded-2xl border border-warm-border-light p-4 dark:border-white/10">
                                     <div>
-                                        <p className="text-sm font-black">Mises à jour</p>
-                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{pendingUpdatesCount > 0 ? `${pendingUpdatesCount} changement(s) prêt(s)` : 'Non vérifié'}</p>
+                                        <p className="text-sm font-semibold">Mises à jour</p>
+                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{pendingUpdatesCount > 0 ? `${pendingUpdatesCount} changement(s) prêt(s)` : updateStatus}</p>
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={handleRestart}
+                                        onClick={handleCheckUpdates}
                                         className="rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-bold text-white dark:bg-white dark:text-zinc-950"
                                     >
-                                        Mettre à jour
+                                        Vérifier les mises à jour
                                     </button>
                                 </div>
 

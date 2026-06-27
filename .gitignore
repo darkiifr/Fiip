@@ -42,6 +42,12 @@ Desktop.ini
 
 # Agent
 codex.md
+*.codex-bak-*
+*.codex-tmp
+*.path-doctor.log
+.fiip-path-doctor/
+scripts/repair-dev-path*.ps1
+scripts/*path-doctor*.ps1
 .agents/
 .cline/
 .gemini/

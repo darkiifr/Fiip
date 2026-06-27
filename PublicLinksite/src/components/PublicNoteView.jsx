@@ -5,6 +5,7 @@ import { Icon as IconifyIcon } from '@iconify/react';
 import { marked } from 'marked';
 import TurndownService from 'turndown';
 
+import { DEMO_PUBLIC_NOTE } from '../demoNote';
 import { dataService } from '../services/supabase';
 
 const renderMarkdown = (text) => {
@@ -52,6 +53,12 @@ export default function PublicNoteView() {
     async function fetchNote() {
       if (!slug) {
         setError('Lien invalide.');
+        setLoading(false);
+        return;
+      }
+
+      if (slug.toLowerCase() === 'demo') {
+        setNote(DEMO_PUBLIC_NOTE);
         setLoading(false);
         return;
       }

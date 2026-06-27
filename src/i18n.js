@@ -17,15 +17,37 @@ for (const path in locales) {
   }
 }
 
+const availableLanguages = Object.keys(resources);
+const FALLBACK_LANGUAGES = ['fr', 'en'].filter((language) => availableLanguages.includes(language));
+
+function normalizeLanguage(value = '') {
+  const raw = String(value || '').toLowerCase();
+  if (availableLanguages.includes(raw)) return raw;
+  const base = raw.split('-')[0];
+  if (availableLanguages.includes(base)) return base;
+  return FALLBACK_LANGUAGES[0] || availableLanguages[0] || 'fr';
+}
+
+const storedLanguage = typeof localStorage !== 'undefined'
+  ? normalizeLanguage(localStorage.getItem('fiip-language') || localStorage.getItem('i18nextLng') || '')
+  : undefined;
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'fr',
-    supportedLngs: Object.keys(resources),
+    lng: storedLanguage,
+    fallbackLng: FALLBACK_LANGUAGES.length ? FALLBACK_LANGUAGES : 'fr',
+    supportedLngs: availableLanguages,
     nonExplicitSupportedLngs: true, // Auto fallback "en-US" to "en" si existant
-    load: 'all',
+    load: 'languageOnly',
+    detection: {
+      order: ['localStorage', 'navigator', 'htmlTag'],
+      lookupLocalStorage: 'fiip-language',
+      caches: ['localStorage'],
+    },
+    returnEmptyString: false,
     interpolation: {
       escapeValue: false // react already safes from xss
     },
@@ -33,5 +55,15 @@ i18n
       useSuspense: false
     }
   });
+
+i18n.on('languageChanged', (language) => {
+  const normalized = normalizeLanguage(language);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('fiip-language', normalized);
+  }
+  if (language !== normalized) {
+    i18n.changeLanguage(normalized);
+  }
+});
 
 export default i18n;

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { ask, message } from '@tauri-apps/plugin-dialog';
@@ -21,11 +22,14 @@ import HomeDashboard from "./components/HomeDashboard";
 import Titlebar from "./components/Titlebar";
 import UserProfileModal from "./components/UserProfileModal";
 import { buildPublicNoteUrl } from "./config/links";
-import { calculateTotalUsage } from "./services/fileManager";
+import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } from "./services/fileManager";
 import { initializeFonts } from "./services/fontStore";
 import { keyAuthService } from "./services/keyauth";
 import { soundManager } from "./services/soundManager";
+import { createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook } from './services/fiipV1';
 import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
+import { normalizeNoteTags } from './utils/noteTags';
+import { coerceWindowEffect } from './utils/windowEffects';
 
 import "./App.css";
 
@@ -61,7 +65,8 @@ function App() {
         updatedAt: now,
         createdAt: now,
         favorite: false,
-        deleted: false
+        deleted: false,
+        tags: []
       }
     ];
   });
@@ -71,7 +76,6 @@ function App() {
     const saved = localStorage.getItem("fiip-settings");
     const defaults = { 
         theme: 'system', 
-        fontSize: 'medium', 
         autoSave: true, 
         aiEnabled: true,
         appSound: true,
@@ -91,10 +95,45 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState('general');
+  const [osType, setOsType] = useState('unknown');
+  const [notebooks, setNotebooks] = useState(() => {
+    const saved = localStorage.getItem('fiip-notebooks');
+    if (saved) {
+      try {
+        return JSON.parse(saved).map(normalizeNotebook);
+      } catch {
+        return [normalizeNotebook()];
+      }
+    }
+    return [normalizeNotebook()];
+  });
+  const [tasks, setTasks] = useState(() => {
+    const saved = localStorage.getItem('fiip-tasks');
+    if (saved) {
+      try {
+        return JSON.parse(saved).map(createTask);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+  const [homeWidgets, setHomeWidgets] = useState(() => {
+    const saved = localStorage.getItem('fiip-home-widgets');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return defaultHomeWidgets();
+      }
+    }
+    return defaultHomeWidgets();
+  });
 
   // --- Refs ---
   const notesRef = useRef(notes);
   const saveTimeoutRef = useRef(null);
+  const importedFiinPathsRef = useRef(new Set());
 
   // --- Computed State ---
   const storageUsage = useMemo(() => {
@@ -111,17 +150,17 @@ function App() {
   const tagSuggestions = useMemo(() => {
     const frequency = new Map();
     notes.forEach((note) => {
-      (note.tags || []).forEach((tag) => {
-        const normalized = String(tag || '').trim();
-        if (!normalized) return;
-        const current = frequency.get(normalized) || { tag: normalized, count: 0, lastUsed: 0 };
+      normalizeNoteTags(note.tags || []).forEach((tag) => {
+        const normalized = tag.label;
+        const key = normalized.toLowerCase();
+        const current = frequency.get(key) || { tag, count: 0, lastUsed: 0 };
         current.count += 1;
         current.lastUsed = Math.max(current.lastUsed, Number(note.updatedAt || note.updated_at || note.createdAt || 0));
-        frequency.set(normalized, current);
+        frequency.set(key, current);
       });
     });
     return Array.from(frequency.values())
-      .sort((a, b) => b.count - a.count || b.lastUsed - a.lastUsed || a.tag.localeCompare(b.tag, 'fr'))
+      .sort((a, b) => b.count - a.count || b.lastUsed - a.lastUsed || a.tag.label.localeCompare(b.tag.label, 'fr'))
       .map((item) => item.tag);
   }, [notes]);
 
@@ -163,6 +202,22 @@ function App() {
               notesRef.current = remoteNotes;
           }
       }
+
+      const [notebooksResult, tasksResult, widgetsResult] = await Promise.allSettled([
+          dataService.fetchNotebooks(),
+          dataService.fetchTasks(),
+          dataService.fetchHomeWidgets(),
+      ]);
+
+      if (notebooksResult.status === 'fulfilled' && notebooksResult.value?.data) {
+          setNotebooks(notebooksResult.value.data);
+      }
+      if (tasksResult.status === 'fulfilled' && tasksResult.value?.data) {
+          setTasks(tasksResult.value.data);
+      }
+      if (widgetsResult.status === 'fulfilled' && widgetsResult.value?.data) {
+          setHomeWidgets(widgetsResult.value.data);
+      }
     } catch (e) {
       console.error("Sync error", e);
     } finally {
@@ -177,7 +232,10 @@ function App() {
       try {
         console.log("Fiip v" + (await invoke("get_app_version").catch(() => "3.0.0")) + " initializing...");
         
-        await initializeFonts();
+        if (window.__TAURI_INTERNALS__) {
+            await initializeFonts();
+            Promise.resolve(type()).then(setOsType).catch(() => setOsType('unknown'));
+        }
         
         const setupDeepLink = async () => {
           try {
@@ -211,6 +269,20 @@ function App() {
                             await loadDataFromSupabase();
                         }
                     }
+                    if (parsedUrl.host === 'clip' || parsedUrl.pathname.includes('/clip')) {
+                        const rawPayload = parsedUrl.searchParams.get('payload');
+                        if (rawPayload) {
+                            const payload = JSON.parse(decodeURIComponent(rawPayload));
+                            const { data, error } = await dataService.createNoteFromClipper(payload);
+                            if (error) {
+                                await message(`Capture impossible : ${error.message || error}`, { title: 'Fiip', kind: 'error' }).catch(console.error);
+                            } else if (data) {
+                                await loadDataFromSupabase();
+                                setSelectedNoteId(data.id);
+                                setActiveNav('home');
+                            }
+                        }
+                    }
                 } catch (e) {
                     console.error("Deep link parse error", e);
                 }
@@ -223,7 +295,9 @@ function App() {
         };
         
         let unlistenFn;
-        setupDeepLink().then(fn => unlistenFn = fn).catch(console.error);
+        if (window.__TAURI_INTERNALS__) {
+            setupDeepLink().then(fn => unlistenFn = fn).catch(console.error);
+        }
         
         const sessionUser = await authService.getUser();
         if (sessionUser) {
@@ -274,14 +348,22 @@ function App() {
                 const index = prev.findIndex(n => n.id === receivedNote.id);
                 if (index !== -1) {
                     const existing = prev[index];
-                    if (receivedNote.updatedAt > (existing.updatedAt || 0)) {
+                    const receivedUpdatedAt = Date.parse(receivedNote.updated_at || receivedNote.updatedAt || '') || 0;
+                    const existingUpdatedAt = existing.updatedAt || Date.parse(existing.updated_at || '') || 0;
+                    if (receivedUpdatedAt > existingUpdatedAt) {
                         const newNotes = [...prev];
-                        newNotes[index] = receivedNote;
+                        newNotes[index] = {
+                            ...receivedNote,
+                            updatedAt: receivedUpdatedAt || Date.now(),
+                        };
                         return newNotes;
                     }
                     return prev;
                 }
-                return [...prev, receivedNote];
+                return [...prev, {
+                    ...receivedNote,
+                    updatedAt: Date.parse(receivedNote.updated_at || receivedNote.updatedAt || '') || Date.now(),
+                }];
             });
         } else if (payload.event === 'DELETE') {
             setNotes(prev => prev.filter(n => n.id !== payload.old.id));
@@ -300,6 +382,18 @@ function App() {
   }, [notes]);
 
   useEffect(() => {
+    localStorage.setItem('fiip-notebooks', JSON.stringify(notebooks));
+  }, [notebooks]);
+
+  useEffect(() => {
+    localStorage.setItem('fiip-tasks', JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem('fiip-home-widgets', JSON.stringify(homeWidgets));
+  }, [homeWidgets]);
+
+  useEffect(() => {
     localStorage.setItem("fiip-settings", JSON.stringify(settings));
     
     // Resolve Light/Dark Mode
@@ -314,23 +408,27 @@ function App() {
     document.body.classList.toggle('dark', resolvedTheme === 'dark');
     document.documentElement.dataset.theme = resolvedTheme;
     document.body.dataset.theme = resolvedTheme;
-    document.documentElement.dataset.fontSize = settings.fontSize || 'medium';
-    document.documentElement.dataset.windowEffect = settings.windowEffect || 'none';
+    const supportedWindowEffect = coerceWindowEffect(settings.windowEffect || 'none', osType);
+    document.documentElement.dataset.windowEffect = supportedWindowEffect;
+    document.body.dataset.windowEffect = supportedWindowEffect;
     document.documentElement.style.colorScheme = resolvedTheme;
-    document.body.style.backgroundColor = resolvedTheme === 'dark' ? '#1E1E1E' : '#FFFFFF';
+    document.body.style.backgroundColor = supportedWindowEffect !== 'none' ? 'transparent' : (resolvedTheme === 'dark' ? '#101216' : '#F8FAFC');
+    document.documentElement.classList.toggle('window-effect-active', supportedWindowEffect !== 'none');
     
     soundManager.setAppSoundEnabled(settings.appSound);
     soundManager.setChatSoundEnabled(settings.chatSound);
     
-    if (window.__TAURI_INTERNALS__) {
-        invoke('set_window_effect', { effect: settings.windowEffect }).catch(console.error);
-        if (settings.windowEffect !== 'none') {
-            document.documentElement.classList.add('window-effect-active');
-        } else {
-            document.documentElement.classList.remove('window-effect-active');
+    if (window.__TAURI_INTERNALS__ && osType !== 'unknown') {
+        if (supportedWindowEffect !== settings.windowEffect) {
+            setSettings((prev) => ({ ...prev, windowEffect: supportedWindowEffect }));
+            return;
         }
+        invoke('set_window_effect', { effect: supportedWindowEffect, dark: resolvedTheme === 'dark' }).catch((error) => {
+            console.warn('Window effect unavailable:', error);
+            setSettings((prev) => ({ ...prev, windowEffect: 'none' }));
+        });
     }
-  }, [settings]);
+  }, [settings, osType]);
 
   useEffect(() => {
     if (settings.theme !== 'system') return undefined;
@@ -342,7 +440,9 @@ function App() {
       document.documentElement.dataset.theme = resolvedTheme;
       document.body.dataset.theme = resolvedTheme;
       document.documentElement.style.colorScheme = resolvedTheme;
-      document.body.style.backgroundColor = resolvedTheme === 'dark' ? '#1E1E1E' : '#FFFFFF';
+      document.body.style.backgroundColor = settings.windowEffect && settings.windowEffect !== 'none'
+        ? 'transparent'
+        : (resolvedTheme === 'dark' ? '#101216' : '#F8FAFC');
     };
     media.addEventListener('change', syncSystemTheme);
     syncSystemTheme();
@@ -374,7 +474,8 @@ function App() {
       updatedAt: now,
       createdAt: now,
       favorite: false,
-      deleted: false
+      deleted: false,
+      tags: []
     };
     setNotes((prev) => [newNote, ...prev]);
     setSelectedNoteId(newNote.id);
@@ -388,6 +489,78 @@ function App() {
     
     return newNote;
   }, [t]);
+
+  const importFiinNote = useCallback(async ({ filePath = '', content = '' } = {}) => {
+    try {
+      if (filePath && importedFiinPathsRef.current.has(filePath)) {
+        return null;
+      }
+
+      const note = content
+        ? normalizeFiinNotePayload(content)
+        : await importFiinFromPath(filePath);
+
+      if (filePath) {
+        importedFiinPathsRef.current.add(filePath);
+      }
+
+      setNotes((prev) => [note, ...prev]);
+      notesRef.current = [note, ...notesRef.current];
+      setSelectedNoteId(note.id);
+      setActiveNav('home');
+      localStorage.setItem('fiip-onboarding-completed', 'true');
+      setOnboardingCompleted(true);
+
+      dataService.saveNote(note).catch((error) => {
+        console.error('Failed to sync imported .fiin note', error);
+      });
+
+      return note;
+    } catch (error) {
+      console.error('Failed to import .fiin note', error);
+      await message(error?.message || 'Impossible d’ouvrir ce fichier .fiin.', {
+        title: 'Fiip',
+        kind: 'error',
+      }).catch(console.error);
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) {
+      return undefined;
+    }
+
+    let disposed = false;
+    let unlistenOpenFiin;
+
+    const setupFiinOpen = async () => {
+      try {
+        const launchFile = await invoke('read_launch_fiin_file');
+        if (!disposed && Array.isArray(launchFile) && launchFile.length === 2) {
+          const [filePath, content] = launchFile;
+          await importFiinNote({ filePath, content });
+        }
+
+        unlistenOpenFiin = await listen('fiip://open-fiin', async (event) => {
+          if (typeof event.payload === 'string') {
+            await importFiinNote({ filePath: event.payload });
+          }
+        });
+      } catch (error) {
+        console.error('Failed to setup .fiin file open handler', error);
+      }
+    };
+
+    setupFiinOpen();
+
+    return () => {
+      disposed = true;
+      if (unlistenOpenFiin) {
+        unlistenOpenFiin();
+      }
+    };
+  }, [importFiinNote]);
 
   // Global Keyboard listener for Command Palette (Ctrl/Cmd+K) & New Note (Ctrl/Cmd+N)
   useEffect(() => {
@@ -422,6 +595,72 @@ function App() {
         await dataService.saveNote(updatedNote);
         setIsSyncing(false);
     }, 1000);
+  };
+
+  const handleCreateNotebook = async () => {
+    const notebook = normalizeNotebook({
+      id: crypto.randomUUID(),
+      name: `Carnet ${notebooks.length}`,
+      sort_order: notebooks.length,
+    });
+    setNotebooks((prev) => [...prev, notebook]);
+    dataService.saveNotebook(notebook).catch(console.error);
+    setActiveNav(`notebook:${notebook.id}`);
+    return notebook;
+  };
+
+  const handleRenameNotebook = async (notebook, nextNameInput) => {
+    const notebookId = notebook?.id || notebook?.notebook_id;
+    if (!notebookId || notebookId === 'all-notes') return;
+    const currentName = notebook.name || '';
+    const nextName = String(nextNameInput || '').trim();
+    if (!nextName || nextName === currentName) return;
+    const updatedNotebook = normalizeNotebook({ ...notebook, name: nextName, updated_at: new Date().toISOString() });
+    setNotebooks((prev) => prev.map((item) => (item.id === notebookId ? updatedNotebook : item)));
+    dataService.saveNotebook(updatedNotebook).catch(console.error);
+  };
+
+  const handleDeleteNotebook = async (notebook) => {
+    const notebookId = notebook?.id || notebook?.notebook_id;
+    if (!notebookId || notebookId === 'all-notes') return;
+    const shouldDelete = await ask(`Supprimer le carnet "${notebook.name || 'Sans nom'}" ? Les notes seront replacées dans Toutes les notes.`, {
+      title: 'Supprimer le carnet',
+      kind: 'warning',
+    }).catch(() => false);
+    if (!shouldDelete) return;
+    setNotebooks((prev) => prev.filter((item) => item.id !== notebookId));
+    const movedNotes = [];
+    setNotes((prev) => prev.map((note) => {
+      const currentNotebookId = note.notebookId || note.notebook_id || note.folder_id || 'all-notes';
+      if (currentNotebookId !== notebookId) return note;
+      const movedNote = { ...note, notebookId: 'all-notes', notebook_id: null, folder_id: null, updatedAt: getCurrentTimestamp() };
+      movedNotes.push(movedNote);
+      return movedNote;
+    }));
+    if (activeNav === `notebook:${notebookId}`) {
+      setActiveNav('home');
+    }
+    dataService.deleteNotebook(notebookId).catch(console.error);
+    movedNotes.forEach((movedNote) => dataService.saveNote(movedNote).catch(console.error));
+  };
+
+  const handleSaveTask = async (taskInput) => {
+    const task = createTask(taskInput);
+    setTasks((prev) => {
+      const exists = prev.some((item) => item.id === task.id);
+      return exists ? prev.map((item) => item.id === task.id ? task : item) : [...prev, task];
+    });
+    dataService.saveTask(task).catch(console.error);
+    return task;
+  };
+
+  const handleAdvancedSearch = (query) => {
+    const matches = filterNotesAdvanced(notes, query, { tasks });
+    if (matches[0]) {
+      setSelectedNoteId(matches[0].id);
+      setActiveNav('home');
+    }
+    return matches;
   };
 
   const handleDeleteNote = async (noteId) => {
@@ -670,7 +909,12 @@ function App() {
             onOpenProfile={() => setIsUserProfileOpen(true)}
             onRestoreNote={handleRestoreNote}
             onToggleFavorite={handleToggleFavorite}
+            onDeleteNote={handleDeleteNote}
             onEmptyTrash={handleEmptyTrash}
+            notebooks={notebooks}
+            onCreateNotebook={handleCreateNotebook}
+            onRenameNotebook={handleRenameNotebook}
+            onDeleteNotebook={handleDeleteNotebook}
         />
 
         <div className="flex-1 flex flex-col h-full bg-transparent relative overflow-hidden">
@@ -685,13 +929,17 @@ function App() {
                         setActiveNav('home');
                         setSelectedNoteId(null);
                     }}
+                    osType={osType}
                 />
             ) : activeNav === 'home' && !selectedNoteId ? (
                 <HomeDashboard 
                     featuredNote={notes.find(n => !n.deleted)} 
                     recentNotes={notes.filter(n => !n.deleted).slice(0, 6)}
                     onSelectNote={setSelectedNoteId}
-                    onSearchClick={() => setIsCommandPaletteOpen(true)}
+                    notebooks={notebooks}
+                    tasks={tasks}
+                    widgets={homeWidgets}
+                    onAdvancedSearch={handleAdvancedSearch}
                 />
             ) : activeNote ? (
                 <Editor 
@@ -706,13 +954,19 @@ function App() {
                     onOpenLicense={() => setIsLicenseModalOpen(true)}
                     onCreateNote={() => handleCreateNote()}
                     tagSuggestions={tagSuggestions}
+                    notebooks={notebooks}
+                    tasks={tasks.filter((task) => task.note_id === activeNote.id)}
+                    onSaveTask={handleSaveTask}
                 />
             ) : (
                 <HomeDashboard 
                     featuredNote={notes.find(n => !n.deleted)} 
                     recentNotes={notes.filter(n => !n.deleted).slice(0, 6)}
                     onSelectNote={setSelectedNoteId}
-                    onSearchClick={() => setIsCommandPaletteOpen(true)}
+                    notebooks={notebooks}
+                    tasks={tasks}
+                    widgets={homeWidgets}
+                    onAdvancedSearch={handleAdvancedSearch}
                 />
             )}
         </div>

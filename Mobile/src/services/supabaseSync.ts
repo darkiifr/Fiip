@@ -27,8 +27,9 @@ export const syncNotesWithCloud = async (localNotes: any[]) => {
   // Sync descendant: récupérer de Supabase
   const { data: cloudNotes, error: fetchError } = await supabase
     .from('notes')
-    .select('*, collaborators (*)')
-    .eq('user_id', user.id);
+    .select('*, note_tasks (*), note_attachments (*)')
+    .eq('user_id', user.id)
+    .is('deleted_at', null);
 
   if (fetchError) throw fetchError;
 
@@ -89,6 +90,9 @@ export const inviteCollaborator = async (noteId: string, collaboratorEmail: stri
 export const uploadNoteAttachment = async (noteId: string, fileUri: string, fileName: string, contentType: string) => {
   // Try mapping uri to blob / FormData for native upload
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Non authentifié");
+
     const formData = new FormData();
     formData.append('file', {
       uri: /* Platform.OS === 'ios' ? fileUri.replace('file://', '') : */ fileUri,
@@ -97,8 +101,8 @@ export const uploadNoteAttachment = async (noteId: string, fileUri: string, file
     } as any);
 
     const { data, error } = await supabase.storage
-      .from('note_attachments')
-      .upload(`public/${noteId}/${fileName}`, formData, {
+      .from('attachments')
+      .upload(`${user.id}/${noteId}/${fileName}`, formData, {
         cacheControl: '3600',
         upsert: false,
       });

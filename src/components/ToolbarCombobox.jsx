@@ -91,7 +91,7 @@ export default function ToolbarCombobox({
         const menuContent = (
             <div 
                 ref={menuRef}
-                className="fixed z-[9999] bg-[#1C1C1E] border border-white/10 rounded-lg shadow-xl animate-in fade-in zoom-in-95 duration-100 ease-out max-h-64 overflow-y-auto custom-scrollbar"
+                className="fixed z-[10000] bg-[#1C1C1E] border border-white/10 rounded-lg shadow-xl animate-in fade-in zoom-in-95 duration-100 ease-out max-h-64 overflow-y-auto custom-scrollbar"
                 style={{
                     top: menuPosition.top,
                     left: menuPosition.left,

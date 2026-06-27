@@ -9,20 +9,20 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Color variables for Tailwind classes */
-  --color-warm-sidebar-light: #F3F3F2;
-  --color-warm-sidebar-dark: #161615;
-  --color-warm-bg-light: #FFFFFF;
-  --color-warm-bg-dark: #1E1E1E;
-  --color-warm-card-light: #FAF9F8;
-  --color-warm-card-dark: #262625;
-  --color-warm-text-primary-light: #1C1C1E;
-  --color-warm-text-primary-dark: #F5F5F7;
-  --color-warm-text-secondary-light: #4E4E4C;
-  --color-warm-text-secondary-dark: #A5A5A5;
-  --color-warm-text-muted-light: #8E8E8D;
-  --color-warm-text-muted-dark: #767675;
-  --color-warm-border-light: rgba(0, 0, 0, 0.05);
-  --color-warm-border-dark: rgba(255, 255, 255, 0.06);
+  --color-warm-sidebar-light: #EEF1F5;
+  --color-warm-sidebar-dark: #0F1115;
+  --color-warm-bg-light: #F8FAFC;
+  --color-warm-bg-dark: #101216;
+  --color-warm-card-light: #FFFFFF;
+  --color-warm-card-dark: #171A21;
+  --color-warm-text-primary-light: #171A1F;
+  --color-warm-text-primary-dark: #F7F4EA;
+  --color-warm-text-secondary-light: #4B5563;
+  --color-warm-text-secondary-dark: #C5C0B4;
+  --color-warm-text-muted-light: #77808D;
+  --color-warm-text-muted-dark: #8F887A;
+  --color-warm-border-light: rgba(31, 41, 55, 0.10);
+  --color-warm-border-dark: rgba(255, 244, 220, 0.09);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -31,32 +31,32 @@
 
 :root {
   /* System Accent */
-  --accent: #D4AF37; /* Warm Gold */
-  --accent-light: #E6C65C;
+  --accent: #B88A2D; /* Polished gold */
+  --accent-light: #D9AE4A;
   --accent-foreground: #FFFFFF;
   --destructive: #D15A4F;
   --success: #5F8F6A;
   --warning: #DF9A57;
   
   /* Clair Mode (Warm Editorial) */
-  --bg-sidebar: #F3F3F2;
-  --bg-sidebar-glass: rgba(243, 243, 242, 0.72);
-  --bg-sidebar-item-active: #E5E5E3;
-  --bg-content: #FFFFFF;
-  --bg-content-glass: rgba(255, 255, 255, 0.82);
-  --bg-card: #FAF9F8;
+  --bg-sidebar: #EEF1F5;
+  --bg-sidebar-glass: rgba(238, 241, 245, 0.78);
+  --bg-sidebar-item-active: #E1E7EF;
+  --bg-content: #F8FAFC;
+  --bg-content-glass: rgba(255, 255, 255, 0.86);
+  --bg-card: #FFFFFF;
   
-  --text-primary: #1C1C1E;
-  --text-secondary: #4E4E4C;
-  --text-muted: #8E8E8D;
-  --border-color: rgba(0, 0, 0, 0.05);
+  --text-primary: #171A1F;
+  --text-secondary: #4B5563;
+  --text-muted: #77808D;
+  --border-color: rgba(31, 41, 55, 0.10);
   
   /* Glass base values */
-  --glass-bg: rgba(255, 255, 255, 0.82);
-  --glass-border: rgba(0, 0, 0, 0.05);
-  --glass-highlight: rgba(255, 255, 255, 0.62);
-  --glass-shadow: rgba(10, 10, 12, 0.12);
-  --glass-tint: rgba(255, 255, 255, 0.28);
+  --glass-bg: rgba(255, 255, 255, 0.86);
+  --glass-border: rgba(31, 41, 55, 0.10);
+  --glass-highlight: rgba(255, 255, 255, 0.82);
+  --glass-shadow: rgba(15, 23, 42, 0.13);
+  --glass-tint: rgba(184, 138, 45, 0.06);
   --glass-blur: 40px;
 
   --font-ui: "Geist", "Inter", system-ui, -apple-system, sans-serif;
@@ -76,24 +76,24 @@
 }
 
 .dark {
-  /* Sombre Mode (Warm Editorial Dark) */
-  --bg-sidebar: #161615;
-  --bg-sidebar-glass: rgba(22, 22, 21, 0.75);
-  --bg-sidebar-item-active: #282827;
-  --bg-content: #1E1E1E;
-  --bg-content-glass: rgba(30, 30, 30, 0.85);
-  --bg-card: #262625;
+  /* Sombre Mode (Graphite Liquid) */
+  --bg-sidebar: #0F1115;
+  --bg-sidebar-glass: rgba(15, 17, 21, 0.78);
+  --bg-sidebar-item-active: #1C2028;
+  --bg-content: #101216;
+  --bg-content-glass: rgba(16, 18, 22, 0.86);
+  --bg-card: #171A21;
   
-  --text-primary: #F5F5F7;
-  --text-secondary: #A5A5A5;
-  --text-muted: #767675;
-  --border-color: rgba(255, 255, 255, 0.06);
+  --text-primary: #F7F4EA;
+  --text-secondary: #C5C0B4;
+  --text-muted: #8F887A;
+  --border-color: rgba(255, 244, 220, 0.09);
   
-  --glass-bg: rgba(30, 30, 30, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-highlight: rgba(255, 255, 255, 0.14);
-  --glass-shadow: rgba(0, 0, 0, 0.42);
-  --glass-tint: rgba(255, 255, 255, 0.05);
+  --glass-bg: rgba(16, 18, 22, 0.84);
+  --glass-border: rgba(255, 244, 220, 0.09);
+  --glass-highlight: rgba(255, 244, 220, 0.14);
+  --glass-shadow: rgba(0, 0, 0, 0.52);
+  --glass-tint: rgba(212, 175, 55, 0.06);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -185,6 +185,17 @@ html, body {
   overflow: hidden;
 }
 
+input,
+textarea,
+select {
+  color: var(--text-primary);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--text-muted) 78%, transparent);
+}
+
 #root {
   width: 100%;
   height: 100%;
@@ -207,7 +218,7 @@ html[data-material="original"] {
 html[data-window-effect="mica"] #root,
 html[data-window-effect="acrylic"] #root,
 html[data-window-effect="blur"] #root {
-  background-color: color-mix(in srgb, var(--bg-content) 72%, transparent);
+  background-color: transparent;
 }
 
 html[data-window-effect="transparent"] #root {
@@ -238,6 +249,67 @@ html[data-font-size="xlarge"] {
 /* Translucent surfaces if window effect is active in Tauri */
 .window-effect-active #root {
   background-color: transparent !important;
+}
+
+html.window-effect-active,
+.window-effect-active body {
+  background-color: transparent !important;
+}
+
+.window-effect-active body {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-content) 72%, transparent), transparent 42%),
+    linear-gradient(45deg, color-mix(in srgb, #f59e0b 14%, transparent), transparent 36%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-content) 42%, transparent), color-mix(in srgb, var(--text-primary) 5%, transparent));
+}
+
+.window-effect-active body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    repeating-linear-gradient(90deg, color-mix(in srgb, white 5%, transparent) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(0deg, color-mix(in srgb, black 4%, transparent) 0 1px, transparent 1px 96px);
+  opacity: 0.28;
+}
+
+html[data-window-effect="acrylic"] body::before {
+  opacity: 0.42;
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+
+html[data-window-effect="blur"] body::before {
+  opacity: 0.2;
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+}
+
+.window-effect-active .bg-warm-bg-light,
+.window-effect-active .bg-warm-sidebar-light,
+.window-effect-active .bg-warm-card-light {
+  background-color: color-mix(in srgb, var(--bg-content) 58%, transparent) !important;
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+.window-effect-active .bg-white,
+.window-effect-active .bg-white\/70,
+.window-effect-active .bg-warm-sidebar-light\/70,
+.window-effect-active .bg-warm-sidebar-light\/50 {
+  background-color: color-mix(in srgb, white 52%, transparent) !important;
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+}
+
+.window-effect-active.dark .dark\:bg-warm-bg-dark,
+.window-effect-active.dark .dark\:bg-warm-sidebar-dark,
+.window-effect-active.dark .dark\:bg-warm-card-dark {
+  background-color: color-mix(in srgb, var(--bg-content) 62%, transparent) !important;
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
 }
 
 /* Mica / Acrylic overlay texture */
@@ -449,6 +521,19 @@ html[data-font-size="xlarge"] {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+
+.tiptap a {
+  cursor: default;
+}
+
+.tiptap a:hover::after {
+  content: " Ctrl+clic pour ouvrir";
+  margin-left: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.72em;
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .markdown-content a:hover, .tiptap a:hover {

@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { FIIP_PUBLIC_SITE_URL, buildPublicNoteUrl } from '../config/links';
 import { dataService, authService } from '../services/supabase';
 
-import CustomSelect from './CustomSelect';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from './ui/Select';
 
 // Icons Import
 import IconCheck from '~icons/mingcute/check-fill';
@@ -33,6 +33,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
     const isOwner = selectedNote && currentUser 
         ? (selectedNote.user_id || selectedNote.userId) === currentUser.id
         : false;
+    const isProtectedNote = Boolean(selectedNote?.isProtected || selectedNote?.is_locked || selectedNote?.encryptedContent || selectedNote?.encrypted_content);
 
     const fetchCollaborators = async (id) => {
         setIsLoadingCollab(true);
@@ -81,6 +82,10 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
     const handleAddCollaborator = async (e) => {
         e.preventDefault();
         if (!newCollabUsername.trim() || !selectedNote) return;
+        if (isProtectedNote) {
+            setStatus({ type: 'error', message: 'Les notes protegees ne peuvent pas etre partagees en collaboration.' });
+            return;
+        }
         setIsLoadingCollab(true);
         setStatus({ type: '', message: '' });
         
@@ -108,6 +113,10 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
 
     const handleTogglePublic = async () => {
         if (!selectedNote) return;
+        if (isProtectedNote) {
+            setStatus({ type: 'error', message: 'Les notes protegees ne peuvent pas etre publiees.' });
+            return;
+        }
         setIsSharing(true);
         setStatus({ type: '', message: '' });
 
@@ -185,40 +194,55 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-md animate-fade-in font-sans select-none">
-            <div className="w-full max-w-md bg-warm-bg-light dark:bg-[#1E1E1ECC] text-warm-text-primary-light dark:text-warm-text-primary-dark rounded-[24px] border border-warm-border-light dark:border-warm-border-dark shadow-2xl overflow-hidden flex flex-col animate-scale-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-xl animate-fade-in font-sans select-none">
+            <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[30px] border border-black/10 bg-[#fbfaf6] text-warm-text-primary-light shadow-[0_32px_110px_rgba(0,0,0,0.34)] animate-scale-in dark:border-white/10 dark:bg-[#111316] dark:text-warm-text-primary-dark">
                 {/* Header */}
-                <div className="h-14 px-5 border-b border-warm-border-light dark:border-warm-border-dark flex items-center justify-between bg-warm-sidebar-light/50 dark:bg-zinc-800/30">
+                <div className="px-6 py-5 border-b border-warm-border-light dark:border-white/10 flex items-start justify-between bg-white/45 dark:bg-white/[0.035]">
                     <div className="flex items-center gap-2.5">
-                        <IconGlobe className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                        <h2 className="text-sm font-bold tracking-tight">Partager la note</h2>
+                        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-2 text-amber-600 dark:text-amber-300">
+                            <IconGlobe className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-black tracking-tight">Partager la note</h2>
+                            <p className="mt-1 text-xs font-medium text-warm-text-muted-light dark:text-warm-text-muted-dark">Publiez la note ou invitez des collaborateurs prives.</p>
+                        </div>
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-1.5 rounded-lg hover:bg-warm-sidebar-item-active text-warm-text-muted-light dark:text-warm-text-muted-dark"
+                        className="p-2 rounded-xl hover:bg-black/[0.04] text-warm-text-muted-light dark:text-warm-text-muted-dark dark:hover:bg-white/10"
                     >
                         <IconClose className="w-4 h-4" />
                     </button>
                 </div>
 
                 {/* Body */}
-                <div className="p-6 flex flex-col gap-5">
+                <div className="flex flex-col gap-5 overflow-y-auto p-6">
                     
                     {/* Note Selection */}
-                    <div className="space-y-1.5">
+                    <div className="rounded-3xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.05] space-y-3">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-warm-text-muted-light">
                             Sélectionner une note
                         </label>
-                        <CustomSelect 
+                        <Select
                             value={selectedNote?.id}
-                            onChange={(id) => setSelectedNote(notes.find(n => n.id === id))}
-                            options={notes.map(n => ({
-                                value: n.id,
-                                label: n.title || "Sans titre",
-                                icon: <IconFileText className="w-4 h-4 text-warm-text-muted-light" />
-                            }))}
-                            placeholder="Choisir une note..."
-                        />
+                            onValueChange={(id) => setSelectedNote(notes.find(n => n.id === id))}
+                        >
+                            <SelectTrigger className="w-full rounded-2xl border border-warm-border-light bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-[#111316]">
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <IconFileText className="w-4 h-4 shrink-0 text-warm-text-muted-light" />
+                                    <SelectValue placeholder="Choisir une note..." />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    {notes.map((n) => (
+                                        <SelectItem key={n.id} value={n.id}>
+                                            {n.title || "Sans titre"}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                         {selectedNote && (
                             <div className="flex items-center gap-1.5 px-1 mt-1 text-[9px] font-semibold text-warm-text-muted-light">
                                 <IconLock className="w-3 h-3" />
@@ -246,7 +270,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                     {isOwner && isUserLoaded && (
                         <>
                             {/* Public Link */}
-                            <div className="bg-warm-sidebar-light/50 dark:bg-zinc-800/30 rounded-2xl p-4 border border-warm-border-light dark:border-warm-border-dark space-y-4">
+                            <div className="bg-white/70 dark:bg-white/[0.05] rounded-3xl p-4 border border-warm-border-light dark:border-white/10 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                     <div className={`p-2 rounded-xl border ${isPublic ? 'bg-green-500/15 border-green-500/10 text-green-600 dark:text-green-400' : 'bg-warm-sidebar-light dark:bg-zinc-800 border-warm-border-light dark:border-warm-border-dark text-warm-text-muted-light dark:text-warm-text-muted-dark'}`}>
@@ -277,7 +301,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                 </div>
 
                                 {isPublic && (
-                                    <div className="flex items-center gap-2 bg-white dark:bg-zinc-800 p-2 rounded-xl border border-warm-border-light dark:border-warm-border-dark">
+                                    <div className="flex items-center gap-2 bg-[#fbfaf6] dark:bg-[#111316] p-2 rounded-2xl border border-warm-border-light dark:border-white/10">
                                         <span className="flex-1 text-[10px] text-warm-text-primary-light dark:text-warm-text-primary-dark font-mono truncate px-1 select-all">
                                             {publicUrl}
                                         </span>
@@ -300,7 +324,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                             </div>
 
                             {/* Collaborators */}
-                            <div className="bg-warm-sidebar-light/50 dark:bg-zinc-800/30 rounded-2xl p-4 border border-warm-border-light dark:border-warm-border-dark space-y-3">
+                            <div className="bg-white/70 dark:bg-white/[0.05] rounded-3xl p-4 border border-warm-border-light dark:border-white/10 space-y-3">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25">
                                         <IconLock className="w-4 h-4" />

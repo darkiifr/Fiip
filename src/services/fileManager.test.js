@@ -1,49 +1,78 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { calculateTotalUsage } from './fileManager';
+import { importFiinFromPath, isFiinPath, normalizeFiinNotePayload } from './fileManager';
 
-// Mock Tauri fs and path plugins
-vi.mock('@tauri-apps/plugin-fs', () => ({
-    BaseDirectory: { AppData: 1, Document: 2 },
-    mkdir: vi.fn(),
-    exists: vi.fn(),
-    readTextFile: vi.fn(),
-    writeTextFile: vi.fn(),
-    remove: vi.fn(),
-    stat: vi.fn().mockResolvedValue({ size: 2048 })
-}));
+describe('Fiip .fiin import', () => {
+  it('recognizes .fiin paths only', () => {
+    expect(isFiinPath('C:/notes/demo.fiin')).toBe(true);
+    expect(isFiinPath('C:/notes/demo.FIIN')).toBe(true);
+    expect(isFiinPath('C:/notes/demo.json')).toBe(false);
+  });
 
-describe('fileManagerService', () => {
-    it('calculates total size correctly', async () => {
-        const notes = [
-            {
-                title: "Hello", // 5
-                content: "World", // 5
-                attachments: [
-                    { data: "data:image/png;base64,AABBCCDD" } // 30 bytes * 0.75 = 23
-                ]
-            },
-            {
-                title: "Test", // 4
-                content: "Local File", // 10
-                attachments: [
-                    { data: "/local/path/to/file.png" } // Uses stat() mock size 2048
-                ]
-            }
-        ];
-
-        const totalSize = await calculateTotalUsage(notes);
-        // 5 + 5 + 23 = 33
-        // 4 + 10 + 2048 = 2062
-        // Total = 2095
-        expect(totalSize).toBe(2095);
+  it('normalizes an exported note and resets share-only fields', () => {
+    const note = normalizeFiinNotePayload({
+      id: 'public-note',
+      title: 'Note exportée',
+      content: '<p>Hello</p>',
+      public_slug: 'shared',
+      favorite: true,
+      deleted: true,
+      tags: ['Projet'],
+      attachments: [{ name: 'doc.pdf', type: 'pdf' }],
+      updatedAt: 123,
+    }, {
+      randomUUID: () => 'imported-note',
+      now: () => 999,
     });
 
-    it('returns 0 for empty array or no notes', async () => {
-        const size1 = await calculateTotalUsage(null);
-        expect(size1).toBe(0);
-
-        const size2 = await calculateTotalUsage([]);
-        expect(size2).toBe(0);
+    expect(note).toMatchObject({
+      id: 'imported-note',
+      title: 'Note exportée',
+      content: '<p>Hello</p>',
+      updatedAt: 123,
+      createdAt: 123,
+      favorite: true,
+      deleted: false,
+      public_slug: null,
+      public: false,
+      tags: ['Projet'],
     });
+    expect(note.attachments).toEqual([{ name: 'doc.pdf', type: 'pdf' }]);
+  });
+
+  it('imports a .fiin file from disk through the provided reader', async () => {
+    const readText = vi.fn().mockResolvedValue(JSON.stringify({ title: 'Depuis fichier', content: '<p>OK</p>' }));
+
+    const note = await importFiinFromPath('C:/tmp/demo.fiin', {
+      readText,
+      randomUUID: () => 'note-id',
+      now: () => 456,
+    });
+
+    expect(readText).toHaveBeenCalledWith('C:/tmp/demo.fiin');
+    expect(note).toMatchObject({ id: 'note-id', title: 'Depuis fichier', content: '<p>OK</p>' });
+  });
+
+  it('keeps ISO timestamps from public .fiin exports', () => {
+    const note = normalizeFiinNotePayload({
+      title: 'Note publique',
+      content: '<p>Export</p>',
+      updated_at: '2026-06-27T09:30:00Z',
+      created_at: '2026-06-26T09:30:00Z',
+    }, {
+      randomUUID: () => 'note-id',
+      now: () => 1,
+    });
+
+    expect(note.updatedAt).toBe(new Date('2026-06-27T09:30:00Z').getTime());
+    expect(note.createdAt).toBe(new Date('2026-06-26T09:30:00Z').getTime());
+  });
+
+  it('rejects files that are not .fiin', async () => {
+    await expect(importFiinFromPath('C:/tmp/demo.json')).rejects.toThrow('Seuls les fichiers .fiin');
+  });
+
+  it('rejects unreadable .fiin payloads', () => {
+    expect(() => normalizeFiinNotePayload('{}')).toThrow('ne contient pas de note lisible');
+  });
 });

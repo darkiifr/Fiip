@@ -46,7 +46,7 @@ function CommandRow({
   const { focusProps } = useFocusRing();
 
   useEffect(() => {
-    if (isActive && ref.current) {
+    if (isActive && ref.current?.scrollIntoView) {
       ref.current.scrollIntoView({ block: 'nearest' });
     }
   }, [isActive]);
@@ -156,18 +156,6 @@ export function CommandPalette({
     [flat, activeIndex, onClose]
   );
 
-  // Global Cmd+K
-  useEffect(() => {
-    const handle = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        if (!isOpen) return;
-      }
-    };
-    document.addEventListener('keydown', handle);
-    return () => document.removeEventListener('keydown', handle);
-  }, [isOpen]);
-
   if (!isOpen) return null;
 
   let flatIndex = -1;
@@ -206,7 +194,7 @@ export function CommandPalette({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={placeholder}
-            className="flex-1 bg-transparent text-[14px] text-warm-text-primary-light placeholder:text-warm-text-muted-light/60 dark:placeholder:text-warm-text-muted-dark/60 outline-none font-semibold"
+            className="flex-1 bg-transparent text-[14px] text-warm-text-primary-light placeholder:text-warm-text-muted-light/60 outline-none font-semibold dark:text-warm-text-primary-dark dark:placeholder:text-warm-text-muted-dark/60"
             aria-label="Recherche"
             aria-autocomplete="list"
             aria-activedescendant={flat[activeIndex] ? `cmd-item-${flat[activeIndex].id}` : undefined}

@@ -66,3 +66,51 @@
     transition-duration: 1ms;
   }
 }
+
+:root:not(.dark) {
+  --accent: #B88A2D;
+  --accent-light: #D9AE4A;
+  --bg-sidebar: #EEF1F5;
+  --bg-sidebar-glass: rgba(238, 241, 245, 0.78);
+  --bg-sidebar-item-active: #E1E7EF;
+  --bg-content: #F8FAFC;
+  --bg-content-glass: rgba(255, 255, 255, 0.86);
+  --bg-card: #FFFFFF;
+  --text-primary: #171A1F;
+  --text-secondary: #4B5563;
+  --text-muted: #77808D;
+  --border-color: rgba(31, 41, 55, 0.10);
+  --glass-bg: rgba(255, 255, 255, 0.86);
+  --glass-border: rgba(31, 41, 55, 0.10);
+  --glass-highlight: rgba(255, 255, 255, 0.82);
+  --glass-shadow: rgba(15, 23, 42, 0.13);
+  --glass-tint: rgba(184, 138, 45, 0.06);
+}
+
+:root:not(.dark) .bg-warm-sidebar-light {
+  background-color: #EEF1F5;
+}
+
+:root:not(.dark) .bg-warm-bg-light {
+  background-color: #F8FAFC;
+}
+
+:root:not(.dark) .bg-warm-card-light {
+  background-color: #FFFFFF;
+}
+
+:root:not(.dark) .border-warm-border-light {
+  border-color: rgba(31, 41, 55, 0.10);
+}
+
+:root:not(.dark) .text-warm-text-primary-light {
+  color: #171A1F;
+}
+
+:root:not(.dark) .text-warm-text-secondary-light {
+  color: #4B5563;
+}
+
+:root:not(.dark) .text-warm-text-muted-light {
+  color: #77808D;
+}

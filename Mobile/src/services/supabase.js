@@ -100,6 +100,25 @@ export const authService = {
     return await supabase.auth.signOut();
   },
 
+  async requestAccountDeletion() {
+    const user = await this.getUser();
+    if (!user) return { error: new Error('Not authenticated') };
+
+    const requestedAt = new Date().toISOString();
+    const { error } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        deletion_requested_at: requestedAt,
+        deletion_status: 'requested',
+        updated_at: requestedAt,
+      }, { onConflict: 'id' });
+
+    if (error) return { error };
+    await supabase.auth.signOut();
+    return { data: { deletion_requested_at: requestedAt }, error: null };
+  },
+
   async getUser() {
     try {
       // Wrapped in a 5-second timeout to prevent infinite loading screens everywhere

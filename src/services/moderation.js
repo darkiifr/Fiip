@@ -16,7 +16,7 @@ const BLOCKED_TERMS = [
 ];
 
 // Regex pour détecter les URLs
-const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+const URL_REGEX = /\bhttps?:\/\/[^\s<>"'`{}|\\^]+/giu;
 
 export const moderationService = {
     /**

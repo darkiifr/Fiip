@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 
@@ -9,6 +9,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { useSettingsStore, FontSizeMode, ThemeMode } from '../store/settingsStore';
 import { fiipRadius } from '../theme/fiipDesign';
 import { triggerHaptic } from '../utils/hapticEngine';
+import { authService } from '../services/supabase';
 
 export default function SettingsScreen() {
   const navigation = useNavigation<any>();
@@ -39,6 +40,34 @@ export default function SettingsScreen() {
   const setSize = (size: FontSizeMode) => {
     triggerHaptic('selection');
     setFontSize(size);
+  };
+
+  const handleRequestAccountDeletion = () => {
+    Alert.alert(
+      'Supprimer le compte',
+      'Fiip va demander la suppression de votre compte cloud et vous déconnecter. Les notes locales restent sur cet appareil tant que vous ne supprimez pas l’app.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Demander la suppression',
+          style: 'destructive',
+          onPress: async () => {
+            triggerHaptic('notificationWarning');
+            const { error } = await authService.requestAccountDeletion();
+            if (error) {
+              Alert.alert('Suppression impossible', error.message || 'Réessayez plus tard.');
+              return;
+            }
+            Alert.alert('Demande envoyée', 'Votre demande de suppression a été enregistrée.');
+          },
+        },
+      ],
+    );
+  };
+
+  const handleSignOut = async () => {
+    await authService.signOut();
+    triggerHaptic('selection');
   };
 
   return (
@@ -90,6 +119,8 @@ export default function SettingsScreen() {
         <Section title="Cloud et sécurité" colors={colors} isIOS={isIOS}>
           <SettingSwitch title="Synchronisation Supabase" caption="Utilise Auth, base de données et stockage Fiip." value={syncEnabled} onChange={setSyncEnabled} colors={colors} isIOS={isIOS} />
           <SettingSwitch title="Verrouillage biométrique" caption="Protège l’ouverture de l’application." value={globalLockEnabled} onChange={setGlobalLockEnabled} colors={colors} isIOS={isIOS} />
+          <SettingAction title="Se déconnecter" caption="Ferme la session Supabase sur cet appareil." onPress={handleSignOut} colors={colors} danger={false} />
+          <SettingAction title="Supprimer le compte cloud" caption="Demande la suppression du compte et des données cloud associées." onPress={handleRequestAccountDeletion} colors={colors} danger />
         </Section>
 
         <GlassCard intensity={isIOS ? 28 : 0} cornerRadius={isIOS ? fiipRadius.xl : 28} interactive style={styles.aiPolicy}>
@@ -129,6 +160,18 @@ function SettingSwitch({ title, caption, value, onChange, colors, isIOS }: any) 
         thumbColor={value ? (isIOS ? '#FFF' : colors.primary) : colors.surfaceContainerHighest}
       />
     </View>
+  );
+}
+
+function SettingAction({ title, caption, onPress, colors, danger }: any) {
+  return (
+    <TouchableOpacity accessibilityRole="button" onPress={onPress} style={styles.settingRow}>
+      <View style={styles.settingText}>
+        <Text style={[styles.settingTitle, { color: danger ? colors.danger : colors.text }]}>{title}</Text>
+        <Text style={[styles.caption, { color: colors.textSecondary }]}>{caption}</Text>
+      </View>
+      <Icon sfSymbol="chevron.right" mdIcon="chevron-right" size={18} color={danger ? colors.danger : colors.textSecondary} />
+    </TouchableOpacity>
   );
 }
 

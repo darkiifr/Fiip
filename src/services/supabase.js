@@ -2,6 +2,17 @@
 import { createClient } from '@supabase/supabase-js';
 
 import { FIIP_PUBLIC_NOTES_URL } from '../config/links';
+import {
+  buildSearchIndexEntry,
+  canUseNoteContent,
+  createTask,
+  defaultHomeWidgets,
+  normalizeAttachment,
+  normalizeNotebook,
+  normalizeNoteForV1,
+  sanitizeClipperPayload,
+} from './fiipV1';
+import { serializeNoteTags } from '../utils/noteTags';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -244,12 +255,13 @@ export const dataService = {
     combinedData.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
     // Map DB fields back to what the frontend expects
-    const mappedData = combinedData.map(n => ({
+    const mappedData = combinedData.map(n => normalizeNoteForV1({
       ...n,
       favorite: n.is_favorite,
       updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : Date.now(),
+      tags: serializeNoteTags(n.tags || []),
       badges: n.badges || [],
-      deleted: n.deleted || false,
+      deleted: n.deleted || Boolean(n.deleted_at),
       shared: n.shared || false
     }));
 
@@ -276,17 +288,25 @@ export const dataService = {
     if (!user) {return { error: 'Not authenticated' };}
 
     // Format note for DB (remove local-only constructs if any)
+    const normalized = normalizeNoteForV1(note);
     const dbNote = {
-      id: note.id,
+      id: normalized.id,
       user_id: user.id,
-      title: note.title,
-      content: note.content,
-      attachments: note.attachments || [],
-      is_favorite: note.favorite || false,
-      tags: note.tags || [],
-      badges: note.badges || [],
-      deleted: note.deleted || false,
-      updated_at: new Date(note.updatedAt || Date.now()).toISOString()
+      title: normalized.title,
+      content: normalized.isProtected ? '' : normalized.content,
+      encrypted_content: normalized.encryptedContent,
+      notebook_id: normalized.notebookId === 'all-notes' ? null : normalized.notebookId,
+      folder_id: normalized.notebookId === 'all-notes' ? null : normalized.notebookId,
+      attachments: normalized.attachments || [],
+      is_favorite: normalized.favorite || false,
+      is_locked: normalized.isProtected,
+      password_hint: normalized.security?.hint || '',
+      tags: serializeNoteTags(normalized.tags || []),
+      badges: normalized.badges || [],
+      deleted: normalized.deleted || false,
+      deleted_at: normalized.deleted_at || null,
+      conflict_of: normalized.conflictOf || null,
+      updated_at: new Date(normalized.updatedAt || Date.now()).toISOString()
     };
 
 
@@ -300,6 +320,12 @@ export const dataService = {
     if (error) {
         console.error('Error saving note:', error);
         return { error };
+    }
+
+    if (!error && canUseNoteContent(normalized, 'search')) {
+      await this.upsertSearchIndex(normalized).catch((indexError) => {
+        console.warn('Search index update failed:', indexError);
+      });
     }
 
     return { data, error };
@@ -321,6 +347,17 @@ export const dataService = {
   async publishNote(noteId) {
     const user = await authService.getUser();
     if (!user) {return { error: 'Not authenticated' };}
+
+    const { data: existingNote } = await supabase
+      .from('notes')
+      .select('id, is_locked, encrypted_content')
+      .eq('id', noteId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (existingNote && !canUseNoteContent(existingNote, 'public-share')) {
+      return { error: 'Les notes protegees ne peuvent pas etre publiees.' };
+    }
 
     // Generate a random slug
     const slug = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
@@ -401,6 +438,16 @@ export const dataService = {
   },
 
   async addCollaborator(noteId, username, role = 'viewer') {
+      const { data: existingNote } = await supabase
+          .from('notes')
+          .select('id, user_id, is_locked, encrypted_content')
+          .eq('id', noteId)
+          .single();
+
+      if (existingNote && !canUseNoteContent(existingNote, 'collaboration')) {
+          return { error: 'Les notes protegees ne peuvent pas etre partagees en collaboration.' };
+      }
+
       // 1. Find user by username
       const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -690,12 +737,206 @@ export const dataService = {
 
     if (error) {return { error };}
 
-    const { data: publicUrlData } = supabase
+    const { data: signedUrlData } = await supabase
         .storage
         .from('attachments')
-        .getPublicUrl(path);
+        .createSignedUrl(path, 60 * 60);
 
-    return { data: { path: data.path, publicUrl: publicUrlData.publicUrl }, error: null };
+    return { data: { path: data.path, signedUrl: signedUrlData?.signedUrl || '' }, error: null };
+  },
+
+  // --- Fiip V1 foundation ---
+  async fetchNotebooks() {
+      const user = await authService.getUser();
+      if (!user) {return { data: [normalizeNotebook()], error: 'Not authenticated' };}
+
+      const { data, error } = await supabase
+          .from('notebooks')
+          .select('*')
+          .is('deleted_at', null)
+          .order('sort_order', { ascending: true })
+          .order('updated_at', { ascending: false });
+
+      const notebooks = (data || []).map(normalizeNotebook);
+      return { data: [normalizeNotebook(), ...notebooks], error };
+  },
+
+  async saveNotebook(notebook) {
+      const user = await authService.getUser();
+      if (!user) {return { error: 'Not authenticated' };}
+
+      const normalized = normalizeNotebook({ ...notebook, user_id: user.id });
+      const { data, error } = await supabase
+          .from('notebooks')
+          .upsert(normalized, { onConflict: 'id' })
+          .select()
+          .single();
+
+      return { data: data ? normalizeNotebook(data) : null, error };
+  },
+
+  async deleteNotebook(notebookId) {
+      const user = await authService.getUser();
+      if (!user) {return { error: 'Not authenticated' };}
+      if (!notebookId || notebookId === 'all-notes') {
+          return { error: 'Cannot delete default notebook' };
+      }
+
+      const deletedAt = new Date().toISOString();
+      const { error } = await supabase
+          .from('notebooks')
+          .update({ deleted_at: deletedAt, updated_at: deletedAt })
+          .eq('id', notebookId)
+          .eq('user_id', user.id);
+
+      return { data: { id: notebookId, deleted_at: deletedAt }, error };
+  },
+
+  async fetchTasks() {
+      const user = await authService.getUser();
+      if (!user) {return { data: [], error: 'Not authenticated' };}
+
+      const { data, error } = await supabase
+          .from('note_tasks')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('due_at', { ascending: true, nullsFirst: false });
+
+      return { data: (data || []).map(createTask), error };
+  },
+
+  async saveTask(task) {
+      const user = await authService.getUser();
+      if (!user) {return { error: 'Not authenticated' };}
+
+      const normalized = createTask({ ...task, user_id: user.id });
+      const { data, error } = await supabase
+          .from('note_tasks')
+          .upsert({ ...normalized, user_id: user.id }, { onConflict: 'id' })
+          .select()
+          .single();
+
+      return { data: data ? createTask(data) : null, error };
+  },
+
+  async deleteTask(taskId) {
+      const user = await authService.getUser();
+      if (!user) {return { error: 'Not authenticated' };}
+
+      const { error } = await supabase
+          .from('note_tasks')
+          .update({ status: 'archived', updated_at: new Date().toISOString() })
+          .eq('id', taskId)
+          .eq('user_id', user.id);
+
+      return { error };
+  },
+
+  async upsertAttachmentMetadata(noteId, attachment) {
+      const user = await authService.getUser();
+      if (!user) {return { error: 'Not authenticated' };}
+
+      const normalized = normalizeAttachment(attachment, noteId);
+      const payload = {
+          id: normalized.id,
+          note_id: noteId,
+          user_id: user.id,
+          name: normalized.name,
+          type: normalized.type,
+          mime_type: normalized.mimeType,
+          size_bytes: normalized.size,
+          storage_path: normalized.path || normalized.cachePath || `${user.id}/${noteId}/${normalized.name}`,
+          previewable: normalized.previewable,
+          ocr_text: normalized.ocrText || '',
+          ocr_status: normalized.ocrText ? 'complete' : 'pending',
+          updated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase
+          .from('note_attachments')
+          .upsert(payload, { onConflict: 'id' })
+          .select()
+          .single();
+
+      return { data, error };
+  },
+
+  async upsertSearchIndex(note, { tasks = [], attachmentTexts = [] } = {}) {
+      const user = await authService.getUser();
+      if (!user) {return { error: 'Not authenticated' };}
+
+      const normalized = normalizeNoteForV1(note);
+      if (!canUseNoteContent(normalized, 'search')) {
+          return { data: null, error: null, skipped: true };
+      }
+
+      const entry = buildSearchIndexEntry(normalized, { tasks, attachmentTexts, ocrStatus: 'complete' });
+      const { data, error } = await supabase
+          .from('note_search_index')
+          .upsert({
+              note_id: entry.note_id,
+              user_id: user.id,
+              title: entry.title,
+              search_text: entry.searchText,
+              syncable: entry.syncable,
+              ocr_status: entry.ocrStatus,
+              updated_at: entry.updated_at,
+          }, { onConflict: 'note_id' })
+          .select()
+          .single();
+
+      return { data, error };
+  },
+
+  async fetchHomeWidgets() {
+      const user = await authService.getUser();
+      if (!user) {return { data: defaultHomeWidgets(), error: 'Not authenticated' };}
+
+      const { data, error } = await supabase
+          .from('home_widgets')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('sort_order', { ascending: true });
+
+      if (!data?.length) {
+          return { data: defaultHomeWidgets(), error };
+      }
+
+      return {
+          data: data.map((widget) => ({
+              id: widget.widget_id,
+              enabled: widget.enabled,
+              order: widget.sort_order,
+              config: widget.config || {},
+          })),
+          error,
+      };
+  },
+
+  async createNoteFromClipper(payload) {
+      const user = await authService.getUser();
+      if (!user) {return { error: 'Not authenticated' };}
+
+      const clip = sanitizeClipperPayload(payload);
+      const now = Date.now();
+      const note = normalizeNoteForV1({
+          id: crypto.randomUUID(),
+          user_id: user.id,
+          title: clip.title,
+          content: `${clip.html}<p><a href="${clip.url}" rel="noreferrer">Source: ${clip.source}</a></p>`,
+          tags: ['Web clip'],
+          attachments: clip.images.map((url, index) => ({
+              id: crypto.randomUUID(),
+              name: `capture-${index + 1}.png`,
+              type: 'image',
+              url,
+              previewable: true,
+          })),
+          createdAt: now,
+          updatedAt: now,
+      });
+
+      return this.saveNote(note);
   }
 };
 

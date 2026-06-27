@@ -1,6 +1,59 @@
 import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, readTextFile, stat } from '@tauri-apps/plugin-fs';
 
+const FIIN_EXTENSION_PATTERN = /\.fiin$/i;
+
+function coerceTimestamp(value, fallback) {
+    if (!value) {
+        return fallback;
+    }
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) {
+        return numeric;
+    }
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export function normalizeFiinNotePayload(input, { now = Date.now, randomUUID = () => crypto.randomUUID() } = {}) {
+    const raw = typeof input === 'string' ? JSON.parse(input) : input;
+    const note = raw?.note && typeof raw.note === 'object' ? raw.note : raw;
+
+    if (!note || typeof note !== 'object' || Array.isArray(note)) {
+        throw new Error('Fichier .fiin invalide.');
+    }
+
+    const title = String(note.title || note.name || '').trim();
+    const content = typeof note.content === 'string' ? note.content : '';
+
+    if (!title && !content) {
+        throw new Error('Le fichier .fiin ne contient pas de note lisible.');
+    }
+
+    const fallbackNow = now();
+    const updatedAt = coerceTimestamp(note.updatedAt || note.updated_at || note.createdAt || note.created_at, fallbackNow);
+    const createdAt = coerceTimestamp(note.createdAt || note.created_at, updatedAt);
+
+    return {
+        ...note,
+        id: randomUUID(),
+        title: title || 'Note importée',
+        content,
+        updatedAt,
+        createdAt,
+        favorite: Boolean(note.favorite),
+        deleted: false,
+        public_slug: null,
+        public: false,
+        tags: Array.isArray(note.tags) ? note.tags : [],
+        attachments: Array.isArray(note.attachments) ? note.attachments : [],
+    };
+}
+
+export function isFiinPath(path = '') {
+    return FIIN_EXTENSION_PATTERN.test(String(path).split(/[?#]/)[0]);
+}
+
 export async function calculateTotalUsage(notes) {
     let totalSize = 0;
     
@@ -31,6 +84,15 @@ export async function calculateTotalUsage(notes) {
         }
     }
     return totalSize;
+}
+
+export async function importFiinFromPath(filePath, { readText = readTextFile, now, randomUUID } = {}) {
+    if (!isFiinPath(filePath)) {
+        throw new Error('Seuls les fichiers .fiin peuvent être importés.');
+    }
+
+    const content = await readText(filePath);
+    return normalizeFiinNotePayload(content, { now, randomUUID });
 }
 
 // Export note as Markdown

@@ -8,9 +8,13 @@ export interface Note {
   id: string;
   title: string;
   content: string;
+  encrypted_content?: string | null;
+  notebook_id?: string | null;
+  folder_id?: string | null;
   user_id: string;
   is_favorite: boolean;
   is_locked: boolean;
+  tags?: Array<{ id: string; label: string; icon?: string; color?: number }> | string[];
   badges: string[];
   is_public?: boolean;
   shared?: boolean;
@@ -18,6 +22,7 @@ export interface Note {
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
+  conflict_of?: string | null;
   _status: 'synced' | 'created' | 'updated' | 'deleted';
   drawingPaths?: string[];
   attachments?: any[];
@@ -230,7 +235,11 @@ export const useNotesStore = create<NotesState>()(
           if (pendingDels.length > 0) {
             const successfulDeletes = [];
             for (const delId of pendingDels) {
-              const { error } = await supabase.from('notes').delete().eq('id', delId).eq('user_id', user.id);
+              const { error } = await supabase
+                .from('notes')
+                .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+                .eq('id', delId)
+                .eq('user_id', user.id);
               if (!error || error.code === 'PGRST116') {
                 successfulDeletes.push(delId);
               }
@@ -249,11 +258,18 @@ export const useNotesStore = create<NotesState>()(
               const { error } = await supabase.from('notes').upsert({
                 id: dbNote.id,
                 title: dbNote.title,
-                content: dbNote.content,
+                content: dbNote.is_locked ? '' : dbNote.content,
+                encrypted_content: dbNote.encrypted_content || null,
                 user_id: user.id,
+                notebook_id: dbNote.notebook_id || dbNote.folder_id || null,
+                folder_id: dbNote.folder_id || dbNote.notebook_id || null,
                 is_favorite: dbNote.is_favorite || false,
                 is_locked: dbNote.is_locked || false,
+                tags: dbNote.tags || [],
                 badges: dbNote.badges || [],
+                attachments: dbNote.attachments || [],
+                deleted_at: dbNote.deleted_at || null,
+                conflict_of: dbNote.conflict_of || null,
                 created_at: dbNote.created_at,
                 updated_at: dbNote.updated_at,
               }, { onConflict: 'id' });
@@ -277,11 +293,19 @@ export const useNotesStore = create<NotesState>()(
           }
 
           const { data: remoteNotes, error } = await query;
+          const { data: sharedRows, error: sharedError } = await supabase
+            .from('note_collaborators')
+            .select('role, notes(*)')
+            .eq('user_id', user.id);
           
-          if (!error && remoteNotes) {
+          if (!error && !sharedError && remoteNotes) {
             set((s) => {
               const newNotes = { ...s.notes };
-              remoteNotes.forEach(remote => {
+              const sharedNotes = (sharedRows || [])
+                .map((row: any) => row.notes ? { ...row.notes, shared: true, collaboration_role: row.role } : null)
+                .filter(Boolean);
+
+              [...remoteNotes, ...sharedNotes].forEach(remote => {
                 const local = newNotes[remote.id];
                 if (!local || local._status === 'synced' || new Date(remote.updated_at) > new Date(local.updated_at)) {
                   newNotes[remote.id] = {

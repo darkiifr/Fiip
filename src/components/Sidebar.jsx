@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useUI } from '../providers/UIProvider';
 import { keyAuthService } from '../services/keyauth';
+import { getSafePublicUrl } from '../utils/safeUrl';
 
 // Icons Import (Pim's Edition)
 import { authService, dataService } from '../services/supabase';
@@ -36,6 +37,7 @@ export default function Sidebar({
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [localProfile, setLocalProfile] = useState(null);
     const [supabaseUser, setSupabaseUser] = useState(null);
+    const safeAvatarUrl = getSafePublicUrl(localProfile?.avatar || localProfile?.avatar_url || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl || '');
     const osType = type();
 
     const getSafeUsername = () => {
@@ -133,8 +135,8 @@ export default function Sidebar({
                         <div className="relative shrink-0">
                             {keyAuthService.isAuthenticated ? (
                                 <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-purple-600 p-0.5 shadow-sm group-hover:shadow-blue-500/20 transition-all duration-250">
-                                      {localProfile?.avatar || localProfile?.avatar_url || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl ? (
-                                          <img src={localProfile?.avatar || localProfile?.avatar_url || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                      {safeAvatarUrl ? (
+                                          <img src={safeAvatarUrl} alt="Profile" className="w-full h-full rounded-full object-cover" />
                                      ) : (
                                         <div className="w-full h-full rounded-full bg-[#2C2C2E] flex items-center justify-center text-[10px] font-bold text-white uppercase">
                                             {(getSafeUsername() || 'U').substring(0, 2)}

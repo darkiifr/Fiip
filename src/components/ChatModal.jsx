@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { keyAuthService } from '../services/keyauth';
 import { moderationService } from '../services/moderation';
 import { soundManager } from '../services/soundManager';
+import { getSafePublicUrl } from '../utils/safeUrl';
 
 import UserProfileModal from './UserProfileModal';
 
@@ -224,8 +225,12 @@ export default function ChatModal({ isOpen, onClose }) {
         return colors[Math.abs(hash) % colors.length];
     };
 
-    const isImageUrl = (url) => {
-        return /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(url) || url.includes('media.tenor.com');
+    const getSafeImageUrl = (url) => {
+        const safeUrl = getSafePublicUrl(url, { allowSvg: false });
+        if (!safeUrl) return '';
+        return /\.(jpeg|jpg|gif|png|webp)(?:$|[?#])/i.test(new URL(safeUrl).pathname) || safeUrl.includes('media.tenor.com')
+            ? safeUrl
+            : '';
     };
 
     const handleFileUpload = (e) => {
@@ -293,8 +298,8 @@ export default function ChatModal({ isOpen, onClose }) {
                             style={{ backgroundColor: currentUserProfile.avatar ? 'transparent' : getAvatarColor(currentUserProfile.nickname || (keyAuthService.userData?.username || 'User')) }}
                             title={t('profile.click_to_edit', 'Cliquez pour modifier le profil')}
                         >
-                             {currentUserProfile.avatar ? (
-                                 <img src={currentUserProfile.avatar} alt="Profile" className="w-full h-full object-cover" />
+                             {getSafePublicUrl(currentUserProfile.avatar) ? (
+                                 <img src={getSafePublicUrl(currentUserProfile.avatar)} alt="Profile" className="w-full h-full object-cover" />
                              ) : (
                                  currentUserProfile.nickname?.substring(0, 2).toUpperCase() || 
                                  (keyAuthService.isAuthenticated && keyAuthService.userData?.username 
@@ -416,12 +421,12 @@ export default function ChatModal({ isOpen, onClose }) {
                                                 </div>
                                             )}
                                             <div className={`text-[#D1D2D5] text-[15px] leading-[1.375rem] whitespace-pre-wrap ${!isGrouped ? '' : ''}`}>
-                                                {isImageUrl(msg.message) ? (
+                                                {getSafeImageUrl(msg.message) ? (
                                                     <img 
-                                                        src={msg.message} 
+                                                        src={getSafeImageUrl(msg.message)} 
                                                         alt="Attachment" 
                                                         className="max-w-[300px] max-h-[300px] rounded-lg mt-1 cursor-pointer hover:opacity-90 transition-opacity"
-                                                        onClick={() => window.open(msg.message, '_blank')}
+                                                        onClick={() => window.open(getSafeImageUrl(msg.message), '_blank', 'noopener,noreferrer')}
                                                     />
                                                 ) : (
                                                     msg.message
@@ -506,12 +511,16 @@ export default function ChatModal({ isOpen, onClose }) {
                                                  {videoSearch ? t('chat.results', 'Résultats') : t('chat.trending', 'Tendances')}
                                              </div>
                                              <div className="grid grid-cols-2 gap-2">
-                                                 {mediaList.map((url, i) => (
-                                                     <div key={i} onClick={() => handleGifClick(url)} className="aspect-video bg-[#1E1F22] rounded cursor-pointer hover:ring-2 hover:ring-[#5865F2] overflow-hidden relative group">
-                                                         <img src={url} alt="GIF" className="w-full h-full object-cover" />
-                                                         <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
-                                                     </div>
-                                                 ))}
+                                                 {mediaList.map((url, i) => {
+                                                     const safeUrl = getSafeImageUrl(url);
+                                                     if (!safeUrl) return null;
+                                                     return (
+                                                         <div key={i} onClick={() => handleGifClick(safeUrl)} className="aspect-video bg-[#1E1F22] rounded cursor-pointer hover:ring-2 hover:ring-[#5865F2] overflow-hidden relative group">
+                                                             <img src={safeUrl} alt="GIF" className="w-full h-full object-cover" />
+                                                             <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
+                                                         </div>
+                                                     );
+                                                 })}
                                              </div>
                                         </div>
                                      </div>

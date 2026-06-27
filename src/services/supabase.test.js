@@ -104,6 +104,9 @@ describe('Supabase dataService', () => {
     });
 
     it('publishNote should update is_public to true', async () => {
+        const readSingle = vi.fn().mockResolvedValue({ data: { id: 'note-1', is_locked: false, encrypted_content: null }, error: null });
+        const readOwnerEq = vi.fn().mockReturnValue({ single: readSingle });
+        const readNoteEq = vi.fn().mockReturnValue({ eq: readOwnerEq });
         const ownerEq = vi.fn().mockReturnValue({
             select: vi.fn().mockReturnValue({
                 single: vi.fn().mockResolvedValue({ data: { id: 'note-1' }, error: null })
@@ -112,6 +115,10 @@ describe('Supabase dataService', () => {
         const noteEq = vi.fn().mockReturnValue({ eq: ownerEq });
         const update = vi.fn().mockReturnValue({ eq: noteEq });
         supabase.from.mockReturnValueOnce({
+            select: vi.fn().mockReturnValue({
+                eq: readNoteEq
+            })
+        }).mockReturnValueOnce({
             update
         });
 
@@ -123,6 +130,22 @@ describe('Supabase dataService', () => {
             public_slug: expect.any(String),
             updated_at: expect.any(String),
         }));
+    });
+
+    it('publishNote should reject protected notes', async () => {
+        const readSingle = vi.fn().mockResolvedValue({ data: { id: 'note-1', is_locked: true, encrypted_content: 'ENC:value' }, error: null });
+        const readOwnerEq = vi.fn().mockReturnValue({ single: readSingle });
+        const readNoteEq = vi.fn().mockReturnValue({ eq: readOwnerEq });
+        supabase.from.mockReturnValueOnce({
+            select: vi.fn().mockReturnValue({
+                eq: readNoteEq
+            })
+        });
+
+        const result = await dataService.publishNote('note-1');
+
+        expect(result.error).toMatch(/protegees/);
+        expect(supabase.from).toHaveBeenCalledTimes(1);
     });
 
     it('fetchProfile should fetch from profiles table', async () => {

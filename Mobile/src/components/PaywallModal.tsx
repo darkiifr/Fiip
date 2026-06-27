@@ -1,6 +1,5 @@
 import React from 'react';
-import { Modal, StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
-import { BlurView } from '@react-native-community/blur'; // Optional if installed, fallback to semi-transparent
+import { Modal, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { SFSymbol } from 'react-native-sfsymbols';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';

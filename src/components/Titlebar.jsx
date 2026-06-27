@@ -9,12 +9,35 @@ import { LiquidGlassPrimitive } from './ui/LiquidGlassPrimitive';
 
 export default function Titlebar({ style = 'macos' }) {
     const { theme } = useUI();
-    let appWindow; try { appWindow = getCurrentWindow(); } catch (e) { console.warn("Tauri API not available", e); }
+    const isTauri = Boolean(window.__TAURI_INTERNALS__);
+    let appWindow;
+    if (isTauri) {
+        try {
+            appWindow = getCurrentWindow();
+        } catch (e) {
+            console.warn("Tauri API not available", e);
+        }
+    }
     const { t } = useTranslation();
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const osType = type();
+    const [osType, setOsType] = useState('unknown');
 
     useEffect(() => {
+        if (!isTauri) {
+            return undefined;
+        }
+        try {
+            setOsType(type());
+        } catch (error) {
+            console.warn('OS type unavailable:', error);
+        }
+        return undefined;
+    }, [isTauri]);
+
+    useEffect(() => {
+        if (!appWindow) {
+            return undefined;
+        }
         let unlisten;
         const checkFullscreen = async () => {
             const isFull = await appWindow.isFullscreen();
@@ -37,16 +60,25 @@ export default function Titlebar({ style = 'macos' }) {
 
     const handleClose = async (e) => {
         e.stopPropagation();
+        if (!isTauri) {
+            return;
+        }
         await exit(0);
     };
 
     const handleMinimize = async (e) => {
         e.stopPropagation();
+        if (!appWindow) {
+            return;
+        }
         await appWindow.minimize();
     };
 
     const handleMaximize = async (e) => {
         e.stopPropagation();
+        if (!appWindow) {
+            return;
+        }
         if (actualStyle === 'macos') {
             const isFull = await appWindow.isFullscreen();
             if (isFull) {

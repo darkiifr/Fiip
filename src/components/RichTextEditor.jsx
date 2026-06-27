@@ -4,6 +4,7 @@ import CollaborationCaret from '@tiptap/extension-collaboration-caret';
 import { Color } from '@tiptap/extension-color';
 import FontFamily from '@tiptap/extension-font-family';
 import Highlight from '@tiptap/extension-highlight';
+import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
@@ -20,6 +21,7 @@ import * as Y from 'yjs';
 import { getCollaborationEndpoint } from '../services/collaborationEndpoint';
 import { getInstalledFonts } from '../services/fontStore';
 import { detectLocalFonts } from '../utils/fontDetector';
+import { getSafePublicUrl } from '../utils/safeUrl';
 
 import { FontSize } from './FontSizeExtension';
 import { LanguageToolExtension } from './LanguageToolExtension';
@@ -46,7 +48,72 @@ const FONT_SIZES = [
     { label: '30px', value: '30px' },
 ];
 
-const COLOR_PRESETS = ['#1C1C1E', '#F5F5F7', '#D97706', '#2563EB', '#16A34A', '#DC2626', '#9333EA', '#0891B2'];
+const URL_PATTERN = /https?:\/\/[^\s<>"']+/i;
+const GRAMMAR_MENU_WIDTH = 272;
+const GRAMMAR_MENU_MAX_HEIGHT = 320;
+
+function clampPosition(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
+async function openExternalUrl(url) {
+    try {
+        const { openUrl } = await import('@tauri-apps/plugin-opener');
+        await openUrl(url);
+    } catch {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+}
+
+export function normalizeOverextendedLinks(html = '') {
+    if (!html || typeof DOMParser === 'undefined') return html;
+
+    const document = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    document.body.querySelectorAll('a[href]').forEach((link) => {
+        const text = link.textContent || '';
+        const match = text.match(URL_PATTERN);
+        if (!match || match.index === undefined) return;
+
+        const url = match[0].replace(/[.,;:!?)]$/, '');
+        const href = link.getAttribute('href') || '';
+        if (!href.includes(url) && !url.includes(href)) return;
+
+        const prefix = text.slice(0, match.index);
+        const suffix = text.slice(match.index + match[0].length);
+        if (!suffix.trim()) return;
+
+        const replacement = document.createDocumentFragment();
+        if (prefix) replacement.append(document.createTextNode(prefix));
+
+        const cleanLink = document.createElement('a');
+        cleanLink.setAttribute('href', href);
+        cleanLink.textContent = url;
+        replacement.append(cleanLink);
+        replacement.append(document.createTextNode(suffix));
+        link.replaceWith(replacement);
+    });
+
+    return document.body.innerHTML;
+}
+
+export function handleEditorLinkClick(event) {
+    const target = event.target?.nodeType === Node.ELEMENT_NODE ? event.target : event.target?.parentElement;
+    const link = target?.closest?.('a[href]');
+    if (!link) return false;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!event.ctrlKey && !event.metaKey) {
+        return true;
+    }
+
+    const safeUrl = getSafePublicUrl(link.getAttribute('href') || '');
+    if (safeUrl) {
+        void openExternalUrl(safeUrl);
+    }
+    return true;
+}
 
 function ToolbarButton({ active, children, className = '', ...props }) {
     return (
@@ -62,102 +129,65 @@ function ToolbarButton({ active, children, className = '', ...props }) {
 }
 
 function ColorPickerPopover({ editor }) {
-    const [open, setOpen] = React.useState(false);
     const currentColor = editor.getAttributes('textStyle').color || '#1C1C1E';
-    const [draft, setDraft] = React.useState(currentColor);
+    const selectionRef = React.useRef(null);
 
-    React.useEffect(() => {
-        setDraft(currentColor);
-    }, [currentColor]);
-
-    const recentColors = (() => {
-        try {
-            return JSON.parse(localStorage.getItem('fiip-recent-colors') || '[]');
-        } catch {
-            return [];
-        }
-    })();
+    const rememberSelection = () => {
+        selectionRef.current = {
+            from: editor.state.selection.from,
+            to: editor.state.selection.to,
+        };
+    };
 
     const applyColor = (color) => {
-        setDraft(color);
-        editor.chain().focus().setColor(color).run();
-        localStorage.setItem('fiip-recent-colors', JSON.stringify([color, ...recentColors.filter((item) => item !== color)].slice(0, 8)));
+        const selection = selectionRef.current;
+        const chain = editor.chain();
+        if (selection && selection.from !== selection.to) {
+            chain.setTextSelection(selection);
+        }
+        chain.setColor(color).run();
+    };
+
+    const unsetColor = () => {
+        const selection = selectionRef.current;
+        const chain = editor.chain();
+        if (selection && selection.from !== selection.to) {
+            chain.setTextSelection(selection);
+        }
+        chain.unsetColor().run();
     };
 
     return (
-        <div className="relative">
-            <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setOpen((value) => !value)}
-                className="h-8 px-2 rounded-lg border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-zinc-900 text-warm-text-primary-light dark:text-warm-text-primary-dark hover:bg-warm-sidebar-item-active dark:hover:bg-zinc-800 transition-all flex items-center gap-2"
+        <div className="flex items-center gap-1">
+            <label
+                className="h-8 px-2 rounded-lg border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-zinc-900 text-warm-text-primary-light dark:text-warm-text-primary-dark hover:bg-warm-sidebar-item-active dark:hover:bg-zinc-800 transition-all flex items-center gap-2 cursor-pointer"
                 title="Couleur du texte"
             >
-                <span className="h-4 w-4 rounded-full border border-black/10 dark:border-white/10" style={{ backgroundColor: currentColor }} />
+                <input
+                    type="color"
+                    value={/^#[0-9a-f]{6}$/i.test(currentColor) ? currentColor : '#1C1C1E'}
+                    onPointerDown={(event) => {
+                        event.stopPropagation();
+                        rememberSelection();
+                    }}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={(event) => applyColor(event.target.value)}
+                    className="h-4 w-4 cursor-pointer rounded-full border border-black/10 bg-transparent p-0 dark:border-white/10"
+                    aria-label="Couleur du texte"
+                />
                 <Pipette size={14} />
+            </label>
+            <button
+                type="button"
+                onMouseDown={(event) => {
+                    event.preventDefault();
+                    rememberSelection();
+                }}
+                onClick={unsetColor}
+                className="h-8 rounded-lg border border-warm-border-light px-2 text-[10px] font-bold text-warm-text-muted-light transition-all hover:bg-warm-sidebar-item-active dark:border-warm-border-dark dark:hover:bg-white/10"
+            >
+                Auto
             </button>
-            {open && (
-                <div className="absolute top-10 left-0 z-50 w-52 rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-white/95 dark:bg-zinc-950/95 p-2.5 shadow-2xl backdrop-blur-2xl">
-                    <div className="grid grid-cols-8 gap-1">
-                        {COLOR_PRESETS.map((color) => (
-                            <button
-                                key={color}
-                                type="button"
-                                onMouseDown={(e) => e.preventDefault()}
-                                onClick={() => applyColor(color)}
-                                className="h-5 w-5 rounded-full border border-black/10 dark:border-white/10 transition-transform hover:scale-110"
-                                style={{ backgroundColor: color }}
-                                aria-label={`Appliquer ${color}`}
-                            />
-                        ))}
-                    </div>
-                    {recentColors.length > 0 && (
-                        <div className="mt-3 border-t border-warm-border-light dark:border-warm-border-dark pt-2">
-                            <p className="mb-2 text-[9px] font-bold uppercase tracking-wider text-warm-text-muted-light">Récentes</p>
-                            <div className="flex flex-wrap gap-1.5">
-                                {recentColors.map((color) => (
-                                    <button
-                                        key={color}
-                                        type="button"
-                                        onMouseDown={(e) => e.preventDefault()}
-                                        onClick={() => applyColor(color)}
-                                        className="h-5 w-5 rounded-full border border-black/10 dark:border-white/10"
-                                        style={{ backgroundColor: color }}
-                                        aria-label={`Réutiliser ${color}`}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    <div className="mt-3 flex items-center gap-2">
-                        <input
-                            value={draft}
-                            onChange={(event) => setDraft(event.target.value)}
-                            className="min-w-0 flex-1 rounded-lg border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-zinc-900 px-2 py-1.5 text-xs font-mono text-warm-text-primary-light dark:text-warm-text-primary-dark outline-none"
-                            placeholder="#D97706"
-                        />
-                        <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => /^#[0-9a-f]{6}$/i.test(draft) && applyColor(draft)}
-                            className="rounded-lg bg-zinc-950 px-2.5 py-1.5 text-[10px] font-bold text-white dark:bg-white dark:text-zinc-950"
-                        >
-                            OK
-                        </button>
-                    </div>
-                    <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                            editor.chain().focus().unsetColor().run();
-                            setOpen(false);
-                        }}
-                        className="mt-2 w-full rounded-lg border border-warm-border-light dark:border-warm-border-dark px-2 py-1.5 text-[10px] font-bold text-warm-text-secondary-light dark:text-warm-text-secondary-dark hover:bg-warm-sidebar-item-active"
-                    >
-                        Couleur automatique
-                    </button>
-                </div>
-            )}
         </div>
     );
 }
@@ -269,6 +299,8 @@ const MenuBar = ({ editor }) => {
 };
 
 export default React.forwardRef(function RichTextEditor({ value, onChange, onKeyDown, spellcheck = true, noteId, user }, ref) {
+    const suppressUpdateRef = React.useRef(true);
+    const [grammarMenu, setGrammarMenu] = React.useState(null);
     const { ydoc, provider } = React.useMemo(() => {
         const doc = new Y.Doc();
         const endpoint = getCollaborationEndpoint(import.meta.env.VITE_HOCUSPOCUS_URL);
@@ -281,16 +313,70 @@ export default React.forwardRef(function RichTextEditor({ value, onChange, onKey
     }, [noteId]);
 
     useEffect(() => {
+        suppressUpdateRef.current = true;
+        const timer = window.setTimeout(() => {
+            suppressUpdateRef.current = false;
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }, [noteId]);
+
+    useEffect(() => {
         return () => {
             provider?.destroy();
             ydoc?.destroy();
         };
     }, [provider, ydoc]);
 
+    useEffect(() => {
+        const onGrammarMenu = (event) => {
+            const detail = event.detail || {};
+            let replacements = [];
+            try {
+                replacements = JSON.parse(detail.replacementsStr || '[]');
+            } catch {
+                replacements = [];
+            }
+            const requestedX = Number(detail.x || 0);
+            const requestedY = Number(detail.y || 0);
+            const x = clampPosition(requestedX + 8, 8, Math.max(8, window.innerWidth - GRAMMAR_MENU_WIDTH - 8));
+            const opensBelow = requestedY + GRAMMAR_MENU_MAX_HEIGHT + 14 < window.innerHeight;
+            const y = opensBelow
+                ? clampPosition(requestedY + 12, 8, Math.max(8, window.innerHeight - 80))
+                : clampPosition(requestedY - GRAMMAR_MENU_MAX_HEIGHT - 12, 8, Math.max(8, window.innerHeight - 80));
+            setGrammarMenu({
+                x,
+                y,
+                message: detail.message || 'Correction suggérée',
+                replacements: replacements.slice(0, 6),
+                from: detail.from,
+                to: detail.to,
+                view: detail.view,
+            });
+        };
+        const close = () => setGrammarMenu(null);
+        window.addEventListener('languagetool:contextmenu', onGrammarMenu);
+        window.addEventListener('click', close);
+        window.addEventListener('keydown', close);
+        return () => {
+            window.removeEventListener('languagetool:contextmenu', onGrammarMenu);
+            window.removeEventListener('click', close);
+            window.removeEventListener('keydown', close);
+        };
+    }, []);
+
     const editor = useEditor({
         extensions: [
             StarterKit.configure({ history: false }),
             Underline,
+            Link.configure({
+                openOnClick: false,
+                autolink: false,
+                linkOnPaste: true,
+                HTMLAttributes: {
+                    rel: 'noopener noreferrer nofollow',
+                    target: '_blank',
+                },
+            }),
             TextAlign.configure({ types: ['heading', 'paragraph'] }),
             TextStyle,
             Color,
@@ -307,10 +393,13 @@ export default React.forwardRef(function RichTextEditor({ value, onChange, onKey
             })] : []),
             ...(spellcheck ? [LanguageToolExtension] : []),
         ],
-        content: value,
+        content: normalizeOverextendedLinks(value),
         onUpdate: ({ editor }) => {
+            if (suppressUpdateRef.current) {
+                return;
+            }
             if (onChange) {
-                onChange({ target: { value: editor.getHTML() } });
+                onChange({ target: { value: normalizeOverextendedLinks(editor.getHTML()) } });
             }
         },
         editorProps: {
@@ -324,7 +413,10 @@ export default React.forwardRef(function RichTextEditor({ value, onChange, onKey
                     onKeyDown(event);
                 }
                 return false;
-            }
+            },
+            handleDOMEvents: {
+                click: (_view, event) => handleEditorLinkClick(event),
+            },
         }
     });
 
@@ -338,8 +430,13 @@ export default React.forwardRef(function RichTextEditor({ value, onChange, onKey
     }), [editor]);
 
     useEffect(() => {
-        if (editor && value !== undefined && value !== editor.getHTML() && !editor.isFocused) {
-            editor.commands.setContent(value);
+        const normalizedValue = normalizeOverextendedLinks(value);
+        if (editor && normalizedValue !== undefined && normalizedValue !== editor.getHTML() && !editor.isFocused) {
+            suppressUpdateRef.current = true;
+            editor.commands.setContent(normalizedValue);
+            window.setTimeout(() => {
+                suppressUpdateRef.current = false;
+            }, 0);
         }
     }, [value, editor]);
 
@@ -347,6 +444,33 @@ export default React.forwardRef(function RichTextEditor({ value, onChange, onKey
         <div className="w-full flex-1 flex flex-col relative z-10 font-sans">
             <MenuBar editor={editor} />
             <EditorContent editor={editor} className="flex-1" />
+            {grammarMenu && (
+                <div
+                    className="fixed z-[160] max-h-80 w-[17rem] overflow-y-auto rounded-2xl border border-black/10 bg-[#fbfaf6]/96 p-2 text-sm text-warm-text-primary-light shadow-[0_22px_70px_rgba(0,0,0,0.24)] backdrop-blur-3xl dark:border-white/10 dark:bg-[#111316]/96 dark:text-warm-text-primary-dark"
+                    style={{ left: grammarMenu.x, top: grammarMenu.y }}
+                    onClick={(event) => event.stopPropagation()}
+                    role="menu"
+                    tabIndex={-1}
+                >
+                    <p className="px-2 py-1.5 text-xs font-semibold leading-5 text-warm-text-muted-light">{grammarMenu.message}</p>
+                    {grammarMenu.replacements.length > 0 ? grammarMenu.replacements.map((replacement) => (
+                        <button
+                            key={replacement}
+                            type="button"
+                            className="flex w-full rounded-xl px-3 py-2 text-left text-sm font-semibold hover:bg-amber-500/10"
+                            onClick={() => {
+                                grammarMenu.view.dispatch(grammarMenu.view.state.tr.insertText(replacement, grammarMenu.from, grammarMenu.to));
+                                grammarMenu.view.focus();
+                                setGrammarMenu(null);
+                            }}
+                        >
+                            {replacement}
+                        </button>
+                    )) : (
+                        <p className="px-3 py-2 text-xs text-warm-text-muted-light">Aucune proposition disponible.</p>
+                    )}
+                </div>
+            )}
         </div>
     );
 });

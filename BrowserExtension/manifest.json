@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Fiip Web Clipper",
+  "short_name": "Fiip Clipper",
+  "version": "0.1.0",
+  "description": "Capture web pages, selections, and source metadata into Fiip.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://*/", "http://*/"],
+  "homepage_url": "https://fiip.netlify.app/",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Clip to Fiip",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://*/*"],
+      "js": ["content-helpers.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -92,7 +92,9 @@ export default function SubscriptionScreen() {
                   </View>
                 )}
               </View>
-              <Text style={[styles.planPrice, { color: colors.text }]}>{plan.price}</Text>
+              <Text style={[styles.planPrice, { color: colors.text }]}>
+                {isIOS && plan.id !== 'free' ? 'Bientôt via App Store' : plan.price}
+              </Text>
 
               <View style={styles.featuresList}>
                 {plan.features.map((feature, index) => (

@@ -12,7 +12,7 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn set_window_effect(window: tauri::Window, effect: &str) {
+fn set_window_effect(window: tauri::Window, effect: &str, dark: Option<bool>) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
         // Clear all effects to ensure clean state
@@ -22,23 +22,19 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
 
         match effect {
             "mica" => {
-                // Try Mica first (Windows 11 only)
-                if let Err(_) = apply_mica(&window, Some(true)) {
-                    // Fallback to Acrylic for Windows 10 if Mica fails
-                    let _ = apply_acrylic(&window, None);
-                }
+                apply_mica(&window, Some(dark.unwrap_or(false))).map_err(|error| format!("Mica is not supported on this Windows version: {error}"))?;
+                Ok("mica".to_string())
             }
             "acrylic" => {
-                let _ = apply_acrylic(&window, None);
+                apply_acrylic(&window, None).map_err(|error| format!("Acrylic is not supported on this Windows version: {error}"))?;
+                Ok("acrylic".to_string())
             }
             "blur" => {
-                let _ = apply_blur(&window, None);
+                apply_blur(&window, None).map_err(|error| format!("Blur is not supported on this Windows version: {error}"))?;
+                Ok("blur".to_string())
             }
-            "vibrancy" => {
-                // Map vibrancy to Acrylic on Windows
-                let _ = apply_acrylic(&window, None);
-            }
-            _ => {} // "none" or default
+            "none" => Ok("none".to_string()),
+            other => Err(format!("{other} is not supported on Windows")),
         }
     }
     #[cfg(target_os = "macos")]
@@ -46,20 +42,29 @@ fn set_window_effect(window: tauri::Window, effect: &str) {
         use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
         
         let material = match effect {
-            "mica" | "acrylic" | "vibrancy" => Some(NSVisualEffectMaterial::HudWindow),
-            "blur" => Some(NSVisualEffectMaterial::UnderWindowBackground),
+            "vibrancy" => Some(NSVisualEffectMaterial::HudWindow),
             "sidebar" => Some(NSVisualEffectMaterial::Sidebar),
+            "none" => None,
             _ => None
         };
 
         if let Some(mat) = material {
-             let _ = apply_vibrancy(&window, mat, None, None);
+             apply_vibrancy(&window, mat, None, None).map_err(|error| format!("Vibrancy is not supported: {error}"))?;
+             Ok(effect.to_string())
+        } else if effect == "none" {
+            Ok("none".to_string())
+        } else {
+            Err(format!("{effect} is not supported on macOS"))
         }
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         let _ = window;
-        let _ = effect;
+        if effect == "none" {
+            Ok("none".to_string())
+        } else {
+            Err(format!("{effect} is not supported on this platform"))
+        }
     }
 }
 
@@ -72,6 +77,30 @@ fn is_portable() -> bool {
         }
     }
     false
+}
+
+fn launch_fiin_path_from_args<I>(args: I) -> Option<String>
+where
+    I: IntoIterator<Item = String>,
+{
+    args.into_iter().skip(1).find(|arg| {
+        std::path::Path::new(arg)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("fiin"))
+            .unwrap_or(false)
+    })
+}
+
+#[tauri::command]
+fn read_launch_fiin_file() -> Result<Option<(String, String)>, String> {
+    let Some(path) = launch_fiin_path_from_args(std::env::args()) else {
+        return Ok(None);
+    };
+
+    let content = std::fs::read_to_string(&path)
+        .map_err(|error| format!("Impossible de lire le fichier .fiin : {error}"))?;
+    Ok(Some((path, content)))
 }
 
 #[tauri::command]
@@ -161,11 +190,15 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-           use tauri::Manager;
-           let _ = app.get_webview_window("main").expect("no main window").set_focus();
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+           use tauri::{Emitter, Manager};
+           let window = app.get_webview_window("main").expect("no main window");
+           if let Some(path) = launch_fiin_path_from_args(args) {
+               let _ = window.emit("fiip://open-fiin", path);
+           }
+           let _ = window.set_focus();
         }))
-        .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, get_hwid, register_deep_link])
+        .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, read_launch_fiin_file, get_hwid, register_deep_link])
         .setup(|_app| {
             println!("App setup starting...");
 

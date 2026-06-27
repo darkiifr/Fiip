@@ -1,132 +1,5 @@
-import { Save, X, Eraser, Undo, Redo, Square, Circle, Minus, Paintbrush, ChevronDown } from 'lucide-react';
+import { Save, X, Eraser, Undo, Redo, Square, Circle, Minus, Paintbrush } from 'lucide-react';
 import { useRef, useState, useEffect } from 'react';
-
-const HexColorPicker = ({ color, onChange }) => {
-    // Custom Color Picker with Palette, Hue Slider, and Preview
-    const [localColor, setLocalColor] = useState(color);
-    const [hue, setHue] = useState(() => getHue(color));
-    const [prevColor, setPrevColor] = useState(color);
-
-    if (color !== prevColor) {
-        setPrevColor(color);
-        setLocalColor(color);
-        setHue(getHue(color));
-    }
-
-    const handleHueChange = (e) => {
-        const h = parseInt(e.target.value);
-        setHue(h);
-        // Convert Hue to Hex (Assuming 100% Saturation and 50% Lightness for pure hue color)
-        // Or better, keep current saturation/lightness? 
-        // For simplicity in this "Hue Slider" request, we usually map Hue to a color.
-        // Let's generate a color from HSL(h, 100%, 50%)
-        const newColor = hslToHex(h, 100, 50);
-        setLocalColor(newColor);
-        onChange(newColor);
-    };
-
-    const PRESETS = [
-        "#000000", "#ffffff", "#9ca3af", "#4b5563",
-        "#ef4444", "#f97316", "#f59e0b", "#eab308",
-        "#84cc16", "#22c55e", "#10b981", "#14b8a6",
-        "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1",
-        "#8b5cf6", "#a855f7", "#d946ef", "#ec4899",
-        "#f43f5e"
-    ];
-
-    return (
-        <div className="absolute top-full left-0 mt-2 p-3 bg-[#1e1e1e] border border-white/10 rounded-xl shadow-2xl z-50 w-64 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-3">
-            
-            {/* Header / Preview */}
-            <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Couleur</span>
-                <div className="w-8 h-8 rounded-full border border-white/20 shadow-inner" style={{ background: localColor }} />
-            </div>
-
-            {/* Hue Slider */}
-            <div className="flex flex-col gap-1">
-                <div className="h-3 w-full rounded-full relative overflow-hidden cursor-pointer shadow-inner">
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />
-                    <input 
-                        type="range" 
-                        min="0" 
-                        max="360" 
-                        value={hue} 
-                        onChange={handleHueChange}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                </div>
-            </div>
-
-            {/* Preset Palette */}
-            <div>
-                <div className="grid grid-cols-7 gap-1.5">
-                    {PRESETS.map((c) => (
-                        <button
-                            key={c}
-                            onClick={() => { setLocalColor(c); onChange(c); }}
-                            className={`w-6 h-6 rounded-full border transition-transform hover:scale-110 ${localColor === c ? 'border-white scale-110 ring-1 ring-white/50' : 'border-transparent hover:border-white/30'}`}
-                            style={{ background: c }}
-                            title={c}
-                        />
-                    ))}
-                </div>
-            </div>
-
-            {/* Hex Input */}
-            <div className="flex items-center gap-2 bg-black/20 rounded-lg p-1.5 border border-white/5">
-                <span className="text-xs text-gray-500 font-mono pl-1">#</span>
-                <input 
-                    type="text" 
-                    value={localColor.replace('#', '')}
-                    onChange={(e) => {
-                        const val = "#" + e.target.value.replace('#', '');
-                        setLocalColor(val);
-                        if (/^#[0-9A-F]{6}$/i.test(val)) { onChange(val); }
-                    }}
-                    className="w-full bg-transparent border-none text-xs text-white font-mono focus:outline-none uppercase"
-                    maxLength={6}
-                />
-            </div>
-        </div>
-    );
-};
-
-// Helper HSL to Hex
-function hslToHex(h, s, l) {
-  const light = l / 100;
-  const a = (s * Math.min(light, 1 - light)) / 100;
-  const f = n => {
-    const k = (n + h / 30) % 12;
-    const colorVal = light - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * colorVal).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-// Helper to extract hue from hex
-const getHue = (hex) => {
-    let r = 0, g = 0, b = 0;
-    if (hex.length === 4) {
-        r = parseInt("0x" + hex[1] + hex[1]);
-        g = parseInt("0x" + hex[2] + hex[2]);
-        b = parseInt("0x" + hex[3] + hex[3]);
-    } else if (hex.length === 7) {
-        r = parseInt("0x" + hex[1] + hex[2]);
-        g = parseInt("0x" + hex[3] + hex[4]);
-        b = parseInt("0x" + hex[5] + hex[6]);
-    }
-    r /= 255; g /= 255; b /= 255;
-    const cmin = Math.min(r,g,b), cmax = Math.max(r,g,b), delta = cmax - cmin;
-    let h = 0;
-    if (delta === 0) { h = 0; }
-    else if (cmax === r) { h = ((g - b) / delta) % 6; }
-    else if (cmax === g) { h = (b - r) / delta + 2; }
-    else { h = (r - g) / delta + 4; }
-    h = Math.round(h * 60);
-    if (h < 0) { h += 360; }
-    return h;
-};
 
 export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay }) {
     const canvasRef = useRef(null);
@@ -139,7 +12,6 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
     const [opacity, setOpacity] = useState(1);
     const [tool, setTool] = useState('brush');
     const [snapshot, setSnapshot] = useState(null);
-    const [showColorPicker, setShowColorPicker] = useState(false);
     
     // History
     const [history, setHistory] = useState([]);
@@ -357,21 +229,20 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
 
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
-                         <div className="relative">
-                            <button
-                                onClick={() => setShowColorPicker(!showColorPicker)}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-black/30 rounded-lg border border-white/5 hover:border-white/20 transition-all"
-                            >
-                                <div className="w-4 h-4 rounded-full border border-white/20" style={{ background: color }} />
-                                <span className="text-xs font-mono text-gray-400 uppercase">{color}</span>
-                                <ChevronDown size={12} className="text-gray-500" />
-                            </button>
-                            {showColorPicker && <HexColorPicker color={color} onChange={setColor} />}
-                         </div>
+                        <label className="flex items-center gap-2 px-3 py-1.5 bg-black/30 rounded-lg border border-white/5 hover:border-white/20 transition-all cursor-pointer">
+                            <input
+                                type="color"
+                                value={color}
+                                onChange={(event) => setColor(event.target.value)}
+                                className="h-5 w-5 cursor-pointer rounded border border-white/20 bg-transparent p-0"
+                                aria-label="Couleur du dessin"
+                            />
+                            <span className="text-xs font-mono text-gray-400 uppercase">{color}</span>
+                        </label>
                     </div>
                     <button 
                         onClick={handleSave}
-                        className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg shadow-lg border border-blue-400/20 transition-all"
+                        className="flex items-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500 px-4 py-2 text-sm font-black text-white shadow-[0_12px_30px_rgba(16,185,129,0.25)] transition-all hover:-translate-y-0.5 hover:bg-emerald-400"
                     >
                         <Save size={18} />
                         <span>Enregistrer</span>

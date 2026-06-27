@@ -78,7 +78,7 @@ const SelectContent = React.forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        'relative z-50 min-w-32 overflow-hidden rounded-2xl',
+        'relative z-[10000] min-w-32 overflow-hidden rounded-2xl',
         /* Liquid Glass */
         'bg-white/95 dark:bg-zinc-950/92 backdrop-blur-2xl',
         'border border-warm-border-light dark:border-white/8',
