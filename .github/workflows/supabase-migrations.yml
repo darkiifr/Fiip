@@ -36,26 +36,37 @@ jobs:
 
       - name: Validate migration files
         run: |
-          test -d supabase/migrations
+          if [ ! -d supabase/migrations ]; then
+            echo "No tracked Supabase migrations directory; skipping migration validation."
+            echo "HAS_SUPABASE_MIGRATIONS=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           migration_files="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' | sort)"
-          test -n "$migration_files"
+          if [ -z "$migration_files" ]; then
+            echo "No tracked Supabase migration files; skipping remote migration steps."
+            echo "HAS_SUPABASE_MIGRATIONS=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           versions="$(printf '%s\n' "$migration_files" | sed -E 's#.*/([0-9]+)_.*#\1#')"
           test "$(printf '%s\n' "$versions" | sort | uniq -d | wc -l)" -eq 0
+          echo "HAS_SUPABASE_MIGRATIONS=true" >> "$GITHUB_ENV"
 
       - name: Link Supabase project
-        if: env.HAS_SUPABASE_SECRETS == 'true'
+        if: env.HAS_SUPABASE_SECRETS == 'true' && env.HAS_SUPABASE_MIGRATIONS == 'true'
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Dry-run migrations on pull requests
-        if: github.event_name == 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true'
+        if: github.event_name == 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true' && env.HAS_SUPABASE_MIGRATIONS == 'true'
         run: supabase db push --dry-run --linked --password "$SUPABASE_DB_PASSWORD"
 
       - name: Deploy migrations on main
-        if: github.event_name != 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true'
+        if: github.event_name != 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true' && env.HAS_SUPABASE_MIGRATIONS == 'true'
         run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --yes
 
       - name: Skip remote Supabase deployment without secrets
-        if: env.HAS_SUPABASE_SECRETS != 'true'
+        if: env.HAS_SUPABASE_SECRETS != 'true' || env.HAS_SUPABASE_MIGRATIONS != 'true'
         run: |
           echo "Supabase remote migration dry-run/deploy skipped."
-          echo "Configure SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, and SUPABASE_PROJECT_ID to enable it."
+          echo "Configure SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, SUPABASE_PROJECT_ID, and tracked migration files to enable it."
