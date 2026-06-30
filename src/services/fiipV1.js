@@ -19,12 +19,7 @@ export function nowIso() {
 
 export function stripHtml(value = '') {
   if (!value) return '';
-  if (typeof document !== 'undefined') {
-    const element = document.createElement('div');
-    element.innerHTML = String(value);
-    return element.textContent || element.innerText || '';
-  }
-  return String(value).replace(/<[^>]*>/g, ' ');
+  return DOMPurify.sanitize(String(value), { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
 }
 
 export function normalizeNotebook(input = {}) {
@@ -42,6 +37,46 @@ export function normalizeNotebook(input = {}) {
     created_at: createdAt,
     updated_at: updatedAt,
     deleted_at: input.deleted_at || input.deletedAt || null,
+  };
+}
+
+export function getNotebookIdFromNav(activeNav = '') {
+  if (typeof activeNav !== 'string' || !activeNav.startsWith('notebook:')) {
+    return DEFAULT_NOTEBOOK_ID;
+  }
+
+  const notebookId = activeNav.slice('notebook:'.length).trim();
+  return notebookId || DEFAULT_NOTEBOOK_ID;
+}
+
+export function isNotebookNav(activeNav = '') {
+  return getNotebookIdFromNav(activeNav) !== DEFAULT_NOTEBOOK_ID;
+}
+
+export function createNoteDraft({
+  id = crypto.randomUUID(),
+  title = '',
+  content = '',
+  activeNav = 'home',
+  notebookId,
+  now = Date.now(),
+  defaultTitle = 'Nouvelle Note',
+} = {}) {
+  const targetNotebookId = notebookId || getNotebookIdFromNav(activeNav);
+  const inNotebook = targetNotebookId !== DEFAULT_NOTEBOOK_ID;
+
+  return {
+    id,
+    title: title || defaultTitle,
+    content: content || '',
+    updatedAt: now,
+    createdAt: now,
+    favorite: false,
+    deleted: false,
+    tags: [],
+    notebookId: targetNotebookId,
+    notebook_id: inNotebook ? targetNotebookId : null,
+    folder_id: inNotebook ? targetNotebookId : null,
   };
 }
 

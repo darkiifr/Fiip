@@ -39,11 +39,11 @@ export const SupabaseAuthScreen: React.FC<SupabaseAuthScreenProps> = (props) => 
     triggerHaptic('impactMedium');
     
     try {
-      let data, error;
+      let error;
       if (isLogin) {
-        ({ data, error } = await supabase.auth.signInWithPassword({ email, password }));
+        ({ error } = await supabase.auth.signInWithPassword({ email, password }));
       } else {
-        ({ data, error } = await supabase.auth.signUp({ email, password }));
+        ({ error } = await supabase.auth.signUp({ email, password }));
       }
 
       if (error) throw error;
@@ -60,7 +60,7 @@ export const SupabaseAuthScreen: React.FC<SupabaseAuthScreenProps> = (props) => 
   };
 
   return (
-    <GlassModal visible={visible} onClose={onClose} title={isLogin ? t('Connexion CloudFiip') : t('Créer un compte')}>
+    <GlassModal visible={visible} onClose={onClose} title={isLogin ? t('Connexion cloud Fiip') : t('Créer un compte')}>
       <View style={styles.container}>
         <View style={styles.headerIconContainer}>
              <Icon sfSymbol="cloud.fill" mdIcon="cloud" size={48} color={colors.primary} />

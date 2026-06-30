@@ -56,7 +56,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = (props) => {
       <GlassModal visible={visible} onClose={onClose} title={t('Licence Fiip')}>
         <View style={styles.container}>
           <Text style={[styles.descIOS, { color: colors.textSecondary }]}>
-            {t("Sur iOS, Fiip fonctionne en mode gratuit. Les abonnements et achats numériques seront gérés uniquement par l'App Store lorsqu'ils seront disponibles.")}
+            {t("Sur iOS, Fiip fonctionne avec les fonctions incluses. Les abonnements et achats numériques seront gérés uniquement par l'App Store lorsqu'ils seront disponibles.")}
           </Text>
 
           <TouchableOpacity 
@@ -76,7 +76,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = (props) => {
     <GlassModal visible={visible} onClose={onClose} title={t('Licence Fiip')}>
       <View style={styles.container}>
         <Text style={[isIOS ? styles.descIOS : styles.descAndroid, { color: colors.textSecondary }]}>
-          {t('Veuillez entrer votre clé de licence pour activer toutes les fonctionnalités de Fiip, ou commencer un essai gratuit.')}
+          {t('Veuillez entrer votre clé de licence pour activer toutes les fonctionnalités de Fiip, ou commencer un essai.')}
         </Text>
 
         <GlassInput 

@@ -194,7 +194,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
         <main className="flex min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between border-b border-warm-border-light px-6 py-4 dark:border-white/10">
             <div>
-              <h2 className="text-lg font-black tracking-tight">
+              <h2 className="fiip-light-profile-heading text-lg font-black tracking-tight">
                 {activeTab === 'profile' ? 'Profil public' : activeTab === 'account' ? 'Détails du compte' : 'Sécurité'}
               </h2>
               <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Informations visibles dans Fiip et la collaboration.</p>

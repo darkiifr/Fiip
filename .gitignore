@@ -68,7 +68,15 @@ PublicLinksite/coverage/
 PublicLinksite/.vite/
 
 # Supabase etc.
-supabase/
+supabase/.branches/
+supabase/.temp/
+supabase/.env*
+!supabase/
+!supabase/migrations/
+!supabase/migrations/*.sql
+!supabase/schema.sql
+!supabase/snippets/
+!supabase/snippets/*.sql
 DA/directionArtistique.txt
 
 # Mobile (React Native / iOS / Android)

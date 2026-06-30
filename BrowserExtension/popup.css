@@ -1,11 +1,11 @@
 body {
-  min-width: 284px;
+  min-width: 336px;
   margin: 0;
   font-family: Inter, Geist, system-ui, sans-serif;
   color: #171717;
   background:
-    radial-gradient(circle at 16% 8%, rgba(255, 255, 255, 0.95), transparent 30%),
-    linear-gradient(145deg, #fff8e8 0%, #f4c45f 46%, #171717 100%);
+    radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.9), transparent 28%),
+    linear-gradient(145deg, #fff8e8 0%, #f1c45e 42%, #1c1c1c 100%);
 }
 
 main {
@@ -21,6 +21,59 @@ header {
   align-items: center;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.panel,
+.details {
+  margin-bottom: 12px;
+  border: 1px solid rgba(23, 23, 23, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.panel {
+  padding: 12px;
+}
+
+label,
+strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+select {
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid rgba(23, 23, 23, 0.14);
+  border-radius: 10px;
+  padding: 9px 10px;
+  color: #171717;
+  background: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.details {
+  overflow: hidden;
+}
+
+.details div {
+  padding: 10px 12px;
+}
+
+.details div + div {
+  border-top: 1px solid rgba(23, 23, 23, 0.08);
+}
+
+.details span {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(23, 23, 23, 0.66);
 }
 
 img {

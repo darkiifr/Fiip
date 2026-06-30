@@ -1,3 +1,4 @@
+import { message } from '@tauri-apps/plugin-dialog';
 import { 
     ChevronLeft, 
     Share2, 
@@ -29,6 +30,7 @@ import {
     ChevronRight,
     ChevronDown
 } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import AttachmentViewer from './AttachmentViewer';
@@ -39,6 +41,7 @@ import RichTextEditor from './RichTextEditor';
 import { createTask } from '../services/fiipV1';
 import { cacheAttachment, classifyAttachment, formatBytes, getAttachmentPreviewUrl } from '../services/attachmentCache';
 import { extractImageOcr } from '../services/ocr';
+import { getAttachmentLimitAlert, getStorageLimitAlert } from '../services/planLimits';
 import { dataService } from '../services/supabase';
 import { soundManager } from '../services/soundManager';
 import { decryptData, encryptData } from '../utils/crypto';
@@ -243,7 +246,9 @@ export default function Editor({
     tagSuggestions = [],
     notebooks = [],
     tasks = [],
-    onSaveTask
+    onSaveTask,
+    storageUsage,
+    planLevel = 0
 }) {
     const { t } = useTranslation();
     const [title, setTitle] = useState(note.title);
@@ -268,6 +273,15 @@ export default function Editor({
     const editorRef = useRef(null);
     const titleRef = useRef(null);
     const fileInputRef = useRef(null);
+
+    const showLimitAlert = async (limitAlert) => {
+        if (!limitAlert) return;
+        if (window.__TAURI_INTERNALS__) {
+            await message(limitAlert.message, { title: limitAlert.title, kind: 'warning' });
+            return;
+        }
+        window.alert(`${limitAlert.title}\n\n${limitAlert.message}`);
+    };
 
     useEffect(() => {
         setTitle(note.title);
@@ -332,7 +346,12 @@ export default function Editor({
     const handleExportPdf = () => {
         const printWindow = window.open('', '_blank', 'popup,width=900,height=1100');
         if (!printWindow) return;
-        printWindow.document.write(`<!doctype html><html><head><title>${escapeHtml(title || 'Fiip note')}</title><style>body{font-family:Inter,Arial,sans-serif;max-width:760px;margin:40px auto;line-height:1.6;color:#171717}h1{font-size:32px}.meta{color:#777;font-size:12px;margin-bottom:24px}img,video{max-width:100%;height:auto}pre{white-space:pre-wrap}</style></head><body><h1>${escapeHtml(title || 'Sans titre')}</h1><p class="meta">Export Fiip - ${new Date().toLocaleString()}</p>${note.content || ''}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),120));</script></body></html>`);
+        const sanitizedContent = DOMPurify.sanitize(note.content || '', {
+            USE_PROFILES: { html: true },
+            FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+            FORBID_ATTR: ['onerror', 'onload', 'onclick'],
+        });
+        printWindow.document.write(`<!doctype html><html><head><title>${escapeHtml(title || 'Fiip note')}</title><style>body{font-family:Inter,Arial,sans-serif;max-width:760px;margin:40px auto;line-height:1.6;color:#171717}h1{font-size:32px}.meta{color:#777;font-size:12px;margin-bottom:24px}img,video{max-width:100%;height:auto}pre{white-space:pre-wrap}</style></head><body><h1>${escapeHtml(title || 'Sans titre')}</h1><p class="meta">Export Fiip - ${new Date().toLocaleString()}</p>${sanitizedContent}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),120));</script></body></html>`);
         printWindow.document.close();
         printWindow.focus();
     };
@@ -452,7 +471,31 @@ export default function Editor({
     };
 
     const addFiles = async (files) => {
-        const newFiles = await Promise.all(Array.from(files).map(async (file) => {
+        const incomingFiles = Array.from(files || []);
+        if (!incomingFiles.length) return;
+
+        const attachmentLimitAlert = getAttachmentLimitAlert({
+            level: planLevel,
+            currentAttachmentCount: attachments.length,
+            incomingFileCount: incomingFiles.length,
+        });
+        if (attachmentLimitAlert) {
+            await showLimitAlert(attachmentLimitAlert);
+            return;
+        }
+
+        const incomingBytes = incomingFiles.reduce((total, file) => total + Number(file.size || 0), 0);
+        const storageLimitAlert = getStorageLimitAlert({
+            level: planLevel,
+            currentUsage: Number(storageUsage?.used || 0),
+            incomingBytes,
+        });
+        if (storageLimitAlert) {
+            await showLimitAlert(storageLimitAlert);
+            return;
+        }
+
+        const newFiles = await Promise.all(incomingFiles.map(async (file) => {
             const cached = await cacheAttachment(file, note.id);
             const meta = classifyAttachment({ name: file.name, mimeType: file.type });
             const ocr = await extractImageOcr(file, { protectedNote: Boolean(note.is_locked || note.encrypted_content) });
@@ -521,7 +564,7 @@ export default function Editor({
 
     return (
         <div 
-            className={`flex-1 flex flex-col h-full bg-warm-bg-light dark:bg-warm-bg-dark text-warm-text-primary-light dark:text-warm-text-primary-dark p-8 pb-28 overflow-hidden relative ${
+            className={`fiip-light-editor-view flex-1 flex flex-col h-full bg-warm-bg-light dark:bg-warm-bg-dark text-warm-text-primary-light dark:text-warm-text-primary-dark p-8 pb-28 overflow-hidden relative ${
                 isDragging ? 'bg-amber-500/5 ring-4 ring-amber-500/10 ring-inset' : ''
             }`}
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -548,7 +591,7 @@ export default function Editor({
                                 type="text"
                                 value={title}
                                 onChange={handleTitleChange}
-                                className="bg-transparent border-none text-lg font-semibold text-warm-text-primary-light dark:text-warm-text-primary-dark placeholder:text-warm-text-muted-light/30 focus:outline-none focus:ring-0 p-0 m-0 w-64 md:w-80"
+                                className="fiip-light-editor-title bg-transparent border-none text-lg font-semibold text-warm-text-primary-light dark:text-warm-text-primary-dark placeholder:text-warm-text-muted-light/30 focus:outline-none focus:ring-0 p-0 m-0 w-64 md:w-80"
                                 placeholder={t('editor.placeholder_title', 'Sans Titre')}
                             />
                         </div>
@@ -616,7 +659,7 @@ export default function Editor({
                     <button 
                         onClick={onOpenShare}
                         disabled={note.isProtected || note.is_locked}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 border border-transparent rounded-xl text-xs font-semibold transition-all shadow-sm"
+                        className="fiip-light-editor-share-button flex items-center gap-1.5 px-3 py-1.5 bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 border border-transparent rounded-xl text-xs font-semibold transition-all shadow-sm"
                         title={note.isProtected || note.is_locked ? 'Les notes protegees ne peuvent pas etre partagees.' : 'Partager'}
                     >
                         <Share2 size={13} />
@@ -694,17 +737,17 @@ export default function Editor({
                     </div>
                 ) : null}
 
-                <div className="mb-6 grid gap-3 rounded-3xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.04] md:grid-cols-[1fr_auto]">
+                <div className="mb-6 grid gap-3 rounded-3xl border border-warm-border-light bg-warm-card-light/86 p-4 text-warm-text-primary-light shadow-sm dark:border-white/10 dark:bg-white/[0.05] dark:text-warm-text-primary-dark md:grid-cols-[1fr_auto]">
                     <form onSubmit={handleAddTask} className="flex flex-wrap items-center gap-2">
                         <CheckSquare size={16} className="text-emerald-500" />
                         <input
                             value={taskTitle}
                             onChange={(event) => setTaskTitle(event.target.value)}
                             placeholder="Ajouter une tache liee a cette note"
-                            className="h-9 min-w-44 flex-1 rounded-xl border border-warm-border-light bg-white px-3 text-xs font-semibold outline-none dark:border-white/10 dark:bg-[#111316]"
+                            className="h-9 min-w-44 flex-1 rounded-xl border border-warm-border-light bg-warm-card-light px-3 text-xs font-semibold text-warm-text-primary-light outline-none placeholder:text-warm-text-muted-light dark:border-white/10 dark:bg-[#111316] dark:text-warm-text-primary-dark"
                         />
                         <TaskDatePicker value={taskDueDate} onChange={setTaskDueDate} />
-                        <label className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light bg-white px-3 text-xs font-semibold dark:border-white/10 dark:bg-[#111316]">
+                        <label className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light bg-warm-card-light px-3 text-xs font-semibold text-warm-text-primary-light dark:border-white/10 dark:bg-[#111316] dark:text-warm-text-primary-dark">
                             <Clock size={13} className="text-warm-text-muted-light" />
                             <input
                                 type="text"
@@ -722,15 +765,15 @@ export default function Editor({
                         </button>
                     </form>
                     <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light px-3 text-xs font-semibold hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/10">
+                        <button type="button" onClick={() => fileInputRef.current?.click()} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light px-3 text-xs font-semibold text-warm-text-secondary-light hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:border-white/10 dark:text-warm-text-secondary-dark dark:hover:bg-white/10 dark:hover:text-warm-text-primary-dark">
                             <ScanLine size={14} />
                             Importer
                         </button>
-                        <button type="button" onClick={() => setIsScannerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light px-3 text-xs font-semibold hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/10">
+                        <button type="button" onClick={() => setIsScannerOpen(true)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light px-3 text-xs font-semibold text-warm-text-secondary-light hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:border-white/10 dark:text-warm-text-secondary-dark dark:hover:bg-white/10 dark:hover:text-warm-text-primary-dark">
                             <ScanLine size={14} />
                             Webcam
                         </button>
-                        <button type="button" onClick={() => setIsDrawing(true)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light px-3 text-xs font-semibold hover:bg-black/[0.04] dark:border-white/10 dark:hover:bg-white/10">
+                        <button type="button" onClick={() => setIsDrawing(true)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-warm-border-light px-3 text-xs font-semibold text-warm-text-secondary-light hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:border-white/10 dark:text-warm-text-secondary-dark dark:hover:bg-white/10 dark:hover:text-warm-text-primary-dark">
                             <PenLine size={14} />
                             Croquis
                         </button>

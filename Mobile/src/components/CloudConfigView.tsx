@@ -7,7 +7,7 @@ import { ProgressBar } from 'react-native-paper';
 import { Icon } from './ui/Icon';
 
 export const CloudConfigView = () => {
-    const { colors, isDark } = useAppTheme();
+    const { colors } = useAppTheme();
     const { t } = useTranslation();
     const isIOS = Platform.OS === 'ios';
     const [usage, setUsage] = useState({ totalBytes: 0, limitBytes: 50 * 1024 * 1024 });

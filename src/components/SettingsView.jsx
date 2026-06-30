@@ -1,32 +1,31 @@
 import { getVersion } from '@tauri-apps/api/app';
+import { ask, message } from '@tauri-apps/plugin-dialog';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { open } from '@tauri-apps/plugin-shell';
 import { check } from '@tauri-apps/plugin-updater';
-import {
-    IconFrance,
-    IconGermany,
-    IconItaly,
-    IconJapan,
-    IconNetherlands,
-    IconPortugal,
-    IconRussia,
-    IconSpain,
-    IconUnitedKingdom,
-} from 'nucleo-flags';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useUI } from '../providers/UIProvider';
 import { FIIP_LICENSE_PURCHASE_URL } from '../config/links';
-import { FREE_MODEL_ROUTER, getLastAIUsageStats, subscribeToAIUsage } from '../services/ai';
+import { getLastAIUsageStats, subscribeToAIUsage } from '../services/ai';
 import { clearAttachmentCache, formatBytes, getAttachmentCacheSize } from '../services/attachmentCache';
+import {
+    clearBiometricLock,
+    enrollBiometricLock,
+    getBiometricPlatformInfo,
+    isBiometricApiAvailable,
+} from '../services/biometricLock';
 import { getFontCacheSize } from '../services/fontStore';
 import { keyAuthService } from '../services/keyauth';
+import { getLanguageOption, getLocalizedLanguageLabel, LANGUAGES } from '../services/languages';
 import { getPlatformDisplayName } from '../services/platform';
 import { authService } from '../services/supabase';
+import { fetchGitHubLatestRelease, getUpdatePresentation } from '../services/updates';
 import { coerceWindowEffect, getWindowEffectOptions } from '../utils/windowEffects';
 
 import FontManager from './FontManager';
+import NucleoFlag from './NucleoFlag';
 import { GlassSwitch } from './ui/GlassSwitch';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from './ui/Select';
 
@@ -38,7 +37,6 @@ import IconDownload from '~icons/mingcute/download-2-fill';
 import IconGlobe from '~icons/mingcute/earth-2-fill';
 import IconRefresh from '~icons/mingcute/refresh-3-fill';
 import IconBot from '~icons/mingcute/robot-fill';
-import IconVolume from '~icons/mingcute/volume-fill';
 import IconLeft from '~icons/mingcute/left-fill';
 import IconSettings from '~icons/mingcute/settings-1-fill';
 import IconPalette from '~icons/mingcute/palette-fill';
@@ -60,30 +58,24 @@ export default function SettingsView({
     const { theme: uiTheme, setTheme: setUiTheme } = useUI();
     const [activeTab, setActiveTab] = useState(initialTab);
     const [localSettings, setLocalSettings] = useState(settings);
-    const [audioDevices, setAudioDevices] = useState({ inputs: [], outputs: [] });
+    const [, setAudioDevices] = useState({ inputs: [], outputs: [] });
     const [platformName, setPlatformName] = useState('');
     const [appVersion, setAppVersion] = useState('');
-    const [voices, setVoices] = useState([]);
+    const [, setVoices] = useState([]);
     const [pendingUpdatesCount, setPendingUpdatesCount] = useState(0);
     const [currentUser, setCurrentUser] = useState(null);
     const [lastSyncAt, setLastSyncAt] = useState(() => localStorage.getItem('fiip-last-sync-at') || '');
     const [aiUsage, setAiUsage] = useState(() => getLastAIUsageStats());
     const [cacheStats, setCacheStats] = useState({ attachments: 0, fonts: 0 });
-    const [updateStatus, setUpdateStatus] = useState('Non vérifié');
+    const [updateStatus, setUpdateStatus] = useState(() => t('settings.update_not_checked', 'Not checked'));
+    const [updateInfo, setUpdateInfo] = useState(null);
+    const [availableUpdate, setAvailableUpdate] = useState(null);
+    const [isInstallingUpdate, setIsInstallingUpdate] = useState(false);
+    const [biometricStatus, setBiometricStatus] = useState('');
+    const [biometricAvailable, setBiometricAvailable] = useState(false);
 
-    const languages = [
-        { code: 'fr', label: 'Français', short: 'FR', Flag: IconFrance },
-        { code: 'en', label: 'English', short: 'EN', Flag: IconUnitedKingdom },
-        { code: 'de', label: 'Deutsch', short: 'DE', Flag: IconGermany },
-        { code: 'es', label: 'Español', short: 'ES', Flag: IconSpain },
-        { code: 'it', label: 'Italiano', short: 'IT', Flag: IconItaly },
-        { code: 'pt', label: 'Português', short: 'PT', Flag: IconPortugal },
-        { code: 'nl', label: 'Nederlands', short: 'NL', Flag: IconNetherlands },
-        { code: 'ru', label: 'Русский', short: 'RU', Flag: IconRussia },
-        { code: 'ja', label: '日本語', short: 'JA', Flag: IconJapan },
-    ].sort((a, b) => a.label.localeCompare(b.label));
-    const selectedLanguage = languages.find(l => l.code === localSettings.language || l.code === i18n.language) || languages[0];
-    const SelectedLanguageFlag = selectedLanguage.Flag;
+    const languages = LANGUAGES;
+    const selectedLanguage = getLanguageOption(localSettings.language || i18n.language);
 
     useEffect(() => {
         setLocalSettings(settings);
@@ -137,6 +129,7 @@ export default function SettingsView({
         getPlatformDisplayName()
             .then(name => setPlatformName(name))
             .catch(err => console.warn("Failed to get platform name:", err));
+        setBiometricAvailable(isBiometricApiAvailable());
 
         // Get App Version
         fetch('/version.json')
@@ -161,8 +154,9 @@ export default function SettingsView({
     const storagePercent = Number.isFinite(storageUsage?.percent) ? storageUsage.percent : 0;
     const storageLimit = Number(storageUsage?.limit || 0);
     const totalCacheSize = cacheStats.attachments + cacheStats.fonts;
-    const currentLicenseName = keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : 'Aucune licence active';
+    const currentLicenseName = keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : t('settings.no_active_license', 'No active license');
     const windowEffectOptions = getWindowEffectOptions(osType);
+    const biometricInfo = getBiometricPlatformInfo(osType);
 
     const handleClearAttachmentCache = async () => {
         await clearAttachmentCache();
@@ -170,26 +164,78 @@ export default function SettingsView({
     };
 
     const handleCheckUpdates = async () => {
-        setUpdateStatus('Vérification...');
+        setUpdateStatus(t('settings.checking', 'Checking...'));
+        setUpdateInfo(null);
+        setAvailableUpdate(null);
+        const githubReleasePromise = fetchGitHubLatestRelease().catch((error) => {
+            console.warn('GitHub release lookup failed:', error);
+            return null;
+        });
         if (!window.__TAURI_INTERNALS__) {
-            setUpdateStatus('Ouvre les versions GitHub');
-            await open('https://github.com/darkiifr/Fiip/releases');
+            const githubRelease = await githubReleasePromise;
+            setUpdateInfo(getUpdatePresentation(null, githubRelease));
+            setUpdateStatus(githubRelease ? t('settings.github_latest_version', 'Latest GitHub version: {{version}}', { version: githubRelease.tag_name }) : t('settings.github_versions_available', 'GitHub versions available'));
             return;
         }
         try {
             const update = await check();
+            const githubRelease = await githubReleasePromise;
             if (update?.available) {
-                setUpdateStatus(`Version ${update.version} disponible`);
+                setUpdateStatus(t('settings.update_version_available', 'Version {{version}} available', { version: update.version }));
+                setAvailableUpdate(update);
+                setUpdateInfo(getUpdatePresentation(update, githubRelease));
             } else {
-                setUpdateStatus(`À jour (${appVersion || 'version actuelle'})`);
+                setUpdateStatus(t('settings.up_to_date_version', 'Up to date ({{version}})', { version: appVersion || t('settings.current_version_label', 'current version') }));
+                setUpdateInfo(getUpdatePresentation(null, githubRelease));
             }
         } catch (error) {
-            setUpdateStatus(error?.message || 'Vérification impossible');
+            setUpdateStatus(error?.message || t('settings.update_check_unavailable', 'Update check unavailable'));
+        }
+    };
+
+    const handleInstallUpdate = async () => {
+        if (!availableUpdate) return;
+        const confirmed = await ask(
+            t('settings.update_install_confirm', 'Install Fiip {{version}} now? The app will restart after installation.', { version: availableUpdate.version }),
+            { title: t('settings.update_dialog_title', 'Fiip update'), kind: 'info' }
+        ).catch(() => false);
+        if (!confirmed) return;
+        try {
+            setIsInstallingUpdate(true);
+            setUpdateStatus(t('settings.downloading_installing', 'Downloading and installing...'));
+            await availableUpdate.downloadAndInstall();
+            await relaunch();
+        } catch (error) {
+            setUpdateStatus(error?.message || t('settings.install_unavailable', 'Installation unavailable'));
+            await message(error?.message || t('settings.install_error_message', 'Unable to install the update.'), { title: 'Fiip', kind: 'error' }).catch(console.error);
+        } finally {
+            setIsInstallingUpdate(false);
+        }
+    };
+
+    const handleBiometricToggle = async (enabled) => {
+        if (!enabled) {
+            clearBiometricLock();
+            setBiometricStatus(t('settings.biometric_disabled', 'Biometric lock disabled.'));
+            handleUpdate({ ...localSettings, biometricLockEnabled: false });
+            return;
+        }
+        if (!isBiometricApiAvailable()) {
+            setBiometricStatus(t('settings.biometric_no_authenticator', 'No compatible local authenticator was detected.'));
+            return;
+        }
+        try {
+            setBiometricStatus(t('settings.biometric_setup_progress', 'Setting up...'));
+            await enrollBiometricLock();
+            setBiometricStatus(t('settings.biometric_enabled', '{{method}} enabled.', { method: biometricInfo.name }));
+            handleUpdate({ ...localSettings, biometricLockEnabled: true });
+        } catch (error) {
+            setBiometricStatus(error?.message || t('settings.biometric_setup_error', 'Biometric setup is unavailable.'));
         }
     };
 
     return (
-        <div className="flex-1 flex h-full overflow-hidden bg-warm-bg-light dark:bg-warm-bg-dark text-warm-text-primary-light dark:text-warm-text-primary-dark">
+        <div className="fiip-light-settings-view flex-1 flex h-full overflow-hidden bg-warm-bg-light dark:bg-warm-bg-dark text-warm-text-primary-light dark:text-warm-text-primary-dark">
             {/* Sidebar gauche macOS Style */}
             <div className="w-64 border-r border-warm-border-light dark:border-warm-border-dark bg-warm-sidebar-light/50 dark:bg-warm-sidebar-dark/50 flex flex-col p-4">
                 <button 
@@ -209,8 +255,8 @@ export default function SettingsView({
                         { id: 'editor', label: t('settings.editor', 'Éditeur'), icon: IconDocument },
                         { id: 'sync', label: t('settings.sync', 'Synchronisation'), icon: IconUser },
                         { id: 'ai', label: t('settings.ai', 'Intelligence Artificielle'), icon: IconBot },
-                        { id: 'premium', label: 'Fiip Premium', icon: IconKey },
-                        { id: 'cache', label: 'Cache local', icon: IconDownload },
+                        { id: 'premium', label: t('settings.premium', 'Fiip Premium'), icon: IconKey },
+                        { id: 'cache', label: t('settings.cache_local', 'Local cache'), icon: IconDownload },
                         { id: 'about', label: t('settings.about', 'À propos'), icon: IconInfo }
                     ].map((tab) => {
                         const Icon = tab.icon;
@@ -219,13 +265,13 @@ export default function SettingsView({
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                                className={`fiip-light-settings-tab w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
                                     active 
-                                        ? 'bg-warm-sidebar-item-active dark:bg-warm-sidebar-item-active text-warm-text-primary-light dark:text-warm-text-primary-dark font-semibold' 
+                                        ? 'fiip-light-settings-tab-active bg-warm-sidebar-item-active dark:bg-warm-sidebar-item-active text-warm-text-primary-light dark:text-warm-text-primary-dark font-semibold' 
                                         : 'text-warm-text-secondary-light dark:text-warm-text-secondary-dark hover:bg-warm-sidebar-item-active/50 dark:hover:bg-warm-sidebar-item-active/30'
                                 }`}
                             >
-                                <Icon className={`w-4 h-4 ${active ? 'text-warm-text-primary-light dark:text-warm-text-primary-dark' : 'text-warm-text-muted-light dark:text-warm-text-muted-dark'}`} />
+                                <Icon className={`fiip-light-settings-tab-icon w-4 h-4 ${active ? 'text-warm-text-primary-light dark:text-warm-text-primary-dark' : 'text-warm-text-muted-light dark:text-warm-text-muted-dark'}`} />
                                 {tab.label}
                             </button>
                         );
@@ -240,8 +286,8 @@ export default function SettingsView({
                     {activeTab === 'general' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.general', 'Général')}</h3>
-                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Gérez la langue et les préférences système de base.</p>
+                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.general', 'Général')}</h3>
+                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.general_desc', 'Manage language and basic system preferences.')}</p>
                             </div>
 
                             {/* Langue */}
@@ -249,7 +295,7 @@ export default function SettingsView({
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <label className="text-sm font-semibold">{t('settings.language', "Langue de l'application")}</label>
-                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Configurez la langue de l'interface.</p>
+                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.language_desc', 'Choose the interface language.')}</p>
                                     </div>
                                     <div className="w-48">
                                         <Select
@@ -262,16 +308,23 @@ export default function SettingsView({
                                             <SelectTrigger className="w-full bg-white dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl px-3 py-2 text-sm text-left">
                                                 <div className="flex items-center gap-2">
                                                     <IconGlobe className="w-4 h-4 text-warm-text-muted-light" />
-                                                    <SelectedLanguageFlag size={22} className="shrink-0 rounded-[4px] shadow-sm" title={selectedLanguage.label} />
-                                                    <span className="truncate font-semibold">{selectedLanguage.label}</span>
+                                                    <NucleoFlag language={selectedLanguage} className="h-5 w-5 shrink-0 rounded-[4px]" />
+                                                    <span className="truncate font-semibold">{getLocalizedLanguageLabel(selectedLanguage, i18n.language)}</span>
                                                 </div>
                                             </SelectTrigger>
-                                            <SelectContent className="bg-white dark:bg-zinc-900 border border-warm-border-light dark:border-warm-border-dark rounded-xl shadow-lg mt-1 p-1">
+                                            <SelectContent className="max-h-[360px] rounded-xl shadow-lg mt-1 p-1">
                                                 <SelectGroup>
                                                     {languages.map((l) => (
-                                                        <SelectItem key={l.code} value={l.code} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-warm-sidebar-item-active cursor-pointer">
-                                                            <l.Flag size={22} className="shrink-0 rounded-[4px] shadow-sm" title={l.label} />
-                                                            <span className="font-medium truncate">{l.label}</span>
+                                                        <SelectItem key={l.code} value={l.code} className="min-h-9 px-3 py-2 rounded-lg text-sm cursor-pointer">
+                                                            <span className="inline-flex items-center gap-3">
+                                                                <NucleoFlag language={l} className="h-5 w-5 shrink-0 rounded-[4px]" />
+                                                                <span className="flex min-w-0 flex-col leading-tight">
+                                                                    <span className="truncate font-semibold">{getLocalizedLanguageLabel(l, i18n.language)}</span>
+                                                                    {l.nativeLabel !== l.label ? (
+                                                                        <span className="truncate text-[11px] font-medium text-warm-text-muted-light dark:text-warm-text-muted-dark">{l.nativeLabel}</span>
+                                                                    ) : null}
+                                                                </span>
+                                                            </span>
                                                         </SelectItem>
                                                     ))}
                                                 </SelectGroup>
@@ -288,7 +341,7 @@ export default function SettingsView({
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <span className="text-sm font-semibold">{t('settings.app_sounds', "Sons de l'interface")}</span>
-                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Activer les sons lors des clics et transitions.</p>
+                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.app_sounds_desc', 'Play sounds for clicks and transitions.')}</p>
                                     </div>
                                     <GlassSwitch
                                         checked={localSettings.appSound !== false}
@@ -299,12 +352,44 @@ export default function SettingsView({
                                 <div className="flex items-center justify-between pt-3 border-t border-warm-border-light dark:border-warm-border-dark">
                                     <div className="space-y-0.5">
                                         <span className="text-sm font-semibold">{t('settings.chat_sounds', "Notifications du chat")}</span>
-                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Jouer un son lors de la réception d'un message de Dexter.</p>
+                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.chat_sounds_desc', 'Play a sound when Dexter sends a message.')}</p>
                                     </div>
                                     <GlassSwitch
                                         checked={localSettings.chatSound !== false}
                                         onCheckedChange={(checked) => handleUpdate({ ...localSettings, chatSound: checked })}
                                     />
+                                </div>
+                            </div>
+
+                            <div className="bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark rounded-2xl p-4 space-y-4">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="space-y-1">
+                                        <span className="text-sm font-semibold">{t('settings.biometric_lock_title', 'Biometric lock')}</span>
+                                        <p className="text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                            {biometricInfo.description}
+                                        </p>
+                                        <p className="text-xs font-semibold text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
+                                            {t('settings.biometric_method', 'Method')}: {biometricInfo.name}
+                                        </p>
+                                    </div>
+                                    <GlassSwitch
+                                        checked={localSettings.biometricLockEnabled === true}
+                                        onCheckedChange={handleBiometricToggle}
+                                        disabled={!biometricAvailable}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-warm-border-light pt-3 dark:border-warm-border-dark">
+                                    <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                        {biometricAvailable ? (biometricStatus || t('settings.biometric_available', 'Available on this device.')) : t('settings.biometric_unavailable', 'Unavailable in this WebView or on this device.')}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        disabled={localSettings.biometricLockEnabled !== true}
+                                        onClick={() => window.dispatchEvent(new Event('fiip-lock-now'))}
+                                        className="rounded-xl border border-warm-border-light px-3 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active disabled:cursor-not-allowed disabled:opacity-40 dark:border-warm-border-dark dark:hover:bg-white/10"
+                                    >
+                                        {t('settings.lock_now', 'Lock now')}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -314,8 +399,8 @@ export default function SettingsView({
                     {activeTab === 'appearance' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.appearance', 'Apparence')}</h3>
-                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Personnalisez le style visuel de l'application.</p>
+                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.appearance', 'Apparence')}</h3>
+                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.appearance_desc', 'Customize the visual style of the app.')}</p>
                             </div>
 
                             {/* Thème segmented picker */}
@@ -323,9 +408,9 @@ export default function SettingsView({
                                 <label className="text-sm font-semibold block">{t('settings.ui_theme', 'Thème de couleur')}</label>
                                 <div className="bg-warm-sidebar-light dark:bg-warm-sidebar-dark rounded-xl p-1 flex gap-1 border border-warm-border-light dark:border-warm-border-dark">
                                     {[
-                                        { id: 'light', label: 'Clair' },
-                                        { id: 'dark', label: 'Sombre' },
-                                        { id: 'system', label: 'Système' }
+                                        { id: 'light', label: t('settings.theme_light', 'Light') },
+                                        { id: 'dark', label: t('settings.theme_dark', 'Dark') },
+                                        { id: 'system', label: t('settings.theme_system', 'System') }
                                     ].map((tStyle) => (
                                         <button
                                             key={tStyle.id}
@@ -382,7 +467,7 @@ export default function SettingsView({
                                                     ? 'bg-white dark:bg-zinc-800 text-warm-text-primary-light dark:text-warm-text-primary-dark shadow-sm border border-warm-border-light dark:border-warm-border-dark'
                                                     : 'text-warm-text-muted-light dark:text-warm-text-muted-dark hover:text-warm-text-primary-light dark:hover:text-warm-text-primary-dark disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:text-warm-text-muted-light'
                                             }`}
-                                            title={effect.supported ? undefined : 'Indisponible sur cet OS'}
+                                            title={effect.supported ? undefined : t('settings.unavailable_os', 'Unavailable on this OS')}
                                         >
                                             {effect.label}
                                         </button>
@@ -399,27 +484,15 @@ export default function SettingsView({
                     {activeTab === 'editor' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.editor', 'Éditeur')}</h3>
-                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Ajustez les options de rédaction et d'orthographe.</p>
+                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.editor', 'Éditeur')}</h3>
+                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.editor_desc', 'Adjust writing options.')}</p>
                             </div>
 
-                            {/* Correcteur */}
                             <div className="bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark rounded-2xl p-4 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <span className="text-sm font-semibold">{t('settings.enable_correction', "Correcteur d'orthographe")}</span>
-                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Souligner et corriger les fautes de grammaire et d'orthographe.</p>
-                                    </div>
-                                    <GlassSwitch
-                                        checked={localSettings.enableCorrection !== false}
-                                        onCheckedChange={(checked) => handleUpdate({ ...localSettings, enableCorrection: checked })}
-                                    />
-                                </div>
-
-                                <div className="flex items-center justify-between pt-3 border-t border-warm-border-light dark:border-warm-border-dark">
-                                    <div className="space-y-0.5">
-                                        <span className="text-sm font-semibold">Sauvegarde automatique</span>
-                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Sauvegarder instantanément vos modifications en tâche de fond.</p>
+                                        <span className="text-sm font-semibold">{t('settings.auto_save', 'Auto-save')}</span>
+                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.auto_save_desc', 'Save changes instantly in the background.')}</p>
                                     </div>
                                     <GlassSwitch
                                         checked={localSettings.autoSave !== false}
@@ -437,8 +510,8 @@ export default function SettingsView({
                     {activeTab === 'sync' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.cloud_sync_title', 'Synchronisation Cloud')}</h3>
-                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Gérez la réplication de vos données et le stockage multi-appareils.</p>
+                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.cloud_sync_title', 'Synchronisation Cloud')}</h3>
+                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.cloud_sync_header_desc', 'Manage cloud data replication and multi-device storage.')}</p>
                             </div>
 
                             <div className={`bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark rounded-2xl p-4 space-y-4 ${!syncAvailable ? 'opacity-70 grayscale-[0.35]' : ''}`}>
@@ -449,7 +522,7 @@ export default function SettingsView({
                                             {t('settings.cloud_sync_toggle', 'Activer la Synchronisation Cloud')}
                                         </span>
                                         <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                            {syncAvailable ? 'Vos notes sont synchronisées en toute sécurité avec Supabase.' : 'Connectez un compte Supabase pour activer la synchronisation.'}
+                                            {syncAvailable ? t('settings.cloud_sync_enabled_desc', 'Your notes are synced securely with the cloud.') : t('settings.cloud_sync_login_desc', 'Connect a cloud account to enable sync.')}
                                         </p>
                                     </div>
                                     <GlassSwitch
@@ -477,9 +550,9 @@ export default function SettingsView({
                                                 </span>
                                             </div>
                                             <div className="flex items-center justify-between text-xs">
-                                                <span className="text-warm-text-muted-light dark:text-warm-text-muted-dark">Dernière synchronisation</span>
+                                                <span className="text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.last_sync', 'Last sync')}</span>
                                                 <span className="font-semibold text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
-                                                    {lastSyncAt ? new Date(lastSyncAt).toLocaleString() : 'Jamais'}
+                                                    {lastSyncAt ? new Date(lastSyncAt).toLocaleString() : t('settings.never', 'Never')}
                                                 </span>
                                             </div>
 
@@ -496,7 +569,7 @@ export default function SettingsView({
                                                         />
                                                     </div>
                                                     <div className="text-[10px] text-warm-text-muted-light dark:text-warm-text-muted-dark text-right font-mono">
-                                                        {formatBytes(storageUsage.used || 0)} / {storageLimit ? formatBytes(storageLimit) : 'limite inconnue'}
+                                                        {formatBytes(storageUsage.used || 0)} / {storageLimit ? formatBytes(storageLimit) : t('settings.unknown_limit', 'unknown limit')}
                                                     </div>
                                                 </div>
                                             ) : (
@@ -509,7 +582,7 @@ export default function SettingsView({
                                         {pendingUpdatesCount > 0 && (
                                             <div className="px-3 py-2 bg-yellow-500/10 border border-yellow-500/25 rounded-xl flex items-center gap-2 text-yellow-800 dark:text-yellow-200 text-xs">
                                                 <IconRefresh className="w-3.5 h-3.5 animate-spin text-yellow-600 dark:text-yellow-400" />
-                                                <span>{pendingUpdatesCount} modification(s) en attente de synchronisation...</span>
+                                                <span>{t('settings.pending_sync_changes', '{{count}} pending sync change(s)...', { count: pendingUpdatesCount })}</span>
                                             </div>
                                         )}
 
@@ -525,7 +598,7 @@ export default function SettingsView({
                                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-warm-sidebar-light hover:bg-warm-sidebar-item-active dark:bg-zinc-800 dark:hover:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl text-xs font-semibold transition-all"
                                                 >
                                                     <IconRefresh className="w-3.5 h-3.5" />
-                                                    Synchroniser maintenant
+                                                    {t('settings.sync_now', 'Sync now')}
                                                 </button>
                                             )}
                                         </div>
@@ -533,7 +606,7 @@ export default function SettingsView({
                                 )}
                                 {!syncAvailable && (
                                     <div className="mt-4 rounded-xl border border-dashed border-warm-border-light dark:border-warm-border-dark p-4 text-xs text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
-                                        La synchronisation reste locale tant qu'aucun compte valide n'est connecté.
+                                        {t('settings.local_sync_only', 'Sync remains local until a valid cloud account is connected.')}
                                     </div>
                                 )}
                             </div>
@@ -544,18 +617,20 @@ export default function SettingsView({
                     {activeTab === 'ai' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.ai_title', 'Intelligence Artificielle')}</h3>
-                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Gérez l'intégration de Dexter, votre assistant de rédaction intelligent.</p>
+                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.ai_title', 'Intelligence Artificielle')}</h3>
+                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.ai_desc', 'Configure Dexter, the assistant that helps write, summarize, and clarify your notes.')}</p>
                             </div>
 
-                            <div className="bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark rounded-2xl p-4 space-y-4">
-                                <div className="flex items-center justify-between">
+                            <div className="overflow-hidden rounded-3xl border border-warm-border-light bg-warm-card-light dark:border-white/10 dark:bg-warm-card-dark">
+                                <div className="flex flex-col gap-4 border-b border-warm-border-light p-5 dark:border-white/10 md:flex-row md:items-center md:justify-between">
                                     <div className="space-y-0.5">
-                                        <span className="text-sm font-semibold flex items-center gap-2">
-                                            <IconBot className="w-4 h-4 text-warm-text-muted-light" />
+                                        <span className="flex items-center gap-2 text-sm font-semibold">
+                                            <IconBot className="h-4 w-4 text-amber-600 dark:text-amber-300" />
                                             {t('settings.ai_toggle', "Activer l'assistant intelligent")}
                                         </span>
-                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Affiche l'assistant IA Dexter et la barre d'outils rapide.</p>
+                                        <p className="max-w-xl text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
+                                            {t('settings.ai_enabled_desc', 'When Dexter is active, you can open the assistant panel, rephrase a note, summarize a passage, or request a text structure.')}
+                                        </p>
                                     </div>
                                     <GlassSwitch
                                         checked={localSettings.aiEnabled !== false}
@@ -563,38 +638,36 @@ export default function SettingsView({
                                     />
                                 </div>
 
-                                <div className="mt-4 pt-4 border-t border-warm-border-light dark:border-warm-border-dark grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-white/70 dark:bg-white/5 p-4">
-                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">Routeur</p>
-                                        <p className="mt-2 text-sm font-semibold flex items-center gap-2">
-                                            <IconCpu className="w-4 h-4 text-amber-500" />
-                                            {FREE_MODEL_ROUTER}
-                                        </p>
-                                        <p className="mt-1 text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                            Endpoints autorisés: /chat/completions, /generation et /models.
+                                <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
+                                    <div className="rounded-2xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.ai_capabilities_title', 'What Dexter can do')}</p>
+                                        <p className="mt-2 text-sm font-semibold">{t('settings.ai_capabilities_subtitle', 'Write faster without leaving the note')}</p>
+                                        <p className="mt-1 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                            {t('settings.ai_capabilities_desc', 'Summaries, correction, outlines, rephrasing, and draft help are available from the editor.')}
                                         </p>
                                     </div>
-                                    <div className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-white/70 dark:bg-white/5 p-4">
-                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">Accès</p>
-                                        <p className="mt-2 text-sm font-semibold">{keyAuthService.hasAIAccess() ? 'Disponible' : 'Licence requise'}</p>
-                                        <p className="mt-1 text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                            Aucune clé OpenRouter personnalisée n'est demandée à l'utilisateur.
+                                    <div className="rounded-2xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.ai_availability_title', 'Availability')}</p>
+                                        <p className="mt-2 text-sm font-semibold">{keyAuthService.hasAIAccess() ? t('settings.available', 'Available') : t('settings.license_required', 'License required')}</p>
+                                        <p className="mt-1 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                            {t('settings.ai_access_desc', 'Fiip manages access automatically. No technical key is requested in the app.')}
                                         </p>
                                     </div>
-                                    <div className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-white/70 dark:bg-white/5 p-4">
-                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">Dernière génération</p>
-                                        <p className="mt-2 text-sm font-semibold">{aiUsage?.id || 'Aucune'}</p>
-                                        <p className="mt-1 text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                            {aiUsage?.createdAt ? new Date(aiUsage.createdAt).toLocaleString() : 'Dexter affichera les statistiques après une réponse.'}
+                                    <div className="rounded-2xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.privacy_title', 'Privacy')}</p>
+                                        <p className="mt-2 text-sm font-semibold">{t('settings.ai_privacy_subtitle', 'You choose when to use it')}</p>
+                                        <p className="mt-1 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                            {t('settings.ai_privacy_desc', 'Dexter does not activate by itself. Send only the text you select or the request you write.')}
                                         </p>
                                     </div>
-                                    <div className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-white/70 dark:bg-white/5 p-4">
-                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">Usage OpenRouter</p>
-                                        <p className="mt-2 text-sm font-semibold">
+                                    <div className="rounded-2xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.last_response', 'Last response')}</p>
+                                        <p className="mt-2 flex items-center gap-2 text-sm font-semibold">
+                                            <IconCpu className="h-4 w-4 text-amber-500" />
                                             {aiUsage?.usage?.total_tokens ?? aiUsage?.usage?.tokens ?? 0} tokens
                                         </p>
-                                        <p className="mt-1 text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                            Coût estimé: {aiUsage?.usage?.total_cost ?? aiUsage?.usage?.cost ?? 0}
+                                        <p className="mt-1 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                            {aiUsage?.createdAt ? t('settings.last_activity', 'Last activity: {{date}}', { date: new Date(aiUsage.createdAt).toLocaleString() }) : t('settings.ai_stats_waiting', 'Statistics appear after a Dexter response.')}
                                         </p>
                                     </div>
                                 </div>
@@ -606,8 +679,8 @@ export default function SettingsView({
                     {activeTab === 'premium' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-1">Fiip Premium</h3>
-                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Compte, licence officielle et synchronisation multi-appareils.</p>
+                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.premium', 'Fiip Premium')}</h3>
+                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.premium_desc', 'Account, official license, and multi-device sync.')}</p>
                             </div>
 
                             <div className="rounded-3xl border border-amber-500/20 bg-warm-card-light p-6 shadow-sm dark:bg-white/[0.045]">
@@ -615,15 +688,15 @@ export default function SettingsView({
                                     <div className="space-y-3">
                                         <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
                                             <IconKey className="h-3.5 w-3.5" />
-                                            Licence SellAuth
+                                            {t('settings.license_provider_badge', 'Official license')}
                                         </span>
-                                        <h4 className="text-xl font-semibold tracking-tight">Votre licence Fiip</h4>
+                                        <h4 className="text-xl font-semibold tracking-tight">{t('settings.fiip_license_title', 'Your Fiip license')}</h4>
                                         <p className="max-w-md text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
-                                            Activez la synchronisation, les limites étendues et Dexter sans saisir de clé OpenRouter personnelle.
+                                            {t('settings.fiip_license_desc', 'Enable sync, extended limits, and Dexter without entering any technical key.')}
                                         </p>
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light bg-white/70 px-4 py-3 text-right dark:border-white/10 dark:bg-white/[0.06]">
-                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">Licence actuelle</p>
+                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">{t('settings.current_license', 'Current license')}</p>
                                         <p className="mt-1 text-sm font-semibold">{currentLicenseName}</p>
                                     </div>
                                 </div>
@@ -633,14 +706,14 @@ export default function SettingsView({
                                         onClick={() => open(FIIP_LICENSE_PURCHASE_URL)}
                                         className="rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-semibold text-white transition-all hover:-translate-y-0.5 dark:bg-white dark:text-zinc-950"
                                     >
-                                        Acheter une licence
+                                        {t('settings.buy_license', 'Buy a license')}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => open(FIIP_LICENSE_PURCHASE_URL)}
                                         className="rounded-2xl border border-warm-border-light px-4 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10"
                                     >
-                                        Mettre à jour la licence
+                                        {t('settings.update_license', 'Update license')}
                                     </button>
                                 </div>
                             </div>
@@ -651,15 +724,15 @@ export default function SettingsView({
                     {activeTab === 'cache' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-1">Cache local</h3>
-                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Consultez et nettoyez les fichiers stockés dans AppData.</p>
+                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.cache_local', 'Local cache')}</h3>
+                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.cache_local_desc', 'Review and clean files stored locally.')}</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 {[
-                                    ['Total', formatBytes(totalCacheSize)],
-                                    ['Pièces jointes', formatBytes(cacheStats.attachments)],
-                                    ['Polices', formatBytes(cacheStats.fonts)],
+                                    [t('settings.total', 'Total'), formatBytes(totalCacheSize)],
+                                    [t('settings.attachments', 'Attachments'), formatBytes(cacheStats.attachments)],
+                                    [t('settings.fonts', 'Fonts'), formatBytes(cacheStats.fonts)],
                                 ].map(([label, value]) => (
                                     <div key={label} className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark p-4">
                                         <p className="text-[11px] font-semibold text-warm-text-muted-light">{label}</p>
@@ -670,15 +743,15 @@ export default function SettingsView({
 
                             <div className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark p-4 flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-semibold">Nettoyer les pièces jointes locales</p>
-                                    <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">Les notes restent en place, seuls les fichiers copiés localement sont supprimés.</p>
+                                    <p className="text-sm font-semibold">{t('settings.clean_local_attachments', 'Clean local attachments')}</p>
+                                    <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.clean_local_attachments_desc', 'Notes remain in place; only locally copied files are removed.')}</p>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={handleClearAttachmentCache}
                                     className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-300 hover:bg-red-500/15"
                                 >
-                                    Nettoyer
+                                    {t('settings.clean', 'Clean')}
                                 </button>
                             </div>
                         </div>
@@ -688,8 +761,8 @@ export default function SettingsView({
                     {activeTab === 'about' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="text-lg font-semibold tracking-tight mb-1">{t('settings.about', 'À propos')}</h3>
-                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Informations techniques de version et d'assistance.</p>
+                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.about', 'À propos')}</h3>
+                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.about_desc', 'Find app status, useful links, and support information.')}</p>
                             </div>
 
                             <div className="overflow-hidden rounded-3xl border border-warm-border-light bg-warm-card-light dark:border-white/10 dark:bg-[#20201f]">
@@ -697,63 +770,98 @@ export default function SettingsView({
                                     <div>
                                         <span className="mb-3 inline-flex items-center gap-2 rounded-lg border border-teal-500/25 bg-teal-500/10 px-2.5 py-1 text-[11px] font-semibold text-teal-700 dark:text-teal-200">
                                             <IconDocument className="h-3.5 w-3.5" />
-                                            Notes desktop locales
+                                            {t('settings.fiip_app_badge', 'Fiip app')}
                                         </span>
                                         <h4 className="text-xl font-semibold tracking-tight">Fiip Desktop</h4>
                                         <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
-                                            Application de notes locale, synchronisable et assistée par Dexter.
+                                            {t('settings.fiip_desktop_desc', 'A local-first notes space with optional sync, controlled public links, and Dexter assistant.')}
                                         </p>
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-white/70 dark:bg-white/[0.05] px-4 py-3 text-right">
-                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">Version</p>
+                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">{t('settings.version', 'Version')}</p>
                                         <p className="text-sm font-bold">{appVersion || '3.0.1'}</p>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2">
                                     <div className="border-b border-r border-warm-border-light p-4 dark:border-white/10">
-                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">Plateforme</p>
+                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">{t('settings.platform', 'Platform')}</p>
                                         <p className="mt-1 text-sm font-semibold">{platformName || 'Desktop'}</p>
                                     </div>
                                     <div className="border-b border-warm-border-light p-4 dark:border-white/10">
-                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">Support</p>
-                                        <p className="mt-1 text-sm font-semibold">darkii_fr@hotmail.com</p>
+                                        <p className="text-[11px] font-semibold text-warm-text-muted-light">{t('settings.connected_account', 'Connected account')}</p>
+                                        <p className="mt-1 text-sm font-semibold">{currentUser?.email || t('settings.no_connected_account', 'No connected account')}</p>
                                     </div>
                                 </div>
 
                                 <div className="grid gap-3 p-4 md:grid-cols-2">
                                     <div className="rounded-2xl border border-warm-border-light p-4 dark:border-white/10">
                                         <IconCheck className="mb-3 h-5 w-5 text-emerald-600 dark:text-emerald-300" />
-                                        <p className="text-sm font-semibold">Confidentialité</p>
-                                        <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Vos notes restent locales tant que vous ne choisissez pas la synchronisation ou un lien public.</p>
+                                        <p className="text-sm font-semibold">{t('settings.data_privacy_title', 'Data and privacy')}</p>
+                                        <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.data_privacy_desc', 'Your notes stay on this device by default. Sync and publishing are explicit actions.')}</p>
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light p-4 dark:border-white/10">
                                         <IconSettings className="mb-3 h-5 w-5 text-blue-600 dark:text-blue-300" />
-                                        <p className="text-sm font-semibold">Confidentialite et synchro</p>
-                                        <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">Les notes restent locales par defaut, les liens publics sont explicites et Supabase applique les politiques RLS.</p>
+                                        <p className="text-sm font-semibold">{t('settings.sync', 'Sync')}</p>
+                                        <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.cloud_security_desc', 'When enabled, the cloud protects data with project access rules.')}</p>
                                     </div>
                                 </div>
 
-                                <div className="m-4 mt-0 flex items-center justify-between rounded-2xl border border-warm-border-light p-4 dark:border-white/10">
+                                <div className="m-4 mt-0 rounded-2xl border border-warm-border-light p-4 dark:border-white/10">
+                                    <div className="flex items-center justify-between gap-4">
                                     <div>
-                                        <p className="text-sm font-semibold">Mises à jour</p>
-                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{pendingUpdatesCount > 0 ? `${pendingUpdatesCount} changement(s) prêt(s)` : updateStatus}</p>
+                                        <p className="text-sm font-semibold">{t('settings.updates', 'Updates')}</p>
+                                        <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">{pendingUpdatesCount > 0 ? t('settings.ready_changes', '{{count}} change(s) ready', { count: pendingUpdatesCount }) : updateStatus}</p>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleCheckUpdates}
-                                        className="rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-bold text-white dark:bg-white dark:text-zinc-950"
-                                    >
-                                        Vérifier les mises à jour
-                                    </button>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleCheckUpdates}
+                                            className="fiip-light-settings-update-button rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-bold text-white dark:bg-white dark:text-zinc-950"
+                                        >
+                                            {t('settings.check_update', 'Check for updates')}
+                                        </button>
+                                        {availableUpdate && (
+                                            <button
+                                                type="button"
+                                                disabled={isInstallingUpdate}
+                                                onClick={handleInstallUpdate}
+                                                className="rounded-2xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white disabled:cursor-wait disabled:opacity-70"
+                                            >
+                                                {isInstallingUpdate ? t('settings.installing', 'Installing...') : t('settings.install', 'Install')}
+                                            </button>
+                                        )}
+                                    </div>
+                                    </div>
+                                    {updateInfo && (
+                                        <div className="mt-4 rounded-2xl border border-warm-border-light bg-warm-sidebar-light/60 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                                    {t('settings.changelog', 'Changelog')} {updateInfo.version ? `v${updateInfo.version}` : ''}
+                                                </p>
+                                                {updateInfo.releaseUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => open(updateInfo.releaseUrl)}
+                                                        className="text-xs font-bold text-amber-700 hover:underline dark:text-amber-300"
+                                                    >
+                                                        {t('settings.view_on_github', 'View on GitHub')}
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <pre className="mt-3 max-h-52 whitespace-pre-wrap overflow-auto rounded-xl bg-white/70 p-3 text-xs leading-5 text-warm-text-secondary-light dark:bg-black/20 dark:text-warm-text-secondary-dark">
+                                                {updateInfo.changelog}
+                                            </pre>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="grid gap-2 p-4 pt-0 md:grid-cols-2">
                                     <button onClick={() => open('https://github.com/darkiifr/Fiip')} className="rounded-2xl border border-warm-border-light px-4 py-3 text-left text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10">
-                                        Code source et versions
+                                        {t('settings.source_and_versions', 'Source code and versions')}
                                     </button>
                                     <button onClick={() => open('mailto:darkii_fr@hotmail.com')} className="rounded-2xl border border-warm-border-light px-4 py-3 text-left text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10">
-                                        Support du projet
+                                        {t('settings.contact_support', 'Contact support')}
                                     </button>
                                 </div>
                             </div>

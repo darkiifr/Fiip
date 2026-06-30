@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { sanitizeClipperPayload } from '../src/services/fiipV1.js';
 import { buildDeepLinkUrl, buildSupabaseNotePayload, saveClip, sendToSupabase } from './background-helpers.js';
 
 const clip = {
@@ -17,6 +18,28 @@ describe('Fiip extension background helpers', () => {
     expect(parsed.protocol).toBe('fiip:');
     expect(parsed.hostname).toBe('clip');
     expect(JSON.parse(decodeURIComponent(parsed.searchParams.get('payload')))).toEqual(clip);
+  });
+
+  it('creates a deep link payload accepted by the Fiip app clipper importer', () => {
+    const url = buildDeepLinkUrl({
+      ...clip,
+      html: '<article><h1>Article</h1><p>Readable body</p></article>',
+      selectionText: 'Readable body',
+      capturedAt: '2026-06-27T09:00:00.000Z',
+    });
+    const parsed = new URL(url);
+    const payload = JSON.parse(decodeURIComponent(parsed.searchParams.get('payload')));
+    const imported = sanitizeClipperPayload(payload);
+
+    expect(imported).toMatchObject({
+      title: 'Article',
+      url: 'https://example.com/read?x=1',
+      source: 'example.com',
+      selectionText: 'Readable body',
+      capturedAt: '2026-06-27T09:00:00.000Z',
+    });
+    expect(imported.html).toContain('<article>');
+    expect(imported.images).toEqual(['https://example.com/a.png', 'https://example.com/b.png']);
   });
 
   it('builds the Supabase insert payload with source link, tags and image attachments', () => {
@@ -41,6 +64,18 @@ describe('Fiip extension background helpers', () => {
 
   it('rejects non-http source URLs before fallback upload', () => {
     expect(() => buildSupabaseNotePayload({ ...clip, url: 'javascript:alert(1)' })).toThrow('Unsupported source URL.');
+  });
+
+  it('sanitizes fallback HTML before posting to Supabase', () => {
+    const payload = buildSupabaseNotePayload({
+      ...clip,
+      html: '<p onclick="alert(1)">Hello</p><script>alert(1)</script><a href="javascript:alert(1)">bad</a>',
+    });
+
+    expect(payload.content).toContain('<p>Hello</p>');
+    expect(payload.content).not.toContain('onclick');
+    expect(payload.content).not.toContain('<script');
+    expect(payload.content).not.toContain('javascript:');
   });
 
   it('posts to Supabase with configured credentials', async () => {

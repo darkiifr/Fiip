@@ -78,7 +78,7 @@ export default function HomeScreen() {
               backgroundColor: isIOS ? 'transparent' : colors.surfaceContainerHighest,
             }]}>
               <Icon sfSymbol={syncEnabled ? 'icloud.fill' : 'icloud.slash'} mdIcon={syncEnabled ? 'cloud-check' : 'cloud-off-outline'} size={14} color={syncEnabled ? colors.success : colors.textSecondary} />
-              <Text style={[styles.syncText, { color: colors.textSecondary }]}>{syncEnabled ? 'Supabase' : 'Local'}</Text>
+              <Text style={[styles.syncText, { color: colors.textSecondary }]}>{syncEnabled ? 'Cloud' : 'Local'}</Text>
             </View>
           </View>
           <Text style={[styles.heroExcerpt, { color: colors.textSecondary }]} numberOfLines={4}>

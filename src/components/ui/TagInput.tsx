@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
+import React, { useCallback, useRef, useState, KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
 import { useFocusRing } from 'react-aria';
 import { cn } from '../../lib/utils';

@@ -1,6 +1,5 @@
-import { Platform, Alert, Linking } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
-import RNFS from 'react-native-fs';
 
 const GITHUB_REPO = 'vinsSoftware/Fiip';
 const API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;

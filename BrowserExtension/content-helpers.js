@@ -29,16 +29,17 @@
       .slice(0, 12);
   }
 
-  function buildClipPayload({ document, location, selectionText = '', now = () => new Date() }) {
+  function buildClipPayload({ document, location, selectionText = '', captureMode = 'readable', now = () => new Date() }) {
     const article = document.querySelector('article, main') || document.body;
     const clone = cleanClone(article);
     const title = document.title || 'Capture web';
+    const selectedText = captureMode === 'selection' ? selectionText.trim() : '';
 
     return {
       title,
       url: location.href,
-      selectionText,
-      html: selectionText ? `<blockquote>${escapeHtml(selectionText)}</blockquote>` : clone.innerHTML,
+      selectionText: selectedText,
+      html: selectedText ? `<blockquote>${escapeHtml(selectedText)}</blockquote>` : clone.innerHTML,
       images: collectImages(article),
       capturedAt: now().toISOString(),
     };

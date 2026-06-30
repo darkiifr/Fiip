@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Platform, Dimensions, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, Platform, Dimensions, Text } from 'react-native';
 import Pdf from 'react-native-pdf';
 import { GlassModal } from '../components/ui/GlassModal';
 import { triggerHaptic } from '../utils/hapticEngine';

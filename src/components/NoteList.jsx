@@ -39,9 +39,7 @@ export default function NoteList({
     const { theme } = useUI();
     const [searchTerm, setSearchTerm] = useState('');
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
-
     const isTransparent = settings?.windowEffect && settings.windowEffect !== 'none';
-    const bgClass = isTransparent ? 'bg-[#1C1C1E]/60 backdrop-blur-md' : 'bg-[#1C1C1E]/95';
 
     const getNavFilteredNotes = () => {
         const baseNotes = notes || [];

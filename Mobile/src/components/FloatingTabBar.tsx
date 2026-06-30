@@ -83,7 +83,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: any) {
               case 'New':
                 return { sfSymbol: 'plus', mdIcon: 'plus' };
               case 'Assistant':
-                return { sfSymbol: 'sparkles', mdIcon: 'sparkles' };
+                return { sfSymbol: 'sparkles', mdIcon: 'robot-outline' };
               case 'Settings':
                 return { sfSymbol: 'gearshape', mdIcon: 'cog' };
               default:

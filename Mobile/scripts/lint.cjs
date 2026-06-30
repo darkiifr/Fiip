@@ -1,8 +1,10 @@
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
-const bin = path.join(__dirname, '..', 'node_modules', '.bin', process.platform === 'win32' ? 'eslint.cmd' : 'eslint');
+const nodePath = process.execPath;
+const eslintBin = require.resolve('eslint/bin/eslint.js', { paths: [path.join(__dirname, '..')] });
 const args = [
+  eslintBin,
   'App.tsx',
   'src',
   '__tests__',
@@ -10,15 +12,7 @@ const args = [
   '.js,.jsx,.ts,.tsx',
 ];
 
-const result = process.platform === 'win32'
-  ? spawnSync('cmd.exe', ['/d', '/c', bin, ...args], {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      ESLINT_USE_FLAT_CONFIG: 'false',
-    },
-  })
-  : spawnSync(bin, args, {
+const result = spawnSync(nodePath, args, {
   stdio: 'inherit',
   env: {
     ...process.env,

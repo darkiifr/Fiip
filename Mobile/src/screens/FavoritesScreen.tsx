@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, FlatList, TouchableOpacity, Image, TextInput } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { triggerHaptic } from '../utils/hapticEngine';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -13,28 +13,25 @@ export default function FavoritesScreen() {
   const { colors, isDark } = useAppTheme();
   
   const notesMap = useNotesStore((state) => state.notes);
-  const notesList = Object.values(notesMap);
+  const notesList = useMemo(() => Object.values(notesMap), [notesMap]);
 
   const [search, setSearch] = useState('clarté'); // Initialize with 'clarté' to match mockup Screen 1
-  const [filteredNotes, setFilteredNotes] = useState<any[]>([]);
 
   const profileImageUri = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80';
   const tagBg = isDark ? 'rgba(164, 138, 123, 0.15)' : '#EAE2DC';
   const tagText = isDark ? '#BCA597' : '#7C675B';
 
-  useEffect(() => {
+  const filteredNotes = useMemo(() => {
     if (!search.trim()) {
-      // Sort by updated_at descending
-      setFilteredNotes(notesList.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
-    } else {
-      const lowerSearch = search.toLowerCase();
-      const matches = notesList.filter(n => 
-        (n.title && n.title.toLowerCase().includes(lowerSearch)) || 
-        (n.content && n.content.toLowerCase().includes(lowerSearch))
-      );
-      setFilteredNotes(matches);
+      return [...notesList].sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
     }
-  }, [search, notesMap]);
+
+    const lowerSearch = search.toLowerCase();
+    return notesList.filter((n: any) =>
+      (n.title && n.title.toLowerCase().includes(lowerSearch)) ||
+      (n.content && n.content.toLowerCase().includes(lowerSearch))
+    );
+  }, [search, notesList]);
 
   const handleNotePress = (note: any) => {
     triggerHaptic('selection');
@@ -82,7 +79,6 @@ export default function FavoritesScreen() {
     let typeLabel = 'Note';
     let sfIcon = 'doc.text';
     let mdIcon = 'file-document-outline';
-    let itemColor = colors.textSecondary;
 
     if (tag === 'Réflexion') {
       typeLabel = note.id === 'seed-4' ? 'Journal' : 'Note';
@@ -153,7 +149,13 @@ export default function FavoritesScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#0E0E0E' : '#F9F9F8' }]} edges={['top', 'left', 'right']}>
       <View style={styles.topHeader}>
         <Text style={[styles.fiipTitle, { color: colors.text }]}>Fiip</Text>
-        <TouchableOpacity style={styles.profileButton} activeOpacity={0.8}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Compte cloud"
+          style={styles.profileButton}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('Auth')}
+        >
           <Image source={{ uri: profileImageUri }} style={styles.profileImage} />
         </TouchableOpacity>
       </View>
@@ -177,9 +179,6 @@ export default function FavoritesScreen() {
                 <Icon sfSymbol="xmark.circle.fill" mdIcon="close-circle" size={16} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
-            <View style={[styles.cmdKBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)', borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
-              <Text style={[styles.cmdKText, { color: colors.textSecondary }]}>⌘K</Text>
-            </View>
           </View>
         </GlassCard>
       </View>
@@ -257,17 +256,6 @@ const styles = StyleSheet.create({
   clearBtn: {
     padding: 4,
     marginRight: 6,
-  },
-  cmdKBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  cmdKText: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.5,
   },
   resultsCountContainer: {
     paddingHorizontal: 20,

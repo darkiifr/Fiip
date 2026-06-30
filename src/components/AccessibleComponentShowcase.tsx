@@ -8,7 +8,6 @@ import {
   HelpCircle, 
   Check, 
   Info,
-  Sliders,
   Keyboard,
   MousePointer2
 } from 'lucide-react';

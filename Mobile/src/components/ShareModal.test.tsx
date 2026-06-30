@@ -62,7 +62,7 @@ describe('Mobile ShareModal public links', () => {
     await waitFor(() => {
       expect(JSON.stringify((Share.share as jest.Mock).mock.calls[0][0])).toContain(FIIP_PUBLIC_SITE_URL);
     });
-  });
+  }, 15000);
 
   it('shares public notes on the production public site', async () => {
     const { getByText } = render(

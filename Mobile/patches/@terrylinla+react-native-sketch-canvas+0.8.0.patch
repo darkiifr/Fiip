@@ -1,3 +1,14 @@
+diff --git a/node_modules/@terrylinla/react-native-sketch-canvas/android/build.gradle b/node_modules/@terrylinla/react-native-sketch-canvas/android/build.gradle
+index 31e44f2..7d19451 100644
+--- a/node_modules/@terrylinla/react-native-sketch-canvas/android/build.gradle
++++ b/node_modules/@terrylinla/react-native-sketch-canvas/android/build.gradle
+@@ -28,5 +28,5 @@ android {
+ }
+ 
+ dependencies {
+-    provided "com.facebook.react:react-native:+"
++    compileOnly "com.facebook.react:react-native:+"
+ }
 diff --git a/node_modules/@terrylinla/react-native-sketch-canvas/index.js b/node_modules/@terrylinla/react-native-sketch-canvas/index.js
 index 7935842..02a4240 100644
 --- a/node_modules/@terrylinla/react-native-sketch-canvas/index.js

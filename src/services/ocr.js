@@ -109,7 +109,7 @@ export async function extractImageOcr(file, { protectedNote = false } = {}) {
 
   try {
     const { recognize } = await import('tesseract.js');
-    let prepared = file;
+    let prepared;
     try {
       prepared = await preprocessImageForOcr(file);
     } catch {

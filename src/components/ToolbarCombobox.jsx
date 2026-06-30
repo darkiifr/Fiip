@@ -91,7 +91,7 @@ export default function ToolbarCombobox({
         const menuContent = (
             <div 
                 ref={menuRef}
-                className="fixed z-[10000] bg-[#1C1C1E] border border-white/10 rounded-lg shadow-xl animate-in fade-in zoom-in-95 duration-100 ease-out max-h-64 overflow-y-auto custom-scrollbar"
+                className="fixed z-[10000] max-h-64 overflow-y-auto rounded-xl border border-warm-border-light bg-warm-card-light text-warm-text-primary-light shadow-xl animate-in fade-in zoom-in-95 duration-100 ease-out custom-scrollbar dark:border-white/10 dark:bg-[#1C1C1E] dark:text-warm-text-primary-dark"
                 style={{
                     top: menuPosition.top,
                     left: menuPosition.left,
@@ -115,7 +115,7 @@ export default function ToolbarCombobox({
                                     handleSelect(option.value);
                                 }}
                                 style={styleProp ? { [styleProp]: option.value } : {}}
-                                className={`w-full text-left px-3 py-2.5 text-sm transition-colors block truncate ${value === option.value ? 'bg-blue-600/20 text-blue-400 font-medium' : 'text-gray-200 hover:bg-white/10'}`}
+                                className={`block w-full truncate px-3 py-2.5 text-left text-sm transition-colors ${value === option.value ? 'bg-amber-500/15 text-amber-700 font-medium dark:text-amber-300' : 'text-warm-text-secondary-light hover:bg-warm-sidebar-item-active hover:text-warm-text-primary-light dark:text-gray-200 dark:hover:bg-white/10 dark:hover:text-white'}`}
                             >
                                 {option.label}
                             </button>
@@ -129,7 +129,7 @@ export default function ToolbarCombobox({
     };
 
     return (
-        <div ref={containerRef} className={`relative flex items-center bg-black/20 border border-white/5 rounded-lg group hover:border-white/10 transition-colors ${className}`}>
+        <div ref={containerRef} className={`group relative flex items-center rounded-lg border border-warm-border-light bg-warm-card-light text-warm-text-primary-light transition-colors hover:border-amber-500/25 dark:border-white/5 dark:bg-black/20 dark:text-warm-text-primary-dark dark:hover:border-white/10 ${className}`}>
             <input
                 ref={inputRef}
                 type="text"
@@ -141,7 +141,7 @@ export default function ToolbarCombobox({
                 onFocus={handleOpen}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
-                className="w-full bg-transparent text-gray-200 px-2.5 py-1 text-[13px] outline-none focus:outline-none"
+                className="w-full bg-transparent px-2.5 py-1 text-[13px] text-warm-text-primary-light outline-none placeholder:text-warm-text-muted-light focus:outline-none dark:text-gray-200 dark:placeholder:text-white/30"
             />
             <button 
                 type="button"
@@ -149,7 +149,7 @@ export default function ToolbarCombobox({
                    if (isOpen) {setIsOpen(false);}
                    else {handleOpen();}
                 }}
-                className="pr-2 pl-1 h-full text-gray-400 group-hover:text-gray-300 transition-colors flex items-center"
+                className="flex h-full items-center pl-1 pr-2 text-warm-text-muted-light transition-colors group-hover:text-warm-text-primary-light dark:text-gray-400 dark:group-hover:text-gray-300"
             >
                 <IconChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>

@@ -6,8 +6,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PaperProvider, MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 // @ts-ignore
 import { LiquidGlassView } from '@callstack/liquid-glass';
-// @ts-ignore
-import { SFSymbol } from 'react-native-sfsymbols';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { I18nextProvider } from 'react-i18next';
 
@@ -18,7 +16,7 @@ import FavoritesScreen from './src/screens/FavoritesScreen';
 import { AiChatScreen } from './src/screens/AiChatScreen';
 import { NoteEditorScreen } from './src/screens/NoteEditorScreen';
 import { PdfViewerScreen } from './src/screens/PdfViewerScreen';
-import { AuthScreen } from './src/screens/AuthScreen';
+import { SupabaseAuthScreen } from './src/screens/SupabaseAuthScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
 import { checkForUpdatesAndInstall } from './src/services/updater';
 import { useSettingsStore } from './src/store/settingsStore';
@@ -129,7 +127,7 @@ function App() {
               <Stack.Screen name="AiChat" component={AiChatScreen} options={{ presentation: 'modal' }} />
               <Stack.Screen name="PdfViewer" component={PdfViewerScreen} options={{ presentation: 'modal' }} />
               <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} options={{ presentation: 'modal' }} />
-              <Stack.Screen name="Auth" component={AuthScreen} options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="Auth" component={SupabaseAuthScreen} options={{ presentation: 'fullScreenModal' }} />
             </Stack.Navigator>
           </NavigationContainer>
         </View>
@@ -147,7 +145,7 @@ function App() {
             <Stack.Screen name="AiChat" component={AiChatScreen} />
             <Stack.Screen name="PdfViewer" component={PdfViewerScreen} />
             <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} />
-            <Stack.Screen name="Auth" component={AuthScreen} />
+            <Stack.Screen name="Auth" component={SupabaseAuthScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </PaperProvider>

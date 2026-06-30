@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GlassCard } from '../components/ui/GlassCard';
 import { Icon } from '../components/ui/Icon';
-import { FREE_MODEL_ROUTER, generateText, getLastAIUsageStats, subscribeToAIUsage } from '../services/ai';
+import { generateText, getLastAIUsageStats, subscribeToAIUsage } from '../services/ai';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useNotesStore } from '../store/notesStore';
 import { fiipRadius } from '../theme/fiipDesign';
@@ -19,12 +19,18 @@ const quickPrompts = [
 export function AiChatScreen({ navigation }: any) {
   const { colors } = useAppTheme();
   const isIOS = Platform.OS === 'ios';
-  const notes = useNotesStore((state) => state.getNotesList());
+  const notesById = useNotesStore((state) => state.notes);
   const updateNote = useNotesStore((state) => state.updateNote);
+  const notes = useMemo(
+    () => Object.values(notesById)
+      .filter((note: any) => !note.deleted_at)
+      .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+    [notesById],
+  );
   const activeNote = notes[0];
 
   const [input, setInput] = useState('');
-  const [answer, setAnswer] = useState('Choisissez une action rapide ou demandez une reformulation. Fiip utilise uniquement le routeur gratuit OpenRouter.');
+  const [answer, setAnswer] = useState('Choisissez une action rapide ou demandez une reformulation.');
   const [loading, setLoading] = useState(false);
   const [usage, setUsage] = useState<any>(getLastAIUsageStats());
 
@@ -57,7 +63,7 @@ export function AiChatScreen({ navigation }: any) {
       });
       setAnswer(response || 'Aucune réponse exploitable.');
     } catch (error: any) {
-      setAnswer(error?.message || 'Erreur OpenRouter.');
+      setAnswer("L'assistant n'a pas pu répondre. Réessayez dans un instant.");
     } finally {
       setLoading(false);
       setInput('');
@@ -81,11 +87,9 @@ export function AiChatScreen({ navigation }: any) {
         </TouchableOpacity>
         <View>
           <Text style={[styles.kicker, { color: colors.textSecondary }]}>Dexter</Text>
-          <Text style={[styles.title, { color: colors.text }]}>Assistant gratuit</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Assistant</Text>
         </View>
-        <View style={[styles.routerPill, { borderColor: colors.border }]}>
-          <Text style={[styles.routerText, { color: colors.textSecondary }]}>{FREE_MODEL_ROUTER}</Text>
-        </View>
+        <Icon sfSymbol="sparkles" mdIcon="robot-outline" size={24} color={colors.primary} style={styles.headerIcon} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -120,7 +124,7 @@ export function AiChatScreen({ navigation }: any) {
         <GlassCard intensity={isIOS ? 20 : 0} cornerRadius={isIOS ? fiipRadius.lg : 20} style={styles.usageCard}>
           <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Statistiques d’utilisation</Text>
           <Text style={[styles.usageText, { color: colors.text }]}>{usageLabel}</Text>
-          <Text style={[styles.noteText, { color: colors.textSecondary }]}>Coûts limités par le routeur gratuit OpenRouter et les limites du compte.</Text>
+          <Text style={[styles.noteText, { color: colors.textSecondary }]}>Les réponses peuvent être limitées selon l’activité du service et de votre compte.</Text>
         </GlassCard>
       </ScrollView>
 
@@ -150,8 +154,7 @@ const styles = StyleSheet.create({
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   kicker: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
   title: { fontSize: 24, fontWeight: '900' },
-  routerPill: { marginLeft: 'auto', borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  routerText: { fontSize: 11, fontWeight: '800' },
+  headerIcon: { marginLeft: 'auto' },
   content: { paddingHorizontal: 20, paddingBottom: 132, gap: 14 },
   noteCard: { padding: 18 },
   cardLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },

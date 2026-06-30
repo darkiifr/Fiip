@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import { useFocusRing, useFocusWithin } from 'react-aria';
 
 /**

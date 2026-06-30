@@ -1,11 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { type } from '@tauri-apps/plugin-os';
-import { relaunch } from '@tauri-apps/plugin-process';
-import { Bot, Crown, Database, FileText, Link, Monitor, Moon, Plus, Search, Settings, Share2, Sun } from 'lucide-react';
+import { Bot, Crown, Database, FileText, Link, Lock, Monitor, Moon, Plus, Search, Settings, Share2, Sun } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 
@@ -22,11 +20,17 @@ import HomeDashboard from "./components/HomeDashboard";
 import Titlebar from "./components/Titlebar";
 import UserProfileModal from "./components/UserProfileModal";
 import { buildPublicNoteUrl } from "./config/links";
+import {
+  authenticateBiometricLock,
+  BIOMETRIC_LOCK_STORAGE_KEY,
+  getBiometricPlatformInfo,
+  getBiometricUserMessage,
+} from './services/biometricLock';
 import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } from "./services/fileManager";
 import { initializeFonts } from "./services/fontStore";
 import { keyAuthService } from "./services/keyauth";
 import { soundManager } from "./services/soundManager";
-import { createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook } from './services/fiipV1';
+import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook } from './services/fiipV1';
 import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
 import { normalizeNoteTags } from './utils/noteTags';
 import { coerceWindowEffect } from './utils/windowEffects';
@@ -36,13 +40,13 @@ import "./App.css";
 const getCurrentTimestamp = () => new Date().getTime();
 
 function App() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [appLoading, setAppLoading] = useState({ isLoading: true, status: 'Chargement...' });
   const [activeNav, setActiveNav] = useState('home');
   const [onboardingCompleted, setOnboardingCompleted] = useState(() => {
     return localStorage.getItem('fiip-onboarding-completed') === 'true';
   });
-  const [user, setUser] = useState(null);
+  const [, setUser] = useState(null);
   
   const [notes, setNotes] = useState(() => {
     const saved = localStorage.getItem("fiip-notes");
@@ -83,7 +87,8 @@ function App() {
         windowEffect: 'mica',
         titlebarStyle: 'macos',
         darkMode: true,
-        cloudSync: true
+        cloudSync: true,
+        biometricLockEnabled: false
     };
     return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
   });
@@ -93,9 +98,13 @@ function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [localStorageUsage, setLocalStorageUsage] = useState(0);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState('general');
   const [osType, setOsType] = useState('unknown');
+  const [isBiometricLocked, setIsBiometricLocked] = useState(false);
+  const [biometricLockError, setBiometricLockError] = useState('');
+  const [storageLimitAlerted, setStorageLimitAlerted] = useState(false);
   const [notebooks, setNotebooks] = useState(() => {
     const saved = localStorage.getItem('fiip-notebooks');
     if (saved) {
@@ -136,16 +145,50 @@ function App() {
   const importedFiinPathsRef = useRef(new Set());
 
   // --- Computed State ---
+  const planLevel = keyAuthService.hasProAccess() ? 10 : 0;
   const storageUsage = useMemo(() => {
-    const level = keyAuthService.hasProAccess() ? 10 : 0;
-    const limit = getStorageLimit(level);
-    const used = calculateTotalUsage(notes);
+    const limit = getStorageLimit(planLevel);
+    const used = localStorageUsage;
     return {
         used,
         limit,
         percent: limit > 0 ? (used / limit) * 100 : 0
     };
+  }, [localStorageUsage, planLevel]);
+
+  useEffect(() => {
+    let cancelled = false;
+    calculateTotalUsage(notes).then((used) => {
+      if (!cancelled) {
+        setLocalStorageUsage(used);
+      }
+    }).catch((error) => {
+      console.warn('Failed to calculate local usage:', error);
+      if (!cancelled) {
+        setLocalStorageUsage(0);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [notes]);
+
+  useEffect(() => {
+    if (storageUsage.percent < 100) {
+      if (storageLimitAlerted) setStorageLimitAlerted(false);
+      return;
+    }
+    if (storageLimitAlerted) return;
+    setStorageLimitAlerted(true);
+
+    const title = 'Espace de stockage atteint';
+    const body = "Votre espace Fiip est plein. Supprimez des pièces jointes ou passez à une offre supérieure pour continuer à synchroniser et ajouter des fichiers.";
+    if (window.__TAURI_INTERNALS__) {
+      message(body, { title, kind: 'warning' }).catch(console.error);
+    } else {
+      window.alert(`${title}\n\n${body}`);
+    }
+  }, [storageUsage.percent, storageLimitAlerted]);
 
   const tagSuggestions = useMemo(() => {
     const frequency = new Map();
@@ -234,6 +277,9 @@ function App() {
         
         if (window.__TAURI_INTERNALS__) {
             await initializeFonts();
+            await invoke("register_deep_link").catch((error) => {
+                console.warn("Deep link registration skipped or failed", error);
+            });
             Promise.resolve(type()).then(setOsType).catch(() => setOsType('unknown'));
         }
         
@@ -394,6 +440,35 @@ function App() {
   }, [homeWidgets]);
 
   useEffect(() => {
+    const shouldLock = settings.biometricLockEnabled === true
+      && localStorage.getItem(BIOMETRIC_LOCK_STORAGE_KEY)
+      && sessionStorage.getItem('fiip-biometric-unlocked') !== 'true';
+    setIsBiometricLocked(Boolean(shouldLock));
+  }, [settings.biometricLockEnabled]);
+
+  useEffect(() => {
+    const lockNow = () => {
+      if (settings.biometricLockEnabled === true && localStorage.getItem(BIOMETRIC_LOCK_STORAGE_KEY)) {
+        sessionStorage.removeItem('fiip-biometric-unlocked');
+        setIsBiometricLocked(true);
+      }
+    };
+    window.addEventListener('fiip-lock-now', lockNow);
+    return () => window.removeEventListener('fiip-lock-now', lockNow);
+  }, [settings.biometricLockEnabled]);
+
+  const unlockWithBiometrics = async () => {
+    try {
+      setBiometricLockError('');
+      await authenticateBiometricLock();
+      sessionStorage.setItem('fiip-biometric-unlocked', 'true');
+      setIsBiometricLocked(false);
+    } catch (error) {
+      setBiometricLockError(getBiometricUserMessage(error));
+    }
+  };
+
+  useEffect(() => {
     localStorage.setItem("fiip-settings", JSON.stringify(settings));
     
     // Resolve Light/Dark Mode
@@ -412,7 +487,7 @@ function App() {
     document.documentElement.dataset.windowEffect = supportedWindowEffect;
     document.body.dataset.windowEffect = supportedWindowEffect;
     document.documentElement.style.colorScheme = resolvedTheme;
-    document.body.style.backgroundColor = supportedWindowEffect !== 'none' ? 'transparent' : (resolvedTheme === 'dark' ? '#101216' : '#F8FAFC');
+    document.body.style.backgroundColor = supportedWindowEffect !== 'none' ? 'transparent' : 'var(--bg-content)';
     document.documentElement.classList.toggle('window-effect-active', supportedWindowEffect !== 'none');
     
     soundManager.setAppSoundEnabled(settings.appSound);
@@ -442,7 +517,7 @@ function App() {
       document.documentElement.style.colorScheme = resolvedTheme;
       document.body.style.backgroundColor = settings.windowEffect && settings.windowEffect !== 'none'
         ? 'transparent'
-        : (resolvedTheme === 'dark' ? '#101216' : '#F8FAFC');
+        : 'var(--bg-content)';
     };
     media.addEventListener('change', syncSystemTheme);
     syncSystemTheme();
@@ -465,21 +540,22 @@ function App() {
     return () => window.removeEventListener('pointerup', playInteractionSound, { capture: true });
   }, []);
 
-  const handleCreateNote = useCallback(async (title = "", content = "") => {
+  const handleCreateNote = useCallback(async (title = "", content = "", options = {}) => {
+    const input = title && typeof title === 'object' ? title : { title, content, ...options };
     const now = getCurrentTimestamp();
-    const newNote = {
+    const newNote = createNoteDraft({
       id: crypto.randomUUID(),
-      title: title || t('common.new_note', "Nouvelle Note"),
-      content: content || "",
-      updatedAt: now,
-      createdAt: now,
-      favorite: false,
-      deleted: false,
-      tags: []
-    };
+      title: input.title,
+      content: input.content,
+      activeNav,
+      notebookId: input.notebookId || input.notebook_id || input.folder_id,
+      now,
+      defaultTitle: t('common.new_note', "Nouvelle Note"),
+    });
+    const inNotebook = newNote.notebookId !== 'all-notes';
     setNotes((prev) => [newNote, ...prev]);
     setSelectedNoteId(newNote.id);
-    setActiveNav('home');
+    setActiveNav(inNotebook ? `notebook:${newNote.notebookId}` : 'home');
     
     try {
         await dataService.saveNote(newNote);
@@ -488,7 +564,7 @@ function App() {
     }
     
     return newNote;
-  }, [t]);
+  }, [activeNav, t]);
 
   const importFiinNote = useCallback(async ({ filePath = '', content = '' } = {}) => {
     try {
@@ -606,6 +682,7 @@ function App() {
     setNotebooks((prev) => [...prev, notebook]);
     dataService.saveNotebook(notebook).catch(console.error);
     setActiveNav(`notebook:${notebook.id}`);
+    setSelectedNoteId(null);
     return notebook;
   };
 
@@ -883,6 +960,8 @@ function App() {
       );
   }
 
+  const biometricPlatformInfo = getBiometricPlatformInfo(osType);
+
   return (
     <div className="h-screen w-screen bg-transparent text-warm-text-primary-light dark:text-warm-text-primary-dark overflow-hidden flex flex-col font-sans select-none relative">
       <div className="mica-noise-overlay" />
@@ -898,15 +977,16 @@ function App() {
         <UnifiedSidebar 
             notes={notes}
             selectedNoteId={selectedNoteId}
-            onSelectNote={(id) => {
-                setSelectedNoteId(id);
-                setActiveNav('home');
-            }}
+            onSelectNote={setSelectedNoteId}
             activeNav={activeNav}
-            onNavigate={setActiveNav}
+            onNavigate={(navId) => {
+                setActiveNav(navId);
+                setSelectedNoteId(null);
+            }}
             onOpenSettings={() => setActiveNav('settings')}
             onOpenAuth={() => setOnboardingCompleted(false)}
             onOpenProfile={() => setIsUserProfileOpen(true)}
+            onCreateNote={handleCreateNote}
             onRestoreNote={handleRestoreNote}
             onToggleFavorite={handleToggleFavorite}
             onDeleteNote={handleDeleteNote}
@@ -957,6 +1037,8 @@ function App() {
                     notebooks={notebooks}
                     tasks={tasks.filter((task) => task.note_id === activeNote.id)}
                     onSaveTask={handleSaveTask}
+                    storageUsage={storageUsage}
+                    planLevel={planLevel}
                 />
             ) : (
                 <HomeDashboard 
@@ -1006,6 +1088,32 @@ function App() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
       />
+
+      {isBiometricLocked && (
+        <div className="fiip-light-lock-screen fixed inset-0 z-[100000] flex items-center justify-center bg-[color:var(--bg-content)]/88 p-6 text-[color:var(--text-primary)] backdrop-blur-3xl">
+          <div className="w-full max-w-sm rounded-3xl border border-[color:var(--border-color)] bg-[color:var(--bg-card)] p-6 shadow-2xl">
+            <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-warm-sidebar-item-active text-[color:var(--text-primary)]">
+              <Lock size={22} />
+            </div>
+            <h2 className="text-center text-lg font-bold tracking-tight text-[color:var(--text-primary)]">Fiip est verrouillé</h2>
+            <p className="mt-2 text-center text-sm leading-6 text-[color:var(--text-secondary)]">
+              Déverrouillez avec {biometricPlatformInfo.name}.
+            </p>
+            {biometricLockError && (
+              <p className="mt-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-center text-xs font-semibold leading-5 text-red-700 dark:text-red-300">
+                {biometricLockError}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={unlockWithBiometrics}
+              className="fiip-lock-unlock-button mt-5 w-full rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-bold text-white shadow-[0_14px_30px_rgba(15,23,42,0.22)] transition-all hover:-translate-y-0.5 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+            >
+              Déverrouiller
+            </button>
+          </div>
+        </div>
+      )}
 
       {appLoading.isLoading && (
         <LoadingScreen status={appLoading.status} />

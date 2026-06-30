@@ -209,29 +209,29 @@ export default function EditorActionBar({
     const SpeechIcon = speechState === 'paused' ? Play : speechState === 'playing' ? Pause : Volume2;
 
     return (
-        <div className="absolute bottom-5 right-5 z-40 w-[min(46rem,calc(100%-2.5rem))] select-none">
-            <div className="flex items-center justify-between gap-2 rounded-[22px] border border-black/10 bg-[#fbfaf6]/88 p-2 shadow-[0_20px_70px_rgba(0,0,0,0.18)] backdrop-blur-3xl dark:border-white/10 dark:bg-[#111316]/90 dark:shadow-[0_20px_70px_rgba(0,0,0,0.5)]">
-                <div className="flex items-center gap-1 rounded-2xl border border-black/10 bg-white/55 p-1 dark:border-white/10 dark:bg-white/[0.05]">
-                    <button type="button" onClick={onStartDictation} className={`rounded-xl p-2 transition-all hover:bg-black/[0.04] dark:hover:bg-white/10 ${isDictating ? 'bg-red-500/12 text-red-600 dark:text-red-300' : 'text-warm-text-muted-light hover:text-amber-600'}`} title={isDictating ? 'Arrêter la dictée' : 'Dicter du texte'}>
+        <div className="fiip-light-editor-actionbar absolute bottom-5 right-5 z-40 w-[min(46rem,calc(100%-2.5rem))] select-none">
+            <div className="flex items-center justify-between gap-2 rounded-[22px] border border-warm-border-light bg-warm-card-light/92 p-2 text-warm-text-primary-light shadow-[0_20px_70px_rgba(15,23,42,0.16)] backdrop-blur-3xl dark:border-white/10 dark:bg-[#111316]/90 dark:text-warm-text-primary-dark dark:shadow-[0_20px_70px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center gap-1 rounded-2xl border border-warm-border-light bg-white/75 p-1 dark:border-white/10 dark:bg-white/[0.05]">
+                    <button type="button" onClick={onStartDictation} className={`fiip-light-editor-action rounded-xl p-2 transition-all hover:bg-black/[0.04] dark:hover:bg-white/10 ${isDictating ? 'bg-red-500/12 text-red-600 dark:text-red-300' : 'text-warm-text-secondary-light hover:text-amber-600'}`} title={isDictating ? 'Arrêter la dictée' : 'Dicter du texte'}>
                         <Mic size={16} />
                     </button>
-                    <button type="button" onClick={onOpenDexter} className="rounded-xl p-2 text-warm-text-muted-light transition-all hover:bg-black/[0.04] hover:text-amber-600 dark:hover:bg-white/10" title="Ouvrir Dexter">
+                    <button type="button" onClick={onOpenDexter} className="fiip-light-editor-action rounded-xl p-2 text-warm-text-secondary-light transition-all hover:bg-black/[0.04] hover:text-amber-600 dark:hover:bg-white/10" title="Ouvrir Dexter">
                         <Bot size={16} />
                     </button>
-                    <button type="button" onClick={speakNote} disabled={!hasContent} className={`rounded-xl p-2 transition-all hover:bg-black/[0.04] disabled:opacity-40 dark:hover:bg-white/10 ${speechState !== 'idle' ? 'bg-amber-500/12 text-amber-700 dark:text-amber-300' : 'text-warm-text-muted-light hover:text-warm-text-primary-light dark:hover:text-white'}`} title={speechState === 'playing' ? "Mettre l'écoute en pause" : speechState === 'paused' ? "Reprendre l'écoute" : 'Lire la note'}>
+                    <button type="button" onClick={speakNote} disabled={!hasContent} className={`fiip-light-editor-action rounded-xl p-2 transition-all hover:bg-black/[0.04] disabled:opacity-40 dark:hover:bg-white/10 ${speechState !== 'idle' ? 'bg-amber-500/12 text-amber-700 dark:text-amber-300' : 'text-warm-text-secondary-light hover:text-warm-text-primary-light dark:hover:text-white'}`} title={speechState === 'playing' ? "Mettre l'écoute en pause" : speechState === 'paused' ? "Reprendre l'écoute" : 'Lire la note'}>
                         <SpeechIcon size={16} />
                     </button>
-                    <button type="button" onClick={() => { soundManager.play('interaction').catch(console.error); editorRef.current?.getEditor()?.chain().focus().toggleHeading({ level: 2 }).run(); onToggleHeading?.(); }} className="rounded-xl p-2 text-warm-text-muted-light transition-all hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:hover:bg-white/10 dark:hover:text-white" title="Transformer en titre">
+                    <button type="button" onClick={() => { soundManager.play('interaction').catch(console.error); editorRef.current?.getEditor()?.chain().focus().toggleHeading({ level: 2 }).run(); onToggleHeading?.(); }} className="fiip-light-editor-action rounded-xl p-2 text-warm-text-secondary-light transition-all hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:hover:bg-white/10 dark:hover:text-white" title="Transformer en titre">
                         <Type size={16} />
                     </button>
-                    <button type="button" onClick={onAttachFile} className="rounded-xl p-2 text-warm-text-muted-light transition-all hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:hover:bg-white/10 dark:hover:text-white" title="Joindre un fichier">
+                    <button type="button" onClick={onAttachFile} className="fiip-light-editor-action rounded-xl p-2 text-warm-text-secondary-light transition-all hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:hover:bg-white/10 dark:hover:text-white" title="Joindre un fichier">
                         <ImageIcon size={16} />
                     </button>
                 </div>
 
                 <div className="flex items-center gap-2">
                     <TagPicker tags={note.tags || []} suggestions={tagSuggestions} onChange={onUpdateTags} />
-                    <button type="button" onClick={onOpenLicense} className="rounded-xl p-2 text-warm-text-muted-light transition-all hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-300" title="Licence Premium">
+                    <button type="button" onClick={onOpenLicense} className="fiip-light-editor-action rounded-xl p-2 text-warm-text-secondary-light transition-all hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-300" title="Licence Premium">
                         <Lock size={16} />
                     </button>
                 </div>

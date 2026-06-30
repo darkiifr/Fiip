@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 1. Mise à jour de la session de plateforme de l'utilisateur (Mobile / Desktop tracker)
 export const updateUserClientVersion = async (versionStr: string) => {

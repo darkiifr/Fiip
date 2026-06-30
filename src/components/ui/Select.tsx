@@ -17,13 +17,13 @@ const SelectTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       'flex h-9 w-full items-center justify-between gap-2 rounded-xl px-3 py-2',
-      'text-[13px] font-medium text-warm-text-primary-light dark:text-white/90',
-      'bg-white/80 dark:bg-white/7 border border-warm-border-light dark:border-white/8',
+      'text-[13px] font-medium text-[color:var(--text-primary)]',
+      'bg-[color:var(--bg-card)] border border-[color:var(--border-color)]',
       'backdrop-blur-xl',
       'shadow-[0_0_0_0.5px_rgba(255,255,255,0.08)_inset]',
       'transition-all duration-150 outline-none cursor-default',
-      'hover:bg-warm-sidebar-item-active dark:hover:bg-white/11 hover:border-amber-500/25 dark:hover:border-white/13',
-      'focus:bg-white dark:focus:bg-white/11 focus:border-amber-500/50',
+      'hover:bg-[color:var(--bg-sidebar-item-active)] hover:border-amber-500/25',
+      'focus:bg-[color:var(--bg-card)] focus:border-amber-500/50',
       'focus:shadow-[0_0_0_0.5px_rgba(255,255,255,0.08)_inset,0_0_0_3px_rgba(59,130,246,0.25)]',
       'data-placeholder:text-warm-text-muted-light dark:data-placeholder:text-white/30',
       'disabled:cursor-not-allowed disabled:opacity-50',
@@ -80,8 +80,8 @@ const SelectContent = React.forwardRef<
       className={cn(
         'relative z-[10000] min-w-32 overflow-hidden rounded-2xl',
         /* Liquid Glass */
-        'bg-white/95 dark:bg-zinc-950/92 backdrop-blur-2xl',
-        'border border-warm-border-light dark:border-white/8',
+      'bg-[color:var(--bg-card)] text-[color:var(--text-primary)] backdrop-blur-2xl',
+      'border border-[color:var(--border-color)]',
         'shadow-[0_0_0_0.5px_rgba(255,255,255,0.12)_inset,0_20px_60px_-12px_rgba(0,0,0,0.6),0_8px_20px_-4px_rgba(0,0,0,0.3)]',
         'animate-in fade-in-0 zoom-in-[0.97] duration-150',
         'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-[0.97]',
@@ -133,9 +133,9 @@ const SelectItem = React.forwardRef<
     className={cn(
       'relative flex w-full cursor-default select-none items-center gap-2.5',
       'rounded-[10px] pl-8 pr-2.5 py-[5px]',
-      'text-[13px] font-medium text-warm-text-primary-light dark:text-white/90',
+      'text-[13px] font-medium text-[color:var(--text-primary)]',
       'outline-none transition-colors duration-75',
-      'focus:bg-amber-500/10 dark:focus:bg-white/12 focus:text-warm-text-primary-light dark:focus:text-white',
+      'focus:bg-amber-500/12 focus:text-[color:var(--text-primary)]',
       'data-disabled:pointer-events-none data-disabled:opacity-40',
       className
     )}

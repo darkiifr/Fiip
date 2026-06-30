@@ -12,13 +12,38 @@
         <img src="icons/icon48.png" alt="" />
         <div>
           <p class="kicker">Fiip Clipper</p>
-          <h1>Capturer</h1>
+          <h1>Capturer dans Fiip</h1>
         </div>
       </header>
+
+      <section class="panel" aria-labelledby="capture-mode-label">
+        <label id="capture-mode-label" for="capture-mode">Mode de capture</label>
+        <select id="capture-mode">
+          <option value="readable">Page lisible</option>
+          <option value="selection">Sélection</option>
+        </select>
+        <p>Choisissez la page nettoyée ou uniquement le texte sélectionné.</p>
+      </section>
+
+      <section class="details" aria-label="Utilité de Fiip Clipper">
+        <div>
+          <strong>Source et images</strong>
+          <span>Ajoute le lien d'origine et jusqu'à 12 images web.</span>
+        </div>
+        <div>
+          <strong>Ouverture Fiip</strong>
+          <span>Envoie d'abord la capture vers l'application locale.</span>
+        </div>
+        <div>
+          <strong>Fallback cloud</strong>
+          <span>Utilise Supabase seulement si vous l'avez configuré.</span>
+        </div>
+      </section>
+
       <button id="clip-selection" type="button">
-        <span>Capturer la page</span>
+        <span>Capturer maintenant</span>
       </button>
-      <p id="status">Pret.</p>
+      <p id="status">Prêt.</p>
     </main>
     <script src="popup.js" type="module"></script>
   </body>

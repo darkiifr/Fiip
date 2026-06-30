@@ -228,7 +228,9 @@ export default function ChatModal({ isOpen, onClose }) {
     const getSafeImageUrl = (url) => {
         const safeUrl = getSafePublicUrl(url, { allowSvg: false });
         if (!safeUrl) return '';
-        return /\.(jpeg|jpg|gif|png|webp)(?:$|[?#])/i.test(new URL(safeUrl).pathname) || safeUrl.includes('media.tenor.com')
+        const parsed = new URL(safeUrl);
+        const isTenorMedia = parsed.hostname === 'media.tenor.com' || parsed.hostname.endsWith('.media.tenor.com');
+        return /\.(jpeg|jpg|gif|png|webp)$/i.test(parsed.pathname) || isTenorMedia
             ? safeUrl
             : '';
     };

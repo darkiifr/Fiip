@@ -1,0 +1,12 @@
+diff --git a/node_modules/@react-native-async-storage/async-storage/android/build.gradle b/node_modules/@react-native-async-storage/async-storage/android/build.gradle
+index 72f4989..7b80166 100644
+--- a/node_modules/@react-native-async-storage/async-storage/android/build.gradle
++++ b/node_modules/@react-native-async-storage/async-storage/android/build.gradle
+@@ -78,6 +78,7 @@ android {
+ }
+ 
+ repositories {
++    maven { url "$projectDir/local_repo" }
+     mavenCentral()
+     google()
+ }

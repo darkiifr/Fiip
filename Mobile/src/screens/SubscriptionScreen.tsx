@@ -35,7 +35,6 @@ const plans = [
 ];
 
 export default function SubscriptionScreen() {
-  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const isIOS = Platform.OS === 'ios';
   const { colors, isDark } = useAppTheme();
@@ -69,7 +68,7 @@ export default function SubscriptionScreen() {
 
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           {isIOS
-            ? 'La version iOS utilise le mode gratuit. Les achats seront proposés uniquement via l’App Store quand StoreKit sera activé.'
+            ? 'La version iOS utilise les fonctions incluses. Les achats seront proposés uniquement via l’App Store quand StoreKit sera activé.'
             : 'Choisissez le plan qui vous correspond le mieux.'}
         </Text>
 

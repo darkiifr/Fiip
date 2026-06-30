@@ -80,6 +80,20 @@ describe('Supabase authService', () => {
         await authService.signOut();
         expect(supabase.auth.signOut).toHaveBeenCalled();
     });
+
+    it('getPlanLevel should read the server-side profile plan before metadata', async () => {
+        supabase.auth.getSession.mockResolvedValueOnce({ data: { session: { user: { id: 'user-1', user_metadata: { subscription_level: 0 } } } } });
+        const mockSingle = vi.fn().mockResolvedValue({ data: { plan_level: 2 }, error: null });
+        supabase.from.mockReturnValueOnce({
+            select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                    single: mockSingle
+                })
+            })
+        });
+
+        await expect(authService.getPlanLevel()).resolves.toBe(2);
+    });
 });
 
 describe('Supabase dataService', () => {
@@ -104,6 +118,8 @@ describe('Supabase dataService', () => {
     });
 
     it('publishNote should update is_public to true', async () => {
+        const planSingle = vi.fn().mockResolvedValue({ data: { plan_level: 1 }, error: null });
+        const planEq = vi.fn().mockReturnValue({ single: planSingle });
         const readSingle = vi.fn().mockResolvedValue({ data: { id: 'note-1', is_locked: false, encrypted_content: null }, error: null });
         const readOwnerEq = vi.fn().mockReturnValue({ single: readSingle });
         const readNoteEq = vi.fn().mockReturnValue({ eq: readOwnerEq });
@@ -116,6 +132,10 @@ describe('Supabase dataService', () => {
         const update = vi.fn().mockReturnValue({ eq: noteEq });
         supabase.from.mockReturnValueOnce({
             select: vi.fn().mockReturnValue({
+                eq: planEq
+            })
+        }).mockReturnValueOnce({
+            select: vi.fn().mockReturnValue({
                 eq: readNoteEq
             })
         }).mockReturnValueOnce({
@@ -123,6 +143,7 @@ describe('Supabase dataService', () => {
         });
 
         await dataService.publishNote('note-1');
+        expect(supabase.from).toHaveBeenCalledWith('profiles');
         expect(supabase.from).toHaveBeenCalledWith('notes');
         expect(noteEq).toHaveBeenCalledWith('id', 'note-1');
         expect(ownerEq).toHaveBeenCalledWith('user_id', 'user-1');
@@ -133,10 +154,16 @@ describe('Supabase dataService', () => {
     });
 
     it('publishNote should reject protected notes', async () => {
+        const planSingle = vi.fn().mockResolvedValue({ data: { plan_level: 1 }, error: null });
+        const planEq = vi.fn().mockReturnValue({ single: planSingle });
         const readSingle = vi.fn().mockResolvedValue({ data: { id: 'note-1', is_locked: true, encrypted_content: 'ENC:value' }, error: null });
         const readOwnerEq = vi.fn().mockReturnValue({ single: readSingle });
         const readNoteEq = vi.fn().mockReturnValue({ eq: readOwnerEq });
         supabase.from.mockReturnValueOnce({
+            select: vi.fn().mockReturnValue({
+                eq: planEq
+            })
+        }).mockReturnValueOnce({
             select: vi.fn().mockReturnValue({
                 eq: readNoteEq
             })
@@ -145,7 +172,37 @@ describe('Supabase dataService', () => {
         const result = await dataService.publishNote('note-1');
 
         expect(result.error).toMatch(/protegees/);
-        expect(supabase.from).toHaveBeenCalledTimes(1);
+        expect(supabase.from).toHaveBeenCalledTimes(2);
+    });
+
+    it('saveNote should block a free user at five cloud notes before upserting', async () => {
+        supabase.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'user-1', user_metadata: { subscription_level: 0 } } } } });
+        supabase.from.mockReturnValueOnce({
+            select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue({
+                    single: vi.fn().mockResolvedValue({ data: { plan_level: 0 }, error: null })
+                })
+            })
+        }).mockReturnValueOnce({
+            select: vi.fn().mockReturnValue({
+                eq: vi.fn().mockResolvedValue({ data: Array.from({ length: 5 }, (_, index) => ({ id: `note-${index}` })), error: null })
+            })
+        });
+
+        const result = await dataService.saveNote({ id: 'new-note', title: 'New', content: '', updatedAt: Date.now() });
+
+        expect(result.error).toBe('FREE_NOTE_LIMIT_EXCEEDED');
+        expect(supabase.from).toHaveBeenCalledTimes(2);
+    });
+
+    it('publishNote should block public shares on the free plan', async () => {
+        supabase.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'user-1', user_metadata: { subscription_level: 0 } } } } });
+
+        const result = await dataService.publishNote('note-1');
+
+        expect(result.error).toBe('FREE_PUBLIC_SHARE_DISABLED');
+        expect(supabase.from).toHaveBeenCalledWith('profiles');
+        expect(supabase.from).not.toHaveBeenCalledWith('notes');
     });
 
     it('fetchProfile should fetch from profiles table', async () => {

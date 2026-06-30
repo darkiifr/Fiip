@@ -13,6 +13,7 @@ import {
   sanitizeClipperPayload,
 } from './fiipV1';
 import { serializeNoteTags } from '../utils/noteTags';
+import { canAttachFile, canCreateNote, getStorageLimit, resolvePlanLevel } from './planLimits';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -23,23 +24,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 
 export const supabase = createClient(SUPABASE_URL && SUPABASE_URL.trim() !== '' ? SUPABASE_URL : 'https://placeholder.supabase.co', SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.trim() !== '' ? SUPABASE_ANON_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx');
 
-// Storage Limits (in Bytes) - Adjusted for Supabase Free Tier (Max Project Size ~1GB)
-export const STORAGE_LIMITS = {
-  FREE: 50 * 1024 * 1024,       // 50 MB
-  BASIC: 100 * 1024 * 1024,     // 100 MB
-  PRO: 250 * 1024 * 1024,       // 250 MB
-  ENTERPRISE: 500 * 1024 * 1024 // 500 MB
-};
-
-// Helper to get limit based on level
-export const getStorageLimit = (level) => {
-  // Level mapping from KeyAuth: 0=Free, 1=Basic, 2=Pro, 4=Dev/Enterprise
-  const levelNum = Number(level) || 0;
-  if (levelNum >= 4) {return STORAGE_LIMITS.ENTERPRISE;}
-  if (levelNum >= 2) {return STORAGE_LIMITS.PRO;}
-  if (levelNum >= 1) {return STORAGE_LIMITS.BASIC;}
-  return STORAGE_LIMITS.FREE;
-};
+export { getStorageLimit };
 
 // Auth Services
 export const authService = {
@@ -211,6 +196,27 @@ export const authService = {
 
   onAuthStateChange(callback) {
       return supabase.auth.onAuthStateChange(callback);
+  },
+
+  async getPlanLevel(user = null) {
+    const currentUser = user || await this.getUser();
+    if (!currentUser) {return 0;}
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('plan_level')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (!error && data?.plan_level !== undefined && data?.plan_level !== null) {
+        return resolvePlanLevel(data);
+      }
+    } catch (e) {
+      console.warn('Could not read profile plan level:', e);
+    }
+
+    return resolvePlanLevel(currentUser);
   }
 };
 
@@ -286,6 +292,18 @@ export const dataService = {
   async saveNote(note) {
     const user = await authService.getUser();
     if (!user) {return { error: 'Not authenticated' };}
+    const level = await authService.getPlanLevel(user);
+    const { data: existingNotes, error: countError } = await supabase
+      .from('notes')
+      .select('id')
+      .eq('user_id', user.id);
+
+    if (!countError && !existingNotes?.some((existing) => existing.id === note.id)) {
+      const currentNoteCount = Array.isArray(existingNotes) ? existingNotes.length : 0;
+      if (!canCreateNote({ level, currentNoteCount })) {
+        return { error: 'FREE_NOTE_LIMIT_EXCEEDED' };
+      }
+    }
 
     // Format note for DB (remove local-only constructs if any)
     const normalized = normalizeNoteForV1(note);
@@ -347,6 +365,10 @@ export const dataService = {
   async publishNote(noteId) {
     const user = await authService.getUser();
     if (!user) {return { error: 'Not authenticated' };}
+    const level = await authService.getPlanLevel(user);
+    if (level < 1) {
+      return { error: 'FREE_PUBLIC_SHARE_DISABLED' };
+    }
 
     const { data: existingNote } = await supabase
       .from('notes')
@@ -438,6 +460,12 @@ export const dataService = {
   },
 
   async addCollaborator(noteId, username, role = 'viewer') {
+      const user = await authService.getUser();
+      const level = await authService.getPlanLevel(user);
+      if (level < 1) {
+          return { error: 'FREE_COLLABORATION_DISABLED' };
+      }
+
       const { data: existingNote } = await supabase
           .from('notes')
           .select('id, user_id, is_locked, encrypted_content')
@@ -719,10 +747,9 @@ export const dataService = {
     if (!user) {return { error: 'Not authenticated' };}
     
     const currentUsage = await this.getUsage(user.id);
-    const level = user?.user_metadata?.subscription_level || 0;
-    const limit = getStorageLimit(level);
+    const level = await authService.getPlanLevel(user);
 
-    if (currentUsage + file.size > limit) {
+    if (!canAttachFile({ level, currentUsage, fileSize: file.size, attachmentCount: 0 })) {
       return { error: new Error("STORAGE_LIMIT_EXCEEDED") };
     }
     

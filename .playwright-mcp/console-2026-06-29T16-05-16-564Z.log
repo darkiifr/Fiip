@@ -1,0 +1,4 @@
+[    1213ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:1420/node_modules/.vite/deps/react-dom_client.js?v=ed0ae942:14337
+[    2055ms] [LOG] Fiip v3.0.0 initializing... @ http://127.0.0.1:1420/src/App.jsx:264
+[    2056ms] [LOG] Fiip v3.0.0 initializing... @ http://127.0.0.1:1420/src/App.jsx:264
+[   38858ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:1420/@vite/client:992

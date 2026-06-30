@@ -195,7 +195,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-xl animate-fade-in font-sans select-none">
-            <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[30px] border border-black/10 bg-[#fbfaf6] text-warm-text-primary-light shadow-[0_32px_110px_rgba(0,0,0,0.34)] animate-scale-in dark:border-white/10 dark:bg-[#111316] dark:text-warm-text-primary-dark">
+            <div className="fiip-light-share-modal flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[30px] border border-black/10 bg-[#fbfaf6] text-warm-text-primary-light shadow-[0_32px_110px_rgba(0,0,0,0.34)] animate-scale-in dark:border-white/10 dark:bg-[#111316] dark:text-warm-text-primary-dark">
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-warm-border-light dark:border-white/10 flex items-start justify-between bg-white/45 dark:bg-white/[0.035]">
                     <div className="flex items-center gap-2.5">
@@ -203,7 +203,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                             <IconGlobe className="w-4 h-4" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-black tracking-tight">Partager la note</h2>
+                            <h2 className="fiip-light-share-heading text-lg font-black tracking-tight">Partager la note</h2>
                             <p className="mt-1 text-xs font-medium text-warm-text-muted-light dark:text-warm-text-muted-dark">Publiez la note ou invitez des collaborateurs prives.</p>
                         </div>
                     </div>
@@ -289,7 +289,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                         className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all border ${
                                             isPublic 
                                                 ? 'bg-red-500/10 border-red-500/25 text-red-600 dark:text-red-400 hover:bg-red-500/20' 
-                                                : 'bg-[#1C1C1E] dark:bg-white text-white dark:text-black hover:opacity-90 border-transparent'
+                                                : 'fiip-light-share-action bg-[#1C1C1E] dark:bg-white text-white dark:text-black hover:opacity-90 border-transparent'
                                         }`}
                                     >
                                         {isSharing ? (
@@ -373,7 +373,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                     <button
                                         type="submit"
                                         disabled={!newCollabUsername.trim() || isLoadingCollab}
-                                        className="px-3.5 py-1.5 bg-[#1C1C1E] dark:bg-white text-white dark:text-black hover:opacity-90 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                                        className="fiip-light-share-action px-3.5 py-1.5 bg-[#1C1C1E] dark:bg-white text-white dark:text-black hover:opacity-90 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
                                     >
                                         {isLoadingCollab ? <IconLoading className="w-3.5 h-3.5 animate-spin" /> : 'Ajouter'}
                                     </button>

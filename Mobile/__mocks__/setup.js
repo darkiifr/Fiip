@@ -33,6 +33,9 @@ jest.mock('react-native-localize', () => ({
 jest.mock('react-native-fs', () => ({
   DocumentDirectoryPath: '/mock/DocumentDirectoryPath',
   downloadFile: jest.fn(),
+  readFile: jest.fn(() => Promise.resolve('')),
+  stat: jest.fn(() => Promise.resolve({ size: 0 })),
+  writeFile: jest.fn(() => Promise.resolve()),
 }));
 
 jest.mock('react-native-shared-group-preferences', () => ({
@@ -61,17 +64,3 @@ jest.mock('react-native-html-to-pdf', () => ({
 }));
 
 jest.mock('react-native-pdf', () => 'Pdf');
-
-jest.mock('react-native-document-picker', () => ({
-  pick: jest.fn(() => Promise.resolve([])),
-  types: {},
-}));
-
-jest.mock('react-native-audio-recorder-player', () => jest.fn().mockImplementation(() => ({
-  startRecorder: jest.fn(() => Promise.resolve()),
-  stopRecorder: jest.fn(() => Promise.resolve()),
-  addRecordBackListener: jest.fn(),
-  removeRecordBackListener: jest.fn(),
-  startPlayer: jest.fn(() => Promise.resolve()),
-  stopPlayer: jest.fn(() => Promise.resolve()),
-})));

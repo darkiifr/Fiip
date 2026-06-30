@@ -10,6 +10,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     document,
     location,
     selectionText: window.getSelection()?.toString() || '',
+    captureMode: message.captureMode,
   }));
 
   return true;

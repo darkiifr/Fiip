@@ -9,7 +9,7 @@ vi.mock('./keyauth', () => ({
 describe('OpenRouter AI service', () => {
   beforeEach(() => {
     vi.resetModules();
-    import.meta.env.VITE_OPENROUTER_KEY = 'test-openrouter-key';
+    vi.stubEnv('VITE_OPENROUTER_KEY', 'test-openrouter-key');
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce({
@@ -27,6 +27,7 @@ describe('OpenRouter AI service', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 

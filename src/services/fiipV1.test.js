@@ -4,9 +4,12 @@ import {
   buildSearchIndexEntry,
   canUseNoteContent,
   createTask,
+  createNoteDraft,
   defaultHomeWidgets,
   filterNotesAdvanced,
   getDueTasks,
+  getNotebookIdFromNav,
+  isNotebookNav,
   normalizeNotebook,
   normalizeNoteForV1,
   parseAdvancedSearchQuery,
@@ -115,6 +118,11 @@ describe('Fiip V1 domain helpers', () => {
 
   it('provides stable defaults for notebooks and home widgets', () => {
     expect(normalizeNotebook({ name: '' }).name).toBe('Toutes les notes');
+    expect(getNotebookIdFromNav('notebook:work')).toBe('work');
+    expect(getNotebookIdFromNav('home')).toBe('all-notes');
+    expect(getNotebookIdFromNav('notebook:')).toBe('all-notes');
+    expect(isNotebookNav('notebook:work')).toBe(true);
+    expect(isNotebookNav('notebook:all-notes')).toBe(false);
     expect(defaultHomeWidgets().map((widget) => widget.id)).toEqual([
       'recent-notes',
       'due-tasks',
@@ -124,5 +132,36 @@ describe('Fiip V1 domain helpers', () => {
       'sync-status',
       'ai-suggestions',
     ]);
+  });
+
+  it('creates new notes inside the active notebook when the nav targets one', () => {
+    expect(createNoteDraft({
+      id: 'note-1',
+      title: '',
+      content: 'Body',
+      activeNav: 'notebook:work',
+      now: 123,
+      defaultTitle: 'Nouvelle Note',
+    })).toMatchObject({
+      id: 'note-1',
+      title: 'Nouvelle Note',
+      content: 'Body',
+      notebookId: 'work',
+      notebook_id: 'work',
+      folder_id: 'work',
+      createdAt: 123,
+      updatedAt: 123,
+    });
+
+    expect(createNoteDraft({
+      id: 'note-2',
+      title: 'Inbox',
+      activeNav: 'home',
+      now: 456,
+    })).toMatchObject({
+      notebookId: 'all-notes',
+      notebook_id: null,
+      folder_id: null,
+    });
   });
 });

@@ -1,5 +1,7 @@
 import { CalendarDays, Clock3, FileText, Search } from 'lucide-react';
 
+import { stripNoteText } from '../../utils/notePresentation';
+
 const getNoteTimestamp = (note) => note.updatedAt || note.createdAt || 0;
 
 export default function DesktopDashboard({ featuredNote, recentNotes, onSelectNote, onSearchFocus }) {
@@ -20,7 +22,7 @@ export default function DesktopDashboard({ featuredNote, recentNotes, onSelectNo
               <span><CalendarDays size={16} /> Aujourd'hui</span>
               <span className="fiip-chip">Réflexion</span>
             </div>
-            <p>{(featuredNote.content || '').replace(/<[^>]+>/g, '').slice(0, 220)}</p>
+            <p>{stripNoteText(featuredNote.content).slice(0, 220)}</p>
             <div className="fiip-feature-footer">
               <span>256 mots</span>
               <span><Clock3 size={16} /> 2 min de lecture</span>
@@ -37,7 +39,7 @@ export default function DesktopDashboard({ featuredNote, recentNotes, onSelectNo
           {recentNotes.slice(0, 3).map((note) => (
             <button type="button" key={note.id} className="fiip-resume-item" onClick={() => onSelectNote(note.id)}>
               <strong>{note.title || 'Sans titre'}</strong>
-              <p>{(note.content || '').replace(/<[^>]+>/g, '').slice(0, 90)}</p>
+              <p>{stripNoteText(note.content).slice(0, 90)}</p>
               <span>{new Date(getNoteTimestamp(note)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </button>
           ))}

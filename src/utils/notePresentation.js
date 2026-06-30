@@ -1,7 +1,11 @@
+import DOMPurify from 'dompurify';
+
 export function stripNoteText(content = '') {
-  return String(content)
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+  return DOMPurify.sanitize(String(content), {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
+    ALLOWED_ATTR: [],
+  })
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')

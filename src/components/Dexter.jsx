@@ -6,20 +6,14 @@ import { useTranslation } from 'react-i18next';
 import { generateText } from '../services/ai';
 
 // Icons Import
-import IconCalendar from '~icons/mingcute/calendar-fill';
 import IconCheck from '~icons/mingcute/check-fill';
 import IconClose from '~icons/mingcute/close-fill';
 import IconTrash from '~icons/mingcute/delete-2-fill';
 import IconChevronDown from '~icons/mingcute/down-fill';
-import IconFileText from '~icons/mingcute/file-fill';
-import IconMessage from '~icons/mingcute/message-3-fill';
 import IconPen from '~icons/mingcute/pen-fill';
-import IconRotateCcw from '~icons/mingcute/refresh-3-fill';
-import IconBot from '~icons/mingcute/robot-fill';
 import IconSend from '~icons/mingcute/send-plane-fill';
 import IconSparkles from '~icons/mingcute/sparkles-fill';
 import IconStop from '~icons/mingcute/stop-fill';
-import IconVolume from '~icons/mingcute/volume-fill';
 
 const getCurrentTimestamp = () => new Date().getTime();
 
@@ -54,9 +48,8 @@ export default function Dexter({
     const [isThinking, setIsThinking] = useState(false);
     const [selectedModel, setSelectedModel] = useState('default');
     const [showModelSelector, setShowModelSelector] = useState(false);
-    const [recentPrompts, setRecentPrompts] = useState([]);
+    const [, setRecentPrompts] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [selectedSuggestion, setSelectedSuggestion] = useState(0);
 
     useEffect(() => {
         const handleResize = () => {
@@ -205,7 +198,7 @@ export default function Dexter({
                 messages: [
                     {
                         role: 'system',
-                        content: "Tu es Dexter, assistant de rédaction intégré à Fiip. Tu aides à écrire, structurer, corriger et résumer des notes. Réponds en français clair par défaut, sois concis, n'invente pas de faits, ne promets pas de lire des fichiers et rappelle que le modèle gratuit ne lit pas les PDF.",
+                        content: "Tu es Dexter, assistant de rédaction intégré à Fiip. Tu aides à écrire, structurer, corriger et résumer des notes. Réponds en français clair par défaut, sois concis, n'invente pas de faits, ne promets pas de lire des fichiers et précise que les PDF ne sont pas lus directement.",
                     },
                     {
                         role: 'user',
@@ -227,7 +220,7 @@ export default function Dexter({
                         displayContent = response.replace(jsonMatch[0], '').trim();
                     }
                 }
-            } catch (e) {
+            } catch {
                 // Not a structural command
             }
 
@@ -455,10 +448,10 @@ export default function Dexter({
                                 onClick={() => { setSelectedModel('default'); setShowModelSelector(false); }}
                                 className="w-full px-2.5 py-1.5 text-[10px] hover:bg-warm-sidebar-item-active rounded-lg block font-semibold"
                             >
-                                openrouter/free
+                                Assistant Dexter
                             </button>
                             <p className="px-2.5 py-1.5 text-[10px] text-warm-text-muted-light">
-                                Les modèles payants et personnalisés sont désactivés.
+                                Configuration gérée par Fiip.
                             </p>
                         </div>
                     )}

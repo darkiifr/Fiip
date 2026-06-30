@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const manifest = JSON.parse(readFileSync(resolve('BrowserExtension/manifest.json'), 'utf8'));
+const popupHtml = readFileSync(resolve('BrowserExtension/popup.html'), 'utf8');
 
 describe('Fiip extension manifest', () => {
   it('declares a Chrome and Edge compatible Manifest V3 clipper', () => {
@@ -24,5 +25,12 @@ describe('Fiip extension manifest', () => {
       128: 'icons/icon128.png',
     });
     expect(manifest.action.default_icon).toMatchObject(manifest.icons);
+  });
+
+  it('explains the clipper options in the popup', () => {
+    expect(popupHtml).toContain('Mode de capture');
+    expect(popupHtml).toContain('Page lisible');
+    expect(popupHtml).toContain('Sélection');
+    expect(popupHtml).toContain('Source et images');
   });
 });

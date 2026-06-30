@@ -1,5 +1,7 @@
 import { CalendarDays, Clock3, FileText, MoreHorizontal, Share2, Sparkles } from 'lucide-react';
 
+import { stripNoteText } from '../../utils/notePresentation';
+
 const getCurrentTimestamp = () => new Date().getTime();
 const getNoteTimestamp = (note) => note.updatedAt || note.createdAt || 0;
 
@@ -8,7 +10,7 @@ export default function DesktopEditor({ note, onUpdateNote, onOpenAssistant, onO
     return <div className="fiip-empty">Sélectionnez une note pour commencer.</div>;
   }
 
-  const plain = (note.content || '').replace(/<[^>]+>/g, '');
+  const plain = stripNoteText(note.content);
   const updatedAt = getNoteTimestamp(note);
 
   return (

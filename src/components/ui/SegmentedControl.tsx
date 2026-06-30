@@ -39,7 +39,6 @@ export function SegmentedControl<T extends string = string>({
   className,
   'aria-label': ariaLabel = 'Contrôle segmenté',
 }: SegmentedControlProps<T>) {
-  const activeRef = useRef<HTMLButtonElement>(null);
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
   const listRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<Map<T, HTMLButtonElement>>(new Map());

@@ -7,10 +7,12 @@ import { useTranslation } from 'react-i18next';
 
 import { useUI } from '../providers/UIProvider';
 import { keyAuthService } from '../services/keyauth';
+import { getLocalizedLanguageLabel, LANGUAGES } from '../services/languages';
 import { getPlatformDisplayName } from '../services/platform';
 
 import FontManager from './FontManager';
 import CustomSelect from './CustomSelect';
+import NucleoFlag from './NucleoFlag';
 import { GlassDialog } from './ui/GlassDialog';
 import { GlassButton } from './ui/GlassButton';
 import { GlassSwitch } from './ui/GlassSwitch';
@@ -87,28 +89,7 @@ export default function SettingsModal({
     const [updateInfo, setUpdateInfo] = useState<any>(null);
     const [pendingUpdatesCount, setPendingUpdatesCount] = useState(0);
 
-    const languages = [
-        { code: 'fr', label: 'Français', flag: '🇫🇷' },
-        { code: 'en', label: 'English', flag: '🇺🇸' },
-        { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
-        { code: 'es', label: 'Español', flag: '🇪🇸' },
-        { code: 'it', label: 'Italiano', flag: '🇮🇹' },
-        { code: 'pt', label: 'Português', flag: '🇵🇹' },
-        { code: 'nl', label: 'Nederlands', flag: '🇳🇱' },
-        { code: 'ru', label: 'Русский', flag: '🇷🇺' },
-        { code: 'ja', label: '日本語', flag: '🇯🇵' },
-        { code: 'uk', label: 'Українська', flag: '🇺🇦' },
-        { code: 'pl', label: 'Polski', flag: '🇵🇱' },
-        { code: 'ar', label: 'العربية', flag: '🇸🇦' },
-        { code: 'bg', label: 'Български', flag: '🇧🇬' },
-        { code: 'ca', label: 'Català', flag: '🇪🇸' },
-        { code: 'hr', label: 'Hrvatski', flag: '🇭🇷' },
-        { code: 'fa', label: 'فارسی', flag: '🇮🇷' },
-        { code: 'sl', label: 'Slovenščina', flag: '🇸🇮' },
-        { code: 'hy', label: 'Հայերեն', flag: '🇦🇲' },
-        { code: 'br', label: 'Brezhoneg', flag: '🇫🇷' },
-        { code: 'co', label: 'Corsu', flag: '🇫🇷' }
-    ].sort((a, b) => a.label.localeCompare(b.label));
+    const languages = LANGUAGES;
 
     useEffect(() => {
         // Check OS
@@ -245,7 +226,15 @@ export default function SettingsModal({
                             <SelectTrigger>
                                 <div className="flex items-center gap-2">
                                     <IconGlobe className="w-4 h-4 text-gray-400" />
-                                    <SelectValue />
+                                    {(() => {
+                                        const selected = languages.find(l => l.code === localSettings.language || l.code === i18n.language) || languages.find(l => l.code === 'fr') || languages[0];
+                                        return (
+                                            <>
+                                                <NucleoFlag language={selected} className="h-5 w-5 shrink-0 rounded-[4px]" />
+                                                <span className="font-medium truncate">{getLocalizedLanguageLabel(selected, i18n.language)}</span>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </SelectTrigger>
                             <SelectContent>
@@ -253,27 +242,19 @@ export default function SettingsModal({
                                     {languages.map((l) => (
                                         <SelectItem key={l.code} value={l.code}>
                                             <div className="flex items-center gap-2">
-                                                <span className="text-base shrink-0">{l.flag}</span>
-                                                <span className="font-medium truncate">{l.label}</span>
+                                                <NucleoFlag language={l} className="h-5 w-5 shrink-0 rounded-[4px]" />
+                                                <span className="flex min-w-0 flex-col leading-tight">
+                                                    <span className="font-medium truncate">{getLocalizedLanguageLabel(l, i18n.language)}</span>
+                                                    {l.nativeLabel !== l.label ? (
+                                                        <span className="truncate text-[11px] text-gray-400">{l.nativeLabel}</span>
+                                                    ) : null}
+                                                </span>
                                             </div>
                                         </SelectItem>
                                     ))}
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                    </div>
-
-                    {/* Writing Assistance */}
-                    <div className="space-y-3 relative z-20">
-                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.writing', 'Rédaction')}</h3>
-                        <div className="p-3 bg-white/5 border border-white/5 rounded-lg flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-200">{t('settings.enable_correction', "Correcteur d'orthographe")}</span>
-                            <GlassSwitch
-                                checked={localSettings.enableCorrection !== false}
-                                onCheckedChange={(checked) => handleUpdate({ ...localSettings, enableCorrection: checked })}
-                                aria-label={t('settings.enable_correction')}
-                            />
-                        </div>
                     </div>
 
                     {/* Typography */}
@@ -561,23 +542,23 @@ export default function SettingsModal({
                                     <div className="flex items-center gap-3">
                                         <IconCpu className="h-5 w-5 text-blue-300" />
                                         <div>
-                                            <p className="text-sm font-semibold text-gray-100">Routeur IA gratuit</p>
-                                            <p className="text-xs text-gray-400">Dexter utilise uniquement <span className="font-mono text-gray-200">openrouter/free</span>.</p>
+                                            <p className="text-sm font-semibold text-gray-100">Assistant Dexter</p>
+                                            <p className="text-xs text-gray-400">Aide à résumer, reformuler, corriger et structurer vos notes.</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                                    <p className="text-sm font-semibold text-gray-100">Clé OpenRouter centralisée</p>
+                                    <p className="text-sm font-semibold text-gray-100">Accès géré par Fiip</p>
                                     <p className="mt-1 text-xs leading-relaxed text-gray-400">
-                                        La clé est fournie par le secret GitHub <span className="font-mono text-gray-200">VITE_OPENROUTER_KEY</span>. Fiip n’accepte plus de clé utilisateur ni de modèle payant personnalisé.
+                                        Aucune clé technique n'est demandée dans l'application. Fiip gère l'accès à Dexter automatiquement.
                                     </p>
                                 </div>
 
                                 <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                                    <p className="text-sm font-semibold text-gray-100">Statistiques et endpoints</p>
+                                    <p className="text-sm font-semibold text-gray-100">Usage visible</p>
                                     <p className="mt-1 text-xs leading-relaxed text-gray-400">
-                                        Les réponses consultent <span className="font-mono text-gray-200">/chat/completions</span>, <span className="font-mono text-gray-200">/generation</span> et <span className="font-mono text-gray-200">/models</span> pour exposer l’usage sans ouvrir de configuration payante.
+                                        Les statistiques apparaissent après les réponses pour mieux comprendre l'activité de Dexter.
                                     </p>
                                 </div>
                             </div>

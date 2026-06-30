@@ -1,5 +1,25 @@
 const FIIP_CLIP_DEEP_LINK = 'fiip://clip';
 
+function sanitizeHtml(value = '') {
+  if (typeof document === 'undefined') {
+    return escapeHtml(value);
+  }
+
+  const template = document.createElement('template');
+  template.innerHTML = String(value);
+  template.content.querySelectorAll('script, style, iframe, object, embed, noscript').forEach((item) => item.remove());
+  template.content.querySelectorAll('*').forEach((item) => {
+    [...item.attributes].forEach((attr) => {
+      const attrName = attr.name.toLowerCase();
+      const attrValue = String(attr.value || '').trim();
+      if (attrName.startsWith('on') || /^(?:javascript|data):/i.test(attrValue)) {
+        item.removeAttribute(attr.name);
+      }
+    });
+  });
+  return template.innerHTML;
+}
+
 export function escapeHtml(value = '') {
   return String(value)
     .replaceAll('&', '&amp;')
@@ -33,7 +53,7 @@ export function buildSupabaseNotePayload(
 
   return {
     title: payload.title,
-    content: `${payload.html}<p><a href="${sourceUrl}" rel="noreferrer">Source: ${escapeHtml(sourceUrl)}</a></p>`,
+    content: `${sanitizeHtml(payload.html)}<p><a href="${sourceUrl}" rel="noreferrer">Source: ${escapeHtml(sourceUrl)}</a></p>`,
     tags: [{ id: 'tag-web-clip', label: 'Web clip', icon: 'Tag', color: 4 }],
     attachments: (Array.isArray(payload.images) ? payload.images : []).map((url, index) => ({
       id: randomUUID(),

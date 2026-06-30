@@ -117,21 +117,11 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title="Cloud et sécurité" colors={colors} isIOS={isIOS}>
-          <SettingSwitch title="Synchronisation Supabase" caption="Utilise Auth, base de données et stockage Fiip." value={syncEnabled} onChange={setSyncEnabled} colors={colors} isIOS={isIOS} />
+          <SettingSwitch title="Synchronisation cloud" caption="Synchronise vos notes et fichiers avec votre compte cloud." value={syncEnabled} onChange={setSyncEnabled} colors={colors} isIOS={isIOS} />
           <SettingSwitch title="Verrouillage biométrique" caption="Protège l’ouverture de l’application." value={globalLockEnabled} onChange={setGlobalLockEnabled} colors={colors} isIOS={isIOS} />
-          <SettingAction title="Se déconnecter" caption="Ferme la session Supabase sur cet appareil." onPress={handleSignOut} colors={colors} danger={false} />
+          <SettingAction title="Se déconnecter" caption="Ferme la session cloud sur cet appareil." onPress={handleSignOut} colors={colors} danger={false} />
           <SettingAction title="Supprimer le compte cloud" caption="Demande la suppression du compte et des données cloud associées." onPress={handleRequestAccountDeletion} colors={colors} danger />
         </Section>
-
-        <GlassCard intensity={isIOS ? 28 : 0} cornerRadius={isIOS ? fiipRadius.xl : 28} interactive style={styles.aiPolicy}>
-          <View style={styles.aiHeader}>
-            <Icon sfSymbol="sparkles" mdIcon="sparkles" size={20} color={colors.primary} />
-            <Text style={[styles.aiTitle, { color: colors.text }]}>IA sans clé personnalisée</Text>
-          </View>
-          <Text style={[styles.caption, { color: colors.textSecondary }]}>
-            Dexter utilise uniquement le secret GitHub OpenRouter et le routeur gratuit openrouter/free. Les écrans n’acceptent plus de clé utilisateur ni de modèle payant.
-          </Text>
-        </GlassCard>
       </ScrollView>
     </SafeAreaView>
   );
@@ -206,7 +196,4 @@ const styles = StyleSheet.create({
   settingText: { flex: 1 },
   settingTitle: { fontSize: 15, fontWeight: '900' },
   caption: { marginTop: 4, fontSize: 13, lineHeight: 19 },
-  aiPolicy: { padding: 18 },
-  aiHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  aiTitle: { fontSize: 18, fontWeight: '900' },
 });

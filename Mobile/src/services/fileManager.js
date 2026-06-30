@@ -1,6 +1,6 @@
 import RNFS from 'react-native-fs';
 import Share from 'react-native-share';
-import DocumentPicker, { types } from 'react-native-document-picker';
+import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
 
 export async function calculateTotalUsage(notes) {
     let totalSize = 0;
@@ -92,7 +92,7 @@ export async function exportAllNotes(notes) {
 // Import markdown file
 export async function importMarkdownFile() {
     try {
-        const result = await DocumentPicker.pickSingle({
+        const [result] = await pick({
             type: [types.plainText, types.allFiles],
         });
 
@@ -123,7 +123,7 @@ export async function importMarkdownFile() {
         }
         return { success: false, cancelled: true };
     } catch (error) {
-        if (DocumentPicker.isCancel(error)) {
+        if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
             return { success: false, cancelled: true };
         }
         console.error('Import error:', error);

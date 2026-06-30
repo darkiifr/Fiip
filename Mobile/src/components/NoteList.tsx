@@ -14,7 +14,6 @@ export const NoteList = ({ onNotePress }: { onNotePress: (note: any) => void }) 
   const isIOS = Platform.OS === 'ios';
   
   // Use Zustand selector to force re-render when notes change
-  const notesData = useNotesStore(state => state.notes);
   const getNotesList = useNotesStore(state => state.getNotesList);
   const syncWithCloud = useNotesStore(state => state.syncWithCloud);
   const isSyncing = useNotesStore(state => state.isSyncing);

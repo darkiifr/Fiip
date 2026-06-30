@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import IconCalendar from '~icons/mingcute/calendar-line';
-import IconFileText from '~icons/mingcute/file-fill';
-import IconMore from '~icons/mingcute/more-2-line';
 import IconSearch from '~icons/mingcute/search-line';
 import IconTime from '~icons/mingcute/time-line';
 import IconBook from '~icons/mingcute/book-line';
@@ -185,7 +183,7 @@ export default function HomeDashboard({
                             </div>
 
                             {/* Note Title */}
-                            <h2 className="text-3xl font-extrabold tracking-tight text-warm-text-primary-light dark:text-warm-text-primary-dark mb-4 leading-tight max-w-lg group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                            <h2 className="fiip-light-home-note-title text-3xl font-extrabold tracking-tight text-warm-text-primary-light dark:text-warm-text-primary-dark mb-4 leading-tight max-w-lg group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                                 {spotlightNote.title || t('common.untitled', 'Sans titre')}
                             </h2>
                             
@@ -239,7 +237,7 @@ export default function HomeDashboard({
                                 className="group cursor-pointer p-5 rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark hover:bg-warm-sidebar-item-active/50 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between min-h-[160px] text-left"
                             >
                                 <div className="space-y-2">
-                                    <h4 className="text-xs font-bold text-warm-text-primary-light dark:text-warm-text-primary-dark truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                    <h4 className="fiip-light-home-note-title text-xs font-bold text-warm-text-primary-light dark:text-warm-text-primary-dark truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                                         {note.title || t('common.untitled', 'Sans titre')}
                                     </h4>
                                     <p className="text-[11px] text-warm-text-secondary-light/80 dark:text-warm-text-secondary-dark/80 line-clamp-3 leading-relaxed">

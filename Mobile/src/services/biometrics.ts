@@ -1,6 +1,5 @@
-import ReactNativeBiometrics, { BiometryTypes } from 'react-native-biometrics';
+import ReactNativeBiometrics from 'react-native-biometrics';
 import { triggerHaptic } from '../utils/hapticEngine';
-import { Platform } from 'react-native';
 
 const rnBiometrics = new ReactNativeBiometrics({ allowDeviceCredentials: true });
 
@@ -8,7 +7,7 @@ export const authenticateBiometric = async (
   promptMessage: string = 'Veuillez vous authentifier pour déverrouiller cette note'
 ): Promise<boolean> => {
   try {
-    const { available, biometryType } = await rnBiometrics.isSensorAvailable();
+    const { available } = await rnBiometrics.isSensorAvailable();
 
     if (!available) {
       console.warn('Biometrics not available on this device.');

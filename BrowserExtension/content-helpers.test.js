@@ -12,6 +12,7 @@ describe('Fiip extension content helpers', () => {
       document,
       location: new URL('https://example.com/article'),
       selectionText: '<img src=x onerror=alert(1)> & "quote"',
+      captureMode: 'selection',
       now: () => new Date('2026-06-27T08:00:00.000Z'),
     });
 
@@ -22,6 +23,21 @@ describe('Fiip extension content helpers', () => {
       capturedAt: '2026-06-27T08:00:00.000Z',
     });
     expect(payload.html).toBe('<blockquote>&lt;img src=x onerror=alert(1)&gt; &amp; &quot;quote&quot;</blockquote>');
+  });
+
+  it('captures the readable page by default even when text is selected', () => {
+    document.body.innerHTML = '<main><p>Readable article</p></main>';
+
+    const payload = buildClipPayload({
+      document,
+      location: new URL('https://example.com/article'),
+      selectionText: 'Selected fragment',
+      now: () => new Date('2026-06-27T08:00:00.000Z'),
+    });
+
+    expect(payload.selectionText).toBe('');
+    expect(payload.html).toContain('Readable article');
+    expect(payload.html).not.toContain('Selected fragment');
   });
 
   it('removes unsafe nodes and inline event handlers from page capture html', () => {

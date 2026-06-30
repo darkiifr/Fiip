@@ -98,7 +98,6 @@
     "patch-package": "npm:patch-package@^8.0.1",
     "pdfjs-dist": "npm:pdfjs-dist@^5.4.449",
     "postinstall-postinstall": "npm:postinstall-postinstall@^2.1.0",
-    "prosemirror-languagetool": "npm:prosemirror-languagetool@^0.1.0",
     "react": "npm:react@^19.2.6",
     "react-dom": "npm:react-dom@^19.2.6",
     "react-i18next": "npm:react-i18next@^17.0.8",

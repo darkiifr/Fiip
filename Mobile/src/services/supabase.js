@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY } from '@env';
+import { canAttachFile, canCreateNote, getStorageLimit, resolvePlanLevel } from './planLimits';
 
 const SUPABASE_URL = VITE_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = VITE_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -22,23 +23,7 @@ export const supabase = createClient(
   }
 );
 
-// Storage Limits (in Bytes) - Adjusted for Supabase Free Tier (Max Project Size ~1GB)
-export const STORAGE_LIMITS = {
-  FREE: 50 * 1024 * 1024,       // 50 MB
-  BASIC: 100 * 1024 * 1024,     // 100 MB
-  PRO: 250 * 1024 * 1024,       // 250 MB
-  ENTERPRISE: 500 * 1024 * 1024 // 500 MB
-};
-
-// Helper to get limit based on level
-export const getStorageLimit = (level) => {
-  // Level mapping from KeyAuth: 0=Free, 1=Basic, 2=Pro, 4=Dev/Enterprise
-  const levelNum = Number(level) || 0;
-  if (levelNum >= 4) return STORAGE_LIMITS.ENTERPRISE;
-  if (levelNum >= 2) return STORAGE_LIMITS.PRO;
-  if (levelNum >= 1) return STORAGE_LIMITS.BASIC;
-  return STORAGE_LIMITS.FREE;
-};
+export { getStorageLimit };
 
 // Auth Services
 export const authService = {
@@ -207,6 +192,27 @@ export const authService = {
 
   onAuthStateChange(callback) {
       return supabase.auth.onAuthStateChange(callback);
+  },
+
+  async getPlanLevel(user = null) {
+    const currentUser = user || await this.getUser();
+    if (!currentUser) return 0;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('plan_level')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (!error && data?.plan_level !== undefined && data?.plan_level !== null) {
+        return resolvePlanLevel(data);
+      }
+    } catch (e) {
+      console.warn('Could not read profile plan level:', e);
+    }
+
+    return resolvePlanLevel(currentUser);
   }
 };
 
@@ -281,6 +287,18 @@ export const dataService = {
   async saveNote(note) {
     const user = await authService.getUser();
     if (!user) return { error: 'Not authenticated' };
+    const level = await authService.getPlanLevel(user);
+    const { data: existingNotes, error: countError } = await supabase
+      .from('notes')
+      .select('id')
+      .eq('user_id', user.id);
+
+    if (!countError && !existingNotes?.some((existing) => existing.id === note.id)) {
+      const currentNoteCount = Array.isArray(existingNotes) ? existingNotes.length : 0;
+      if (!canCreateNote({ level, currentNoteCount })) {
+        return { error: 'FREE_NOTE_LIMIT_EXCEEDED' };
+      }
+    }
 
     // Format note for DB (remove local-only constructs if any)
     const dbNote = {
@@ -326,6 +344,10 @@ export const dataService = {
   async publishNote(noteId) {
     const user = await authService.getUser();
     if (!user) return { error: 'Not authenticated' };
+    const level = await authService.getPlanLevel(user);
+    if (level < 1) {
+      return { error: 'FREE_PUBLIC_SHARE_DISABLED' };
+    }
 
     // Generate a random slug
     const slug = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
@@ -376,6 +398,12 @@ export const dataService = {
   },
 
   async addCollaborator(noteId, username, role = 'viewer') {
+      const user = await authService.getUser();
+      const level = await authService.getPlanLevel(user);
+      if (level < 1) {
+          return { error: 'FREE_COLLABORATION_DISABLED' };
+      }
+
       // 1. Find user by username
       const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -639,10 +667,9 @@ export const dataService = {
     if (!user) return { error: 'Not authenticated' };
     
     const currentUsage = await this.getUsage(user.id);
-    const level = user?.user_metadata?.subscription_level || 0;
-    const limit = getStorageLimit(level);
+    const level = await authService.getPlanLevel(user);
 
-    if (currentUsage + file.size > limit) {
+    if (!canAttachFile({ level, currentUsage, fileSize: file.size, attachmentCount: 0 })) {
       return { error: new Error("STORAGE_LIMIT_EXCEEDED") };
     }
     

@@ -24,7 +24,6 @@ import { detectLocalFonts } from '../utils/fontDetector';
 import { getSafePublicUrl } from '../utils/safeUrl';
 
 import { FontSize } from './FontSizeExtension';
-import { LanguageToolExtension } from './LanguageToolExtension';
 import ToolbarCombobox from './ToolbarCombobox';
 
 const BASE_FONTS = [
@@ -49,12 +48,6 @@ const FONT_SIZES = [
 ];
 
 const URL_PATTERN = /https?:\/\/[^\s<>"']+/i;
-const GRAMMAR_MENU_WIDTH = 272;
-const GRAMMAR_MENU_MAX_HEIGHT = 320;
-
-function clampPosition(value, min, max) {
-    return Math.min(max, Math.max(min, value));
-}
 
 async function openExternalUrl(url) {
     try {
@@ -300,7 +293,6 @@ const MenuBar = ({ editor }) => {
 
 export default React.forwardRef(function RichTextEditor({ value, onChange, onKeyDown, spellcheck = true, noteId, user }, ref) {
     const suppressUpdateRef = React.useRef(true);
-    const [grammarMenu, setGrammarMenu] = React.useState(null);
     const { ydoc, provider } = React.useMemo(() => {
         const doc = new Y.Doc();
         const endpoint = getCollaborationEndpoint(import.meta.env.VITE_HOCUSPOCUS_URL);
@@ -326,43 +318,6 @@ export default React.forwardRef(function RichTextEditor({ value, onChange, onKey
             ydoc?.destroy();
         };
     }, [provider, ydoc]);
-
-    useEffect(() => {
-        const onGrammarMenu = (event) => {
-            const detail = event.detail || {};
-            let replacements = [];
-            try {
-                replacements = JSON.parse(detail.replacementsStr || '[]');
-            } catch {
-                replacements = [];
-            }
-            const requestedX = Number(detail.x || 0);
-            const requestedY = Number(detail.y || 0);
-            const x = clampPosition(requestedX + 8, 8, Math.max(8, window.innerWidth - GRAMMAR_MENU_WIDTH - 8));
-            const opensBelow = requestedY + GRAMMAR_MENU_MAX_HEIGHT + 14 < window.innerHeight;
-            const y = opensBelow
-                ? clampPosition(requestedY + 12, 8, Math.max(8, window.innerHeight - 80))
-                : clampPosition(requestedY - GRAMMAR_MENU_MAX_HEIGHT - 12, 8, Math.max(8, window.innerHeight - 80));
-            setGrammarMenu({
-                x,
-                y,
-                message: detail.message || 'Correction suggérée',
-                replacements: replacements.slice(0, 6),
-                from: detail.from,
-                to: detail.to,
-                view: detail.view,
-            });
-        };
-        const close = () => setGrammarMenu(null);
-        window.addEventListener('languagetool:contextmenu', onGrammarMenu);
-        window.addEventListener('click', close);
-        window.addEventListener('keydown', close);
-        return () => {
-            window.removeEventListener('languagetool:contextmenu', onGrammarMenu);
-            window.removeEventListener('click', close);
-            window.removeEventListener('keydown', close);
-        };
-    }, []);
 
     const editor = useEditor({
         extensions: [
@@ -391,7 +346,6 @@ export default React.forwardRef(function RichTextEditor({ value, onChange, onKey
                     color: user?.user_metadata?.accent_color || '#00bfff'
                 }
             })] : []),
-            ...(spellcheck ? [LanguageToolExtension] : []),
         ],
         content: normalizeOverextendedLinks(value),
         onUpdate: ({ editor }) => {
@@ -444,33 +398,6 @@ export default React.forwardRef(function RichTextEditor({ value, onChange, onKey
         <div className="w-full flex-1 flex flex-col relative z-10 font-sans">
             <MenuBar editor={editor} />
             <EditorContent editor={editor} className="flex-1" />
-            {grammarMenu && (
-                <div
-                    className="fixed z-[160] max-h-80 w-[17rem] overflow-y-auto rounded-2xl border border-black/10 bg-[#fbfaf6]/96 p-2 text-sm text-warm-text-primary-light shadow-[0_22px_70px_rgba(0,0,0,0.24)] backdrop-blur-3xl dark:border-white/10 dark:bg-[#111316]/96 dark:text-warm-text-primary-dark"
-                    style={{ left: grammarMenu.x, top: grammarMenu.y }}
-                    onClick={(event) => event.stopPropagation()}
-                    role="menu"
-                    tabIndex={-1}
-                >
-                    <p className="px-2 py-1.5 text-xs font-semibold leading-5 text-warm-text-muted-light">{grammarMenu.message}</p>
-                    {grammarMenu.replacements.length > 0 ? grammarMenu.replacements.map((replacement) => (
-                        <button
-                            key={replacement}
-                            type="button"
-                            className="flex w-full rounded-xl px-3 py-2 text-left text-sm font-semibold hover:bg-amber-500/10"
-                            onClick={() => {
-                                grammarMenu.view.dispatch(grammarMenu.view.state.tr.insertText(replacement, grammarMenu.from, grammarMenu.to));
-                                grammarMenu.view.focus();
-                                setGrammarMenu(null);
-                            }}
-                        >
-                            {replacement}
-                        </button>
-                    )) : (
-                        <p className="px-3 py-2 text-xs text-warm-text-muted-light">Aucune proposition disponible.</p>
-                    )}
-                </div>
-            )}
         </div>
     );
 });
