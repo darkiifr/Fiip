@@ -23,7 +23,7 @@ vi.mock('../services/attachmentCache', async () => {
 
 describe('AttachmentViewer', () => {
   it('renders an image attachment preview', async () => {
-    render(<AttachmentViewer attachment={{ name: 'capture.png', type: 'image', url: 'blob:image' }} onClose={vi.fn()} />);
+    render(<AttachmentViewer attachment={{ name: 'capture.png', type: 'image', url: 'https://example.com/capture.png' }} onClose={vi.fn()} />);
 
     expect(await screen.findByAltText('capture.png')).toBeInTheDocument();
   });

@@ -6,7 +6,7 @@ use std::{
 
 use quick_xml::{
     events::{attributes::Attributes, Event},
-    Reader,
+    Reader, XmlVersion,
 };
 
 pub fn parse<S: Read>(stream: S) -> Protocol {
@@ -86,7 +86,9 @@ fn parse_protocol<R: BufRead>(mut reader: Reader<R>) -> Protocol {
                                 Ok(Event::GeneralRef(byte_ref)) => {
                                     if let Ok(Some(c)) = byte_ref.resolve_char_ref() {
                                         copyright.push(c);
-                                    } else if let Ok(content) = byte_ref.xml_content() {
+                                    } else if let Ok(content) =
+                                        byte_ref.xml_content(XmlVersion::Implicit1_0)
+                                    {
                                         if let Some(s) =
                                             quick_xml::escape::resolve_xml_entity(&content)
                                         {
