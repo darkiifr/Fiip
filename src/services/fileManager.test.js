@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { importFiinFromPath, isFiinPath, normalizeFiinNotePayload } from './fileManager';
+import { exportNoteAsFiin, importFiinFromPath, isFiinPath, normalizeFiinNotePayload } from './fileManager';
 
 describe('Fiip .fiin import', () => {
   it('recognizes .fiin paths only', () => {
@@ -51,6 +51,57 @@ describe('Fiip .fiin import', () => {
 
     expect(readText).toHaveBeenCalledWith('C:/tmp/demo.fiin');
     expect(note).toMatchObject({ id: 'note-id', title: 'Depuis fichier', content: '<p>OK</p>' });
+  });
+
+  it('exports a .fiin payload that can be imported again', async () => {
+    let written = '';
+    const save = vi.fn().mockResolvedValue('C:/tmp/Note exportee.fiin');
+    const writeText = vi.fn().mockImplementation(async (_path, content) => {
+      written = content;
+    });
+
+    const result = await exportNoteAsFiin({
+      id: 'note-1',
+      title: 'Note exportée',
+      content: '<p>OK</p>',
+      tags: ['Projet'],
+      attachments: [{ id: 'a1', name: 'doc.pdf', type: 'pdf' }],
+      updatedAt: 123,
+      createdAt: 100,
+    }, {
+      save,
+      writeText,
+      now: () => new Date('2026-07-03T08:00:00Z'),
+    });
+
+    expect(result).toEqual({ success: true, path: 'C:/tmp/Note exportee.fiin' });
+    expect(save).toHaveBeenCalledWith({
+      defaultPath: 'Note exportée.fiin',
+      filters: [{ name: 'Fiip Note', extensions: ['fiin'] }],
+    });
+    expect(writeText).toHaveBeenCalledWith('C:/tmp/Note exportee.fiin', expect.any(String));
+
+    const imported = normalizeFiinNotePayload(written, {
+      randomUUID: () => 'new-note',
+      now: () => 999,
+    });
+    expect(imported).toMatchObject({
+      id: 'new-note',
+      title: 'Note exportée',
+      content: '<p>OK</p>',
+      tags: ['Projet'],
+      updatedAt: 123,
+      createdAt: 100,
+    });
+  });
+
+  it('returns cancelled when the .fiin save dialog is dismissed', async () => {
+    const result = await exportNoteAsFiin({ title: 'Annulé' }, {
+      save: vi.fn().mockResolvedValue(null),
+      writeText: vi.fn(),
+    });
+
+    expect(result).toEqual({ success: false, cancelled: true });
   });
 
   it('keeps ISO timestamps from public .fiin exports', () => {

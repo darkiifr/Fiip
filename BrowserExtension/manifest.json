@@ -5,7 +5,6 @@
   "version": "0.1.0",
   "description": "Capture web pages, selections, and source metadata into Fiip.",
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["https://*/", "http://*/"],
   "homepage_url": "https://fiip.netlify.app/",
   "icons": {
     "16": "icons/icon16.png",
@@ -27,11 +26,5 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://*/*", "http://*/*"],
-      "js": ["content-helpers.js", "content.js"],
-      "run_at": "document_idle"
-    }
-  ]
+  "minimum_chrome_version": "102"
 }

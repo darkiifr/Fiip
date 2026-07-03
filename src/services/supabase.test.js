@@ -94,6 +94,30 @@ describe('Supabase authService', () => {
 
         await expect(authService.getPlanLevel()).resolves.toBe(2);
     });
+
+    it('updateSubscription writes the server profile plan before compatibility metadata', async () => {
+        const upsert = vi.fn().mockResolvedValue({ data: null, error: null });
+        supabase.auth.getSession.mockResolvedValueOnce({ data: { session: { user: { id: 'user-1' } } } });
+        supabase.from.mockReturnValueOnce({ upsert });
+        supabase.auth.updateUser = vi.fn().mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null });
+
+        const result = await authService.updateSubscription(2, 'license-key');
+
+        expect(supabase.from).toHaveBeenCalledWith('profiles');
+        expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+            id: 'user-1',
+            plan_level: 2,
+            plan_source: 'keyauth',
+            plan_updated_at: expect.any(String),
+        }), { onConflict: 'id' });
+        expect(supabase.auth.updateUser).toHaveBeenCalledWith({
+            data: {
+                subscription_level: 2,
+                license_key: 'license-key',
+            }
+        });
+        expect(result.error).toBeNull();
+    });
 });
 
 describe('Supabase dataService', () => {

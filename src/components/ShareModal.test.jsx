@@ -90,4 +90,22 @@ describe('ShareModal Component', () => {
             expect(screen.getByText(buildPublicNoteUrl('published-note'))).toBeInTheDocument();
         });
     });
+
+    it('blocks protected notes from public publishing', async () => {
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: 'test@test.com' });
+        const protectedNote = { ...mockNote, is_locked: true, encrypted_content: 'ENC:value' };
+
+        render(<ShareModal isOpen={true} onClose={vi.fn()} note={protectedNote} notes={[protectedNote]} onUpdateNote={vi.fn()} />);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Lien Public/i)).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /publier/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/Les notes protegees ne peuvent pas etre publiees/i)).toBeInTheDocument();
+        });
+        expect(mockPublishNote).not.toHaveBeenCalled();
+    });
 });

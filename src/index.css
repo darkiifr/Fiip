@@ -8,20 +8,19 @@
   --font-display: "Host Grotesk", "Geist", "Inter", system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Color variables for Tailwind classes */
-  --color-warm-sidebar-light: #E2E8F0;
+  --color-warm-sidebar-light: #07090D;
   --color-warm-sidebar-dark: #07090D;
-  --color-warm-bg-light: #EDF1F5;
+  --color-warm-bg-light: #080A0F;
   --color-warm-bg-dark: #080A0F;
-  --color-warm-card-light: #F7F9FB;
+  --color-warm-card-light: #11141A;
   --color-warm-card-dark: #11141A;
-  --color-warm-text-primary-light: #111827;
+  --color-warm-text-primary-light: #F4F7FB;
   --color-warm-text-primary-dark: #F4F7FB;
-  --color-warm-text-secondary-light: #334155;
+  --color-warm-text-secondary-light: #CDD5E1;
   --color-warm-text-secondary-dark: #CDD5E1;
-  --color-warm-text-muted-light: #64748B;
+  --color-warm-text-muted-light: #95A0AF;
   --color-warm-text-muted-dark: #95A0AF;
-  --color-warm-border-light: rgba(15, 23, 42, 0.14);
+  --color-warm-border-light: rgba(219, 229, 242, 0.13);
   --color-warm-border-dark: rgba(219, 229, 242, 0.13);
 }
 
@@ -38,25 +37,23 @@
   --success: #5F8F6A;
   --warning: #DF9A57;
   
-  /* Clair Mode (Warm Editorial) */
-  --bg-sidebar: #DDE5EF;
-  --bg-sidebar-glass: rgba(221, 229, 239, 0.92);
-  --bg-sidebar-item-active: #CCD8E6;
-  --bg-content: #E8EEF5;
-  --bg-content-glass: rgba(246, 248, 251, 0.92);
-  --bg-card: #F8FAFC;
-  
-  --text-primary: #111827;
-  --text-secondary: #334155;
-  --text-muted: #475569;
-  --border-color: rgba(15, 23, 42, 0.18);
-  
-  /* Glass base values */
-  --glass-bg: rgba(248, 250, 252, 0.9);
-  --glass-border: rgba(15, 23, 42, 0.18);
-  --glass-highlight: rgba(255, 255, 255, 0.72);
-  --glass-shadow: rgba(15, 23, 42, 0.13);
-  --glass-tint: rgba(184, 138, 45, 0.06);
+  --bg-sidebar: #07090D;
+  --bg-sidebar-glass: rgba(7, 9, 13, 0.82);
+  --bg-sidebar-item-active: #171C24;
+  --bg-content: #080A0F;
+  --bg-content-glass: rgba(8, 10, 15, 0.88);
+  --bg-card: #11141A;
+
+  --text-primary: #F4F7FB;
+  --text-secondary: #CDD5E1;
+  --text-muted: #95A0AF;
+  --border-color: rgba(219, 229, 242, 0.13);
+
+  --glass-bg: rgba(8, 10, 15, 0.86);
+  --glass-border: rgba(219, 229, 242, 0.13);
+  --glass-highlight: rgba(255, 255, 255, 0.10);
+  --glass-shadow: rgba(0, 0, 0, 0.68);
+  --glass-tint: rgba(212, 175, 55, 0.06);
   --glass-blur: 40px;
 
   --font-ui: "Geist", "Inter", system-ui, -apple-system, sans-serif;
@@ -73,27 +70,6 @@
   --radius-lg: 16px;
   --radius-md: 12px;
   --radius-sm: 8px;
-}
-
-.dark {
-  /* Sombre Mode (Graphite Liquid) */
-  --bg-sidebar: #07090D;
-  --bg-sidebar-glass: rgba(7, 9, 13, 0.82);
-  --bg-sidebar-item-active: #171C24;
-  --bg-content: #080A0F;
-  --bg-content-glass: rgba(8, 10, 15, 0.88);
-  --bg-card: #11141A;
-  
-  --text-primary: #F4F7FB;
-  --text-secondary: #CDD5E1;
-  --text-muted: #95A0AF;
-  --border-color: rgba(219, 229, 242, 0.13);
-  
-  --glass-bg: rgba(8, 10, 15, 0.86);
-  --glass-border: rgba(219, 229, 242, 0.13);
-  --glass-highlight: rgba(255, 255, 255, 0.10);
-  --glass-shadow: rgba(0, 0, 0, 0.68);
-  --glass-tint: rgba(212, 175, 55, 0.06);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -285,299 +261,6 @@ html[data-window-effect="blur"] body::before {
   opacity: 0.2;
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-}
-
-.window-effect-active .bg-warm-bg-light,
-.window-effect-active .bg-warm-sidebar-light,
-.window-effect-active .bg-warm-card-light {
-  background-color: color-mix(in srgb, var(--bg-content) 78%, transparent) !important;
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-}
-
-.window-effect-active .bg-white,
-.window-effect-active .bg-white\/70,
-.window-effect-active .bg-white\/55,
-.window-effect-active .bg-white\/88,
-.window-effect-active .bg-warm-sidebar-light\/70,
-.window-effect-active .bg-warm-sidebar-light\/50 {
-  background-color: color-mix(in srgb, var(--bg-card) 90%, transparent) !important;
-  backdrop-filter: blur(22px) saturate(145%);
-  -webkit-backdrop-filter: blur(22px) saturate(145%);
-}
-
-html:not(.dark) .bg-warm-bg-light {
-  background-color: var(--bg-content) !important;
-}
-
-html:not(.dark) .bg-warm-sidebar-light,
-html:not(.dark) .bg-warm-sidebar-light\/90,
-html:not(.dark) .bg-warm-sidebar-light\/70,
-html:not(.dark) .bg-warm-sidebar-light\/60,
-html:not(.dark) .bg-warm-sidebar-light\/50 {
-  background-color: var(--bg-sidebar-glass) !important;
-  color: var(--text-primary);
-}
-
-html:not(.dark) .bg-warm-card-light,
-html:not(.dark) .bg-warm-card-light\/86,
-html:not(.dark) .bg-white,
-html:not(.dark) .bg-white\/70,
-html:not(.dark) .bg-white\/55,
-html:not(.dark) .bg-white\/88 {
-  background-color: var(--bg-content-glass) !important;
-  color: var(--text-primary);
-}
-
-html:not(.dark) .bg-\[\#fbfaf6\]\/88,
-html:not(.dark) .bg-\[\#fbfaf6\]\/95,
-html:not(.dark) .bg-\[\#fbfaf6\]\/96 {
-  background-color: color-mix(in srgb, var(--bg-card) 92%, transparent) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-color) !important;
-}
-
-html:not(.dark) .bg-black\/20,
-html:not(.dark) .bg-black\/30,
-html:not(.dark) .bg-black\/40,
-html:not(.dark) .bg-\[\#1C1C1E\] {
-  background-color: color-mix(in srgb, var(--bg-card) 90%, transparent) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-color) !important;
-}
-
-html:not(.dark) .text-gray-200,
-html:not(.dark) .text-gray-300,
-html:not(.dark) .text-gray-400 {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .text-white,
-html:not(.dark) .text-white\/90,
-html:not(.dark) .text-white\/80,
-html:not(.dark) .text-white\/70,
-html:not(.dark) .text-white\/60,
-html:not(.dark) .text-white\/50,
-html:not(.dark) .text-white\/40,
-html:not(.dark) .text-white\/30,
-html:not(.dark) .text-gray-500,
-html:not(.dark) .text-zinc-100,
-html:not(.dark) .text-zinc-200,
-html:not(.dark) .text-zinc-300,
-html:not(.dark) .text-zinc-400,
-html:not(.dark) .text-slate-400,
-html:not(.dark) .text-slate-500 {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .text-warm-text-primary-light\/95,
-html:not(.dark) .text-warm-text-primary-light\/90,
-html:not(.dark) .text-warm-text-primary-light\/85,
-html:not(.dark) .text-warm-text-primary-light\/80 {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .text-warm-text-secondary-light\/90,
-html:not(.dark) .text-warm-text-secondary-light\/85,
-html:not(.dark) .text-warm-text-secondary-light\/80,
-html:not(.dark) .text-warm-text-muted-light,
-html:not(.dark) .text-warm-text-muted-light\/65,
-html:not(.dark) .text-warm-text-muted-light\/60,
-html:not(.dark) .text-warm-text-muted-light\/50,
-html:not(.dark) .text-warm-text-muted-light\/40 {
-  color: var(--text-secondary) !important;
-}
-
-html:not(.dark) .placeholder\:text-white\/20::placeholder,
-html:not(.dark) .placeholder\:text-white\/30::placeholder,
-html:not(.dark) .placeholder\:text-white\/40::placeholder,
-html:not(.dark) .placeholder\:text-gray-400::placeholder,
-html:not(.dark) .placeholder\:text-warm-text-muted-light\/60::placeholder {
-  color: var(--text-muted) !important;
-}
-
-html:not(.dark) .bg-black\/10,
-html:not(.dark) .bg-black\/20,
-html:not(.dark) .bg-black\/30,
-html:not(.dark) .bg-black\/40,
-html:not(.dark) .bg-black\/50,
-html:not(.dark) .bg-black\/60,
-html:not(.dark) .bg-white\/5,
-html:not(.dark) .bg-white\/10,
-html:not(.dark) .bg-white\/\[0\.03\],
-html:not(.dark) .bg-white\/\[0\.05\],
-html:not(.dark) .bg-white\/\[0\.06\],
-html:not(.dark) .bg-white\/\[0\.07\],
-html:not(.dark) .bg-white\/\[0\.08\],
-html:not(.dark) .bg-white\/\[0\.10\],
-html:not(.dark) .bg-white\/\[0\.12\],
-html:not(.dark) .bg-\[\#111316\],
-html:not(.dark) .bg-\[\#1E1F22\],
-html:not(.dark) .bg-\[\#404249\] {
-  background-color: color-mix(in srgb, var(--bg-card) 88%, transparent) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border-color) !important;
-}
-
-html:not(.dark) .bg-zinc-950.text-white,
-html:not(.dark) .bg-\[\#151515\],
-html:not(.dark) .bg-blue-600,
-html:not(.dark) .bg-blue-500,
-html:not(.dark) .bg-red-500,
-html:not(.dark) .bg-emerald-500,
-html:not(.dark) .bg-amber-500,
-html:not(.dark) .bg-green-500 {
-  color: #ffffff !important;
-}
-
-html:not(.dark) .bg-\[\#151515\] * {
-  color: #ffffff !important;
-}
-
-html:not(.dark) .fiip-lock-unlock-button,
-html:not(.dark) .fiip-lock-unlock-button:hover,
-html:not(.dark) .fiip-lock-unlock-button * {
-  color: #ffffff !important;
-}
-
-html:not(.dark) .fiip-lock-unlock-button {
-  background-color: #111827 !important;
-}
-
-html:not(.dark) .fiip-lock-unlock-button:hover {
-  background-color: #1f2937 !important;
-}
-
-html:not(.dark) .border-white\/5,
-html:not(.dark) .border-white\/10,
-html:not(.dark) .border-black\/10 {
-  border-color: var(--border-color) !important;
-}
-
-html:not(.dark) .fiip-light-editor-view,
-html:not(.dark) .fiip-light-sidebar,
-html:not(.dark) .fiip-light-sidebar-footer {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .fiip-light-editor-title,
-html:not(.dark) .fiip-light-nav-item,
-html:not(.dark) .fiip-light-nav-item-active,
-html:not(.dark) .fiip-light-note-title,
-html:not(.dark) .fiip-light-home-note-title,
-html:not(.dark) .fiip-light-user-name,
-html:not(.dark) .fiip-light-profile-heading {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .fiip-light-nav-item:hover,
-html:not(.dark) .fiip-light-nav-item-active:hover,
-html:not(.dark) .fiip-light-note-title:hover,
-html:not(.dark) .fiip-light-home-note-title:hover,
-html:not(.dark) .group:hover .fiip-light-note-title,
-html:not(.dark) .group:hover .fiip-light-home-note-title {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .fiip-light-sidebar p,
-html:not(.dark) .fiip-light-sidebar span:not(.text-amber-600):not(.text-amber-700),
-html:not(.dark) .fiip-light-sidebar-footer span:not(.text-amber-600):not(.text-amber-700) {
-  color: inherit;
-}
-
-html:not(.dark) .fiip-light-share-modal,
-html:not(.dark) .fiip-light-share-heading,
-html:not(.dark) .fiip-light-settings-heading,
-html:not(.dark) .fiip-light-settings-tab,
-html:not(.dark) .fiip-light-settings-tab-active,
-html:not(.dark) .fiip-light-settings-tab-icon {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .fiip-light-settings-tab:hover,
-html:not(.dark) .fiip-light-settings-tab:hover .fiip-light-settings-tab-icon,
-html:not(.dark) .fiip-light-settings-tab-active:hover,
-html:not(.dark) .fiip-light-settings-tab-active:hover .fiip-light-settings-tab-icon {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .fiip-light-settings-view .text-warm-text-muted-light,
-html:not(.dark) .fiip-light-settings-view .text-warm-text-muted-light\/60,
-html:not(.dark) .fiip-light-settings-view p.text-xs,
-html:not(.dark) .fiip-light-settings-view p.text-\[11px\] {
-  color: var(--text-secondary) !important;
-}
-
-html:not(.dark) .fiip-light-settings-update-button,
-html:not(.dark) .fiip-light-settings-update-button:hover,
-html:not(.dark) .fiip-light-settings-update-button * {
-  color: #ffffff !important;
-}
-
-html:not(.dark) .fiip-light-settings-update-button {
-  background-color: #111827 !important;
-}
-
-html:not(.dark) .fiip-light-settings-update-button:hover {
-  background-color: #1f2937 !important;
-}
-
-html:not(.dark) .fiip-light-share-action,
-html:not(.dark) .fiip-light-share-action:hover,
-html:not(.dark) .fiip-light-share-action * {
-  color: #ffffff !important;
-}
-
-html:not(.dark) .fiip-light-share-action {
-  background-color: #111827 !important;
-}
-
-html:not(.dark) .fiip-light-share-action:hover {
-  background-color: #1f2937 !important;
-}
-
-html:not(.dark) .fiip-light-editor-share-button,
-html:not(.dark) .fiip-light-editor-share-button:hover,
-html:not(.dark) .fiip-light-editor-share-button * {
-  color: #ffffff !important;
-}
-
-html:not(.dark) .fiip-light-editor-share-button {
-  background-color: #111827 !important;
-}
-
-html:not(.dark) .fiip-light-editor-share-button:hover {
-  background-color: #1f2937 !important;
-}
-
-html:not(.dark) .fiip-light-editor-actionbar {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .fiip-light-editor-actionbar > div {
-  background-color: color-mix(in srgb, var(--bg-card) 94%, transparent) !important;
-  border-color: var(--border-color) !important;
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .fiip-light-editor-actionbar .fiip-light-editor-action,
-html:not(.dark) .fiip-light-editor-actionbar .fiip-light-editor-action svg {
-  color: var(--text-primary) !important;
-}
-
-html:not(.dark) .fiip-light-editor-actionbar .fiip-light-editor-action:hover,
-html:not(.dark) .fiip-light-editor-actionbar .fiip-light-editor-action:hover svg {
-  color: var(--text-primary) !important;
-}
-
-.dark .fiip-light-editor-actionbar .fiip-light-editor-action,
-.dark .fiip-light-editor-actionbar .fiip-light-editor-action svg {
-  color: #f8fafc !important;
-}
-
-.dark .fiip-light-editor-actionbar .fiip-light-editor-action:hover,
-.dark .fiip-light-editor-actionbar .fiip-light-editor-action:hover svg {
-  color: #ffffff !important;
 }
 
 .window-effect-active.dark .dark\:bg-warm-bg-dark,

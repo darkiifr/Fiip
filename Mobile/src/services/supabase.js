@@ -168,6 +168,25 @@ export const authService = {
   },
 
   async updateSubscription(level, licenseKey) {
+    const user = await this.getUser();
+    if (!user) {return { data: null, error: { message: 'Not authenticated' } };}
+
+    const profilePayload = {
+      id: user.id,
+      plan_level: Number(level) || 0,
+      plan_source: 'keyauth',
+      plan_updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert(profilePayload, { onConflict: 'id' });
+
+    if (profileError) {
+      return { data: null, error: profileError };
+    }
+
     const { data, error } = await supabase.auth.updateUser({
       data: {
         subscription_level: level,

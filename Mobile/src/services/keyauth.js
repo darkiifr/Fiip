@@ -166,8 +166,20 @@ class KeyAuthService {
         }
     }
 
-    setLocalLevel(level, overrideUsername) {
+    setLocalLevel(level, overrideUsername, licenseKey = null) {
         this.currentLevel = Number(level) || 0;
+        if (this.currentLevel <= 0) {
+            this.isAuthenticated = false;
+            this.userData = null;
+            this.currentLevel = 0;
+            this.licenseKey = null;
+            return;
+        }
+
+        if (licenseKey) {
+            this.licenseKey = licenseKey;
+        }
+
         if (this.currentLevel > 0) {
             this.isAuthenticated = true;
             if (!this.userData) {
@@ -183,6 +195,23 @@ class KeyAuthService {
                 };
             }
         }
+    }
+
+    async verifyLicense(key) {
+        return this.validateLicense(key);
+    }
+
+    async logout() {
+        this.sessionid = null;
+        this.isAuthenticated = false;
+        this.userData = null;
+        this.initialized = false;
+        this.currentLevel = 0;
+        this.licenseKey = null;
+        this.isTrialActive = false;
+        this.trialExpiry = null;
+        await AsyncStorage.removeItem('saved_license_key');
+        await AsyncStorage.removeItem('fiip-trial-expiry');
     }
 
     _processUserData(info) {

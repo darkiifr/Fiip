@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { GlassCard } from '../components/ui/GlassCard';
 import { Icon } from '../components/ui/Icon';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { useSettingsStore, FontSizeMode, ThemeMode } from '../store/settingsStore';
+import { useSettingsStore, FontSizeMode } from '../store/settingsStore';
 import { fiipRadius } from '../theme/fiipDesign';
 import { triggerHaptic } from '../utils/hapticEngine';
 import { authService } from '../services/supabase';
@@ -16,8 +16,6 @@ export default function SettingsScreen() {
   const { colors } = useAppTheme();
   const isIOS = Platform.OS === 'ios';
   const {
-    themeMode,
-    setThemeMode,
     fontSize,
     setFontSize,
     autoSave,
@@ -31,11 +29,6 @@ export default function SettingsScreen() {
     globalLockEnabled,
     setGlobalLockEnabled,
   } = useSettingsStore();
-
-  const setTheme = (mode: ThemeMode) => {
-    triggerHaptic('selection');
-    setThemeMode(mode);
-  };
 
   const setSize = (size: FontSizeMode) => {
     triggerHaptic('selection');
@@ -86,17 +79,6 @@ export default function SettingsScreen() {
         </View>
 
         <Section title="Apparence" colors={colors} isIOS={isIOS}>
-          <Segmented
-            value={themeMode}
-            options={[
-              { label: 'Clair', value: 'light' },
-              { label: 'Sombre', value: 'dark' },
-              { label: 'Auto', value: 'system' },
-            ]}
-            onChange={setTheme}
-            colors={colors}
-            isIOS={isIOS}
-          />
           <Segmented
             value={fontSize}
             options={[

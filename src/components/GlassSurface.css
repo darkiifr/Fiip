@@ -87,30 +87,30 @@
   --glass-tint: rgba(184, 138, 45, 0.06);
 }
 
-:root:not(.dark) .bg-warm-sidebar-light {
+:root:not(.dark) .bg-warm-sidebar-dark {
   background-color: #EEF1F5;
 }
 
-:root:not(.dark) .bg-warm-bg-light {
+:root:not(.dark) .bg-warm-bg-dark {
   background-color: #F8FAFC;
 }
 
-:root:not(.dark) .bg-warm-card-light {
+:root:not(.dark) .bg-warm-card-dark {
   background-color: #FFFFFF;
 }
 
-:root:not(.dark) .border-warm-border-light {
+:root:not(.dark) .border-warm-border-dark {
   border-color: rgba(31, 41, 55, 0.10);
 }
 
-:root:not(.dark) .text-warm-text-primary-light {
+:root:not(.dark) .text-warm-text-primary-dark {
   color: #171A1F;
 }
 
-:root:not(.dark) .text-warm-text-secondary-light {
+:root:not(.dark) .text-warm-text-secondary-dark {
   color: #4B5563;
 }
 
-:root:not(.dark) .text-warm-text-muted-light {
+:root:not(.dark) .text-warm-text-muted-dark {
   color: #77808D;
 }

@@ -5,11 +5,13 @@ import AuthModal from './AuthModal';
 
 // Mock dependencies
 const mockGetCurrentUser = vi.fn();
+const mockGetPlanLevel = vi.fn();
 const mockOnAuthStateChange = vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
 
 vi.mock('../services/supabase', () => ({
   authService: {
     getUser: () => mockGetCurrentUser(),
+    getPlanLevel: (...args) => mockGetPlanLevel(...args),
   },
   supabase: {
     auth: {
@@ -30,6 +32,7 @@ describe('AuthModal Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockGetCurrentUser.mockResolvedValue(null);
+        mockGetPlanLevel.mockResolvedValue(2);
     });
 
     it('renders the login screen automatically when user is not logged in', async () => {
@@ -41,6 +44,7 @@ describe('AuthModal Component', () => {
 
         // "Connexion" heading should be visible when not logged in
         expect(screen.getByText('Connexion')).toBeInTheDocument();
+        expect(screen.getByRole('dialog')).toHaveClass('bg-[color:var(--bg-card)]');
     });
 
     it('bypasses loading and shows profile when session is verified', async () => {

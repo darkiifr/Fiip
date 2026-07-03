@@ -88,7 +88,7 @@ describe('AiChatScreen', () => {
     fireEvent.press(getByLabelText('Envoyer'));
 
     await waitFor(() => {
-      expect(getByText("L'assistant n'a pas pu répondre. Réessayez dans un instant.")).toBeTruthy();
+      expect(getByText('Erreur OpenRouter (429): rate limit')).toBeTruthy();
     });
   });
 

@@ -15,7 +15,7 @@ const plans = [
     id: 'free',
     title: 'Fiip Free',
     price: '0 € / mois',
-    features: ['Fonctionnalités de base', 'Synchronisation limitée', 'Thème clair/sombre'],
+    features: ['Fonctionnalités de base', 'Synchronisation limitée', 'Thème sombre Fiip'],
     color: '#34C759',
   },
   {

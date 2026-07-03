@@ -56,7 +56,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         if (currentUser) {
             setUser(currentUser);
             setMode('profile');
-            const level = currentUser.user_metadata?.subscription_level || 0;
+            const level = await authService.getPlanLevel(currentUser);
             const username = currentUser.user_metadata?.username || currentUser.email;
             keyAuthService.setLocalLevel(level, username);
         } else {
@@ -85,7 +85,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                     if (currentUser) {
                         setUser(currentUser);
                         setMode('profile');
-                        const level = currentUser.user_metadata?.subscription_level || 0;
+                        const level = await authService.getPlanLevel(currentUser);
                         const username = currentUser.user_metadata?.username || currentUser.user_metadata?.nickname || currentUser.email;
                         keyAuthService.setLocalLevel(level, username);
                     } else {
@@ -315,7 +315,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             title={mode === 'login' ? t('auth.login', 'Connexion') : 
                    mode === 'register' ? t('auth.register', 'Inscription') : 
                    t('auth.profile', 'Profil')}
-            className="max-w-[480px]"
+            className="max-w-[480px] bg-[color:var(--bg-card)] text-[color:var(--text-primary)] border border-[color:var(--border-color)]"
         >
             <div className="overflow-y-auto custom-scrollbar pr-1" style={{ maxHeight: '70vh' }}>
                 {isChecking ? (

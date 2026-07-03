@@ -2,7 +2,8 @@ const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
 const nodePath = process.execPath;
-const eslintBin = require.resolve('eslint/bin/eslint.js', { paths: [path.join(__dirname, '..')] });
+const eslintPackageJson = require.resolve('eslint/package.json', { paths: [path.join(__dirname, '..')] });
+const eslintBin = path.join(path.dirname(eslintPackageJson), 'bin', 'eslint.js');
 const args = [
   eslintBin,
   'App.tsx',

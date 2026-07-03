@@ -63,7 +63,7 @@ export function AiChatScreen({ navigation }: any) {
       });
       setAnswer(response || 'Aucune réponse exploitable.');
     } catch (error: any) {
-      setAnswer("L'assistant n'a pas pu répondre. Réessayez dans un instant.");
+      setAnswer(error?.message || "L'assistant n'a pas pu répondre. Réessayez dans un instant.");
     } finally {
       setLoading(false);
       setInput('');

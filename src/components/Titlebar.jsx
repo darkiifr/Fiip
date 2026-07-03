@@ -1,7 +1,6 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { type } from '@tauri-apps/plugin-os';
-import { exit } from '@tauri-apps/plugin-process';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useUI } from '../providers/UIProvider';
@@ -10,14 +9,17 @@ import { LiquidGlassPrimitive } from './ui/LiquidGlassPrimitive';
 export default function Titlebar({ style = 'macos' }) {
     const { theme } = useUI();
     const isTauri = Boolean(window.__TAURI_INTERNALS__);
-    let appWindow;
-    if (isTauri) {
+    const appWindow = useMemo(() => {
+        if (!isTauri) {
+            return null;
+        }
         try {
-            appWindow = getCurrentWindow();
+            return getCurrentWindow();
         } catch (e) {
             console.warn("Tauri API not available", e);
+            return null;
         }
-    }
+    }, [isTauri]);
     const { t } = useTranslation();
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [osType, setOsType] = useState('unknown');
@@ -58,37 +60,41 @@ export default function Titlebar({ style = 'macos' }) {
 
     if (actualStyle === 'none') {return null;}
 
+    const runWindowAction = async (action) => {
+        try {
+            await action();
+        } catch (error) {
+            console.warn('Window control action failed:', error);
+        }
+    };
+
     const handleClose = async (e) => {
         e.stopPropagation();
-        if (!isTauri) {
+        e.preventDefault();
+        if (!appWindow) {
             return;
         }
-        await exit(0);
+        await runWindowAction(() => appWindow.close());
     };
 
     const handleMinimize = async (e) => {
         e.stopPropagation();
+        e.preventDefault();
         if (!appWindow) {
             return;
         }
-        await appWindow.minimize();
+        await runWindowAction(() => appWindow.minimize());
     };
 
     const handleMaximize = async (e) => {
         e.stopPropagation();
+        e.preventDefault();
         if (!appWindow) {
             return;
         }
-        if (actualStyle === 'macos') {
-            const isFull = await appWindow.isFullscreen();
-            if (isFull) {
-                await appWindow.setFullscreen(false);
-            } else {
-                await appWindow.setFullscreen(true);
-            }
-        } else {
+        await runWindowAction(async () => {
             await appWindow.toggleMaximize();
-        }
+        });
     };
 
     // macOS style: rounded buttons on the left
@@ -98,7 +104,6 @@ export default function Titlebar({ style = 'macos' }) {
         return (
             <LiquidGlassPrimitive
                 className="h-8 w-full border-b border-white/20 flex items-center select-none transition-all duration-300 backdrop-blur-3xl saturate-200"
-                data-tauri-drag-region
                 variant={theme === 'liquid-glass' ? 'default' : 'subtle'}
                 style={{ 
                     borderRadius: 0,
@@ -109,26 +114,33 @@ export default function Titlebar({ style = 'macos' }) {
 
                 <div className="flex gap-1.5 z-10 hover:*:brightness-110 titlebar-no-drag">
                     <button
+                        type="button"
                         onClick={handleClose}
-                        className="window-btn w-3 h-3 rounded-full bg-[#FF5F57] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        className="window-btn titlebar-no-drag w-3 h-3 rounded-full bg-[#FF5F57] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                         title={t('settings.close')}
+                        aria-label={t('settings.close')}
                     />
                     <button
+                        type="button"
                         onClick={handleMinimize}
-                        className="window-btn w-3 h-3 rounded-full bg-[#FEBC2E] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        className="window-btn titlebar-no-drag w-3 h-3 rounded-full bg-[#FEBC2E] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                         title={t('settings.minimize')}
+                        aria-label={t('settings.minimize')}
                     />
                     <button
+                        type="button"
                         onClick={handleMaximize}
-                        className="window-btn w-3 h-3 rounded-full bg-[#28C840] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
+                        className="window-btn titlebar-no-drag w-3 h-3 rounded-full bg-[#28C840] border border-black/10 flex items-center justify-center transition-all active:scale-95 shadow-sm"
                         title={t('settings.maximize')}
+                        aria-label={t('settings.maximize')}
                     />
                 </div>
 
                 {/* Title */}
-                <div className="absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold text-white/35 tracking-[0.05em] uppercase h-full flex items-center pointer-events-none">
+                <div className="absolute left-20 right-20 top-0 bottom-0 text-[11px] font-semibold text-white/35 tracking-[0.05em] uppercase flex items-center justify-center pointer-events-auto" data-tauri-drag-region>
                     Fiip
                 </div>
+                <div className="flex-1 h-full" data-tauri-drag-region />
             </LiquidGlassPrimitive>
         );
     }
@@ -140,7 +152,6 @@ export default function Titlebar({ style = 'macos' }) {
         return (
             <LiquidGlassPrimitive
                 className="h-8 w-full border-b border-white/10 flex items-center select-none transition-all duration-300"
-                data-tauri-drag-region
                 variant={theme === 'liquid-glass' ? 'default' : 'subtle'}
                 style={{ 
                     borderRadius: 0,
@@ -152,27 +163,33 @@ export default function Titlebar({ style = 'macos' }) {
                 </div>
                 <div className="flex h-full">
                     <button
+                        type="button"
                         onClick={handleMinimize}
-                        className="window-btn w-12 h-full hover:bg-white/10 flex items-center justify-center transition-none"
+                        className="window-btn titlebar-no-drag w-12 h-full hover:bg-white/10 flex items-center justify-center transition-none"
                         title={t('settings.minimize')}
+                        aria-label={t('settings.minimize')}
                     >
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <rect x="0" y="4.5" width="10" height="1" fill="#A1A1AA" />
                         </svg>
                     </button>
                     <button
+                        type="button"
                         onClick={handleMaximize}
-                        className="window-btn w-12 h-full hover:bg-white/10 flex items-center justify-center transition-none"
+                        className="window-btn titlebar-no-drag w-12 h-full hover:bg-white/10 flex items-center justify-center transition-none"
                         title={t('settings.maximize')}
+                        aria-label={t('settings.maximize')}
                     >
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <rect x="0.5" y="0.5" width="9" height="9" stroke="#A1A1AA" />
                         </svg>
                     </button>
                     <button
+                        type="button"
                         onClick={handleClose}
-                        className="window-btn w-12 h-full hover:bg-[#E81123] flex items-center justify-center transition-none group"
+                        className="window-btn titlebar-no-drag w-12 h-full hover:bg-[#E81123] flex items-center justify-center transition-none group"
                         title={t('settings.close')}
+                        aria-label={t('settings.close')}
                     >
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M0.853553 0.146447L9.85355 9.14645C10.0488 9.34171 10.0488 9.65829 9.85355 9.85355C9.65829 10.0488 9.34171 10.0488 9.14645 9.85355L0.146447 0.853553C-0.0488155 0.658291 -0.0488155 0.341709 0.146447 0.146447C0.341709 -0.0488155 0.658291 -0.0488155 0.853553 0.146447Z" fill="#A1A1AA" className="group-hover:fill-white" />

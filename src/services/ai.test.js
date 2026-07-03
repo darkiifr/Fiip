@@ -82,4 +82,21 @@ describe('OpenRouter AI service', () => {
       'provider/free-priced-model',
     ]);
   });
+
+  it('surfaces OpenRouter 401 errors with server key context', async () => {
+    vi.resetModules();
+    import.meta.env.VITE_OPENROUTER_KEY = 'test-openrouter-key';
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: async () => ({ error: { message: 'User not found' } }),
+    });
+
+    const { generateText } = await import('./ai');
+
+    await expect(generateText('Résumé rapide')).rejects.toThrow(
+      'Erreur OpenRouter (401): User not found. Vérifiez le secret serveur VITE_OPENROUTER_KEY',
+    );
+  });
 });

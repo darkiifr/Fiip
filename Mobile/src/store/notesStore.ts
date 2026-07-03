@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
+import { useSettingsStore } from './settingsStore';
 import { syncStatsToWidget } from '../services/widgetService';
 
 export interface Note {
@@ -116,6 +117,19 @@ const SEED_NOTES: Record<string, Note> = {
   }
 };
 
+function createUuid() {
+  const nativeCrypto = globalThis.crypto as { randomUUID?: () => string } | undefined;
+  if (nativeCrypto?.randomUUID) {
+    return nativeCrypto.randomUUID();
+  }
+
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = char === 'x' ? random : Math.floor(random / 4) + 8;
+    return value.toString(16);
+  });
+}
+
 interface NotesState {
   notes: Record<string, Note>;
   lastSyncAt: string | null;
@@ -145,7 +159,7 @@ export const useNotesStore = create<NotesState>()(
           }
         } catch (e) {}
 
-        const id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        const id = createUuid();
         const now = new Date().toISOString();
 
         const newNote: Note = {
@@ -216,6 +230,10 @@ export const useNotesStore = create<NotesState>()(
       },
 
       syncWithCloud: async () => {
+        if (useSettingsStore.getState().syncEnabled === false) {
+          return;
+        }
+
         const state = get();
         if (state.isSyncing) return;
         

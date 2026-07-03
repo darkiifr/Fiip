@@ -26,21 +26,21 @@ function NoteSearchBox({ value, onChange, resultCount, totalCount, placeholder, 
     const hasQuery = value.trim().length > 0;
 
     return (
-        <div className="rounded-2xl border border-warm-border-light bg-warm-card-light/80 p-2 shadow-sm transition-all focus-within:border-amber-500/35 focus-within:ring-4 focus-within:ring-amber-500/10 dark:border-white/10 dark:bg-white/[0.06]">
+        <div className="rounded-2xl border border-warm-border-dark bg-warm-card-dark/80 p-2 shadow-sm transition-all focus-within:border-amber-500/35 focus-within:ring-4 focus-within:ring-amber-500/10 dark:border-white/10 dark:bg-white/[0.06]">
             <div className="flex items-center gap-2">
-                <Search size={14} className="shrink-0 text-warm-text-muted-light dark:text-warm-text-muted-dark" />
+                <Search size={14} className="shrink-0 text-warm-text-muted-dark dark:text-warm-text-muted-dark" />
                 <input
                     type="text"
                     placeholder={placeholder}
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
-                    className="h-7 min-w-0 flex-1 bg-transparent text-xs font-semibold text-warm-text-primary-light outline-none placeholder:text-warm-text-muted-light/60 dark:text-warm-text-primary-dark dark:placeholder:text-warm-text-muted-dark/60"
+                    className="h-7 min-w-0 flex-1 bg-transparent text-xs font-semibold text-warm-text-primary-dark outline-none placeholder:text-warm-text-muted-dark/60 dark:text-warm-text-primary-dark dark:placeholder:text-warm-text-muted-dark/60"
                 />
                 {hasQuery && (
                     <button
                         type="button"
                         onClick={() => onChange('')}
-                        className="rounded-lg p-1 text-warm-text-muted-light transition-all hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:hover:bg-white/10 dark:hover:text-white"
+                        className="rounded-lg p-1 text-warm-text-muted-dark transition-all hover:bg-black/[0.04] hover:text-warm-text-primary-dark dark:hover:bg-white/10 dark:hover:text-white"
                         aria-label={clearLabel}
                     >
                         <X size={13} />
@@ -48,7 +48,7 @@ function NoteSearchBox({ value, onChange, resultCount, totalCount, placeholder, 
                 )}
             </div>
             {hasQuery && (
-                <p className="mt-1 px-6 text-[10px] font-bold text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                <p className="mt-1 px-6 text-[10px] font-bold text-warm-text-muted-dark dark:text-warm-text-muted-dark">
                     {resultLabel}
                 </p>
             )}
@@ -266,22 +266,22 @@ export default function UnifiedSidebar({
                 onContextMenu={openContextMenu}
                 className={`w-full text-left px-3.5 py-3 rounded-xl border transition-all duration-200 group relative overflow-hidden flex flex-col gap-1 ${
                     isSelected 
-                        ? 'bg-warm-card-light/86 border-warm-border-light dark:border-warm-border-dark shadow-sm dark:bg-white/[0.07]' 
+                        ? 'bg-warm-card-dark/86 border-warm-border-dark dark:border-warm-border-dark shadow-sm dark:bg-white/[0.07]' 
                         : 'bg-transparent border-transparent hover:bg-warm-sidebar-item-active/70'
                 }`}
             >
                 <div className="flex items-center justify-between">
-                    <h4 className={`fiip-light-note-title text-xs font-semibold truncate pr-4 ${isSelected ? 'text-warm-text-primary-light dark:text-warm-text-primary-dark' : 'text-warm-text-primary-light/95 dark:text-warm-text-primary-dark/80 group-hover:text-warm-text-primary-light dark:group-hover:text-warm-text-primary-dark'}`}>
+                    <h4 className={`fiip-dark-note-title text-xs font-semibold truncate pr-4 ${isSelected ? 'text-warm-text-primary-dark dark:text-warm-text-primary-dark' : 'text-warm-text-primary-dark/95 dark:text-warm-text-primary-dark/80 group-hover:text-warm-text-primary-dark dark:group-hover:text-warm-text-primary-dark'}`}>
                         {note.title || t('common.untitled', 'Sans titre')}
                     </h4>
                     {note.favorite && (
                         <Star size={10} className="fill-amber-500 text-amber-500 shrink-0" />
                     )}
                 </div>
-                <p className="text-[10px] text-warm-text-secondary-light/85 dark:text-warm-text-secondary-dark/70 line-clamp-2 leading-relaxed">
+                <p className="text-[10px] text-warm-text-secondary-dark/85 dark:text-warm-text-secondary-dark/70 line-clamp-2 leading-relaxed">
                     {stripNoteText(note.content) || t('common.no_content', 'Pas de contenu')}
                 </p>
-                <div className="flex items-center justify-between mt-1 text-[8px] font-semibold text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                <div className="flex items-center justify-between mt-1 text-[8px] font-semibold text-warm-text-muted-dark dark:text-warm-text-muted-dark">
                     <span>{new Date(note.updatedAt || note.createdAt).toLocaleDateString()}</span>
                     {noteTags.length > 0 && activeNav !== 'trash' && (
                         <div className="ml-auto flex items-center -space-x-1">
@@ -289,7 +289,7 @@ export default function UnifiedSidebar({
                                 <span
                                     key={tag.id}
                                     title={tag.label}
-                                    className="flex h-5 w-5 items-center justify-center rounded-full border border-warm-border-light bg-warm-card-light shadow-sm dark:border-white/10 dark:bg-[#111316]"
+                                    className="flex h-5 w-5 items-center justify-center rounded-full border border-warm-border-dark bg-warm-card-dark shadow-sm dark:border-white/10 dark:bg-[#111316]"
                                 >
                                     {renderTagIcon(tag)}
                                 </span>
@@ -328,7 +328,7 @@ export default function UnifiedSidebar({
         : t('sidebar.new_note_in_notebook', 'New note in this notebook');
 
     return (
-        <aside className="fiip-light-sidebar w-80 h-full flex flex-col border-r border-warm-border-light dark:border-warm-border-dark bg-warm-sidebar-light/90 dark:bg-warm-sidebar-dark/82 backdrop-blur-2xl relative z-10 overflow-hidden select-none text-warm-text-primary-light dark:text-warm-text-primary-dark">
+        <aside className="fiip-dark-sidebar w-80 h-full flex flex-col border-r border-warm-border-dark dark:border-warm-border-dark bg-warm-sidebar-dark/90 dark:bg-warm-sidebar-dark/82 backdrop-blur-2xl relative z-10 overflow-hidden select-none text-warm-text-primary-dark dark:text-warm-text-primary-dark">
             {/* Header Area */}
             <div className="p-4 flex flex-col gap-4">
                 <div className="flex items-center gap-2">
@@ -351,27 +351,27 @@ export default function UnifiedSidebar({
                         <button
                             key={item.id}
                             onClick={() => onNavigate(item.id)}
-                            className={`fiip-light-nav-item flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-150 ${
+                            className={`fiip-dark-nav-item flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-150 ${
                                 activeNav === item.id 
-                                    ? 'fiip-light-nav-item-active bg-warm-sidebar-item-active text-warm-text-primary-light dark:text-warm-text-primary-dark font-semibold' 
-                                    : 'text-warm-text-primary-light/90 dark:text-warm-text-secondary-dark hover:bg-warm-sidebar-item-active/50 hover:text-warm-text-primary-light'
+                                    ? 'fiip-dark-nav-item-active bg-warm-sidebar-item-active text-warm-text-primary-dark dark:text-warm-text-primary-dark font-semibold' 
+                                    : 'text-warm-text-primary-dark/90 dark:text-warm-text-secondary-dark hover:bg-warm-sidebar-item-active/50 hover:text-warm-text-primary-dark'
                             }`}
                         >
                             <div className="flex items-center gap-2.5">
-                                <span className={`${activeNav === item.id ? 'text-amber-600 dark:text-amber-400' : 'text-warm-text-secondary-light dark:text-warm-text-muted-dark'} transition-colors`}>{item.icon}</span>
+                                <span className={`${activeNav === item.id ? 'text-amber-600 dark:text-amber-400' : 'text-warm-text-secondary-dark dark:text-warm-text-muted-dark'} transition-colors`}>{item.icon}</span>
                                 <span className="text-xs font-semibold">{item.label}</span>
                             </div>
                         </button>
                     ))}
                 </nav>
 
-                <div className="space-y-2 rounded-2xl border border-warm-border-light bg-warm-card-light/60 p-2 dark:border-white/10 dark:bg-white/[0.04]">
+                <div className="space-y-2 rounded-2xl border border-warm-border-dark bg-warm-card-dark/60 p-2 dark:border-white/10 dark:bg-white/[0.04]">
                     <div className="flex items-center justify-between px-1">
-                        <span className="text-[10px] font-semibold text-warm-text-secondary-light dark:text-warm-text-muted-dark">{t('sidebar.notebooks', 'Notebooks')}</span>
+                        <span className="text-[10px] font-semibold text-warm-text-secondary-dark dark:text-warm-text-muted-dark">{t('sidebar.notebooks', 'Notebooks')}</span>
                         <button
                             type="button"
                             onClick={onCreateNotebook}
-                            className="rounded-lg p-1 text-warm-text-muted-light hover:bg-black/[0.04] hover:text-amber-600 dark:hover:bg-white/10"
+                            className="rounded-lg p-1 text-warm-text-muted-dark hover:bg-black/[0.04] hover:text-amber-600 dark:hover:bg-white/10"
                             title={t('sidebar.new_notebook', 'New notebook')}
                         >
                             <Plus size={12} />
@@ -391,7 +391,7 @@ export default function UnifiedSidebar({
                                     className={`group flex w-full items-center justify-between rounded-xl px-2 py-1.5 text-left text-[11px] font-bold transition-all ${
                                         activeNav === navId
                                             ? 'bg-amber-500/12 text-amber-700 dark:text-amber-300'
-                                            : 'text-warm-text-primary-light/85 hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:text-warm-text-secondary-dark dark:hover:bg-white/10'
+                                            : 'text-warm-text-primary-dark/85 hover:bg-black/[0.04] hover:text-warm-text-primary-dark dark:text-warm-text-secondary-dark dark:hover:bg-white/10'
                                     }`}
                                 >
                                     {isEditing ? (
@@ -418,12 +418,12 @@ export default function UnifiedSidebar({
                                     ) : (
                                         <button type="button" onClick={() => onNavigate(navId)} className="min-w-0 flex-1 text-left">
                                             <span className="block truncate">{notebook.name || t('sidebar.all_notes', 'All notes')}</span>
-                                            <span className="mt-0.5 block truncate text-[9px] font-semibold text-warm-text-secondary-light dark:text-warm-text-muted-dark">
+                                            <span className="mt-0.5 block truncate text-[9px] font-semibold text-warm-text-secondary-dark dark:text-warm-text-muted-dark">
                                                 {formatCount('sidebar.notes_count', stats.notes)}{stats.favorites ? ` · ${formatCount('sidebar.favorites_count', stats.favorites)}` : ''}
                                             </span>
                                         </button>
                                     )}
-                                    <span className="mr-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] leading-none text-warm-text-secondary-light dark:text-warm-text-muted-dark">{stats.notes}</span>
+                                    <span className="mr-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] leading-none text-warm-text-secondary-dark dark:text-warm-text-muted-dark">{stats.notes}</span>
                                     {id !== 'all-notes' && !isEditing && (
                                         <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
                                             <button
@@ -432,7 +432,7 @@ export default function UnifiedSidebar({
                                                     setEditingNotebookId(id);
                                                     setNotebookDraft(notebook.name || '');
                                                 }}
-                                                className="rounded-md p-1 text-warm-text-muted-light hover:bg-black/5 hover:text-amber-600 dark:hover:bg-white/10"
+                                                className="rounded-md p-1 text-warm-text-muted-dark hover:bg-black/5 hover:text-amber-600 dark:hover:bg-white/10"
                                                 aria-label={t('sidebar.rename_notebook_label', 'Rename {{name}}', { name: notebook.name })}
                                                 title={t('common.rename', 'Rename')}
                                             >
@@ -441,7 +441,7 @@ export default function UnifiedSidebar({
                                             <button
                                                 type="button"
                                                 onClick={() => onDeleteNotebook?.(notebook)}
-                                                className="rounded-md p-1 text-warm-text-muted-light hover:bg-red-500/10 hover:text-red-500"
+                                                className="rounded-md p-1 text-warm-text-muted-dark hover:bg-red-500/10 hover:text-red-500"
                                                 aria-label={t('sidebar.delete_notebook_label', 'Delete {{name}}', { name: notebook.name })}
                                                 title={t('common.delete', 'Delete')}
                                             >
@@ -459,7 +459,7 @@ export default function UnifiedSidebar({
             {/* Notes List */}
             <div className="flex-1 overflow-y-auto px-3 pb-4 scrollbar-hide">
                 <div className="flex items-center mt-2 justify-between px-2 mb-2">
-                    <h3 className="text-[10px] font-semibold text-warm-text-secondary-light dark:text-warm-text-muted-dark">
+                    <h3 className="text-[10px] font-semibold text-warm-text-secondary-dark dark:text-warm-text-muted-dark">
                         {activeNav === 'trash' ? t('sidebar.deleted_notes', 'Deleted notes') : t('sidebar.notes', 'Notes')}
                     </h3>
                     <div className="flex items-center gap-1">
@@ -467,7 +467,7 @@ export default function UnifiedSidebar({
                         <button
                             type="button"
                             onClick={() => onCreateNote?.({ notebookId: activeNotebookId })}
-                            className="rounded-lg p-1 text-warm-text-muted-light transition-colors hover:bg-black/[0.04] hover:text-amber-600 dark:hover:bg-white/10"
+                            className="rounded-lg p-1 text-warm-text-muted-dark transition-colors hover:bg-black/[0.04] hover:text-amber-600 dark:hover:bg-white/10"
                             title={newNoteLabel}
                             aria-label={newNoteLabel}
                         >
@@ -489,7 +489,7 @@ export default function UnifiedSidebar({
                     {/* TODAY */}
                     {groupedNotes.today.length > 0 && (
                         <div className="space-y-1">
-                            <div className="px-2 text-[10px] font-semibold text-warm-text-secondary-light dark:text-warm-text-muted-dark/55">{t('date.today', 'Today')}</div>
+                            <div className="px-2 text-[10px] font-semibold text-warm-text-secondary-dark dark:text-warm-text-muted-dark/55">{t('date.today', 'Today')}</div>
                             <div className="space-y-1">{groupedNotes.today.map(renderNoteItem)}</div>
                         </div>
                     )}
@@ -497,7 +497,7 @@ export default function UnifiedSidebar({
                     {/* YESTERDAY */}
                     {groupedNotes.yesterday.length > 0 && (
                         <div className="space-y-1">
-                            <div className="px-2 text-[10px] font-semibold text-warm-text-secondary-light dark:text-warm-text-muted-dark/55">{t('date.yesterday', 'Yesterday')}</div>
+                            <div className="px-2 text-[10px] font-semibold text-warm-text-secondary-dark dark:text-warm-text-muted-dark/55">{t('date.yesterday', 'Yesterday')}</div>
                             <div className="space-y-1">{groupedNotes.yesterday.map(renderNoteItem)}</div>
                         </div>
                     )}
@@ -505,17 +505,17 @@ export default function UnifiedSidebar({
                     {/* EARLIER */}
                     {groupedNotes.earlier.length > 0 && (
                         <div className="space-y-1">
-                            <div className="px-2 text-[10px] font-semibold text-warm-text-secondary-light dark:text-warm-text-muted-dark/55">{t('date.earlier', 'Earlier')}</div>
+                            <div className="px-2 text-[10px] font-semibold text-warm-text-secondary-dark dark:text-warm-text-muted-dark/55">{t('date.earlier', 'Earlier')}</div>
                             <div className="space-y-1">{groupedNotes.earlier.map(renderNoteItem)}</div>
                         </div>
                     )}
 
                     {filteredNotes.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                            <div className="w-10 h-10 rounded-full bg-warm-sidebar-item-active flex items-center justify-center text-warm-text-muted-light mb-3">
+                            <div className="w-10 h-10 rounded-full bg-warm-sidebar-item-active flex items-center justify-center text-warm-text-muted-dark mb-3">
                                 <SearchX size={16} />
                             </div>
-                            <p className="text-[11px] font-medium text-warm-text-secondary-light dark:text-warm-text-muted-dark leading-relaxed">
+                            <p className="text-[11px] font-medium text-warm-text-secondary-dark dark:text-warm-text-muted-dark leading-relaxed">
                                 {searchQuery ? t('sidebar.no_results', 'No results') : t('sidebar.no_notes', 'No notes')}
                             </p>
                             {canCreateNoteInCurrentView && !searchQuery && (
@@ -533,7 +533,7 @@ export default function UnifiedSidebar({
             </div>
 
             {/* Footer Area */}
-            <div className="fiip-light-sidebar-footer p-3 border-t border-warm-border-light dark:border-warm-border-dark bg-warm-sidebar-light/50 text-warm-text-primary-light dark:bg-warm-sidebar-dark/30 dark:text-warm-text-primary-dark">
+            <div className="fiip-dark-sidebar-footer p-3 border-t border-warm-border-dark dark:border-warm-border-dark bg-warm-sidebar-dark/50 text-warm-text-primary-dark dark:bg-warm-sidebar-dark/30 dark:text-warm-text-primary-dark">
                 <div className="flex items-center justify-between">
                     {user ? (
                         <button 
@@ -541,23 +541,23 @@ export default function UnifiedSidebar({
                             className="flex items-center gap-2 p-1.5 hover:bg-warm-sidebar-item-active/50 rounded-xl transition-all group max-w-[65%]"
                         >
                             {avatarUrl ? (
-                                <img src={avatarUrl} alt={getDisplayName()} className="h-7 w-7 rounded-lg border border-warm-border-light object-cover dark:border-white/10" />
+                                <img src={avatarUrl} alt={getDisplayName()} className="h-7 w-7 rounded-lg border border-warm-border-dark object-cover dark:border-white/10" />
                             ) : (
                                 <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-[11px] font-semibold text-amber-700 dark:text-amber-300 shrink-0">
                                     {getDisplayName().slice(0, 2).toUpperCase()}
                                 </div>
                             )}
                             <div className="flex flex-col text-left overflow-hidden">
-                                <span className="fiip-light-user-name text-[10px] font-bold text-warm-text-primary-light dark:text-warm-text-primary-dark leading-tight truncate">
+                                <span className="fiip-dark-user-name text-[10px] font-bold text-warm-text-primary-dark dark:text-warm-text-primary-dark leading-tight truncate">
                                     {getDisplayName()}
                                 </span>
-                                <span className="text-[8px] text-warm-text-secondary-light dark:text-warm-text-muted-dark font-semibold uppercase tracking-tighter">{t('license.premium', 'Premium')}</span>
+                                <span className="text-[8px] text-warm-text-secondary-dark dark:text-warm-text-muted-dark font-semibold uppercase tracking-tighter">{t('license.premium', 'Premium')}</span>
                             </div>
                         </button>
                     ) : (
                         <button 
                             onClick={onOpenAuth}
-                            className="flex items-center gap-1.5 rounded-xl border border-warm-border-light bg-warm-card-light px-3 py-1.5 text-[11px] font-semibold text-warm-text-primary-light shadow-sm transition-all hover:bg-warm-sidebar-item-active dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-[#E5E5E3]"
+                            className="flex items-center gap-1.5 rounded-xl border border-warm-border-dark bg-warm-card-dark px-3 py-1.5 text-[11px] font-semibold text-warm-text-primary-dark shadow-sm transition-all hover:bg-warm-sidebar-item-active dark:border-white/10 dark:bg-white dark:text-black dark:hover:bg-[#E5E5E3]"
                         >
                             <Plus size={12} />
                             <span>{t('auth.login_action', 'Sign in')}</span>
@@ -567,7 +567,7 @@ export default function UnifiedSidebar({
                     <div className="flex items-center gap-1">
                         <button 
                             onClick={onOpenSettings}
-                            className="p-2 text-warm-text-muted-light hover:text-warm-text-primary-light hover:bg-warm-sidebar-item-active/50 rounded-xl transition-all"
+                            className="p-2 text-warm-text-muted-dark hover:text-warm-text-primary-dark hover:bg-warm-sidebar-item-active/50 rounded-xl transition-all"
                             title={t('sidebar.settings', 'Settings')}
                         >
                             <Settings size={15} />
@@ -575,7 +575,7 @@ export default function UnifiedSidebar({
                         {user && (
                             <button 
                                 onClick={() => authService.signOut()}
-                                className="p-2 text-warm-text-muted-light hover:text-red-500 hover:bg-red-500/5 rounded-xl transition-all"
+                                className="p-2 text-warm-text-muted-dark hover:text-red-500 hover:bg-red-500/5 rounded-xl transition-all"
                                 title={t('sidebar.logout', 'Sign out')}
                             >
                                 <LogOut size={15} />
@@ -598,7 +598,7 @@ export default function UnifiedSidebar({
                             onToggleFavorite?.(contextNote.id);
                             setContextMenu((current) => ({ ...current, visible: false }));
                         }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-warm-text-secondary-light transition-all hover:bg-black/[0.04] dark:text-warm-text-secondary-dark dark:hover:bg-white/10"
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-warm-text-secondary-dark transition-all hover:bg-black/[0.04] dark:text-warm-text-secondary-dark dark:hover:bg-white/10"
                     >
                         <Star size={14} className={contextNote.favorite ? 'fill-amber-500 text-amber-500' : ''} />
                         {contextNote.favorite ? t('sidebar.unfavorite', 'Remove from favorites') : t('sidebar.favorite', 'Add to favorites')}
