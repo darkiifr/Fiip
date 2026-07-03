@@ -9,7 +9,6 @@ import { generateText } from '../services/ai';
 import IconCheck from '~icons/mingcute/check-fill';
 import IconClose from '~icons/mingcute/close-fill';
 import IconTrash from '~icons/mingcute/delete-2-fill';
-import IconChevronDown from '~icons/mingcute/down-fill';
 import IconPen from '~icons/mingcute/pen-fill';
 import IconSend from '~icons/mingcute/send-plane-fill';
 import IconSparkles from '~icons/mingcute/sparkles-fill';
@@ -20,7 +19,6 @@ const getCurrentTimestamp = () => new Date().getTime();
 export default function Dexter({ 
     isOpen, 
     onClose, 
-    settings, 
     onCreateNote, 
     onUpdateNote, 
     onDeleteNote, 
@@ -46,8 +44,6 @@ export default function Dexter({
     ]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
-    const [selectedModel, setSelectedModel] = useState('default');
-    const [showModelSelector, setShowModelSelector] = useState(false);
     const [, setRecentPrompts] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -99,17 +95,6 @@ export default function Dexter({
     const handlePointerUp = (e) => {
         setIsDragging(false);
         e.currentTarget.releasePointerCapture(e.pointerId);
-    };
-
-    const speak = (text) => {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        if (settings?.voiceName) {
-            const voices = window.speechSynthesis.getVoices();
-            const voice = voices.find(v => v.name === settings.voiceName);
-            if (voice) utterance.voice = voice;
-        }
-        window.speechSynthesis.speak(utterance);
     };
 
     const handleAccept = useCallback((index, msg) => {
@@ -233,9 +218,6 @@ export default function Dexter({
             };
 
             setMessages(prev => [...prev, assistantMsg]);
-            if (settings?.voiceEnabled) {
-                speak(displayContent);
-            }
         } catch (err) {
             if (err.name !== 'AbortError') {
                 setMessages(prev => [...prev, { role: 'assistant', content: err?.message || "Erreur lors de la génération. Veuillez réessayer." }]);
@@ -432,30 +414,7 @@ export default function Dexter({
                     )}
                 </div>
 
-                {/* Model Selector Trigger */}
-                <div className="flex items-center justify-between text-[9px] text-warm-text-muted-light font-bold">
-                    <button 
-                        onClick={() => setShowModelSelector(!showModelSelector)}
-                        className="hover:underline flex items-center gap-1"
-                    >
-                        <span>Modèle: {selectedModel === 'default' ? settings?.aiModel?.split('/').pop() || 'GPT-OSS 20B' : selectedModel.split('/').pop()}</span>
-                        <IconChevronDown className="w-2.5 h-2.5" />
-                    </button>
-
-                    {showModelSelector && (
-                        <div className="absolute bottom-10 left-3 w-52 bg-white dark:bg-zinc-900 border border-warm-border-light dark:border-warm-border-dark rounded-xl shadow-2xl p-1 z-50 text-left">
-                            <button 
-                                onClick={() => { setSelectedModel('default'); setShowModelSelector(false); }}
-                                className="w-full px-2.5 py-1.5 text-[10px] hover:bg-warm-sidebar-item-active rounded-lg block font-semibold"
-                            >
-                                Assistant Dexter
-                            </button>
-                            <p className="px-2.5 py-1.5 text-[10px] text-warm-text-muted-light">
-                                Configuration gérée par Fiip.
-                            </p>
-                        </div>
-                    )}
-                </div>
+                <div className="h-1" aria-hidden="true" />
             </div>
         </div>
     );

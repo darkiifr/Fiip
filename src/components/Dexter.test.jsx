@@ -71,6 +71,52 @@ describe('Dexter Assistant', () => {
         expect(screen.queryByTitle(/Joindre un PDF/i)).not.toBeInTheDocument();
     });
 
+    it('does not expose the model indicator', () => {
+        render(
+            <Dexter
+                isOpen={true}
+                onClose={vi.fn()}
+                settings={{ aiModel: 'openai/gpt-4o-mini' }}
+                onCreateNote={vi.fn()}
+                onUpdateNote={vi.fn()}
+                onDeleteNote={vi.fn()}
+            />
+        );
+
+        expect(screen.queryByText(/Modèle:/i)).not.toBeInTheDocument();
+    });
+
+    it('does not read assistant responses aloud', async () => {
+        mockGenerateText.mockResolvedValueOnce('Réponse silencieuse');
+        const speak = vi.fn();
+        vi.stubGlobal('speechSynthesis', {
+            cancel: vi.fn(),
+            getVoices: vi.fn(() => []),
+            speak,
+        });
+
+        render(
+            <Dexter
+                isOpen={true}
+                onClose={vi.fn()}
+                settings={{ voiceEnabled: true }}
+                onCreateNote={vi.fn()}
+                onUpdateNote={vi.fn()}
+                onDeleteNote={vi.fn()}
+            />
+        );
+
+        fireEvent.change(screen.getByPlaceholderText('Posez une question ou demandez une correction...'), {
+            target: { value: 'Aide' },
+        });
+        fireEvent.keyDown(screen.getByPlaceholderText('Posez une question ou demandez une correction...'), {
+            key: 'Enter',
+        });
+
+        expect(await screen.findByText('Réponse silencieuse')).toBeInTheDocument();
+        expect(speak).not.toHaveBeenCalled();
+    });
+
     it('shows the assistant generation error message', async () => {
         mockGenerateText.mockRejectedValueOnce(new Error('Cette fonctionnalité nécessite un abonnement actif.'));
         render(

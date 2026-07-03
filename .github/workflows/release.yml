@@ -268,6 +268,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: Mobile/package-lock.json
 
       - name: Install frontend dependencies
         run: npm install --legacy-peer-deps
@@ -529,7 +531,26 @@ jobs:
 
       - name: Install dependencies
         working-directory: Mobile
-        run: npm install --legacy-peer-deps
+        shell: bash
+        run: |
+          npm config set fetch-retries 5
+          npm config set fetch-retry-factor 2
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+
+          for attempt in 1 2 3; do
+            echo "Installing Mobile dependencies (attempt $attempt/3)..."
+            if npm ci --legacy-peer-deps --prefer-offline --no-audit; then
+              exit 0
+            fi
+
+            if [ "$attempt" = "3" ]; then
+              echo "Mobile dependency install failed after 3 attempts."
+              exit 1
+            fi
+
+            sleep $((attempt * 15))
+          done
 
       - name: Patch Android node modules (jcenter -> mavenCentral, compileSdk)
         working-directory: Mobile
@@ -596,10 +617,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: Mobile/package-lock.json
 
       - name: Install dependencies
         working-directory: Mobile
-        run: npm install --legacy-peer-deps
+        shell: bash
+        run: |
+          npm config set fetch-retries 5
+          npm config set fetch-retry-factor 2
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+
+          for attempt in 1 2 3; do
+            echo "Installing Mobile dependencies (attempt $attempt/3)..."
+            if npm ci --legacy-peer-deps --prefer-offline --no-audit; then
+              exit 0
+            fi
+
+            if [ "$attempt" = "3" ]; then
+              echo "Mobile dependency install failed after 3 attempts."
+              exit 1
+            fi
+
+            sleep $((attempt * 15))
+          done
 
       - name: Install CocoaPods
         working-directory: Mobile/ios

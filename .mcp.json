@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "fiip": {
+      "command": "node",
+      "args": [
+        "mcp/fiip/server.mjs"
+      ],
+      "env": {
+        "FIIP_MCP_STORE": "${workspaceFolder}/.fiip-mcp/state.json"
+      }
+    }
+  }
+}

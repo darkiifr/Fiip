@@ -1,0 +1,7 @@
+interface:
+  display_name: "Fiip App"
+  short_description: "Operate Fiip notes and workflows."
+  default_prompt: "Use $fiip-app to inspect Fiip notes, settings, exports, sync, AI, licensing, and release workflows safely."
+
+policy:
+  allow_implicit_invocation: true
