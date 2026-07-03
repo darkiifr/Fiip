@@ -8,8 +8,9 @@ export function getSafePublicUrl(value, { allowDataMedia = false, allowSvg = fal
 
   try {
     const parsed = new URL(trimmed, window.location.origin);
-    const isAllowedProtocol = ['http:', 'https:', 'blob:'].includes(parsed.protocol);
+    const isAllowedProtocol = ['http:', 'https:'].includes(parsed.protocol);
     if (!isAllowedProtocol) return '';
+    if (parsed.username || parsed.password) return '';
     if (!allowSvg && /\.svg(?:$|[?#])/i.test(parsed.pathname)) return '';
     return parsed.href;
   } catch {
