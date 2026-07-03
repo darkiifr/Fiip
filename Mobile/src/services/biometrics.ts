@@ -3,8 +3,10 @@ import { triggerHaptic } from '../utils/hapticEngine';
 
 const rnBiometrics = new ReactNativeBiometrics({ allowDeviceCredentials: true });
 
+export const DEFAULT_BIOMETRIC_PROMPT = 'Veuillez vous authentifier pour déverrouiller Fiip';
+
 export const authenticateBiometric = async (
-  promptMessage: string = 'Veuillez vous authentifier pour déverrouiller cette note'
+  promptMessage: string = DEFAULT_BIOMETRIC_PROMPT
 ): Promise<boolean> => {
   try {
     const { available } = await rnBiometrics.isSensorAvailable();

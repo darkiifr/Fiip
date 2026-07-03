@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Alert, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '../components/ui/Icon';
 import { triggerHaptic } from '../utils/hapticEngine';
@@ -8,6 +8,9 @@ import { useNotesStore } from '../store/notesStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { GlassCard } from '../components/ui/GlassCard';
+import { ShareModal } from '../components/ShareModal';
+import { getNoteMetrics } from '../utils/noteMetrics';
+import { FiipTag, normalizeNoteTags, serializeLegacyBadges } from '../utils/noteTags';
 
 interface NoteEditorScreenProps {
   route: any;
@@ -17,12 +20,13 @@ interface NoteEditorScreenProps {
 export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navigation }) => {
   const { noteToEdit } = route.params || {};
   const onClose = () => navigation.goBack();
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   
   // Zustand Store integrations
   const addNote = useNotesStore(state => state.addNote);
   const updateNote = useNotesStore(state => state.updateNote);
   const deleteNote = useNotesStore(state => state.deleteNote);
+  const notesById = useNotesStore(state => state.notes);
 
   // Settings Store for typography, sizes and metric labels synchronization
   const typography = useSettingsStore(state => state.typography);
@@ -35,33 +39,51 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
   const [content, setContent] = useState(noteToEdit?.content || '');
   const [isLocked, setIsLocked] = useState(noteToEdit?.is_locked || false);
   const [isFavorite, setIsFavorite] = useState(noteToEdit?.is_favorite || false);
-  const [badges, setBadges] = useState<string[]>(noteToEdit?.badges || ['Réflexion']);
+  const [tags, setTags] = useState<FiipTag[]>(() => normalizeNoteTags(noteToEdit?.tags || [], noteToEdit?.badges || []));
+  const [publicSlug, setPublicSlug] = useState(noteToEdit?.public_slug || null);
   const [currentNoteId, setCurrentNoteId] = useState(noteToEdit?.id || null);
+  const [shareNoteId, setShareNoteId] = useState(noteToEdit?.id || null);
+  const [shareVisible, setShareVisible] = useState(false);
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
   const didMountRef = useRef(false);
-  const saveCurrentNoteRef = useRef<() => Promise<void>>(async () => {});
+  const saveCurrentNoteRef = useRef<() => Promise<string | null>>(async () => null);
 
   const copperAccent = '#A48A7B';
-  const tagBg = isDark ? 'rgba(164, 138, 123, 0.15)' : '#EAE2DC';
-  const tagText = isDark ? '#BCA597' : '#7C675B';
+  const tagBg = 'rgba(164, 138, 123, 0.18)';
+  const tagText = '#D8C4B6';
+
+  const tagSuggestions = useMemo(() => {
+    const fromNotes = Object.values(notesById || {})
+      .flatMap((note: any) => normalizeNoteTags(note.tags || [], note.badges || []));
+    return normalizeNoteTags([...tags, ...fromNotes, 'Réflexion', 'Important', 'Idées'], []);
+  }, [notesById, tags]);
+
+  const metrics = useMemo(() => getNoteMetrics(content), [content]);
 
   const saveCurrentNote = useCallback(async () => {
-    if (!title.trim() && !content.trim()) return;
+    if (!title.trim() && !content.trim()) return currentNoteId;
+
+    const normalizedTags = normalizeNoteTags(tags, []);
     
     const notePayload = {
       title: title || 'Sans titre',
       content,
       is_locked: isLocked,
       is_favorite: isFavorite,
-      badges,
+      tags: normalizedTags,
+      badges: serializeLegacyBadges(normalizedTags),
+      public_slug: publicSlug,
     };
 
     if (currentNoteId) {
       updateNote(currentNoteId, notePayload);
+      return currentNoteId;
     } else {
       const newId = await addNote(notePayload);
       setCurrentNoteId(newId);
+      return newId;
     }
-  }, [addNote, badges, content, currentNoteId, isFavorite, isLocked, title, updateNote]);
+  }, [addNote, content, currentNoteId, isFavorite, isLocked, publicSlug, tags, title, updateNote]);
 
   useEffect(() => {
     saveCurrentNoteRef.current = saveCurrentNote;
@@ -91,17 +113,35 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
 
   const toggleFavorite = () => {
     triggerHaptic('selection');
-    setIsFavorite(!isFavorite);
+    const next = !isFavorite;
+    setIsFavorite(next);
+    if (currentNoteId) {
+      updateNote(currentNoteId, { is_favorite: next });
+    }
   };
 
   const toggleLock = async () => {
     triggerHaptic('impactLight');
     if (!isLocked) {
        const canLock = await authenticateBiometric("Veuillez vous authentifier pour verrouiller cette note");
-       if (canLock) setIsLocked(true);
+       if (canLock) {
+         setIsLocked(true);
+         if (currentNoteId) updateNote(currentNoteId, { is_locked: true });
+       }
     } else {
        setIsLocked(false);
+       if (currentNoteId) updateNote(currentNoteId, { is_locked: false });
     }
+  };
+
+  const handleShare = async () => {
+    const id = await saveCurrentNote();
+    if (!id) {
+      Alert.alert('Note vide', 'Ajoutez un titre ou du contenu avant de partager.');
+      return;
+    }
+    setShareNoteId(id);
+    setShareVisible(true);
   };
 
   const handleDelete = () => {
@@ -152,20 +192,17 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
   const sizeStyles = getFontSizeStyles();
   const activeFontFamily = getFontFamily();
 
-  // Helper word & reading metrics calculation
-  const getWordCount = () => {
-    if (!content.trim()) return 0;
-    return content.trim().split(/\s+/).length;
-  };
-
-  const getReadingTime = () => {
-    const words = getWordCount();
-    const min = Math.ceil(words / 150); // average 150 words per minute
-    return min === 0 ? 1 : min;
+  const toggleTag = (tag: FiipTag) => {
+    triggerHaptic('selection');
+    setTags(prev => (
+      prev.some(item => item.id === tag.id)
+        ? prev.filter(item => item.id !== tag.id)
+        : normalizeNoteTags([...prev, tag], [])
+    ));
   };
 
   return (
-    <SafeAreaView style={[styles.screenContainer, { backgroundColor: isDark ? '#0E0E0E' : '#F9F9F8' }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.screenContainer, { backgroundColor: '#0E0E0E' }]} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         
         {/* Editor Screen Header matching Screen 5 */}
@@ -180,16 +217,16 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
           </View>
           
           <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.actionBtn} onPress={toggleFavorite} activeOpacity={0.6}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Favori" style={styles.actionBtn} onPress={toggleFavorite} activeOpacity={0.6}>
                 <Icon sfSymbol={isFavorite ? "star.fill" : "star"} mdIcon="star" size={20} color={isFavorite ? "#FFD700" : colors.text} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={toggleLock} activeOpacity={0.6}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Protéger" style={styles.actionBtn} onPress={toggleLock} activeOpacity={0.6}>
                 <Icon sfSymbol={isLocked ? "lock.fill" : "lock.open"} mdIcon="lock" size={20} color={isLocked ? "#FF3B30" : colors.text} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} activeOpacity={0.6}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Partager" style={styles.actionBtn} onPress={handleShare} activeOpacity={0.6}>
                 <Icon sfSymbol="square.and.arrow.up" mdIcon="export-variant" size={20} color={colors.text} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn} onPress={handleDelete} activeOpacity={0.6}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Plus d'actions" style={styles.actionBtn} onPress={() => setActionMenuVisible(true)} activeOpacity={0.6}>
                 <Icon sfSymbol="ellipsis" mdIcon="dots-horizontal" size={20} color={colors.text} />
               </TouchableOpacity>
           </View>
@@ -199,6 +236,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.editorContent}>
           {/* Note Title */}
           <TextInput
+            testID="note-title-input"
             style={[
               styles.titleInput, 
               { 
@@ -218,21 +256,18 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
           {/* Metadata Row */}
           <Text style={[styles.pubDateText, { color: colors.textSecondary }]}>Aujourd'hui à 09:41</Text>
 
-          {/* Badges/Tags Row */}
+          {/* Tags Row */}
           <View style={styles.badgeRow}>
-             {["Réflexion", "Principes", "Idées", "Important"].map(b => {
-               const active = badges.includes(b);
+             {tagSuggestions.map(tag => {
+               const active = tags.some(item => item.id === tag.id);
                return (
                  <TouchableOpacity 
-                   key={b} 
-                   style={[styles.badge, { backgroundColor: active ? tagBg : 'transparent', borderColor: active ? copperAccent : 'rgba(0,0,0,0.08)' }]}
-                   onPress={() => {
-                     triggerHaptic('selection');
-                     setBadges(prev => prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]);
-                   }}
+                   key={tag.id}
+                   style={[styles.badge, { backgroundColor: active ? tagBg : 'rgba(255,255,255,0.03)', borderColor: active ? copperAccent : 'rgba(255,255,255,0.08)' }]}
+                   onPress={() => toggleTag(tag)}
                    activeOpacity={0.7}
                  >
-                   <Text style={[styles.badgeText, { color: active ? tagText : colors.textSecondary }]}>{b}</Text>
+                   <Text style={[styles.badgeText, { color: active ? tagText : colors.textSecondary }]}>{tag.label}</Text>
                  </TouchableOpacity>
                );
              })}
@@ -240,6 +275,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
 
           {/* Note Body Text Input */}
           <TextInput
+            testID="note-content-input"
             style={[
               styles.contentInput, 
               { 
@@ -266,18 +302,18 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
                   <View style={styles.statItem}>
                     <Icon sfSymbol="doc.text" mdIcon="format-align-left" size={14} color={colors.textSecondary} />
                     <Text style={[styles.statValue, { color: colors.textSecondary }]}>
-                      {getWordCount()} mots
+                      {metrics.wordCount} mots
                     </Text>
                   </View>
                 )}
                 {showWordCount && showReadingTime && (
-                  <View style={[styles.verticalDivider, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]} />
+                  <View style={[styles.verticalDivider, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />
                 )}
                 {showReadingTime && (
                   <View style={styles.statItem}>
                     <Icon sfSymbol="clock" mdIcon="clock-outline" size={14} color={colors.textSecondary} />
                     <Text style={[styles.statValue, { color: colors.textSecondary }]}>
-                      {getReadingTime()} min de lecture
+                      {metrics.readingTimeMinutes} min de lecture
                     </Text>
                   </View>
                 )}
@@ -289,6 +325,35 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
         </ScrollView>
 
       </KeyboardAvoidingView>
+
+      <ShareModal
+        visible={shareVisible}
+        onClose={() => setShareVisible(false)}
+        noteId={shareNoteId || currentNoteId || ''}
+        publicSlug={publicSlug}
+        onUpdatePublicStatus={(slug) => {
+          setPublicSlug(slug);
+          if (currentNoteId) {
+            updateNote(currentNoteId, { public_slug: slug });
+          }
+        }}
+        onDeleteRequest={handleDelete}
+      />
+
+      <Modal visible={actionMenuVisible} transparent animationType="fade" onRequestClose={() => setActionMenuVisible(false)}>
+        <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setActionMenuVisible(false)}>
+          <View style={[styles.actionMenu, { backgroundColor: '#171719', borderColor: 'rgba(255,255,255,0.12)' }]}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setActionMenuVisible(false); handleShare(); }}>
+              <Icon sfSymbol="square.and.arrow.up" mdIcon="export-variant" size={18} color={colors.text} />
+              <Text style={[styles.menuText, { color: colors.text }]}>Partager</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={() => { setActionMenuVisible(false); handleDelete(); }}>
+              <Icon sfSymbol="trash" mdIcon="trash-can-outline" size={18} color="#EF4444" />
+              <Text style={[styles.menuText, { color: '#EF4444' }]}>Supprimer</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -384,5 +449,34 @@ const styles = StyleSheet.create({
   verticalDivider: {
     width: 1,
     height: 14,
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    alignItems: 'flex-end',
+    paddingTop: 76,
+    paddingRight: 18,
+  },
+  actionMenu: {
+    width: 206,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  menuItem: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  menuText: {
+    fontSize: 15,
+    fontWeight: '800',
   }
 });

@@ -9,11 +9,12 @@ import { useAppTheme } from '../hooks/useAppTheme';
 import { useNotesStore } from '../store/notesStore';
 import { fiipRadius } from '../theme/fiipDesign';
 import { triggerHaptic } from '../utils/hapticEngine';
+import { getNoteMetrics } from '../utils/noteMetrics';
 
 const quickPrompts = [
-  { label: 'Résumer', prompt: 'Résume cette note en 4 points actionnables.' },
-  { label: 'Clarifier', prompt: 'Réécris cette note en français clair, précis et professionnel.' },
-  { label: 'Plan', prompt: 'Transforme cette note en plan structuré avec prochaines actions.' },
+  { label: 'Résumer', prompt: 'Résume cette note en 4 points actionnables.', sfSymbol: 'text.alignleft', mdIcon: 'text-box-search-outline' },
+  { label: 'Clarifier', prompt: 'Réécris cette note en français clair, précis et professionnel.', sfSymbol: 'pencil.and.outline', mdIcon: 'text-box-edit-outline' },
+  { label: 'Plan', prompt: 'Transforme cette note en plan structuré avec prochaines actions.', sfSymbol: 'list.bullet', mdIcon: 'format-list-bulleted' },
 ];
 
 export function AiChatScreen({ navigation }: any) {
@@ -28,6 +29,7 @@ export function AiChatScreen({ navigation }: any) {
     [notesById],
   );
   const activeNote = notes[0];
+  const activeNoteMetrics = useMemo(() => getNoteMetrics(activeNote?.content || ''), [activeNote?.content]);
 
   const [input, setInput] = useState('');
   const [answer, setAnswer] = useState('Choisissez une action rapide ou demandez une reformulation.');
@@ -48,6 +50,11 @@ export function AiChatScreen({ navigation }: any) {
 
   const askFiip = async (prompt: string) => {
     if (!prompt.trim() || loading) {
+      return;
+    }
+
+    if (activeNote?.is_locked || activeNote?.encrypted_content) {
+      setAnswer('Cette note est protégée. Déverrouillez-la avant de demander à Dexter de la lire ou de la modifier.');
       return;
     }
 
@@ -96,14 +103,14 @@ export function AiChatScreen({ navigation }: any) {
         <GlassCard intensity={isIOS ? 38 : 0} cornerRadius={isIOS ? fiipRadius.xl : 28} interactive style={styles.noteCard}>
           <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Note active</Text>
           <Text style={[styles.noteTitle, { color: colors.text }]}>{activeNote?.title || 'Aucune note'}</Text>
-          <Text style={[styles.noteText, { color: colors.textSecondary }]} numberOfLines={4}>{activeNote?.content || 'Créez une note pour obtenir une aide contextuelle.'}</Text>
+          <Text style={[styles.noteText, { color: colors.textSecondary }]} numberOfLines={4}>{activeNoteMetrics.plainText || 'Créez une note pour obtenir une aide contextuelle.'}</Text>
         </GlassCard>
 
         <View style={styles.quickGrid}>
           {quickPrompts.map((item) => (
             <TouchableOpacity key={item.label} accessibilityRole="button" activeOpacity={0.78} onPress={() => askFiip(item.prompt)} style={styles.quickItem}>
               <GlassCard intensity={isIOS ? 24 : 0} cornerRadius={isIOS ? fiipRadius.md : 20} interactive style={styles.quickCard}>
-                <Icon sfSymbol="sparkles" mdIcon="sparkles" size={16} color={colors.primary} />
+                <Icon sfSymbol={item.sfSymbol} mdIcon={item.mdIcon} size={16} color={colors.primary} />
                 <Text style={[styles.quickText, { color: colors.text }]}>{item.label}</Text>
               </GlassCard>
             </TouchableOpacity>

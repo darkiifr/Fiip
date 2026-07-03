@@ -10,9 +10,7 @@ import { useNotesStore } from '../store/notesStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { fiipRadius } from '../theme/fiipDesign';
 import { triggerHaptic } from '../utils/hapticEngine';
-
-const countWords = (content = '') => content.trim() ? content.trim().split(/\s+/).length : 0;
-const estimateReadingTime = (words: number) => Math.max(1, Math.ceil(words / 180));
+import { getNoteMetrics } from '../utils/noteMetrics';
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
@@ -29,9 +27,9 @@ export default function HomeScreen() {
   );
 
   const stats = useMemo(() => {
-    const words = notes.reduce((sum, note) => sum + countWords(note.content), 0);
+    const words = notes.reduce((sum, note) => sum + getNoteMetrics(note.content).wordCount, 0);
     const favorites = notes.filter((note) => note.is_favorite).length;
-    return { words, favorites, readingTime: estimateReadingTime(words) };
+    return { words, favorites, readingTime: words === 0 ? 0 : Math.ceil(words / 220) };
   }, [notes]);
 
   const featuredNote = notes[0];
@@ -82,7 +80,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <Text style={[styles.heroExcerpt, { color: colors.textSecondary }]} numberOfLines={4}>
-            {featuredNote?.content || 'Commencez une note, puis laissez Fiip structurer votre pensée.'}
+            {featuredNote ? getNoteMetrics(featuredNote.content).plainText || 'Note vide' : 'Commencez une note, puis laissez Fiip structurer votre pensée.'}
           </Text>
           <View style={styles.metricGrid}>
             <Metric label="Notes" value={String(notes.length)} color={colors} />
@@ -123,7 +121,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.noteText}>
                   <Text style={[styles.noteTitle, { color: colors.text }]} numberOfLines={1}>{note.title || 'Sans titre'}</Text>
-                  <Text style={[styles.noteExcerpt, { color: colors.textSecondary }]} numberOfLines={1}>{note.content || 'Note vide'}</Text>
+                  <Text style={[styles.noteExcerpt, { color: colors.textSecondary }]} numberOfLines={1}>{getNoteMetrics(note.content).plainText || 'Note vide'}</Text>
                 </View>
                 <Icon sfSymbol="chevron.right" mdIcon="chevron-right" size={16} color={colors.textSecondary} />
               </GlassCard>

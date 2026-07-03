@@ -58,7 +58,7 @@ jest.mock('../../components/ui/Icon', () => {
   const React = require('react');
   const { Text } = require('react-native');
   return {
-    Icon: () => <Text>icon</Text>,
+    Icon: ({ mdIcon }: any) => <Text>{mdIcon}</Text>,
   };
 });
 
@@ -78,6 +78,39 @@ describe('AiChatScreen', () => {
     expect(queryByText(/gratuit/i)).toBeNull();
     expect(queryByText(/OpenRouter/i)).toBeNull();
     expect(queryByText(/openrouter\/free/i)).toBeNull();
+  });
+
+  it('renders Android-valid quick action icons', () => {
+    const { getByText } = render(<AiChatScreen navigation={{ navigate: mockNavigate, goBack: jest.fn() }} />);
+
+    expect(getByText('text-box-search-outline')).toBeTruthy();
+    expect(getByText('text-box-edit-outline')).toBeTruthy();
+    expect(getByText('format-list-bulleted')).toBeTruthy();
+  });
+
+  it('blocks Dexter on a locked note', async () => {
+    mockUseNotesStore.mockImplementationOnce((selector: any) => selector({
+      notes: {
+        'note-1': {
+          id: 'note-1',
+          title: 'Note active',
+          content: 'Texte original',
+          is_locked: true,
+          updated_at: '2026-06-29T10:00:00Z',
+          deleted_at: null,
+        },
+      },
+      updateNote: mockUpdateNote,
+    }));
+
+    const { getByText } = render(<AiChatScreen navigation={{ navigate: mockNavigate, goBack: jest.fn() }} />);
+
+    fireEvent.press(getByText('Résumer'));
+
+    await waitFor(() => {
+      expect(getByText(/Cette note est protégée/)).toBeTruthy();
+    });
+    expect(mockGenerateText).not.toHaveBeenCalled();
   });
 
   it('shows a friendly assistant error when generation fails', async () => {

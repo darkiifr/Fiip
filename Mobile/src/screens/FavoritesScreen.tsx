@@ -7,29 +7,47 @@ import { Icon } from '../components/ui/Icon';
 import { useNotesStore } from '../store/notesStore';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useNavigation } from '@react-navigation/native';
+import { useCloudProfile } from '../hooks/useCloudProfile';
+import { getNoteMetrics } from '../utils/noteMetrics';
+import { normalizeNoteTags } from '../utils/noteTags';
+
+function escapeRegExp(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getInitials(name = 'Fiip') {
+  return String(name || 'Fiip')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'F';
+}
 
 export default function FavoritesScreen() {
   const navigation = useNavigation<any>();
   const { colors, isDark } = useAppTheme();
   
   const notesMap = useNotesStore((state) => state.notes);
-  const notesList = useMemo(() => Object.values(notesMap), [notesMap]);
+  const notesList = useMemo(() => Object.values(notesMap).filter((note: any) => !note.deleted_at), [notesMap]);
+  const { user, avatarUrl, displayName } = useCloudProfile();
 
-  const [search, setSearch] = useState('clarté'); // Initialize with 'clarté' to match mockup Screen 1
+  const [search, setSearch] = useState('');
 
-  const profileImageUri = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80';
   const tagBg = isDark ? 'rgba(164, 138, 123, 0.15)' : '#EAE2DC';
   const tagText = isDark ? '#BCA597' : '#7C675B';
 
   const filteredNotes = useMemo(() => {
+    const sorted = [...notesList].sort((a: any, b: any) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
     if (!search.trim()) {
-      return [...notesList].sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+      return sorted;
     }
 
     const lowerSearch = search.toLowerCase();
-    return notesList.filter((n: any) =>
-      (n.title && n.title.toLowerCase().includes(lowerSearch)) ||
-      (n.content && n.content.toLowerCase().includes(lowerSearch))
+    return sorted.filter((n: any) =>
+      String(n.title || '').toLowerCase().includes(lowerSearch) ||
+      getNoteMetrics(n.content || '').plainText.toLowerCase().includes(lowerSearch) ||
+      normalizeNoteTags(n.tags || [], n.badges || []).some((tag) => tag.label.toLowerCase().includes(lowerSearch))
     );
   }, [search, notesList]);
 
@@ -46,7 +64,8 @@ export default function FavoritesScreen() {
   // Real-time keyword highlighter function for titles
   const renderHighlightedTitle = (text: string, query: string) => {
     if (!query.trim()) return <Text style={[styles.title, { color: colors.text }]}>{text}</Text>;
-    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    const safeQuery = escapeRegExp(query.trim());
+    const parts = String(text || '').split(new RegExp(`(${safeQuery})`, 'gi'));
     return (
       <Text style={[styles.title, { color: colors.text }]}>
         {parts.map((part, index) => 
@@ -61,7 +80,8 @@ export default function FavoritesScreen() {
   // Real-time keyword highlighter function for excerpts
   const renderHighlightedExcerpt = (text: string, query: string) => {
     if (!query.trim()) return <Text style={{ color: colors.textSecondary }} numberOfLines={3}>{text}</Text>;
-    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    const safeQuery = escapeRegExp(query.trim());
+    const parts = String(text || '').split(new RegExp(`(${safeQuery})`, 'gi'));
     return (
       <Text style={{ color: colors.textSecondary }} numberOfLines={3}>
         {parts.map((part, index) => 
@@ -75,7 +95,7 @@ export default function FavoritesScreen() {
 
   const getNoteMetadata = (note: any) => {
     // Map badges to specific visual categories visible in mockup 1
-    const tag = note.badges?.[0] || 'Note';
+    const tag = normalizeNoteTags(note.tags || [], note.badges || [])[0]?.label || 'Note';
     let typeLabel = 'Note';
     let sfIcon = 'doc.text';
     let mdIcon = 'file-document-outline';
@@ -129,10 +149,10 @@ export default function FavoritesScreen() {
                 <Text style={[styles.timeText, { color: colors.textSecondary }]}>{timeText}</Text>
               </View>
               
-              {renderHighlightedTitle(item.title, search)}
+              {renderHighlightedTitle(item.title || 'Sans titre', search)}
               
               <Text style={styles.excerptContainer}>
-                {renderHighlightedExcerpt(item.content.split('\n')[0], search)}
+                {renderHighlightedExcerpt(getNoteMetrics(item.content || '').plainText, search)}
               </Text>
               
               <View style={[styles.tag, { backgroundColor: tagBg, marginTop: 12 }]}>
@@ -154,9 +174,15 @@ export default function FavoritesScreen() {
           accessibilityLabel="Compte cloud"
           style={styles.profileButton}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('Auth')}
+          onPress={() => navigation.navigate(user ? 'Settings' : 'Auth')}
         >
-          <Image source={{ uri: profileImageUri }} style={styles.profileImage} />
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.profileImage} />
+          ) : (
+            <View style={[styles.profileFallback, { backgroundColor: colors.primary }]}>
+              <Text style={styles.profileFallbackText}>{getInitials(displayName)}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -232,6 +258,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+  },
+  profileFallback: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileFallbackText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '900',
   },
   searchContainer: { 
     paddingHorizontal: 20, 

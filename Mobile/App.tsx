@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, View, StyleSheet, useColorScheme, Text, ActivityIndicator } from 'react-native';
+import { Platform, View, StyleSheet, Text, ActivityIndicator } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -49,9 +49,8 @@ function TabNavigator() {
 }
 
 function App() {
-  const { globalLockEnabled, themeMode, lang } = useSettingsStore();
+  const { globalLockEnabled, lang } = useSettingsStore();
   const [appUnlocked, setAppUnlocked] = useState(!globalLockEnabled);
-  const systemColorScheme = useColorScheme();
 
   useEffect(() => {
     i18n.changeLanguage(lang);
@@ -74,7 +73,7 @@ function App() {
     
     // Check Global Biometric Lock
     if (globalLockEnabled) {
-       authenticateBiometric("Déverrouiller l'accès à Fiip Intelligence").then((success) => {
+       authenticateBiometric("Déverrouiller l'accès à Fiip").then((success) => {
           if (success) setAppUnlocked(true);
        });
     } else {
@@ -89,7 +88,7 @@ function App() {
         <LiquidGlassView style={StyleSheet.absoluteFill} />
         <View style={{ padding: 40, alignItems: 'center', backgroundColor: 'rgba(20,20,30,0.6)', borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }}>
           <Icon name="brain" size={64} color="#007AFF" style={{ marginBottom: 16 }} />
-          <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 8, letterSpacing: 1 }}>Fiip Intelligence</Text>
+          <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 8, letterSpacing: 1 }}>Fiip</Text>
           <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', marginBottom: 32, fontStyle: 'italic' }}>Développé par Vincent S.</Text>
           <ActivityIndicator size="large" color="#007AFF" />
         </View>
@@ -98,7 +97,7 @@ function App() {
   }
 
   // Determine active theme
-  const isDark = themeMode === 'dark' || (themeMode === 'system' && systemColorScheme === 'dark');
+  const isDark = true;
   const appTheme = getFiipTheme(isDark, Platform.OS);
   const paperBaseTheme = isDark ? MD3DarkTheme : MD3LightTheme;
   const paperTheme = {

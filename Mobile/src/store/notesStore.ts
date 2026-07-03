@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import { useSettingsStore } from './settingsStore';
 import { syncStatsToWidget } from '../services/widgetService';
+import { normalizeNoteTags, serializeLegacyBadges } from '../utils/noteTags';
 
 export interface Note {
   id: string;
@@ -166,6 +167,8 @@ export const useNotesStore = create<NotesState>()(
           ...noteData,
           id,
           user_id: userId,
+          tags: normalizeNoteTags(noteData.tags as any[], noteData.badges || []),
+          badges: serializeLegacyBadges(normalizeNoteTags(noteData.tags as any[], noteData.badges || [])),
           created_at: now,
           updated_at: now,
           _status: 'created',
@@ -193,6 +196,10 @@ export const useNotesStore = create<NotesState>()(
             [id]: {
               ...existing,
               ...updates,
+              tags: updates.tags !== undefined ? normalizeNoteTags(updates.tags as any[], updates.badges || existing.badges) : existing.tags,
+              badges: updates.tags !== undefined
+                ? serializeLegacyBadges(normalizeNoteTags(updates.tags as any[], updates.badges || existing.badges))
+                : updates.badges || existing.badges,
               updated_at: now,
               _status: existing._status === 'created' ? 'created' : 'updated'
             }
@@ -211,18 +218,25 @@ export const useNotesStore = create<NotesState>()(
           if (!existing) return state;
 
           const newNotes = { ...state.notes };
-          delete newNotes[id];
+
+          if (existing._status === 'created') {
+            delete newNotes[id];
+            syncStatsToWidget(Object.values(newNotes)).catch(console.error);
+            return { notes: newNotes };
+          }
+
+          newNotes[id] = {
+            ...existing,
+            deleted_at: new Date().toISOString(),
+            _status: 'deleted',
+          };
 
           // Sync with mobile widgets
           syncStatsToWidget(Object.values(newNotes)).catch(console.error);
 
-          if (existing._status === 'created') {
-            return { notes: newNotes };
-          }
-
           return { 
             notes: newNotes,
-            pendingDeletions: [...(state.pendingDeletions || []), id]
+            pendingDeletions: Array.from(new Set([...(state.pendingDeletions || []), id]))
           };
         });
         
@@ -248,6 +262,7 @@ export const useNotesStore = create<NotesState>()(
 
           const localNotes = state.notes;
           const notesToPush = Object.values(localNotes).filter(n => n._status !== 'synced');
+          let pushFailed = false;
           
           const pendingDels = state.pendingDeletions || [];
           if (pendingDels.length > 0) {
@@ -260,6 +275,8 @@ export const useNotesStore = create<NotesState>()(
                 .eq('user_id', user.id);
               if (!error || error.code === 'PGRST116') {
                 successfulDeletes.push(delId);
+              } else {
+                pushFailed = true;
               }
             }
             if (successfulDeletes.length > 0) {
@@ -272,6 +289,28 @@ export const useNotesStore = create<NotesState>()(
           for (const note of notesToPush) {
             const { _status, ...dbNote } = note;
             
+            if (_status === 'deleted') {
+              const { error } = await supabase
+                .from('notes')
+                .update({ deleted_at: dbNote.deleted_at || new Date().toISOString(), updated_at: new Date().toISOString() })
+                .eq('id', dbNote.id)
+                .eq('user_id', user.id);
+
+              if (!error || error.code === 'PGRST116') {
+                set((s) => {
+                  const next = { ...s.notes };
+                  delete next[note.id];
+                  return {
+                    notes: next,
+                    pendingDeletions: s.pendingDeletions.filter(delId => delId !== note.id),
+                  };
+                });
+              } else {
+                pushFailed = true;
+              }
+              continue;
+            }
+
             if (_status === 'created' || _status === 'updated') {
               const { error } = await supabase.from('notes').upsert({
                 id: dbNote.id,
@@ -283,8 +322,8 @@ export const useNotesStore = create<NotesState>()(
                 folder_id: dbNote.folder_id || dbNote.notebook_id || null,
                 is_favorite: dbNote.is_favorite || false,
                 is_locked: dbNote.is_locked || false,
-                tags: dbNote.tags || [],
-                badges: dbNote.badges || [],
+                tags: normalizeNoteTags(dbNote.tags as any[], dbNote.badges || []),
+                badges: serializeLegacyBadges(normalizeNoteTags(dbNote.tags as any[], dbNote.badges || [])),
                 attachments: dbNote.attachments || [],
                 deleted_at: dbNote.deleted_at || null,
                 conflict_of: dbNote.conflict_of || null,
@@ -299,8 +338,14 @@ export const useNotesStore = create<NotesState>()(
                     [note.id]: { ...note, _status: 'synced' }
                   }
                 }));
+              } else {
+                pushFailed = true;
               }
             }
+          }
+
+          if (pushFailed) {
+            return;
           }
 
           const lastSync = state.lastSyncAt;
@@ -328,6 +373,8 @@ export const useNotesStore = create<NotesState>()(
                 if (!local || local._status === 'synced' || new Date(remote.updated_at) > new Date(local.updated_at)) {
                   newNotes[remote.id] = {
                     ...remote,
+                    tags: normalizeNoteTags(remote.tags || [], remote.badges || []),
+                    badges: serializeLegacyBadges(normalizeNoteTags(remote.tags || [], remote.badges || [])),
                     _status: 'synced'
                   } as Note;
                 }

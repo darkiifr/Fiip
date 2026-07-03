@@ -6,7 +6,8 @@ import { Icon } from '../components/ui/Icon';
 import { triggerHaptic } from '../utils/hapticEngine';
 import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { supabase } from '../services/supabase';
+import { dataService, supabase } from '../services/supabase';
+import { useNotesStore } from '../store/notesStore';
 
 interface SupabaseAuthScreenProps {
   route?: any;
@@ -22,6 +23,7 @@ export const SupabaseAuthScreen: React.FC<SupabaseAuthScreenProps> = (props) => 
   const onClose = props.onClose || (() => navigation?.goBack());
   const visible = props.visible ?? true;
   const { colors, isDark } = useAppTheme();
+  const syncWithCloud = useNotesStore((state) => state.syncWithCloud);
   
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -48,6 +50,8 @@ export const SupabaseAuthScreen: React.FC<SupabaseAuthScreenProps> = (props) => 
 
       if (error) throw error;
 
+      await dataService.fetchProfile().catch(() => null);
+      await syncWithCloud().catch(() => null);
       triggerHaptic('notificationSuccess');
       Alert.alert(t('Succès'), isLogin ? t('Connexion réussie.') : t('Inscription réussie. Vérifiez vos emails si nécessaire.'));
       onClose();

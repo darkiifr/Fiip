@@ -4,6 +4,14 @@ import { fireEvent, render } from '@testing-library/react-native';
 import FavoritesScreen from '../FavoritesScreen';
 
 const mockNavigate = jest.fn();
+let mockCloudProfile = {
+  user: null as any,
+  profile: null,
+  avatarUrl: '',
+  displayName: 'Fiip',
+  loading: false,
+  refresh: jest.fn(),
+};
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
@@ -11,14 +19,18 @@ jest.mock('@react-navigation/native', () => ({
 
 jest.mock('../../hooks/useAppTheme', () => ({
   useAppTheme: () => ({
-    isDark: false,
+    isDark: true,
     colors: {
-      background: '#ffffff',
-      text: '#111827',
-      textSecondary: '#6b7280',
+      background: '#0b0b0d',
+      text: '#f9fafb',
+      textSecondary: '#9ca3af',
       primary: '#2563eb',
     },
   }),
+}));
+
+jest.mock('../../hooks/useCloudProfile', () => ({
+  useCloudProfile: () => mockCloudProfile,
 }));
 
 jest.mock('../../store/notesStore', () => ({
@@ -28,6 +40,7 @@ jest.mock('../../store/notesStore', () => ({
         id: 'note-1',
         title: 'Note claire',
         content: 'Contenu searchable',
+        tags: [{ id: 'tag-note', label: 'Note' }],
         badges: ['Note'],
         updated_at: '2026-06-29T10:00:00Z',
       },
@@ -58,6 +71,14 @@ jest.mock('../../utils/hapticEngine', () => ({
 describe('FavoritesScreen mobile search', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    mockCloudProfile = {
+      user: null,
+      profile: null,
+      avatarUrl: '',
+      displayName: 'Fiip',
+      loading: false,
+      refresh: jest.fn(),
+    };
   });
 
   it('does not render desktop Command-K affordances', () => {
@@ -72,5 +93,35 @@ describe('FavoritesScreen mobile search', () => {
     fireEvent.press(getByLabelText('Compte cloud'));
 
     expect(mockNavigate).toHaveBeenCalledWith('Auth');
+  });
+
+  it('starts with an empty search and clearing it does not crash', () => {
+    const { getByPlaceholderText, getByText } = render(<FavoritesScreen />);
+    const input = getByPlaceholderText('Rechercher dans vos notes');
+
+    expect(input.props.value).toBe('');
+
+    fireEvent.changeText(input, '[');
+    fireEvent.changeText(input, '');
+
+    expect(getByText('Note claire')).toBeTruthy();
+  });
+
+  it('uses the connected profile state instead of forcing cloud login', () => {
+    mockCloudProfile = {
+      user: { id: 'user-1', email: 'alex@example.com' },
+      profile: null,
+      avatarUrl: '',
+      displayName: 'Alex Martin',
+      loading: false,
+      refresh: jest.fn(),
+    };
+
+    const { getByLabelText, getByText } = render(<FavoritesScreen />);
+
+    expect(getByText('AM')).toBeTruthy();
+    fireEvent.press(getByLabelText('Compte cloud'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('Settings');
   });
 });

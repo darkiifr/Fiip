@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'dark';
 export type TypographyMode = 'Inter' | 'Roboto' | 'System' | 'Outfit';
 export type FontSizeMode = 'petite' | 'moyenne' | 'grande';
 
@@ -12,7 +12,7 @@ interface SettingsState {
   syncEnabled: boolean;
   setSyncEnabled: (enabled: boolean) => void;
   themeMode: ThemeMode;
-  setThemeMode: (mode: ThemeMode) => void;
+  setThemeMode: (mode?: ThemeMode) => void;
   globalLockEnabled: boolean;
   setGlobalLockEnabled: (enabled: boolean) => void;
   subscriptionPlan: 'free' | 'pro' | 'pro+';
@@ -40,8 +40,8 @@ export const useSettingsStore = create<SettingsState>()(
       setHapticsEnabled: (enabled) => set({ hapticsEnabled: enabled }),
       syncEnabled: true,
       setSyncEnabled: (enabled) => set({ syncEnabled: enabled }),
-      themeMode: 'light', // Light theme matches default screens
-      setThemeMode: (mode) => set({ themeMode: mode }),
+      themeMode: 'dark',
+      setThemeMode: () => set({ themeMode: 'dark' }),
       globalLockEnabled: false,
       setGlobalLockEnabled: (enabled) => set({ globalLockEnabled: enabled }),
       subscriptionPlan: 'free',

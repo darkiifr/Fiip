@@ -61,4 +61,75 @@ describe('mobile notes store sync behavior', () => {
     expect(mockGetUser).not.toHaveBeenCalled();
     expect(mockFrom).not.toHaveBeenCalled();
   });
+
+  it('creates a local tombstone when deleting a cloud-backed note', () => {
+    const { useNotesStore } = require('./notesStore');
+    useNotesStore.setState({
+      notes: {
+        'note-cloud': {
+          id: 'note-cloud',
+          title: 'Cloud',
+          content: 'Content',
+          user_id: 'user-1',
+          is_favorite: false,
+          is_locked: false,
+          badges: [],
+          created_at: '2026-06-29T10:00:00Z',
+          updated_at: '2026-06-29T10:00:00Z',
+          _status: 'synced',
+        },
+      },
+      pendingDeletions: [],
+      isSyncing: true,
+    });
+
+    useNotesStore.getState().deleteNote('note-cloud');
+
+    const deleted = useNotesStore.getState().notes['note-cloud'];
+    expect(deleted.deleted_at).toBeTruthy();
+    expect(deleted._status).toBe('deleted');
+    expect(useNotesStore.getState().pendingDeletions).toContain('note-cloud');
+  });
+
+  it('keeps unsynced tags and status when Supabase upsert fails', async () => {
+    const upsert = jest.fn(() => Promise.resolve({ error: { message: 'network' } }));
+    mockFrom.mockReturnValue({
+      upsert,
+      update: jest.fn(() => ({ eq: jest.fn(() => ({ eq: jest.fn(() => Promise.resolve({ error: null })) })) })),
+      select: jest.fn(() => ({ eq: jest.fn(() => Promise.resolve({ data: [], error: null })) })),
+    });
+
+    const { useNotesStore } = require('./notesStore');
+    useNotesStore.setState({
+      notes: {
+        'note-local': {
+          id: 'note-local',
+          title: 'Local',
+          content: 'Content',
+          user_id: 'user-1',
+          is_favorite: false,
+          is_locked: false,
+          tags: [{ id: 'desktop', label: 'Desktop' }],
+          badges: ['Desktop'],
+          created_at: '2026-06-29T10:00:00Z',
+          updated_at: '2026-06-29T10:00:00Z',
+          _status: 'created',
+        },
+      },
+      lastSyncAt: null,
+      isSyncing: false,
+      pendingDeletions: [],
+    });
+
+    await useNotesStore.getState().syncWithCloud();
+
+    const note = useNotesStore.getState().notes['note-local'];
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      tags: [expect.objectContaining({ id: 'desktop', label: 'Desktop' })],
+      badges: ['Desktop'],
+    }), { onConflict: 'id' });
+    expect(note._status).toBe('created');
+    expect(note.tags).toEqual([expect.objectContaining({ id: 'desktop', label: 'Desktop' })]);
+    expect(useNotesStore.getState().lastSyncAt).toBeNull();
+  });
 });

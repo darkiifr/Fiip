@@ -28,7 +28,7 @@ jest.mock('@react-navigation/native-stack', () => ({
 jest.mock('../src/store/settingsStore', () => ({
   useSettingsStore: () => ({
     globalLockEnabled: false,
-    themeMode: 'light',
+    themeMode: 'dark',
     lang: 'fr',
   }),
 }));
@@ -46,6 +46,9 @@ jest.mock('../src/services/keyauth', () => ({
 jest.mock('../src/services/biometrics', () => ({
   authenticateBiometric: jest.fn(() => Promise.resolve(true)),
 }));
+
+jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
+jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'MaterialCommunityIcons');
 
 jest.mock('../src/i18n', () => ({
   changeLanguage: jest.fn(),
