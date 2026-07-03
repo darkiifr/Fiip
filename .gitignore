@@ -5,6 +5,9 @@ dist-ssr/
 .vite/
 coverage/
 .coverage/
+playwright-report/
+test-results/
+blob-report/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
