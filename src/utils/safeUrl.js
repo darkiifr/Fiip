@@ -16,3 +16,33 @@ export function getSafePublicUrl(value, { allowDataMedia = false, allowSvg = fal
     return '';
   }
 }
+
+export function getSafeImageUrl(value, { allowDataMedia = false, allowSvg = false } = {}) {
+  const safeUrl = getSafePublicUrl(value, { allowDataMedia, allowSvg });
+  if (!safeUrl) return '';
+
+  try {
+    const parsed = new URL(safeUrl, window.location.origin);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    if (!allowSvg && /\.svg(?:$|[?#])/i.test(parsed.pathname)) return '';
+    return parsed.href;
+  } catch {
+    return '';
+  }
+}
+
+export function sanitizeDomText(value, fallback = '') {
+  if (typeof value !== 'string' && typeof value !== 'number') return fallback;
+  const text = String(value)
+    .split('')
+    .map((char) => {
+      const code = char.charCodeAt(0);
+      return code <= 31 || code === 127 ? ' ' : char;
+    })
+    .join('')
+    .replace(/[<>&"'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return text || fallback;
+}

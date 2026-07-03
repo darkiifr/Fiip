@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { authService, dataService } from '../services/supabase';
 import { stripNoteText } from '../utils/notePresentation';
 import { getTagColorClasses, normalizeNoteTags } from '../utils/noteTags';
-import { getSafePublicUrl } from '../utils/safeUrl';
+import { getSafeImageUrl, sanitizeDomText } from '../utils/safeUrl';
 
 import { PRESET_ICONS } from './NoteBadges';
 
@@ -83,7 +83,7 @@ export default function UnifiedSidebar({
     const [editingNotebookId, setEditingNotebookId] = useState('');
     const [notebookDraft, setNotebookDraft] = useState('');
 
-    const getDisplayName = () => (
+    const getRawDisplayName = () => (
         profile?.nickname ||
         profile?.username ||
         user?.user_metadata?.full_name ||
@@ -93,7 +93,8 @@ export default function UnifiedSidebar({
         'Compte Fiip'
     );
 
-    const avatarUrl = getSafePublicUrl(profile?.avatar_url || profile?.avatar || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '');
+    const displayName = sanitizeDomText(getRawDisplayName(), 'Compte Fiip');
+    const avatarUrl = getSafeImageUrl(profile?.avatar_url || profile?.avatar || user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '');
 
     // Track user session
     useEffect(() => {
@@ -541,15 +542,15 @@ export default function UnifiedSidebar({
                             className="flex items-center gap-2 p-1.5 hover:bg-warm-sidebar-item-active/50 rounded-xl transition-all group max-w-[65%]"
                         >
                             {avatarUrl ? (
-                                <img src={avatarUrl} alt={getDisplayName()} className="h-7 w-7 rounded-lg border border-warm-border-dark object-cover dark:border-white/10" />
+                                <img src={avatarUrl} alt={displayName} className="h-7 w-7 rounded-lg border border-warm-border-dark object-cover dark:border-white/10" />
                             ) : (
                                 <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-[11px] font-semibold text-amber-700 dark:text-amber-300 shrink-0">
-                                    {getDisplayName().slice(0, 2).toUpperCase()}
+                                    {displayName.slice(0, 2).toUpperCase()}
                                 </div>
                             )}
                             <div className="flex flex-col text-left overflow-hidden">
                                 <span className="fiip-dark-user-name text-[10px] font-bold text-warm-text-primary-dark dark:text-warm-text-primary-dark leading-tight truncate">
-                                    {getDisplayName()}
+                                    {displayName}
                                 </span>
                                 <span className="text-[8px] text-warm-text-secondary-dark dark:text-warm-text-muted-dark font-semibold uppercase tracking-tighter">{t('license.premium', 'Premium')}</span>
                             </div>
