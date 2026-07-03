@@ -22,6 +22,18 @@ describe('note presentation helpers', () => {
     });
   });
 
+  it('adds reading weight for code blocks, media and attachments', () => {
+    const base = getNoteStats({ content: '<p>Une note courte et lisible.</p>' });
+    const rich = getNoteStats({
+      content: '<h2>Plan</h2><p>Une note courte et lisible.</p><pre><code>npm test</code></pre><img src="/a.png">',
+      attachments: [{ id: 'file-1', name: 'brief.pdf' }],
+    });
+
+    expect(rich.readSeconds).toBeGreaterThan(base.readSeconds);
+    expect(rich.mediaCount).toBe(2);
+    expect(rich.codeBlocks).toBe(1);
+  });
+
   it('promotes useful notes over empty recent notes', () => {
     const notes = [
       { id: 'empty-new', title: '', content: '', updatedAt: 3000, favorite: false },

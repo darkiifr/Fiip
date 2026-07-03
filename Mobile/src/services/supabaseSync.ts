@@ -1,4 +1,18 @@
+import { Platform } from 'react-native';
+import DeviceInfo from 'react-native-device-info';
+
 import { supabase } from './supabase';
+
+async function getPublicIpAddress(): Promise<string | null> {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return payload?.ip || null;
+  } catch {
+    return null;
+  }
+}
 
 // 1. Mise à jour de la session de plateforme de l'utilisateur (Mobile / Desktop tracker)
 export const updateUserClientVersion = async (versionStr: string) => {
@@ -16,6 +30,24 @@ export const updateUserClientVersion = async (versionStr: string) => {
     }, { onConflict: 'id' });
 
   if (error) console.error('Failed to update client tracking:', error);
+
+  try {
+    const uniqueId = await DeviceInfo.getUniqueId();
+    await supabase
+      .from('user_devices')
+      .upsert({
+        id: `mobile-${uniqueId}`,
+        user_id: user.id,
+        name: `Fiip Mobile - ${Platform.OS}`,
+        platform: Platform.OS,
+        user_agent: `FiipMobile/${versionStr}`,
+        ip_address: await getPublicIpAddress(),
+        last_seen_at: new Date().toISOString(),
+        revoked_at: null,
+      }, { onConflict: 'id' });
+  } catch (deviceError) {
+    console.error('Failed to update device tracking:', deviceError);
+  }
 };
 
 // 2. Synchronisation Cloud des Notes

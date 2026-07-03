@@ -32,9 +32,9 @@ export function getNoteStats(note = {}) {
   const wordCount = words.length;
   const readableUnits = wordCount + Math.ceil(cjkCharacters / 2.2);
   const codeBlocks = countMatches(rawContent, /<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>/gi);
-  const mediaCount = Array.isArray(note.attachments)
-    ? note.attachments.length
-    : countMatches(rawContent, /<(img|video|audio)\b/gi);
+  const embeddedMediaCount = countMatches(rawContent, /<(img|video|audio)\b/gi);
+  const attachmentCount = Array.isArray(note.attachments) ? note.attachments.length : 0;
+  const mediaCount = embeddedMediaCount + attachmentCount;
   const headingCount = countMatches(rawContent, /<h[1-6]\b/gi);
   const seconds = readableUnits > 0
     ? Math.ceil((readableUnits / 230) * 60 + codeBlocks * 20 + mediaCount * 12 + headingCount * 3)

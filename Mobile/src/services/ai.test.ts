@@ -1,5 +1,3 @@
-import { FREE_MODEL_ROUTER, generateText, listOpenRouterModels } from './ai';
-
 jest.mock('@env', () => ({
   VITE_OPENROUTER_KEY: 'test-openrouter-key',
 }), { virtual: true });
@@ -9,6 +7,10 @@ jest.mock('./keyauth', () => ({
     hasAIAccess: () => true,
   },
 }));
+
+process.env.VITE_OPENROUTER_KEY = 'test-openrouter-key';
+
+const { FREE_MODEL_ROUTER, generateText, listOpenRouterModels } = require('./ai');
 
 describe('mobile OpenRouter client', () => {
   beforeEach(() => {

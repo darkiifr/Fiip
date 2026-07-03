@@ -309,8 +309,9 @@ export default function HomeDashboard({
                                     </p>
                                 </div>
                                 
-                                <div className="mt-4 pt-3 border-t border-warm-border-light dark:border-warm-border-dark flex items-center justify-between text-[9px] text-warm-text-muted-light font-semibold">
+                                <div className="mt-4 pt-3 border-t border-warm-border-light dark:border-warm-border-dark flex items-center gap-2 text-[9px] text-warm-text-muted-light font-semibold">
                                     <span>{new Date(getNoteTimestamp(note)).toLocaleDateString()}</span>
+                                    <span className="h-1 w-1 rounded-full bg-warm-text-muted-light/45" aria-hidden="true" />
                                     <span>{stats.wordCount} mots</span>
                                 </div>
                             </button>

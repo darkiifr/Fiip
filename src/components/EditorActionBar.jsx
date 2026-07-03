@@ -168,6 +168,7 @@ export default function EditorActionBar({
     onAttachFile,
     onStartDictation,
     isDictating = false,
+    dictationPreview = '',
     onToggleHeading,
     onUpdateTags,
     tagSuggestions,
@@ -230,6 +231,11 @@ export default function EditorActionBar({
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {isDictating && (
+                        <div className="hidden max-w-56 truncate rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[10px] font-semibold text-red-600 dark:text-red-200 sm:block">
+                            {dictationPreview || 'Dictée en direct...'}
+                        </div>
+                    )}
                     <TagPicker tags={note.tags || []} suggestions={tagSuggestions} onChange={onUpdateTags} />
                     <button type="button" onClick={onOpenLicense} className="fiip-light-editor-action rounded-xl p-2 text-warm-text-secondary-light transition-all hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-300" title="Licence Premium">
                         <Lock size={16} />

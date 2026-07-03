@@ -10,7 +10,6 @@ import { keyAuthService } from '../services/keyauth';
 import { getLocalizedLanguageLabel, LANGUAGES } from '../services/languages';
 import { getPlatformDisplayName } from '../services/platform';
 
-import FontManager from './FontManager';
 import CustomSelect from './CustomSelect';
 import NucleoFlag from './NucleoFlag';
 import { GlassDialog } from './ui/GlassDialog';
@@ -425,9 +424,6 @@ export default function SettingsModal({
                          </div>
                     </div>
 
-                    {/* Font Manager */}
-                    <FontManager />
-
                     {/* Window Effects */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.window_effects_title')}</h3>
@@ -812,7 +808,6 @@ export default function SettingsModal({
         </GlassDialog>
     );
 }
-
 
 
 

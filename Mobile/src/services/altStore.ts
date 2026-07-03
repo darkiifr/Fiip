@@ -6,8 +6,10 @@ import { Linking } from 'react-native';
  */
 
 const ALTSTORE_SCHEME = 'altstore://';
-const SOURCE_URL = 'https://github.com/darkiifr/Fiip/releases/latest/download/altstore.json';
-const APP_BUNDLE_ID = 'vinsstudio.FiipMobile';
+export const ALTSTORE_SOURCE_URL = 'https://github.com/darkiifr/Fiip/releases/latest/download/altstore.json';
+export const ALTSTORE_IPA_URL = 'https://github.com/darkiifr/Fiip/releases/latest/download/FiipMobile-Unsigned.ipa';
+export const ALTSTORE_SOURCE_SCHEME_URL = `${ALTSTORE_SCHEME}source?url=${encodeURIComponent(ALTSTORE_SOURCE_URL)}`;
+export const ALTSTORE_INSTALL_URL = `${ALTSTORE_SCHEME}install?url=${encodeURIComponent(ALTSTORE_IPA_URL)}`;
 
 export type AltStoreStatus = 'not_installed' | 'installed' | 'error';
 
@@ -28,11 +30,10 @@ export const AltStoreService = {
    * Ajoute la source Fiip à AltStore
    */
   async addSource(): Promise<{ success: boolean; error?: string }> {
-    const url = `${ALTSTORE_SCHEME}source?url=${SOURCE_URL}`;
     try {
-      const canOpen = await Linking.canOpenURL(url);
+      const canOpen = await Linking.canOpenURL(ALTSTORE_SOURCE_SCHEME_URL);
       if (canOpen) {
-        await Linking.openURL(url);
+        await Linking.openURL(ALTSTORE_SOURCE_SCHEME_URL);
         return { success: true };
       }
       return { success: false, error: 'ALTSTORE_NOT_FOUND' };
@@ -45,11 +46,10 @@ export const AltStoreService = {
    * Tente d'installer ou de mettre à jour Fiip via AltStore
    */
   async installApp(): Promise<{ success: boolean; error?: string }> {
-    const url = `${ALTSTORE_SCHEME}install?url=${SOURCE_URL}&id=${APP_BUNDLE_ID}`;
     try {
-      const canOpen = await Linking.canOpenURL(url);
+      const canOpen = await Linking.canOpenURL(ALTSTORE_INSTALL_URL);
       if (canOpen) {
-        await Linking.openURL(url);
+        await Linking.openURL(ALTSTORE_INSTALL_URL);
         return { success: true };
       }
       return { success: false, error: 'ALTSTORE_NOT_FOUND' };

@@ -13,13 +13,13 @@
     "windows": [
       {
         "title": "Fiip",
-        "width": 1400,
-        "height": 900,
+        "width": 1180,
+        "height": 760,
         "resizable": true,
         "maximized": false,
         "decorations": false,
         "transparent": true,
-        "titleBarStyle": "Overlay",
+        "titleBarStyle": "Transparent",
         "hiddenTitle": true,
         "center": true,
         "label": "main",
@@ -65,14 +65,6 @@
         "name": "Fiip Note File",
         "description": "Fiip Note file",
         "role": "Editor"
-      },
-      {
-        "ext": [
-          "fiif"
-        ],
-        "name": "Fiip Font File",
-        "description": "Fiip Font resource",
-        "role": "Viewer"
       }
     ],
     "windows": {

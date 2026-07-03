@@ -28,7 +28,9 @@ export const getLatestRelease = async () => {
       windows: windowsAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
       mac: macAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
       linux: linuxAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`,
-      iosAltStore: `altstore://source?url=https://github.com/${GITHUB_REPO}/releases/latest/download/altstore.json`,
+      iosAltStore: `altstore://source?url=${encodeURIComponent(`https://github.com/${GITHUB_REPO}/releases/latest/download/altstore.json`)}`,
+      iosAltStoreInstall: `altstore://install?url=${encodeURIComponent(`https://github.com/${GITHUB_REPO}/releases/latest/download/FiipMobile-Unsigned.ipa`)}`,
+      iosIpa: `https://github.com/${GITHUB_REPO}/releases/latest/download/FiipMobile-Unsigned.ipa`,
       releaseUrl: data.html_url
     };
   } catch (error) {

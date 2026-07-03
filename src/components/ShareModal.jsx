@@ -31,7 +31,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
     const [isUserLoaded, setIsUserLoaded] = useState(false);
 
     const isOwner = selectedNote && currentUser 
-        ? (selectedNote.user_id || selectedNote.userId) === currentUser.id
+        ? !(selectedNote.user_id || selectedNote.userId) || (selectedNote.user_id || selectedNote.userId) === currentUser.id
         : false;
     const isProtectedNote = Boolean(selectedNote?.isProtected || selectedNote?.is_locked || selectedNote?.encryptedContent || selectedNote?.encrypted_content);
 
@@ -123,16 +123,17 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
         try {
             const saveRes = await dataService.saveNote(selectedNote);
             if (saveRes && saveRes.error) throw saveRes.error;
+            const savedNote = saveRes?.data ? { ...selectedNote, ...saveRes.data, userId: saveRes.data.user_id || selectedNote.userId } : selectedNote;
 
             if (isPublic) {
-                const { error } = await dataService.unpublishNote(selectedNote.id);
+                const { error } = await dataService.unpublishNote(savedNote.id);
                 if (error) throw error;
                 setIsPublic(false);
                 setPublicUrl('');
                 setStatus({ type: 'success', message: 'Note rendue privée.' });
                 onUpdateNote({ ...selectedNote, public_slug: null, shared: false });
             } else {
-                const { data, error } = await dataService.publishNote(selectedNote.id);
+                const { data, error } = await dataService.publishNote(savedNote.id);
                 if (error) throw error;
                 setIsPublic(true);
                 setPublicUrl(buildPublicNoteUrl(data.public_slug));
@@ -141,7 +142,8 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
             }
         } catch (error) {
             console.error('Erreur Publish:', error);
-            setStatus({ type: 'error', message: 'Erreur lors de la mise à jour.' });
+            const message = error?.message || (typeof error === 'string' ? error : 'Publication impossible pour le moment.');
+            setStatus({ type: 'error', message });
         } finally {
             setIsSharing(false);
         }

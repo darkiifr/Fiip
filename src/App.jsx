@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow, LogicalSize, LogicalPosition, currentMonitor } from '@tauri-apps/api/window';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { type } from '@tauri-apps/plugin-os';
@@ -28,7 +29,6 @@ import {
   getBiometricUserMessage,
 } from './services/biometricLock';
 import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } from "./services/fileManager";
-import { initializeFonts } from "./services/fontStore";
 import { keyAuthService } from "./services/keyauth";
 import { queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
 import { soundManager } from "./services/soundManager";
@@ -40,6 +40,37 @@ import { normalizeNoteTags } from './utils/noteTags';
 import "./App.css";
 
 const getCurrentTimestamp = () => new Date().getTime();
+
+async function fitMainWindowToVisibleArea() {
+  if (!window.__TAURI_INTERNALS__) return;
+
+  try {
+    const appWindow = getCurrentWindow();
+    const monitor = await currentMonitor();
+    const workArea = monitor?.workArea || monitor?.size;
+    if (!workArea?.width || !workArea?.height) return;
+
+    const scaleFactor = monitor?.scaleFactor || 1;
+    const maxWidth = Math.floor((workArea.width / scaleFactor) - 32);
+    const maxHeight = Math.floor((workArea.height / scaleFactor) - 32);
+    const width = Math.max(360, Math.min(1180, maxWidth));
+    const height = Math.max(320, Math.min(760, maxHeight));
+    const x = Math.max(0, Math.floor((workArea.x || 0) / scaleFactor + (maxWidth - width) / 2 + 16));
+    const y = Math.max(0, Math.floor((workArea.y || 0) / scaleFactor + (maxHeight - height) / 2 + 16));
+
+    await appWindow.setSize(new LogicalSize(width, height));
+    await appWindow.setPosition(new LogicalPosition(x, y));
+  } catch (error) {
+    console.warn('Window fit skipped:', error);
+  }
+}
+
+function isTransientSyncWelcomeNote(note = {}) {
+  const title = String(note.title || '').toLowerCase();
+  const content = String(note.content || '').toLowerCase();
+  return title.includes('bienvenue')
+    && (title.includes('connectez-vous') || content.includes('connectez-vous pour retrouver vos notes') || content.includes('connectez-vous pour synchroniser'));
+}
 
 function App() {
   const { t } = useTranslation();
@@ -162,7 +193,16 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
-    calculateTotalUsage(notes).then((used) => {
+    const calculateUsage = async () => {
+      const currentUser = await authService.getUser();
+      if (currentUser && settings.cloudSync !== false) {
+        const cloudUsage = await dataService.getUsage(currentUser.id);
+        return cloudUsage;
+      }
+      return calculateTotalUsage(notes);
+    };
+
+    calculateUsage().then((used) => {
       if (!cancelled) {
         setLocalStorageUsage(used);
       }
@@ -175,7 +215,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [notes]);
+  }, [notes, settings.cloudSync]);
 
   useEffect(() => {
     if (storageUsage.percent < 100) {
@@ -244,8 +284,9 @@ function App() {
       });
 
       if (syncResult.notes) {
-          setNotes(syncResult.notes);
-          notesRef.current = syncResult.notes;
+          const remoteNotes = syncResult.notes.filter((note) => !isTransientSyncWelcomeNote(note));
+          setNotes(remoteNotes);
+          notesRef.current = remoteNotes;
       }
 
       const [notebooksResult, tasksResult, widgetsResult] = await Promise.allSettled([
@@ -277,7 +318,7 @@ function App() {
         console.log("Fiip v" + (await invoke("get_app_version").catch(() => "3.0.0")) + " initializing...");
         
         if (window.__TAURI_INTERNALS__) {
-            await initializeFonts();
+            await fitMainWindowToVisibleArea();
             await invoke("register_deep_link").catch((error) => {
                 console.warn("Deep link registration skipped or failed", error);
             });
@@ -297,6 +338,7 @@ function App() {
                             await message(`Connexion Google impossible : ${error.message}`, { title: 'Fiip', kind: 'error' }).catch(console.error);
                         } else if (data?.session?.user) {
                             setUser(data.session.user);
+                            dataService.registerCurrentDevice().catch(console.warn);
                             localStorage.setItem('fiip-onboarding-completed', 'true');
                             localStorage.removeItem('fiip-mode-local');
                             setOnboardingCompleted(true);
@@ -352,6 +394,7 @@ function App() {
         if (sessionUser) {
             setUser(sessionUser);
             await hydrateLicenseFromProfile(sessionUser);
+            dataService.registerCurrentDevice().catch(console.warn);
             localStorage.setItem('fiip-onboarding-completed', 'true');
             setOnboardingCompleted(true);
             await loadDataFromSupabase();
@@ -364,6 +407,7 @@ function App() {
               localStorage.setItem('fiip-onboarding-completed', 'true');
               setOnboardingCompleted(true);
               hydrateLicenseFromProfile(session.user).catch(console.error);
+              dataService.registerCurrentDevice().catch(console.warn);
           } else {
               keyAuthService.setLocalLevel(0);
               if (localStorage.getItem('fiip-mode-local') !== 'true') {

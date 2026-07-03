@@ -39,7 +39,7 @@ export default defineConfig({
       },
     },
     deps: {
-      inline: [/prosemirror/, /unplugin-icons/, /@iconify/],
+      inline: [/prosemirror/, /unplugin-icons/, /@iconify/, /react-remove-scroll/],
     },
   },
   resolve: {

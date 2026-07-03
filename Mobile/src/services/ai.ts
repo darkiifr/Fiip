@@ -6,7 +6,7 @@ import { keyAuthService } from './keyauth';
 export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 export const FREE_MODEL_ROUTER = 'openrouter/free';
 
-const OPENROUTER_KEY = VITE_OPENROUTER_KEY || '';
+const OPENROUTER_KEY = VITE_OPENROUTER_KEY || process.env.VITE_OPENROUTER_KEY || '';
 
 export interface OpenRouterMessage {
   role: 'system' | 'user' | 'assistant';

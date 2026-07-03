@@ -12,7 +12,7 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn set_window_effect(window: tauri::Window, effect: &str, dark: Option<bool>) -> Result<String, String> {
+fn set_window_effect(window: tauri::Window, effect: &str, _dark: Option<bool>) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
         // Clear all effects to ensure clean state
@@ -22,7 +22,7 @@ fn set_window_effect(window: tauri::Window, effect: &str, dark: Option<bool>) ->
 
         match effect {
             "mica" => {
-                apply_mica(&window, Some(dark.unwrap_or(false))).map_err(|error| format!("Mica is not supported on this Windows version: {error}"))?;
+                apply_mica(&window, Some(_dark.unwrap_or(false))).map_err(|error| format!("Mica is not supported on this Windows version: {error}"))?;
                 Ok("mica".to_string())
             }
             "acrylic" => {
