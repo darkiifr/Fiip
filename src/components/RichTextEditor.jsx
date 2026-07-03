@@ -113,7 +113,7 @@ function ToolbarButton({ active, children, className = '', ...props }) {
         <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
-            className={`p-1.5 rounded-lg transition-all ${active ? 'bg-amber-500 text-white' : 'text-warm-text-muted-light dark:text-warm-text-muted-dark hover:bg-warm-sidebar-item-active dark:hover:bg-white/10'} disabled:opacity-45 ${className}`}
+            className={`p-1.5 rounded-lg transition-all ${active ? 'bg-amber-500 text-white' : 'text-warm-text-muted-dark dark:text-warm-text-muted-dark hover:bg-warm-sidebar-item-active dark:hover:bg-white/10'} disabled:opacity-45 ${className}`}
             {...props}
         >
             {children}
@@ -153,7 +153,7 @@ function ColorPickerPopover({ editor }) {
     return (
         <div className="flex items-center gap-1">
             <label
-                className="h-8 px-2 rounded-lg border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-zinc-900 text-warm-text-primary-light dark:text-warm-text-primary-dark hover:bg-warm-sidebar-item-active dark:hover:bg-zinc-800 transition-all flex items-center gap-2 cursor-pointer"
+                className="h-8 px-2 rounded-lg border border-warm-border-dark dark:border-warm-border-dark bg-warm-card-dark dark:bg-zinc-900 text-warm-text-primary-dark dark:text-warm-text-primary-dark hover:bg-warm-sidebar-item-active dark:hover:bg-zinc-800 transition-all flex items-center gap-2 cursor-pointer"
                 title="Couleur du texte"
             >
                 <input
@@ -177,7 +177,7 @@ function ColorPickerPopover({ editor }) {
                     rememberSelection();
                 }}
                 onClick={unsetColor}
-                className="h-8 rounded-lg border border-warm-border-light px-2 text-[10px] font-bold text-warm-text-muted-light transition-all hover:bg-warm-sidebar-item-active dark:border-warm-border-dark dark:hover:bg-white/10"
+                className="h-8 rounded-lg border border-warm-border-dark px-2 text-[10px] font-bold text-warm-text-muted-dark transition-all hover:bg-warm-sidebar-item-active dark:border-warm-border-dark dark:hover:bg-white/10"
             >
                 Auto
             </button>
@@ -240,11 +240,11 @@ const MenuBar = ({ editor }) => {
     };
 
     return (
-        <div className="flex flex-wrap items-center gap-1 p-2 bg-warm-card-light dark:bg-zinc-900/70 border border-warm-border-light dark:border-warm-border-dark rounded-xl mb-4">
+        <div className="flex flex-wrap items-center gap-1 p-2 bg-warm-card-dark dark:bg-zinc-900/70 border border-warm-border-dark dark:border-warm-border-dark rounded-xl mb-4">
             <ToolbarCombobox value={currentFont} onChange={handleFontChange} options={fonts} placeholder="Police" styleProp="fontFamily" dropdownWidth={220} />
             <ToolbarCombobox value={currentSize} onChange={handleSizeChange} options={FONT_SIZES} placeholder="Taille" />
 
-            <div className="w-px h-5 bg-warm-border-light dark:bg-warm-border-dark mx-2" />
+            <div className="w-px h-5 bg-warm-border-dark dark:bg-warm-border-dark mx-2" />
 
             <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} disabled={!editor.can().chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Gras (Ctrl+B)">
                 <Bold size={16} />
@@ -256,7 +256,7 @@ const MenuBar = ({ editor }) => {
                 <Strikethrough size={16} />
             </ToolbarButton>
 
-            <div className="w-px h-5 bg-warm-border-light dark:bg-warm-border-dark mx-2" />
+            <div className="w-px h-5 bg-warm-border-dark dark:bg-warm-border-dark mx-2" />
 
             <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} title="Aligner à gauche">
                 <AlignLeft size={16} />
@@ -268,7 +268,7 @@ const MenuBar = ({ editor }) => {
                 <AlignRight size={16} />
             </ToolbarButton>
 
-            <div className="w-px h-5 bg-warm-border-light dark:bg-warm-border-dark mx-2" />
+            <div className="w-px h-5 bg-warm-border-dark dark:bg-warm-border-dark mx-2" />
 
             <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} title="Liste à puces">
                 <List size={16} />
@@ -277,7 +277,7 @@ const MenuBar = ({ editor }) => {
                 <ListOrdered size={16} />
             </ToolbarButton>
 
-            <div className="w-px h-5 bg-warm-border-light dark:bg-warm-border-dark mx-2" />
+            <div className="w-px h-5 bg-warm-border-dark dark:bg-warm-border-dark mx-2" />
             <ColorPickerPopover editor={editor} />
             <div className="flex-1" />
 

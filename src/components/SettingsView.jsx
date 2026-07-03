@@ -146,8 +146,9 @@ export default function SettingsView({
     }, []);
 
     const handleUpdate = (newSettings) => {
-        setLocalSettings(newSettings);
-        onUpdateSettings(newSettings);
+        const darkSettings = { ...newSettings, theme: 'dark' };
+        setLocalSettings(darkSettings);
+        onUpdateSettings(darkSettings);
     };
 
     const syncAvailable = Boolean(currentUser);
@@ -403,28 +404,15 @@ export default function SettingsView({
                                 <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.appearance_desc', 'Customize the visual style of the app.')}</p>
                             </div>
 
-                            {/* Thème segmented picker */}
-                            <div className="bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark rounded-2xl p-4 space-y-4">
+                            {/* Thème sombre unique */}
+                            <div className="bg-warm-card-dark border border-warm-border-dark rounded-2xl p-4 space-y-3">
                                 <label className="text-sm font-semibold block">{t('settings.ui_theme', 'Thème de couleur')}</label>
-                                <div className="bg-warm-sidebar-light dark:bg-warm-sidebar-dark rounded-xl p-1 flex gap-1 border border-warm-border-light dark:border-warm-border-dark">
-                                    {[
-                                        { id: 'light', label: t('settings.theme_light', 'Light') },
-                                        { id: 'dark', label: t('settings.theme_dark', 'Dark') },
-                                        { id: 'system', label: t('settings.theme_system', 'System') }
-                                    ].map((tStyle) => (
-                                        <button
-                                            key={tStyle.id}
-                                            onClick={() => handleUpdate({ ...localSettings, theme: tStyle.id })}
-                                            className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
-                                                localSettings.theme === tStyle.id 
-                                                    ? 'bg-white dark:bg-zinc-800 text-warm-text-primary-light dark:text-warm-text-primary-dark shadow-sm border border-warm-border-light dark:border-warm-border-dark' 
-                                                    : 'text-warm-text-muted-light dark:text-warm-text-muted-dark hover:text-warm-text-primary-light dark:hover:text-warm-text-primary-dark'
-                                            }`}
-                                        >
-                                            {tStyle.label}
-                                        </button>
-                                    ))}
+                                <div className="rounded-xl border border-warm-border-dark bg-warm-sidebar-dark px-3 py-2 text-sm font-semibold text-warm-text-primary-dark">
+                                    {t('settings.theme_dark', 'Dark')}
                                 </div>
+                                <p className="text-xs text-warm-text-muted-dark">
+                                    Fiip utilise maintenant un thème sombre unique pour garder tous les composants lisibles.
+                                </p>
                             </div>
 
                             {/* Matériau (Liquid Glass vs Classic) */}

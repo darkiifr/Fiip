@@ -4,7 +4,7 @@ Extension Manifest V3 publiée officiellement sur le Chrome Web Store, et compat
 
 ## Fichiers importants
 
-- `manifest.json`: manifeste MV3, permissions, icônes, popup, background worker et content scripts.
+- `manifest.json`: manifeste MV3, permissions minimales, icônes, popup et background worker.
 - `content-helpers.js`: collecte et nettoyage HTML côté page.
 - `content.js`: écoute `FIIP_COLLECT_CLIP` et renvoie le payload de capture.
 - `background-helpers.js`: deep link Fiip, fallback Supabase, validation URL source.
@@ -27,7 +27,7 @@ Ce script couvre:
 - filtrage des images HTTP/HTTPS;
 - deep link `fiip://clip`;
 - fallback Supabase et rejet des URLs source non HTTP;
-- cohérence du `manifest.json`;
+- cohérence du `manifest.json` et absence de permissions hôtes globales;
 - exclusion des tests et README des ZIP Store.
 
 ## Packaging
@@ -116,11 +116,12 @@ Documentation officielle: https://developer.chrome.com/docs/webstore/publish
    - déclarer que le contenu de page peut être traité pour créer une note;
    - préciser que l'envoi cloud ne se fait que si le fallback Supabase est configuré;
    - fournir l'URL de politique de confidentialité Fiip.
+   - utiliser les réponses prêtes à copier dans `docs/CHROME_WEB_STORE_FIIP_CLIPPER.md`.
 9. Justifier les permissions:
    - `activeTab`: lire uniquement l'onglet actif au moment de la capture;
-   - `scripting`: interaction de capture via content script;
+   - `scripting`: injecter à la demande les scripts de capture empaquetés;
    - `storage`: stocker la configuration fallback;
-   - `http://*/*` et `https://*/*`: permettre la capture sur les pages web autorisées par l'utilisateur.
+   - aucune permission hôte globale n'est demandée dans le manifeste.
 10. Soumettre en review.
 11. Après publication, copier l'URL publique dans `VITE_CHROME_EXTENSION_URL`.
 

@@ -24,7 +24,7 @@ import IconClock from '~icons/mingcute/time-fill';
 
 function FeatureItem({ label, active, icon: Icon }) {
     return (
-        <div className={`flex items-center gap-2 text-sm p-3 rounded-lg border transition-colors ${active ? 'bg-green-500/10 border-green-500/20 text-gray-200' : 'bg-gray-800/30 border-gray-700/30 text-gray-500'}`}>
+        <div className={`flex items-center gap-2 text-sm p-3 rounded-lg border transition-colors ${active ? 'bg-green-500/10 border-green-500/20 text-warm-text-primary-dark' : 'bg-white/[0.035] border-white/10 text-warm-text-muted-dark'}`}>
             {active ? <IconCheck className="w-5 h-5 text-green-400 shrink-0" /> : <div className="w-5 h-5 rounded-full border border-gray-600 shrink-0" />}
             {Icon && <Icon className={`w-4 h-4 ${active ? 'text-purple-400' : 'text-gray-600'}`} />}
             <span className={`font-medium ${!active ? 'line-through decoration-gray-600 opacity-60' : ''}`}>{label}</span>
@@ -32,7 +32,7 @@ function FeatureItem({ label, active, icon: Icon }) {
     )
 }
 
-export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
+export default function LicenseModal({ isOpen, onClose, onOpenAccount }) {
   const { t } = useTranslation();
   const shouldReduceMotion = useReducedMotion();
   const [authData, setAuthData] = useState(null);
@@ -132,15 +132,15 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
   if (!isOpen) {return null;}
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xl animate-in fade-in duration-300">
       <div 
-        className="w-[550px] max-h-[90vh] bg-[#1a1b26] rounded-xl shadow-2xl border border-gray-800 flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-5 duration-300"
+        className="w-[550px] max-h-[90vh] bg-[color:var(--bg-card)] text-[color:var(--text-primary)] rounded-2xl shadow-2xl border border-[color:var(--border-color)] flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-5 duration-300"
         style={{ fontFamily: "'Sora', sans-serif" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="h-14 px-6 flex items-center justify-between border-b border-gray-800 bg-[#16161e]">
-          <div className="flex items-center gap-2 text-gray-100 font-medium">
+        <div className="h-14 px-6 flex items-center justify-between border-b border-[color:var(--border-color)] bg-white/[0.035]">
+          <div className="flex items-center gap-2 text-[color:var(--text-primary)] font-medium">
             <IconKey className="w-5 h-5 text-purple-400" />
             <span className="tracking-wide">{t('license.title', 'Licence & Abonnement')}</span>
           </div>
@@ -149,13 +149,14 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                 onClick={refreshAuthData}
                 disabled={refreshing}
                 title={t('license.refresh', 'Actualiser')}
-                className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-all duration-300 transform active:scale-95"
+                className="p-1.5 rounded-lg hover:bg-white/10 text-warm-text-muted-dark hover:text-white transition-all duration-300 transform active:scale-95"
             >
                 <IconRefresh className={`w-4 h-4 transition-transform duration-700 ease-in-out ${refreshing ? 'rotate-[360deg]' : ''}`} />
             </button>
             <button 
                 onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                aria-label="Fermer"
+                className="p-1.5 rounded-lg hover:bg-white/10 text-warm-text-muted-dark hover:text-white transition-colors"
             >
                 <IconClose className="w-4 h-4" />
             </button>
@@ -197,8 +198,8 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
 
               <div className="flex justify-end pt-4 border-t border-gray-800 gap-3">
                 <button
-                    onClick={onOpenAuth}
-                    className="px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors font-medium flex items-center gap-2"
+                    onClick={onOpenAccount}
+                    className="px-4 py-2 text-sm text-warm-text-muted-dark hover:text-white hover:bg-white/5 rounded-lg transition-colors font-medium flex items-center gap-2"
                 >
                     <IconGlobe className="w-4 h-4" />
                     {t('license.manage_account', 'Gérer le compte')}
@@ -220,7 +221,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                 </div>
                 <h2 className="text-2xl font-bold text-white tracking-tight">{t('license.enter_key', 'Activer votre licence')}</h2>
                 <div className="flex flex-col gap-2 max-w-xs mx-auto">
-                    <button onClick={onOpenAuth} className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1.5 py-1">
+                    <button onClick={onOpenAccount} className="text-sm text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1.5 py-1">
                         <span>{t('license.login_with_account', 'Se connecter avec un compte')}</span>
                     </button>
                     <p className="text-sm text-gray-400 leading-relaxed">
@@ -258,12 +259,12 @@ export default function LicenseModal({ isOpen, onClose, onOpenAuth }) {
                   </div>
               )}
 
-              <div className="space-y-3 bg-gray-900/30 p-6 rounded-xl border border-gray-800/50 text-center">
+              <div className="space-y-3 bg-white/[0.035] p-6 rounded-xl border border-white/10 text-center">
                   <p className="text-sm text-gray-400 mb-2">
                     {t('license.auth_required_desc', 'Pour activer votre licence, vous devez vous connecter ou créer un compte. Cela permet de sauvegarder vos données et de synchroniser vos préférences.')}
                   </p>
                   <button
-                    onClick={onOpenAuth}
+                    onClick={onOpenAccount}
                     className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                   >
                     <IconGlobe className="w-4 h-4" />

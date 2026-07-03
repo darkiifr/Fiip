@@ -38,6 +38,7 @@ import CanvasDraw from './CanvasDraw';
 import DocumentScanner from './DocumentScanner';
 import EditorActionBar from './EditorActionBar';
 import RichTextEditor from './RichTextEditor';
+import { exportNoteAsFiin } from '../services/fileManager';
 import { createTask } from '../services/fiipV1';
 import { cacheAttachment, classifyAttachment, formatBytes, getAttachmentPreviewUrl } from '../services/attachmentCache';
 import { extractImageOcr } from '../services/ocr';
@@ -354,6 +355,28 @@ export default function Editor({
         printWindow.document.write(`<!doctype html><html><head><title>${escapeHtml(title || 'Fiip note')}</title><style>body{font-family:Inter,Arial,sans-serif;max-width:760px;margin:40px auto;line-height:1.6;color:#171717}h1{font-size:32px}.meta{color:#777;font-size:12px;margin-bottom:24px}img,video{max-width:100%;height:auto}pre{white-space:pre-wrap}</style></head><body><h1>${escapeHtml(title || 'Sans titre')}</h1><p class="meta">Export Fiip - ${new Date().toLocaleString()}</p>${sanitizedContent}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),120));</script></body></html>`);
         printWindow.document.close();
         printWindow.focus();
+    };
+
+    const handleExportFiin = async () => {
+        const result = await exportNoteAsFiin({
+            ...note,
+            title,
+            tags: serializeNoteTags(tags),
+            attachments,
+            updatedAt: getCurrentTimestamp(),
+        });
+
+        if (result.cancelled) return;
+
+        if (result.success) {
+            await message('Note exportée en .fiin.', { title: 'Fiip', kind: 'info' }).catch(console.error);
+            return;
+        }
+
+        await message(result.error || 'Impossible d’exporter cette note en .fiin.', {
+            title: 'Fiip',
+            kind: 'error',
+        }).catch(console.error);
     };
 
     const submitPasswordDialog = async (event) => {
@@ -684,6 +707,15 @@ export default function Editor({
                         <FileDown size={15} />
                     </button>
 
+                    <button
+                        type="button"
+                        onClick={handleExportFiin}
+                        className="p-1.5 rounded-xl border border-warm-border-light dark:border-warm-border-dark hover:bg-blue-500/10 hover:border-blue-500/30 transition-all text-warm-text-muted-light hover:text-blue-600"
+                        title="Exporter en .fiin"
+                    >
+                        <FileArchive size={15} />
+                    </button>
+
                     <button 
                         onClick={() => onDeleteNote(note.id)}
                         className="p-1.5 rounded-xl border border-warm-border-light dark:border-warm-border-dark hover:bg-red-500/10 hover:border-red-500/30 transition-all text-warm-text-muted-light hover:text-red-500"
@@ -911,7 +943,7 @@ export default function Editor({
             <AttachmentViewer attachment={selectedAttachment} onClose={() => setSelectedAttachment(null)} />
             {passwordDialog && (
                 <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 p-4 backdrop-blur-xl" role="dialog" aria-modal="true">
-                    <form onSubmit={submitPasswordDialog} className="w-[min(420px,92vw)] overflow-hidden rounded-[28px] border border-white/18 bg-[#fbfaf6]/94 p-5 text-warm-text-primary-light shadow-[0_28px_90px_rgba(0,0,0,0.34)] backdrop-blur-3xl dark:bg-[#111316]/94 dark:text-warm-text-primary-dark">
+                    <form onSubmit={submitPasswordDialog} className="w-[min(420px,92vw)] overflow-hidden rounded-[28px] border border-[color:var(--border-color)] bg-[color:var(--bg-card)] p-5 text-[color:var(--text-primary)] shadow-[0_28px_90px_rgba(0,0,0,0.34)] backdrop-blur-3xl">
                         <div className="flex items-start gap-3">
                             <div className="rounded-2xl bg-amber-500/12 p-2 text-amber-600 dark:text-amber-300">
                                 {passwordDialog.mode === 'notice' ? <AlertCircle size={20} /> : <LockKeyhole size={20} />}

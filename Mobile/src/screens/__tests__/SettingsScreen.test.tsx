@@ -10,9 +10,9 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('../../hooks/useAppTheme', () => ({
   useAppTheme: () => ({
     colors: {
-      background: '#ffffff',
-      text: '#111827',
-      textSecondary: '#6b7280',
+      background: '#080808',
+      text: '#F8F6F2',
+      textSecondary: 'rgba(248,246,242,0.68)',
       primary: '#2563eb',
       primaryContainer: '#dbeafe',
       onPrimaryContainer: '#1e3a8a',
@@ -28,7 +28,7 @@ jest.mock('../../hooks/useAppTheme', () => ({
 
 jest.mock('../../store/settingsStore', () => ({
   useSettingsStore: () => ({
-    themeMode: 'light',
+      themeMode: 'dark',
     setThemeMode: jest.fn(),
     fontSize: 'moyenne',
     setFontSize: jest.fn(),

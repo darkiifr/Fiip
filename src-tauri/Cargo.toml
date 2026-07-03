@@ -34,3 +34,6 @@ tauri-plugin-dialog = "2"
 tauri-plugin-http = "2.5.6"
 tauri-plugin-single-instance = "2.3.7"
 
+[patch.crates-io]
+plist = { path = "vendor/plist-1.9.0" }
+wayland-scanner = { path = "vendor/wayland-scanner-0.31.10" }

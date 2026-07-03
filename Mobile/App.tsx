@@ -22,6 +22,7 @@ import { checkForUpdatesAndInstall } from './src/services/updater';
 import { useSettingsStore } from './src/store/settingsStore';
 import { authenticateBiometric } from './src/services/biometrics';
 import { keyAuthService } from './src/services/keyauth';
+import { authService } from './src/services/supabase';
 import { getFiipTheme } from './src/theme/fiipDesign';
 
 import { FloatingTabBar } from './src/components/FloatingTabBar';
@@ -61,8 +62,14 @@ function App() {
     checkForUpdatesAndInstall().catch(console.error);
     
     // Init and validate KeyAuth license
-    keyAuthService.init().then(response => {
+    keyAuthService.init().then(async response => {
       console.log('KeyAuth Status:', response?.message);
+      const user = await authService.getUser();
+      if (user) {
+        const level = await authService.getPlanLevel(user);
+        const username = user.user_metadata?.username || user.user_metadata?.nickname || user.email;
+        keyAuthService.setLocalLevel(level, username, user.user_metadata?.license_key || null);
+      }
     }).catch(console.error);
     
     // Check Global Biometric Lock
@@ -71,7 +78,7 @@ function App() {
           if (success) setAppUnlocked(true);
        });
     } else {
-       setAppUnlocked(true);
+       queueMicrotask(() => setAppUnlocked(true));
     }
   }, [globalLockEnabled]);
 

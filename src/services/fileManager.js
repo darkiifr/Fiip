@@ -3,6 +3,16 @@ import { writeTextFile, readTextFile, stat } from '@tauri-apps/plugin-fs';
 
 const FIIN_EXTENSION_PATTERN = /\.fiin$/i;
 
+function sanitizeFileName(value = 'note') {
+    return String(value || 'note')
+        .split('')
+        .map((char) => (char.charCodeAt(0) < 32 || /[<>:"/\\|?*]/.test(char) ? '-' : char))
+        .join('')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80) || 'note';
+}
+
 function coerceTimestamp(value, fallback) {
     if (!value) {
         return fallback;
@@ -93,6 +103,48 @@ export async function importFiinFromPath(filePath, { readText = readTextFile, no
 
     const content = await readText(filePath);
     return normalizeFiinNotePayload(content, { now, randomUUID });
+}
+
+export async function exportNoteAsFiin(note, {
+    save = saveDialog,
+    writeText = writeTextFile,
+    now = () => new Date(),
+} = {}) {
+    try {
+        const timestamp = now().toISOString();
+        const payload = {
+            version: 1,
+            exported_at: timestamp,
+            note: {
+                id: note.id,
+                title: note.title || 'Sans titre',
+                content: note.content || '',
+                tags: Array.isArray(note.tags) ? note.tags : [],
+                attachments: Array.isArray(note.attachments) ? note.attachments : [],
+                favorite: Boolean(note.favorite),
+                createdAt: note.createdAt || note.created_at || note.updatedAt || Date.now(),
+                updatedAt: note.updatedAt || note.updated_at || Date.now(),
+            },
+        };
+
+        const filePath = await save({
+            defaultPath: `${sanitizeFileName(note.title || 'note')}.fiin`,
+            filters: [{
+                name: 'Fiip Note',
+                extensions: ['fiin'],
+            }],
+        });
+
+        if (!filePath) {
+            return { success: false, cancelled: true };
+        }
+
+        await writeText(filePath, JSON.stringify(payload, null, 2));
+        return { success: true, path: filePath };
+    } catch (error) {
+        console.error('Export .fiin error:', error);
+        return { success: false, error: error.message || String(error) };
+    }
 }
 
 // Export note as Markdown

@@ -238,7 +238,7 @@ export default function Dexter({
             }
         } catch (err) {
             if (err.name !== 'AbortError') {
-                setMessages(prev => [...prev, { role: 'assistant', content: "Erreur lors de la génération. Veuillez réessayer." }]);
+                setMessages(prev => [...prev, { role: 'assistant', content: err?.message || "Erreur lors de la génération. Veuillez réessayer." }]);
             }
         } finally {
             setIsThinking(false);

@@ -76,11 +76,11 @@ export default function AttachmentViewer({ attachment, onClose }) {
 
     return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 p-4 backdrop-blur-xl" role="dialog" aria-modal="true" aria-label={`Apercu de ${title}`}>
-            <div className="flex h-[min(760px,92vh)] w-[min(960px,94vw)] flex-col overflow-hidden rounded-[28px] border border-black/10 bg-[#fbfaf6] text-warm-text-primary-light shadow-[0_30px_100px_rgba(0,0,0,0.35)] dark:border-white/10 dark:bg-[#111316] dark:text-warm-text-primary-dark">
+            <div className="flex h-[min(760px,92vh)] w-[min(960px,94vw)] flex-col overflow-hidden rounded-[28px] border border-black/10 bg-[#fbfaf6] text-warm-text-primary-dark shadow-[0_30px_100px_rgba(0,0,0,0.35)] dark:border-white/10 dark:bg-[#111316] dark:text-warm-text-primary-dark">
                 <header className="flex items-center justify-between border-b border-black/10 px-5 py-4 dark:border-white/10">
                     <div className="min-w-0">
                         <p className="truncate text-sm font-black">{title}</p>
-                        <p className="mt-0.5 text-[11px] font-semibold text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                        <p className="mt-0.5 text-[11px] font-semibold text-warm-text-muted-dark dark:text-warm-text-muted-dark">
                             {kind.toUpperCase()} {attachment.size ? `- ${formatBytes(attachment.size)}` : ''}
                         </p>
                     </div>
@@ -98,7 +98,7 @@ export default function AttachmentViewer({ attachment, onClose }) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-xl p-2 text-warm-text-muted-light hover:bg-black/[0.04] hover:text-warm-text-primary-light dark:text-warm-text-muted-dark dark:hover:bg-white/10 dark:hover:text-white"
+                            className="rounded-xl p-2 text-warm-text-muted-dark hover:bg-black/[0.04] hover:text-warm-text-primary-dark dark:text-warm-text-muted-dark dark:hover:bg-white/10 dark:hover:text-white"
                             aria-label="Fermer l'apercu"
                         >
                             <X size={18} />
@@ -130,9 +130,9 @@ export default function AttachmentViewer({ attachment, onClose }) {
                     ) : (
                         <div className="flex h-full items-center justify-center text-center">
                             <div className="max-w-sm rounded-3xl border border-dashed border-black/15 bg-white/70 p-8 dark:border-white/15 dark:bg-white/[0.05]">
-                                <Download className="mx-auto mb-4 h-8 w-8 text-warm-text-muted-light" />
+                                <Download className="mx-auto mb-4 h-8 w-8 text-warm-text-muted-dark" />
                                 <p className="text-sm font-black">Apercu indisponible</p>
-                                <p className="mt-2 text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
+                                <p className="mt-2 text-sm leading-6 text-warm-text-secondary-dark dark:text-warm-text-secondary-dark">
                                     Ce type de fichier doit etre ouvert avec une application externe.
                                 </p>
                                 {openTarget && (
@@ -145,7 +145,7 @@ export default function AttachmentViewer({ attachment, onClose }) {
                                     </button>
                                 )}
                                 {!canRender && !url && (
-                                    <p className="mt-4 text-xs text-warm-text-muted-light">Le fichier local n'est pas disponible dans le cache, et aucune URL sure n'est associee.</p>
+                                    <p className="mt-4 text-xs text-warm-text-muted-dark">Le fichier local n'est pas disponible dans le cache, et aucune URL sure n'est associee.</p>
                                 )}
                             </div>
                         </div>

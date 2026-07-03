@@ -45,7 +45,9 @@ codex.md
 *.codex-bak-*
 *.codex-tmp
 *.path-doctor.log
+path-*backup*.json
 .fiip-path-doctor/
+scripts/fix-machine-path*.ps1
 scripts/repair-dev-path*.ps1
 scripts/*path-doctor*.ps1
 .agents/

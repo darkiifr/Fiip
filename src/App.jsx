@@ -3,13 +3,14 @@ import { listen } from '@tauri-apps/api/event';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { type } from '@tauri-apps/plugin-os';
-import { Bot, Crown, Database, FileText, Link, Lock, Monitor, Moon, Plus, Search, Settings, Share2, Sun } from 'lucide-react';
+import { Bot, Crown, Database, FileText, Link, Lock, Plus, Search, Settings, Share2 } from 'lucide-react';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 
 import OnboardingView from "./components/OnboardingView";
 import SettingsView from "./components/SettingsView";
 import { CommandPalette } from "./components/ui/CommandPalette";
+import AuthModal from "./components/AuthModal";
 import Dexter from "./components/Dexter";
 import Editor from "./components/Editor";
 import LicenseModal from "./components/LicenseModal";
@@ -29,11 +30,12 @@ import {
 import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } from "./services/fileManager";
 import { initializeFonts } from "./services/fontStore";
 import { keyAuthService } from "./services/keyauth";
+import { queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
 import { soundManager } from "./services/soundManager";
 import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook } from './services/fiipV1';
 import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
+import { applyTheme } from './services/theme';
 import { normalizeNoteTags } from './utils/noteTags';
-import { coerceWindowEffect } from './utils/windowEffects';
 
 import "./App.css";
 
@@ -79,7 +81,7 @@ function App() {
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem("fiip-settings");
     const defaults = { 
-        theme: 'system', 
+        theme: 'dark', 
         autoSave: true, 
         aiEnabled: true,
         appSound: true,
@@ -90,10 +92,12 @@ function App() {
         cloudSync: true,
         biometricLockEnabled: false
     };
-    return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+    const parsed = saved ? JSON.parse(saved) : {};
+    return { ...defaults, ...parsed, theme: 'dark' };
   });
   
   const [isDexterOpen, setIsDexterOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
@@ -207,43 +211,41 @@ function App() {
       .map((item) => item.tag);
   }, [notes]);
 
+  const hydrateLicenseFromProfile = useCallback(async (userOverride = null) => {
+    const currentUser = userOverride || await authService.getUser();
+    if (!currentUser) {
+      keyAuthService.setLocalLevel(0);
+      return 0;
+    }
+
+    const level = await authService.getPlanLevel(currentUser);
+    const username = currentUser.user_metadata?.username
+      || currentUser.user_metadata?.nickname
+      || currentUser.email;
+    keyAuthService.setLocalLevel(level, username, currentUser.user_metadata?.license_key || null);
+    return level;
+  }, []);
+
   // --- Supabase Data Sync & Realtime ---
   async function loadDataFromSupabase() {
     const authedUser = await authService.getUser();
-    if (!authedUser) {
+    if (!authedUser || settings.cloudSync === false) {
         return;
     }
 
     setIsSyncing(true);
     try {
-      const { data: remoteNotes, error: notesError } = await dataService.fetchNotes();
-      
-      if (!notesError && remoteNotes) {
-          const localNotes = notesRef.current;
-          if (remoteNotes.length === 0 && localNotes && localNotes.length > 0) {
-              const isDefault = localNotes.length === 1 && localNotes[0].id === '1';
-              if (!isDefault) {
-                  for (const note of localNotes) {
-                      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id);
-                      const noteToSave = { ...note };
-                      if (!isValidUUID) {
-                          noteToSave.id = crypto.randomUUID();
-                      }
-                      await dataService.saveNote(noteToSave);
-                  }
-                  const { data: refreshedRemote } = await dataService.fetchNotes();
-                  if (refreshedRemote) {
-                      setNotes(refreshedRemote);
-                      notesRef.current = refreshedRemote;
-                  }
-              } else {
-                  setNotes(remoteNotes);
-                  notesRef.current = remoteNotes;
-              }
-          } else {
-              setNotes(remoteNotes);
-              notesRef.current = remoteNotes;
-          }
+      await hydrateLicenseFromProfile(authedUser);
+      const syncResult = await syncNotesNow({
+          localNotes: notesRef.current,
+          settings,
+          dataService,
+          authService,
+      });
+
+      if (syncResult.notes) {
+          setNotes(syncResult.notes);
+          notesRef.current = syncResult.notes;
       }
 
       const [notebooksResult, tasksResult, widgetsResult] = await Promise.allSettled([
@@ -265,7 +267,6 @@ function App() {
       console.error("Sync error", e);
     } finally {
       setIsSyncing(false);
-      localStorage.setItem('fiip-last-sync-at', new Date().toISOString());
     }
   }
 
@@ -307,6 +308,8 @@ function App() {
                         if (key) {
                             const result = await keyAuthService.verifyLicense(key);
                             if (result.success) {
+                                await authService.updateSubscription(result.level, key).catch(console.error);
+                                await hydrateLicenseFromProfile();
                                 await message("Votre licence a été activée. Merci pour votre soutien !", { title: "Fiip License", kind: 'info' }).catch(console.error);
                                 setIsLicenseModalOpen(false);
                             } else {
@@ -348,6 +351,7 @@ function App() {
         const sessionUser = await authService.getUser();
         if (sessionUser) {
             setUser(sessionUser);
+            await hydrateLicenseFromProfile(sessionUser);
             localStorage.setItem('fiip-onboarding-completed', 'true');
             setOnboardingCompleted(true);
             await loadDataFromSupabase();
@@ -359,7 +363,9 @@ function App() {
           if (session?.user) {
               localStorage.setItem('fiip-onboarding-completed', 'true');
               setOnboardingCompleted(true);
+              hydrateLicenseFromProfile(session.user).catch(console.error);
           } else {
+              keyAuthService.setLocalLevel(0);
               if (localStorage.getItem('fiip-mode-local') !== 'true') {
                   setOnboardingCompleted(false);
               }
@@ -383,6 +389,10 @@ function App() {
 
   // Set real-time subscription
   useEffect(() => {
+    if (settings.cloudSync === false) {
+      return undefined;
+    }
+
     const channel = supabase
       .channel('fiip-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
@@ -420,7 +430,7 @@ function App() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isSyncing]);
+  }, [isSyncing, settings.cloudSync]);
 
   useEffect(() => {
     localStorage.setItem("fiip-notes", JSON.stringify(notes));
@@ -469,60 +479,28 @@ function App() {
   };
 
   useEffect(() => {
-    localStorage.setItem("fiip-settings", JSON.stringify(settings));
-    
-    // Resolve Light/Dark Mode
-    const resolveTheme = () => {
-      if (settings.theme === 'system') {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      return settings.theme === 'light' ? 'light' : 'dark';
-    };
-    const resolvedTheme = resolveTheme();
-    document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
-    document.body.classList.toggle('dark', resolvedTheme === 'dark');
-    document.documentElement.dataset.theme = resolvedTheme;
-    document.body.dataset.theme = resolvedTheme;
-    const supportedWindowEffect = coerceWindowEffect(settings.windowEffect || 'none', osType);
-    document.documentElement.dataset.windowEffect = supportedWindowEffect;
-    document.body.dataset.windowEffect = supportedWindowEffect;
-    document.documentElement.style.colorScheme = resolvedTheme;
-    document.body.style.backgroundColor = supportedWindowEffect !== 'none' ? 'transparent' : 'var(--bg-content)';
-    document.documentElement.classList.toggle('window-effect-active', supportedWindowEffect !== 'none');
-    
-    soundManager.setAppSoundEnabled(settings.appSound);
-    soundManager.setChatSoundEnabled(settings.chatSound);
-    
-    if (window.__TAURI_INTERNALS__ && osType !== 'unknown') {
-        if (supportedWindowEffect !== settings.windowEffect) {
+    const effectiveSettings = { ...settings, theme: 'dark' };
+    if (settings.theme !== 'dark') {
+        setSettings(effectiveSettings);
+        return;
+    }
+
+    localStorage.setItem("fiip-settings", JSON.stringify(effectiveSettings));
+
+    soundManager.setAppSoundEnabled(effectiveSettings.appSound);
+    soundManager.setChatSoundEnabled(effectiveSettings.chatSound);
+
+    applyTheme({ settings: effectiveSettings, osType }).then(({ supportedWindowEffect }) => {
+        if (supportedWindowEffect !== effectiveSettings.windowEffect) {
             setSettings((prev) => ({ ...prev, windowEffect: supportedWindowEffect }));
-            return;
         }
-        invoke('set_window_effect', { effect: supportedWindowEffect, dark: resolvedTheme === 'dark' }).catch((error) => {
+    }).catch((error) => {
+        if (window.__TAURI_INTERNALS__) {
             console.warn('Window effect unavailable:', error);
             setSettings((prev) => ({ ...prev, windowEffect: 'none' }));
-        });
-    }
+        }
+    });
   }, [settings, osType]);
-
-  useEffect(() => {
-    if (settings.theme !== 'system') return undefined;
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const syncSystemTheme = () => {
-      const resolvedTheme = media.matches ? 'dark' : 'light';
-      document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
-      document.body.classList.toggle('dark', resolvedTheme === 'dark');
-      document.documentElement.dataset.theme = resolvedTheme;
-      document.body.dataset.theme = resolvedTheme;
-      document.documentElement.style.colorScheme = resolvedTheme;
-      document.body.style.backgroundColor = settings.windowEffect && settings.windowEffect !== 'none'
-        ? 'transparent'
-        : 'var(--bg-content)';
-    };
-    media.addEventListener('change', syncSystemTheme);
-    syncSystemTheme();
-    return () => media.removeEventListener('change', syncSystemTheme);
-  }, [settings.theme]);
 
   useEffect(() => {
     let lastSoundAt = 0;
@@ -558,13 +536,19 @@ function App() {
     setActiveNav(inNotebook ? `notebook:${newNote.notebookId}` : 'home');
     
     try {
-        await dataService.saveNote(newNote);
+        if (settings.cloudSync !== false) {
+            const result = await dataService.saveNote(newNote);
+            if (result?.error) {
+                queuePendingNoteSync(newNote);
+            }
+        }
     } catch (e) {
+        queuePendingNoteSync(newNote);
         console.error("Failed to sync new note", e);
     }
     
     return newNote;
-  }, [activeNav, t]);
+  }, [activeNav, settings.cloudSync, t]);
 
   const importFiinNote = useCallback(async ({ filePath = '', content = '' } = {}) => {
     try {
@@ -656,19 +640,45 @@ function App() {
 
   // --- Handlers ---
   const handleLoginSuccess = async () => {
+    setIsAuthModalOpen(false);
     await loadDataFromSupabase();
   };
+
+  const handleOpenAccountFromLicense = useCallback(async () => {
+    setIsLicenseModalOpen(false);
+    const currentUser = await authService.getUser().catch(() => null);
+    if (currentUser) {
+      setIsUserProfileOpen(true);
+      return;
+    }
+    setIsAuthModalOpen(true);
+  }, []);
 
   const handleUpdateNote = (updatedNote) => {
     setNotes((prev) =>
       prev.map((n) => (n.id === updatedNote.id ? updatedNote : n))
     );
 
+    if (settings.autoSave === false) {
+      return;
+    }
+
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     
     saveTimeoutRef.current = setTimeout(async () => {
+      if (settings.cloudSync === false) {
+        return;
+      }
         setIsSyncing(true);
-        await dataService.saveNote(updatedNote);
+        try {
+          const result = await dataService.saveNote(updatedNote);
+          if (result?.error) {
+            queuePendingNoteSync(updatedNote);
+          }
+        } catch (error) {
+          queuePendingNoteSync(updatedNote);
+          console.error('Failed to autosave note to cloud', error);
+        }
         setIsSyncing(false);
     }, 1000);
   };
@@ -901,30 +911,6 @@ function App() {
         icon: <Database size={15} />,
         group: 'Réglages',
         onSelect: () => openSettingsTab('cache')
-      },
-      {
-        id: 'theme-light',
-        label: 'Activer le Thème Clair',
-        description: 'Changer l\'apparence',
-        icon: <Sun size={15} />,
-        group: 'Apparence',
-        onSelect: () => setSettings(prev => ({ ...prev, theme: 'light' }))
-      },
-      {
-        id: 'theme-dark',
-        label: 'Activer le Thème Sombre',
-        description: 'Changer l\'apparence',
-        icon: <Moon size={15} />,
-        group: 'Apparence',
-        onSelect: () => setSettings(prev => ({ ...prev, theme: 'dark' }))
-      },
-      {
-        id: 'theme-system',
-        label: 'Suivre le thème système',
-        description: 'Utiliser le thème de Windows/macOS',
-        icon: <Monitor size={15} />,
-        group: 'Apparence',
-        onSelect: () => setSettings(prev => ({ ...prev, theme: 'system' }))
       }
     ];
 
@@ -1067,7 +1053,13 @@ function App() {
       <LicenseModal 
         isOpen={isLicenseModalOpen} 
         onClose={() => setIsLicenseModalOpen(false)} 
-        onOpenAuth={() => { setIsLicenseModalOpen(false); setOnboardingCompleted(false); }}
+        onOpenAccount={handleOpenAccountFromLicense}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
       />
 
       <UserProfileModal 

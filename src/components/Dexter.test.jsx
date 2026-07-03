@@ -3,6 +3,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import Dexter from './Dexter';
 
+const mockGenerateText = vi.fn();
+
+vi.mock('../services/ai', () => ({
+  generateText: (...args) => mockGenerateText(...args),
+}));
+
 vi.mock('../services/dexterMemory', () => ({
   dexterMemory: {
     addMessage: vi.fn(),
@@ -63,5 +69,28 @@ describe('Dexter Assistant', () => {
         );
 
         expect(screen.queryByTitle(/Joindre un PDF/i)).not.toBeInTheDocument();
+    });
+
+    it('shows the assistant generation error message', async () => {
+        mockGenerateText.mockRejectedValueOnce(new Error('Cette fonctionnalité nécessite un abonnement actif.'));
+        render(
+            <Dexter
+                isOpen={true}
+                onClose={vi.fn()}
+                settings={{}}
+                onCreateNote={vi.fn()}
+                onUpdateNote={vi.fn()}
+                onDeleteNote={vi.fn()}
+            />
+        );
+
+        fireEvent.change(screen.getByPlaceholderText('Posez une question ou demandez une correction...'), {
+            target: { value: 'Aide' },
+        });
+        fireEvent.keyDown(screen.getByPlaceholderText('Posez une question ou demandez une correction...'), {
+            key: 'Enter',
+        });
+
+        expect(await screen.findByText('Cette fonctionnalité nécessite un abonnement actif.')).toBeInTheDocument();
     });
 });

@@ -28,6 +28,14 @@ function assertOpenRouterKey() {
   }
 }
 
+function buildOpenRouterErrorMessage(status, statusText, errorData = {}) {
+  const rawMessage = errorData.error?.message || errorData.message || statusText || 'Erreur inconnue';
+  if (status === 401) {
+    return `Erreur OpenRouter (401): ${rawMessage}. Vérifiez le secret serveur VITE_OPENROUTER_KEY et le compte OpenRouter associé.`;
+  }
+  return `Erreur OpenRouter (${status}): ${rawMessage}`;
+}
+
 function notifyUsage(stats) {
   lastUsageStats = stats;
   usageListeners.forEach((listener) => listener(stats));
@@ -136,7 +144,9 @@ export const generateText = async (input, model, signal) => {
           continue;
         }
 
-        throw new Error(`Erreur OpenRouter (${response.status}): ${errorData.error?.message || response.statusText}`);
+        const requestError = new Error(buildOpenRouterErrorMessage(response.status, response.statusText, errorData));
+        requestError.noRetry = response.status >= 400 && response.status < 500;
+        throw requestError;
       }
 
       const data = await response.json();
@@ -153,6 +163,10 @@ export const generateText = async (input, model, signal) => {
       return data.choices?.[0]?.message?.content || '';
     } catch (error) {
       if (error.name === 'AbortError') {
+        throw error;
+      }
+
+      if (error.noRetry) {
         throw error;
       }
 

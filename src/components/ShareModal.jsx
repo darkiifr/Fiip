@@ -195,7 +195,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-xl animate-fade-in font-sans select-none">
-            <div className="fiip-light-share-modal flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[30px] border border-black/10 bg-[#fbfaf6] text-warm-text-primary-light shadow-[0_32px_110px_rgba(0,0,0,0.34)] animate-scale-in dark:border-white/10 dark:bg-[#111316] dark:text-warm-text-primary-dark">
+            <div className="fiip-light-share-modal flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[30px] border border-[color:var(--border-color)] bg-[color:var(--bg-card)] text-[color:var(--text-primary)] shadow-[0_32px_110px_rgba(0,0,0,0.34)] animate-scale-in">
                 {/* Header */}
                 <div className="px-6 py-5 border-b border-warm-border-light dark:border-white/10 flex items-start justify-between bg-white/45 dark:bg-white/[0.035]">
                     <div className="flex items-center gap-2.5">
@@ -209,7 +209,8 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-2 rounded-xl hover:bg-black/[0.04] text-warm-text-muted-light dark:text-warm-text-muted-dark dark:hover:bg-white/10"
+                        aria-label="Fermer"
+                        className="p-2 rounded-xl text-warm-text-muted-dark hover:bg-white/10 hover:text-white"
                     >
                         <IconClose className="w-4 h-4" />
                     </button>
@@ -243,7 +244,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
-                        {selectedNote && (
+                        {selectedNote && isProtectedNote && (
                             <div className="flex items-center gap-1.5 px-1 mt-1 text-[9px] font-semibold text-warm-text-muted-light">
                                 <IconLock className="w-3 h-3" />
                                 <span>Note chiffrée de bout en bout</span>

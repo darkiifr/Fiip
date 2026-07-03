@@ -11,10 +11,17 @@ describe('Fiip extension manifest', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.name).toBe('Fiip Web Clipper');
     expect(manifest.permissions).toEqual(expect.arrayContaining(['activeTab', 'scripting', 'storage']));
-    expect(manifest.host_permissions).toEqual(expect.arrayContaining(['https://*/', 'http://*/']));
+    expect(manifest.host_permissions).toBeUndefined();
     expect(manifest.background).toEqual({ service_worker: 'background.js', type: 'module' });
     expect(manifest.action.default_popup).toBe('popup.html');
-    expect(manifest.content_scripts[0].js).toEqual(['content-helpers.js', 'content.js']);
+    expect(manifest.content_scripts).toBeUndefined();
+    expect(manifest.minimum_chrome_version).toBe('102');
+  });
+
+  it('does not request broad host access or remote executable code', () => {
+    expect(JSON.stringify(manifest)).not.toContain('<all_urls>');
+    expect(manifest.host_permissions).toBeUndefined();
+    expect(popupHtml).not.toMatch(/<script[^>]+src=["']https?:\/\//i);
   });
 
   it('ships required store icons for browser chrome and action button', () => {

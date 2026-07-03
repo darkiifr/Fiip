@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '../components/ui/Icon';
@@ -37,21 +37,14 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
   const [isFavorite, setIsFavorite] = useState(noteToEdit?.is_favorite || false);
   const [badges, setBadges] = useState<string[]>(noteToEdit?.badges || ['Réflexion']);
   const [currentNoteId, setCurrentNoteId] = useState(noteToEdit?.id || null);
+  const didMountRef = useRef(false);
+  const saveCurrentNoteRef = useRef<() => Promise<void>>(async () => {});
 
   const copperAccent = '#A48A7B';
   const tagBg = isDark ? 'rgba(164, 138, 123, 0.15)' : '#EAE2DC';
   const tagText = isDark ? '#BCA597' : '#7C675B';
 
-  // Save on navigation away or change if autoSave is active
-  useEffect(() => {
-    return () => {
-      if (autoSave) {
-        saveCurrentNote();
-      }
-    };
-  }, [title, content, isLocked, isFavorite, badges]);
-
-  const saveCurrentNote = async () => {
+  const saveCurrentNote = useCallback(async () => {
     if (!title.trim() && !content.trim()) return;
     
     const notePayload = {
@@ -68,7 +61,33 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
       const newId = await addNote(notePayload);
       setCurrentNoteId(newId);
     }
-  };
+  }, [addNote, badges, content, currentNoteId, isFavorite, isLocked, title, updateNote]);
+
+  useEffect(() => {
+    saveCurrentNoteRef.current = saveCurrentNote;
+  }, [saveCurrentNote]);
+
+  useEffect(() => {
+    return () => {
+      if (autoSave) {
+        saveCurrentNoteRef.current();
+      }
+    };
+  }, [autoSave]);
+
+  useEffect(() => {
+    if (!autoSave) return undefined;
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return undefined;
+    }
+
+    const timeout = setTimeout(() => {
+      saveCurrentNote();
+    }, 800);
+
+    return () => clearTimeout(timeout);
+  }, [autoSave, saveCurrentNote]);
 
   const toggleFavorite = () => {
     triggerHaptic('selection');
@@ -151,7 +170,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
         
         {/* Editor Screen Header matching Screen 5 */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => { saveCurrentNote(); onClose(); }} activeOpacity={0.6}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Retour" style={styles.backBtn} onPress={() => { saveCurrentNote(); onClose(); }} activeOpacity={0.6}>
              <Icon sfSymbol="chevron.left" mdIcon="chevron-left" size={22} color={colors.text} />
           </TouchableOpacity>
           

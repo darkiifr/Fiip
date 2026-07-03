@@ -1,12 +1,8 @@
-import { Platform, useColorScheme } from 'react-native';
-import { useSettingsStore } from '../store/settingsStore';
+import { Platform } from 'react-native';
 import { getFiipTheme } from '../theme/fiipDesign';
 
 export function useAppTheme() {
-  const systemColorScheme = useColorScheme();
-  const themeMode = useSettingsStore((state) => state.themeMode);
-
-  const isDark = themeMode === 'system' ? systemColorScheme === 'dark' : themeMode === 'dark';
+  const isDark = true;
 
   const theme = getFiipTheme(isDark, Platform.OS);
 
