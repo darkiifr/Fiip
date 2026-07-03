@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import IconCalendar from '~icons/mingcute/calendar-line';
 import IconSearch from '~icons/mingcute/search-line';
@@ -6,35 +6,97 @@ import IconTime from '~icons/mingcute/time-line';
 import IconBook from '~icons/mingcute/book-line';
 import IconCheck from '~icons/mingcute/check-circle-line';
 import IconSparkles from '~icons/mingcute/sparkles-line';
+import { generateText } from '../services/ai';
 import { getDueTasks } from '../services/fiipV1';
 import { getNoteStats, pickFeaturedNote, stripNoteText } from '../utils/notePresentation';
 
 const getNoteTimestamp = (note) => note?.updatedAt || note?.createdAt || 0;
+const EMPTY_LIST = [];
 
 export default function HomeDashboard({ 
     featuredNote, 
-    recentNotes = [], 
+    recentNotes = EMPTY_LIST,
     onSelectNote,
-    notebooks = [],
-    tasks = [],
-    widgets = [],
+    notebooks = EMPTY_LIST,
+    tasks = EMPTY_LIST,
+    widgets = EMPTY_LIST,
+    settings = {},
     onAdvancedSearch
 }) {
     const { t } = useTranslation();
     const [searchQuery, setSearchQuery] = useState('');
+    const [aiComment, setAiComment] = useState('');
+    const [aiCommentStatus, setAiCommentStatus] = useState('idle');
     const spotlightNote = pickFeaturedNote(featuredNote ? [featuredNote, ...recentNotes] : recentNotes);
-    const searchableNotesMap = new Map();
-    [featuredNote, ...recentNotes].filter(Boolean).forEach((note) => searchableNotesMap.set(note.id, note));
-    const searchableNotes = [...searchableNotesMap.values()];
+    const searchableNotes = useMemo(() => {
+        const searchableNotesMap = new Map();
+        [featuredNote, ...recentNotes].filter(Boolean).forEach((note) => searchableNotesMap.set(note.id, note));
+        return [...searchableNotesMap.values()];
+    }, [featuredNote, recentNotes]);
     const normalizedSearchQuery = searchQuery.trim().toLowerCase();
     const dueTasks = getDueTasks(tasks, { now: new Date() }).slice(0, 5);
-    const enabledWidgets = new Set((widgets || []).filter((widget) => widget.enabled !== false).map((widget) => widget.id));
+    const enabledWidgets = useMemo(() => {
+        return new Set((widgets || []).filter((widget) => widget.enabled !== false).map((widget) => widget.id));
+    }, [widgets]);
+    const dexterEnabled = settings?.aiEnabled !== false;
+    const aiNotesContext = useMemo(() => {
+        return searchableNotes
+            .filter((note) => !note.isProtected && !note.is_locked)
+            .slice(0, 4)
+            .map((note) => {
+                const title = note.title || 'Sans titre';
+                const excerpt = stripNoteText(note.content).slice(0, 240) || 'Note vide';
+                return `- ${title}: ${excerpt}`;
+            })
+            .join('\n');
+    }, [searchableNotes]);
     const searchResults = normalizedSearchQuery
         ? searchableNotes.filter((note) => (
             (note.title || '').toLowerCase().includes(normalizedSearchQuery) ||
             stripNoteText(note.content).toLowerCase().includes(normalizedSearchQuery)
         )).slice(0, 6)
         : [];
+
+    useEffect(() => {
+        if (!dexterEnabled || !enabledWidgets.has('ai-suggestions')) {
+            setAiComment('');
+            setAiCommentStatus('idle');
+            return;
+        }
+
+        const controller = new AbortController();
+        setAiCommentStatus('loading');
+
+        generateText({
+            signal: controller.signal,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Tu es Dexter, assistant Fiip. Génère un seul commentaire court, utile et naturel en français pour guider le travail de rédaction. Ne mentionne pas le modèle, OpenRouter, les tags de recherche, ni les permissions.',
+                },
+                {
+                    role: 'user',
+                    content: aiNotesContext
+                        ? `Notes récentes non protégées:\n${aiNotesContext}\n\nÉcris un commentaire personnalisé en une phrase, maximum 26 mots.`
+                        : 'Aucune note non protégée disponible. Écris un commentaire d’accueil utile en une phrase, maximum 22 mots.',
+                },
+            ],
+        })
+            .then((comment) => {
+                if (!controller.signal.aborted) {
+                    setAiComment(String(comment || '').trim());
+                    setAiCommentStatus('ready');
+                }
+            })
+            .catch((error) => {
+                if (error?.name !== 'AbortError') {
+                    setAiComment('');
+                    setAiCommentStatus('error');
+                }
+            });
+
+        return () => controller.abort();
+    }, [aiNotesContext, dexterEnabled, enabledWidgets]);
 
     const runAdvancedSearch = () => {
         if (!searchQuery.trim()) return;
@@ -140,14 +202,16 @@ export default function HomeDashboard({
                     </section>
                 )}
 
-                {enabledWidgets.has('ai-suggestions') && (
+                {enabledWidgets.has('ai-suggestions') && dexterEnabled && (
                     <section className="rounded-2xl border border-warm-border-light bg-warm-card-light p-4 dark:border-warm-border-dark dark:bg-warm-card-dark">
                         <div className="mb-3 flex items-center justify-between">
                             <h3 className="text-[10px] font-black uppercase tracking-widest text-warm-text-muted-light">IA utile</h3>
                             <IconSparkles className="h-4 w-4 text-blue-500" />
                         </div>
                         <p className="text-xs leading-5 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
-                            Recherchez avec <span className="font-black">tag:</span>, <span className="font-black">notebook:</span>, <span className="font-black">has:pdf</span> ou <span className="font-black">due:overdue</span>, puis ouvrez Dexter depuis une note non protegee.
+                            {aiCommentStatus === 'loading'
+                                ? 'Dexter analyse vos notes...'
+                                : aiComment || 'Dexter est actif, mais aucun commentaire n’a pu être généré pour le moment.'}
                         </p>
                     </section>
                 )}

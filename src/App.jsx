@@ -1005,6 +1005,7 @@ function App() {
                     notebooks={notebooks}
                     tasks={tasks}
                     widgets={homeWidgets}
+                    settings={settings}
                     onAdvancedSearch={handleAdvancedSearch}
                 />
             ) : activeNote ? (
@@ -1034,6 +1035,7 @@ function App() {
                     notebooks={notebooks}
                     tasks={tasks}
                     widgets={homeWidgets}
+                    settings={settings}
                     onAdvancedSearch={handleAdvancedSearch}
                 />
             )}
