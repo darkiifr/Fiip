@@ -16,6 +16,7 @@ import Dexter from "./components/Dexter";
 import Editor from "./components/Editor";
 import LicenseModal from "./components/LicenseModal";
 import LoadingScreen from "./components/LoadingScreen";
+import OfflineConnectionDialog from "./components/OfflineConnectionDialog";
 import ShareModal from "./components/ShareModal";
 import UnifiedSidebar from "./components/UnifiedSidebar";
 import HomeDashboard from "./components/HomeDashboard";
@@ -140,6 +141,7 @@ function App() {
   const [isBiometricLocked, setIsBiometricLocked] = useState(false);
   const [biometricLockError, setBiometricLockError] = useState('');
   const [storageLimitAlerted, setStorageLimitAlerted] = useState(false);
+  const [offlineChoice, setOfflineChoice] = useState({ visible: false, waiting: false });
   const [notebooks, setNotebooks] = useState(() => {
     const saved = localStorage.getItem('fiip-notebooks');
     if (saved) {
@@ -178,6 +180,7 @@ function App() {
   const notesRef = useRef(notes);
   const saveTimeoutRef = useRef(null);
   const importedFiinPathsRef = useRef(new Set());
+  const waitingForNetworkRef = useRef(false);
 
   // --- Computed State ---
   const planLevel = keyAuthService.hasProAccess() ? 10 : 0;
@@ -311,6 +314,86 @@ function App() {
     }
   }
 
+  const retryOnlineSession = useCallback(async () => {
+    waitingForNetworkRef.current = false;
+    setOfflineChoice({ visible: false, waiting: false });
+    setAppLoading({ isLoading: true, status: 'Connexion retrouvée...' });
+
+    try {
+      const sessionUser = await authService.getUser();
+      if (sessionUser) {
+        setUser(sessionUser);
+        await hydrateLicenseFromProfile(sessionUser);
+        dataService.registerCurrentDevice().catch(console.warn);
+        localStorage.setItem('fiip-onboarding-completed', 'true');
+        localStorage.removeItem('fiip-mode-local');
+        setOnboardingCompleted(true);
+        await loadDataFromSupabase();
+      }
+    } finally {
+      setAppLoading({ isLoading: false, status: '' });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrateLicenseFromProfile]);
+
+  const handleWaitForNetwork = useCallback(() => {
+    waitingForNetworkRef.current = true;
+    setOfflineChoice({ visible: true, waiting: true });
+    setAppLoading({ isLoading: true, status: 'En attente du réseau...' });
+
+    if (navigator.onLine) {
+      retryOnlineSession().catch((error) => {
+        console.warn('Network retry failed:', error);
+        waitingForNetworkRef.current = false;
+        setOfflineChoice({ visible: true, waiting: false });
+        setAppLoading({ isLoading: false, status: '' });
+      });
+    }
+  }, [retryOnlineSession]);
+
+  const handleUseOfflineMode = useCallback(() => {
+    waitingForNetworkRef.current = false;
+    localStorage.setItem('fiip-onboarding-completed', 'true');
+    localStorage.setItem('fiip-mode-local', 'true');
+    setSettings((prev) => ({ ...prev, cloudSync: false, theme: 'dark' }));
+    setOnboardingCompleted(true);
+    setOfflineChoice({ visible: false, waiting: false });
+    setAppLoading({ isLoading: false, status: '' });
+  }, []);
+
+  useEffect(() => {
+    const handleOffline = () => {
+      setOfflineChoice((prev) => ({ visible: true, waiting: prev.waiting }));
+      if (waitingForNetworkRef.current) {
+        setAppLoading({ isLoading: true, status: 'En attente du réseau...' });
+      }
+    };
+
+    const handleOnline = () => {
+      if (waitingForNetworkRef.current) {
+        retryOnlineSession().catch((error) => {
+          console.warn('Network retry failed:', error);
+          waitingForNetworkRef.current = false;
+          setOfflineChoice({ visible: true, waiting: false });
+          setAppLoading({ isLoading: false, status: '' });
+        });
+        return;
+      }
+      setOfflineChoice({ visible: false, waiting: false });
+    };
+
+    if (navigator.onLine === false) {
+      handleOffline();
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [retryOnlineSession]);
+
   // --- Initialization ---
   useEffect(() => {
     const init = async () => {
@@ -416,7 +499,9 @@ function App() {
           }
         });
 
-        setAppLoading({ isLoading: false, status: '' });
+        setAppLoading(waitingForNetworkRef.current
+          ? { isLoading: true, status: 'En attente du réseau...' }
+          : { isLoading: false, status: '' });
 
         return () => {
             if (unlistenFn) { unlistenFn(); }
@@ -424,7 +509,9 @@ function App() {
         };
       } catch (e) {
         console.error("Critical Init Error:", e);
-        setAppLoading({ isLoading: false, status: '' });
+        setAppLoading(waitingForNetworkRef.current
+          ? { isLoading: true, status: 'En attente du réseau...' }
+          : { isLoading: false, status: '' });
       }
     };
     init();
@@ -986,6 +1073,13 @@ function App() {
               {appLoading.isLoading && (
                   <LoadingScreen status={appLoading.status} />
               )}
+              {offlineChoice.visible && (
+                  <OfflineConnectionDialog
+                      isWaiting={offlineChoice.waiting}
+                      onWaitOnline={handleWaitForNetwork}
+                      onUseOffline={handleUseOfflineMode}
+                  />
+              )}
           </>
       );
   }
@@ -1155,6 +1249,13 @@ function App() {
 
       {appLoading.isLoading && (
         <LoadingScreen status={appLoading.status} />
+      )}
+      {offlineChoice.visible && (
+        <OfflineConnectionDialog
+          isWaiting={offlineChoice.waiting}
+          onWaitOnline={handleWaitForNetwork}
+          onUseOffline={handleUseOfflineMode}
+        />
       )}
     </div>
   );
