@@ -1,7 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-import { FIIP_PUBLIC_NOTES_URL } from '../config/links';
 import {
   buildSearchIndexEntry,
   canUseNoteContent,
@@ -17,18 +16,122 @@ import { canAttachFile, canCreateNote, getStorageLimit, resolvePlanLevel } from 
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const OAUTH_BROWSER_CALLBACK_PATH = '/auth/callback';
+const FIIP_DEVICE_ID_KEY = 'fiip-device-id';
+const PLACEHOLDER_SUPABASE_URL = 'https://placeholder.supabase.co';
+const PLACEHOLDER_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx';
+const SUPABASE_CONFIG_ERROR = "Configuration Supabase manquante. Ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY avant d'utiliser la connexion Google.";
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+export function hasUsableSupabaseConfig(url = SUPABASE_URL, anonKey = SUPABASE_ANON_KEY) {
+  const normalizedUrl = String(url || '').trim();
+  const normalizedKey = String(anonKey || '').trim();
+
+  if (!normalizedUrl || !normalizedKey) {
+    return false;
+  }
+
+  try {
+    if (new URL(normalizedUrl).hostname === 'placeholder.supabase.co') {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+
+  return normalizedKey !== PLACEHOLDER_SUPABASE_ANON_KEY && !normalizedKey.endsWith('.xxxxx');
+}
+
+export const isSupabaseConfigured = hasUsableSupabaseConfig();
+
+function getSupabaseConfigError() {
+  return { message: SUPABASE_CONFIG_ERROR, code: 'SUPABASE_CONFIG_MISSING' };
+}
+
+if (!isSupabaseConfigured) {
   console.warn("Supabase URL or Key missing in environment variables.");
 }
 
-export const supabase = createClient(SUPABASE_URL && SUPABASE_URL.trim() !== '' ? SUPABASE_URL : 'https://placeholder.supabase.co', SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.trim() !== '' ? SUPABASE_ANON_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx');
+export const supabase = createClient(
+  isSupabaseConfigured ? SUPABASE_URL.trim() : PLACEHOLDER_SUPABASE_URL,
+  isSupabaseConfigured ? SUPABASE_ANON_KEY.trim() : PLACEHOLDER_SUPABASE_ANON_KEY
+);
 
 export { getStorageLimit };
+
+export function getOAuthRedirectUrl() {
+  if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
+    return 'fiip://login-callback';
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return new URL(OAUTH_BROWSER_CALLBACK_PATH, window.location.origin).toString();
+  }
+
+  return 'fiip://login-callback';
+}
+
+export function getSyncedSettings(settings = {}) {
+  const syncedSettings = { ...(settings || {}), theme: 'dark' };
+  delete syncedSettings.windowEffect;
+  delete syncedSettings.titlebarStyle;
+  delete syncedSettings.audioInputId;
+  delete syncedSettings.audioOutputId;
+  delete syncedSettings.biometricLockEnabled;
+  return syncedSettings;
+}
+
+function getCurrentDeviceId() {
+  let id = localStorage.getItem(FIIP_DEVICE_ID_KEY);
+  if (!id) {
+    id = crypto.randomUUID?.() || `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(FIIP_DEVICE_ID_KEY, id);
+  }
+  return id;
+}
+
+function getCurrentDeviceName() {
+  const platform = navigator.userAgentData?.platform || navigator.platform || 'Unknown OS';
+  const appSurface = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ ? 'Fiip Desktop' : 'Fiip Web';
+  return `${appSurface} - ${platform}`;
+}
+
+function readLocalSettings() {
+  try {
+    return JSON.parse(localStorage.getItem('fiip-settings') || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+async function getPublicIpAddress() {
+  if (typeof fetch !== 'function') {
+    return null;
+  }
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeout = controller ? setTimeout(() => controller.abort(), 2500) : null;
+
+  try {
+    const response = await fetch('https://api.ipify.org?format=json', {
+      signal: controller?.signal,
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return payload?.ip || null;
+  } catch {
+    return null;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
 
 // Auth Services
 export const authService = {
   async signUp(email, password, username) {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -53,9 +156,19 @@ export const authService = {
   },
 
   async signIn(identifier, password) {
-    const email = String(identifier || '').trim();
-    if (!email.includes('@')) {
-        return { error: { message: 'Connectez-vous avec votre adresse e-mail.' } };
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+
+    let email = identifier;
+    
+    // S'il n'y a pas d'@, on considère que c'est un pseudo
+    if (identifier && !identifier.includes('@')) {
+        const { data: foundEmail, error: rpcError } = await supabase.rpc('get_email_by_pseudo', { p_pseudo: identifier });
+        if (rpcError || !foundEmail) {
+            return { error: { message: "Ce pseudo n'existe pas ou l'identifiant est incorrect." } };
+        }
+        email = foundEmail;
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -66,10 +179,14 @@ export const authService = {
   },
 
   async signInWithOAuth(provider) {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider,
       options: {
-        redirectTo: new URL('/auth/callback', FIIP_PUBLIC_NOTES_URL).toString(),
+        redirectTo: getOAuthRedirectUrl(),
         skipBrowserRedirect: true
       }
     });
@@ -77,6 +194,10 @@ export const authService = {
   },
 
   async completeOAuthCallback(callbackUrl) {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+
     const parsedUrl = new URL(callbackUrl);
     const params = new URLSearchParams(parsedUrl.search);
     const hashParams = new URLSearchParams(parsedUrl.hash.replace(/^#/, ''));
@@ -99,6 +220,7 @@ export const authService = {
   },
 
   async signOut() {
+    dataService.markCurrentDeviceOffline().catch(() => {});
     return await supabase.auth.signOut();
   },
 
@@ -383,12 +505,16 @@ export const dataService = {
       return { error: 'FREE_PUBLIC_SHARE_DISABLED' };
     }
 
-    const { data: existingNote } = await supabase
+    const { data: existingNote, error: readError } = await supabase
       .from('notes')
       .select('id, is_locked, encrypted_content')
       .eq('id', noteId)
       .eq('user_id', user.id)
       .single();
+
+    if (readError) {
+      return { error: readError };
+    }
 
     if (existingNote && !canUseNoteContent(existingNote, 'public-share')) {
       return { error: 'Les notes protegees ne peuvent pas etre publiees.' };
@@ -667,7 +793,16 @@ export const dataService = {
            console.error('Error fetching settings:', error);
       }
 
-      const settings = data?.config || {};
+      const localSettings = readLocalSettings();
+      const settings = {
+          ...(data?.config || {}),
+          windowEffect: localSettings.windowEffect,
+          titlebarStyle: localSettings.titlebarStyle,
+          audioInputId: localSettings.audioInputId,
+          audioOutputId: localSettings.audioOutputId,
+          biometricLockEnabled: localSettings.biometricLockEnabled,
+          theme: 'dark',
+      };
       localStorage.setItem('fiip-settings', JSON.stringify(settings));
       return { data: settings, error };
   },
@@ -678,8 +813,72 @@ export const dataService = {
 
       const { error } = await supabase
           .from('user_settings')
-          .upsert({ user_id: user.id, config: settings, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+          .upsert({ user_id: user.id, config: getSyncedSettings(settings), updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
       
+      return { error };
+  },
+
+  async registerCurrentDevice() {
+      const user = await authService.getUser();
+      if (!user) {return { data: null, error: 'Not authenticated' };}
+
+      const payload = {
+          id: getCurrentDeviceId(),
+          user_id: user.id,
+          name: getCurrentDeviceName(),
+          platform: navigator.userAgentData?.platform || navigator.platform || 'unknown',
+          user_agent: navigator.userAgent || '',
+          ip_address: await getPublicIpAddress(),
+          last_seen_at: new Date().toISOString(),
+          revoked_at: null,
+      };
+
+      const { data, error } = await supabase
+          .from('user_devices')
+          .upsert(payload, { onConflict: 'id' })
+          .select()
+          .single();
+
+      return { data, error };
+  },
+
+  async listDevices() {
+      const user = await authService.getUser();
+      if (!user) {return { data: [], error: 'Not authenticated' };}
+
+      const { data, error } = await supabase
+          .from('user_devices')
+          .select('*')
+          .eq('user_id', user.id)
+          .is('revoked_at', null)
+          .order('last_seen_at', { ascending: false });
+
+      return { data: data || [], error };
+  },
+
+  async revokeDevice(deviceId) {
+      const user = await authService.getUser();
+      if (!user) {return { error: 'Not authenticated' };}
+
+      const { error } = await supabase
+          .from('user_devices')
+          .update({ revoked_at: new Date().toISOString() })
+          .eq('id', deviceId)
+          .eq('user_id', user.id);
+
+      return { error };
+  },
+
+  async markCurrentDeviceOffline() {
+      const user = await authService.getUser();
+      if (!user) {return { error: null };}
+
+      const { error } = await supabase
+          .from('user_devices')
+          .update({ revoked_at: new Date().toISOString() })
+          .eq('id', getCurrentDeviceId())
+          .eq('user_id', user.id);
+
       return { error };
   },
 

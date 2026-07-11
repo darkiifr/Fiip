@@ -657,6 +657,7 @@ jobs:
           {
             "name": "Fiip",
             "identifier": "vinsstudio.FiipMobile.altstore",
+            "sourceURL": "https://github.com/darkiifr/Fiip/releases/latest/download/altstore.json",
             "apps": [
               {
                 "name": "Fiip",
@@ -669,7 +670,16 @@ jobs:
                 "localizedDescription": "Application mobile Fiip",
                 "iconURL": "https://raw.githubusercontent.com/darkiifr/Fiip/main/src-tauri/icons/icon.png",
                 "tintColor": "#000000",
-                "size": $SIZE
+                "size": $SIZE,
+                "versions": [
+                  {
+                    "version": "$VERSION",
+                    "date": "$DATE",
+                    "localizedDescription": "Update to version $VERSION",
+                    "downloadURL": "https://github.com/darkiifr/Fiip/releases/download/$TAG_NAME/FiipMobile-Unsigned.ipa",
+                    "size": $SIZE
+                  }
+                ]
               }
             ]
           }

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow, LogicalSize, LogicalPosition, currentMonitor } from '@tauri-apps/api/window';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { type } from '@tauri-apps/plugin-os';
@@ -15,6 +16,7 @@ import Dexter from "./components/Dexter";
 import Editor from "./components/Editor";
 import LicenseModal from "./components/LicenseModal";
 import LoadingScreen from "./components/LoadingScreen";
+import OfflineConnectionDialog from "./components/OfflineConnectionDialog";
 import ShareModal from "./components/ShareModal";
 import UnifiedSidebar from "./components/UnifiedSidebar";
 import HomeDashboard from "./components/HomeDashboard";
@@ -28,7 +30,6 @@ import {
   getBiometricUserMessage,
 } from './services/biometricLock';
 import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } from "./services/fileManager";
-import { initializeFonts } from "./services/fontStore";
 import { keyAuthService } from "./services/keyauth";
 import { queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
 import { soundManager } from "./services/soundManager";
@@ -40,6 +41,37 @@ import { normalizeNoteTags } from './utils/noteTags';
 import "./App.css";
 
 const getCurrentTimestamp = () => new Date().getTime();
+
+async function fitMainWindowToVisibleArea() {
+  if (!window.__TAURI_INTERNALS__) return;
+
+  try {
+    const appWindow = getCurrentWindow();
+    const monitor = await currentMonitor();
+    const workArea = monitor?.workArea || monitor?.size;
+    if (!workArea?.width || !workArea?.height) return;
+
+    const scaleFactor = monitor?.scaleFactor || 1;
+    const maxWidth = Math.floor((workArea.width / scaleFactor) - 32);
+    const maxHeight = Math.floor((workArea.height / scaleFactor) - 32);
+    const width = Math.max(360, Math.min(1180, maxWidth));
+    const height = Math.max(320, Math.min(760, maxHeight));
+    const x = Math.max(0, Math.floor((workArea.x || 0) / scaleFactor + (maxWidth - width) / 2 + 16));
+    const y = Math.max(0, Math.floor((workArea.y || 0) / scaleFactor + (maxHeight - height) / 2 + 16));
+
+    await appWindow.setSize(new LogicalSize(width, height));
+    await appWindow.setPosition(new LogicalPosition(x, y));
+  } catch (error) {
+    console.warn('Window fit skipped:', error);
+  }
+}
+
+function isTransientSyncWelcomeNote(note = {}) {
+  const title = String(note.title || '').toLowerCase();
+  const content = String(note.content || '').toLowerCase();
+  return title.includes('bienvenue')
+    && (title.includes('connectez-vous') || content.includes('connectez-vous pour retrouver vos notes') || content.includes('connectez-vous pour synchroniser'));
+}
 
 function App() {
   const { t } = useTranslation();
@@ -109,6 +141,7 @@ function App() {
   const [isBiometricLocked, setIsBiometricLocked] = useState(false);
   const [biometricLockError, setBiometricLockError] = useState('');
   const [storageLimitAlerted, setStorageLimitAlerted] = useState(false);
+  const [offlineChoice, setOfflineChoice] = useState({ visible: false, waiting: false });
   const [notebooks, setNotebooks] = useState(() => {
     const saved = localStorage.getItem('fiip-notebooks');
     if (saved) {
@@ -147,6 +180,7 @@ function App() {
   const notesRef = useRef(notes);
   const saveTimeoutRef = useRef(null);
   const importedFiinPathsRef = useRef(new Set());
+  const waitingForNetworkRef = useRef(false);
 
   // --- Computed State ---
   const planLevel = keyAuthService.hasProAccess() ? 10 : 0;
@@ -162,7 +196,16 @@ function App() {
 
   useEffect(() => {
     let cancelled = false;
-    calculateTotalUsage(notes).then((used) => {
+    const calculateUsage = async () => {
+      const currentUser = await authService.getUser();
+      if (currentUser && settings.cloudSync !== false) {
+        const cloudUsage = await dataService.getUsage(currentUser.id);
+        return cloudUsage;
+      }
+      return calculateTotalUsage(notes);
+    };
+
+    calculateUsage().then((used) => {
       if (!cancelled) {
         setLocalStorageUsage(used);
       }
@@ -175,7 +218,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [notes]);
+  }, [notes, settings.cloudSync]);
 
   useEffect(() => {
     if (storageUsage.percent < 100) {
@@ -244,8 +287,9 @@ function App() {
       });
 
       if (syncResult.notes) {
-          setNotes(syncResult.notes);
-          notesRef.current = syncResult.notes;
+          const remoteNotes = syncResult.notes.filter((note) => !isTransientSyncWelcomeNote(note));
+          setNotes(remoteNotes);
+          notesRef.current = remoteNotes;
       }
 
       const [notebooksResult, tasksResult, widgetsResult] = await Promise.allSettled([
@@ -270,6 +314,86 @@ function App() {
     }
   }
 
+  const retryOnlineSession = useCallback(async () => {
+    waitingForNetworkRef.current = false;
+    setOfflineChoice({ visible: false, waiting: false });
+    setAppLoading({ isLoading: true, status: 'Connexion retrouvée...' });
+
+    try {
+      const sessionUser = await authService.getUser();
+      if (sessionUser) {
+        setUser(sessionUser);
+        await hydrateLicenseFromProfile(sessionUser);
+        dataService.registerCurrentDevice().catch(console.warn);
+        localStorage.setItem('fiip-onboarding-completed', 'true');
+        localStorage.removeItem('fiip-mode-local');
+        setOnboardingCompleted(true);
+        await loadDataFromSupabase();
+      }
+    } finally {
+      setAppLoading({ isLoading: false, status: '' });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrateLicenseFromProfile]);
+
+  const handleWaitForNetwork = useCallback(() => {
+    waitingForNetworkRef.current = true;
+    setOfflineChoice({ visible: true, waiting: true });
+    setAppLoading({ isLoading: true, status: 'En attente du réseau...' });
+
+    if (navigator.onLine) {
+      retryOnlineSession().catch((error) => {
+        console.warn('Network retry failed:', error);
+        waitingForNetworkRef.current = false;
+        setOfflineChoice({ visible: true, waiting: false });
+        setAppLoading({ isLoading: false, status: '' });
+      });
+    }
+  }, [retryOnlineSession]);
+
+  const handleUseOfflineMode = useCallback(() => {
+    waitingForNetworkRef.current = false;
+    localStorage.setItem('fiip-onboarding-completed', 'true');
+    localStorage.setItem('fiip-mode-local', 'true');
+    setSettings((prev) => ({ ...prev, cloudSync: false, theme: 'dark' }));
+    setOnboardingCompleted(true);
+    setOfflineChoice({ visible: false, waiting: false });
+    setAppLoading({ isLoading: false, status: '' });
+  }, []);
+
+  useEffect(() => {
+    const handleOffline = () => {
+      setOfflineChoice((prev) => ({ visible: true, waiting: prev.waiting }));
+      if (waitingForNetworkRef.current) {
+        setAppLoading({ isLoading: true, status: 'En attente du réseau...' });
+      }
+    };
+
+    const handleOnline = () => {
+      if (waitingForNetworkRef.current) {
+        retryOnlineSession().catch((error) => {
+          console.warn('Network retry failed:', error);
+          waitingForNetworkRef.current = false;
+          setOfflineChoice({ visible: true, waiting: false });
+          setAppLoading({ isLoading: false, status: '' });
+        });
+        return;
+      }
+      setOfflineChoice({ visible: false, waiting: false });
+    };
+
+    if (navigator.onLine === false) {
+      handleOffline();
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [retryOnlineSession]);
+
   // --- Initialization ---
   useEffect(() => {
     const init = async () => {
@@ -277,7 +401,7 @@ function App() {
         console.log("Fiip v" + (await invoke("get_app_version").catch(() => "3.0.0")) + " initializing...");
         
         if (window.__TAURI_INTERNALS__) {
-            await initializeFonts();
+            await fitMainWindowToVisibleArea();
             await invoke("register_deep_link").catch((error) => {
                 console.warn("Deep link registration skipped or failed", error);
             });
@@ -297,6 +421,7 @@ function App() {
                             await message(`Connexion Google impossible : ${error.message}`, { title: 'Fiip', kind: 'error' }).catch(console.error);
                         } else if (data?.session?.user) {
                             setUser(data.session.user);
+                            dataService.registerCurrentDevice().catch(console.warn);
                             localStorage.setItem('fiip-onboarding-completed', 'true');
                             localStorage.removeItem('fiip-mode-local');
                             setOnboardingCompleted(true);
@@ -352,6 +477,7 @@ function App() {
         if (sessionUser) {
             setUser(sessionUser);
             await hydrateLicenseFromProfile(sessionUser);
+            dataService.registerCurrentDevice().catch(console.warn);
             localStorage.setItem('fiip-onboarding-completed', 'true');
             setOnboardingCompleted(true);
             await loadDataFromSupabase();
@@ -364,6 +490,7 @@ function App() {
               localStorage.setItem('fiip-onboarding-completed', 'true');
               setOnboardingCompleted(true);
               hydrateLicenseFromProfile(session.user).catch(console.error);
+              dataService.registerCurrentDevice().catch(console.warn);
           } else {
               keyAuthService.setLocalLevel(0);
               if (localStorage.getItem('fiip-mode-local') !== 'true') {
@@ -372,7 +499,9 @@ function App() {
           }
         });
 
-        setAppLoading({ isLoading: false, status: '' });
+        setAppLoading(waitingForNetworkRef.current
+          ? { isLoading: true, status: 'En attente du réseau...' }
+          : { isLoading: false, status: '' });
 
         return () => {
             if (unlistenFn) { unlistenFn(); }
@@ -380,7 +509,9 @@ function App() {
         };
       } catch (e) {
         console.error("Critical Init Error:", e);
-        setAppLoading({ isLoading: false, status: '' });
+        setAppLoading(waitingForNetworkRef.current
+          ? { isLoading: true, status: 'En attente du réseau...' }
+          : { isLoading: false, status: '' });
       }
     };
     init();
@@ -947,6 +1078,13 @@ function App() {
               {appLoading.isLoading && (
                   <LoadingScreen status={appLoading.status} />
               )}
+              {offlineChoice.visible && (
+                  <OfflineConnectionDialog
+                      isWaiting={offlineChoice.waiting}
+                      onWaitOnline={handleWaitForNetwork}
+                      onUseOffline={handleUseOfflineMode}
+                  />
+              )}
           </>
       );
   }
@@ -1117,6 +1255,13 @@ function App() {
 
       {appLoading.isLoading && (
         <LoadingScreen status={appLoading.status} />
+      )}
+      {offlineChoice.visible && (
+        <OfflineConnectionDialog
+          isWaiting={offlineChoice.waiting}
+          onWaitOnline={handleWaitForNetwork}
+          onUseOffline={handleUseOfflineMode}
+        />
       )}
     </div>
   );

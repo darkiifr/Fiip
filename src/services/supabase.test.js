@@ -6,6 +6,7 @@ const { mockSupabaseClient } = vi.hoisted(() => {
             auth: {
                 getSession: vi.fn(),
                 getUser: vi.fn(),
+                signInWithOAuth: vi.fn(),
                 signInWithPassword: vi.fn(),
                 signUp: vi.fn(),
                 signOut: vi.fn(),
@@ -20,7 +21,7 @@ vi.mock('@supabase/supabase-js', () => ({
     createClient: () => mockSupabaseClient
 }));
 
-import { authService, dataService, supabase } from './supabase';
+import { authService, dataService, getSyncedSettings, getOAuthRedirectUrl, supabase } from './supabase';
 
 describe('Supabase authService', () => {
     beforeEach(() => {
@@ -79,6 +80,27 @@ describe('Supabase authService', () => {
         supabase.auth.signOut.mockResolvedValueOnce({ error: null });
         await authService.signOut();
         expect(supabase.auth.signOut).toHaveBeenCalled();
+    });
+
+    it('signInWithOAuth uses the Fiip deep link inside Tauri', async () => {
+        window.__TAURI_INTERNALS__ = {};
+        supabase.auth.signInWithOAuth.mockResolvedValueOnce({ data: { url: 'https://auth.example' }, error: null });
+
+        await authService.signInWithOAuth('google');
+
+        expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+            provider: 'google',
+            options: {
+                redirectTo: 'fiip://login-callback',
+                skipBrowserRedirect: true,
+            },
+        });
+        delete window.__TAURI_INTERNALS__;
+    });
+
+    it('getOAuthRedirectUrl keeps browser callbacks on the current origin', () => {
+        delete window.__TAURI_INTERNALS__;
+        expect(getOAuthRedirectUrl()).toBe('http://localhost:3000/auth/callback');
     });
 
     it('getPlanLevel should read the server-side profile plan before metadata', async () => {
@@ -227,6 +249,46 @@ describe('Supabase dataService', () => {
         expect(result.error).toBe('FREE_PUBLIC_SHARE_DISABLED');
         expect(supabase.from).toHaveBeenCalledWith('profiles');
         expect(supabase.from).not.toHaveBeenCalledWith('notes');
+    });
+
+    it('getSyncedSettings strips device-local settings before cloud save', () => {
+        expect(getSyncedSettings({
+            theme: 'light',
+            language: 'fr',
+            windowEffect: 'vibrancy',
+            titlebarStyle: 'macos',
+            audioInputId: 'mic-1',
+            audioOutputId: 'speaker-1',
+            biometricLockEnabled: true,
+        })).toEqual({
+            theme: 'dark',
+            language: 'fr',
+        });
+    });
+
+    it('registerCurrentDevice upserts an owner-scoped device row', async () => {
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ ip: '203.0.113.10' }),
+        });
+        const select = vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: { id: expect.any(String) }, error: null }),
+        });
+        const upsert = vi.fn().mockReturnValue({ select });
+        supabase.from.mockReturnValueOnce({ upsert });
+
+        const result = await dataService.registerCurrentDevice();
+
+        expect(result.error).toBeNull();
+        expect(supabase.from).toHaveBeenCalledWith('user_devices');
+        expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+            user_id: 'user-1',
+            name: expect.stringContaining('Fiip'),
+            ip_address: '203.0.113.10',
+            last_seen_at: expect.any(String),
+            revoked_at: null,
+        }), { onConflict: 'id' });
+        fetchSpy.mockRestore();
     });
 
     it('fetchProfile should fetch from profiles table', async () => {

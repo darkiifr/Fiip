@@ -325,6 +325,7 @@ export default function Editor({
     const [passwordValue, setPasswordValue] = useState('');
     const [passwordError, setPasswordError] = useState('');
     const [isDictating, setIsDictating] = useState(false);
+    const [dictationPreview, setDictationPreview] = useState('');
     const recognitionRef = useRef(null);
     
     const editorRef = useRef(null);
@@ -554,20 +555,38 @@ export default function Editor({
         const recognition = new SpeechRecognition();
         recognition.lang = navigator.language || 'fr-FR';
         recognition.continuous = true;
-        recognition.interimResults = false;
+        recognition.interimResults = true;
         recognition.onresult = (event) => {
-            const transcript = Array.from(event.results)
-                .slice(event.resultIndex)
-                .map((result) => result[0]?.transcript || '')
-                .join(' ')
-                .trim();
-            if (!transcript) return;
-            editorRef.current?.insertText(`<p>${escapeHtml(transcript)}</p>`);
+            let finalTranscript = '';
+            let interimTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i += 1) {
+                const result = event.results[i];
+                const transcript = result[0]?.transcript || '';
+                if (result.isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+
+            setDictationPreview(interimTranscript.trim());
+            const finalText = finalTranscript.trim();
+            if (finalText) {
+                editorRef.current?.insertText(`<p>${escapeHtml(finalText)}</p>`);
+            }
         };
-        recognition.onend = () => setIsDictating(false);
-        recognition.onerror = () => setIsDictating(false);
+        recognition.onend = () => {
+            setIsDictating(false);
+            setDictationPreview('');
+        };
+        recognition.onerror = () => {
+            setIsDictating(false);
+            setDictationPreview('');
+        };
         recognitionRef.current = recognition;
         setIsDictating(true);
+        setDictationPreview('');
         recognition.start();
     };
 
@@ -980,6 +999,7 @@ export default function Editor({
                 }}
                 onStartDictation={handleStartDictation}
                 isDictating={isDictating}
+                dictationPreview={dictationPreview}
                 onUpdateTags={handleTagsChange}
                 tagSuggestions={tagSuggestions}
                 editorRef={editorRef}

@@ -25,11 +25,10 @@ import {
     getBiometricPlatformInfo,
     isBiometricApiAvailable,
 } from '../services/biometricLock';
-import { getFontCacheSize } from '../services/fontStore';
 import { keyAuthService } from '../services/keyauth';
 import { getLanguageOption, getLocalizedLanguageLabel, LANGUAGES } from '../services/languages';
 import { getPlatformDisplayName } from '../services/platform';
-import { authService } from '../services/supabase';
+import { authService, dataService } from '../services/supabase';
 import { fetchGitHubLatestRelease, getUpdatePresentation } from '../services/updates';
 import { coerceWindowEffect, getWindowEffectOptions } from '../utils/windowEffects';
 
@@ -88,6 +87,8 @@ export default function SettingsView({
     const [activeAccountLicenseId, setActiveAccountLicenseId] = useState(null);
     const [accountLicenseStatus, setAccountLicenseStatus] = useState('');
     const [isLoadingAccountLicenses, setIsLoadingAccountLicenses] = useState(false);
+    const [devices, setDevices] = useState([]);
+    const [devicesStatus, setDevicesStatus] = useState('');
 
     const languages = LANGUAGES;
     const selectedLanguage = getLanguageOption(localSettings.language || i18n.language);
@@ -101,21 +102,26 @@ export default function SettingsView({
     }, [initialTab]);
 
     useEffect(() => {
-        authService.getUser()
-            .then((user) => {
-                setCurrentUser(user);
-                if (user) {
-                    refreshAccountLicenses();
-                }
-            })
-            .catch(() => setCurrentUser(null));
+        authService.getUser().then((user) => {
+            setCurrentUser(user);
+            if (user) {
+                refreshAccountLicenses();
+                dataService.registerCurrentDevice().catch(() => {});
+                dataService.listDevices()
+                    .then(({ data, error }) => {
+                        if (error) {
+                            setDevicesStatus(error.message || String(error));
+                            return;
+                        }
+                        setDevices(data || []);
+                    })
+                    .catch((error) => setDevicesStatus(error?.message || String(error)));
+            }
+        }).catch(() => setCurrentUser(null));
         const unsubscribeAI = subscribeToAIUsage(setAiUsage);
         const refreshCache = async () => {
-            const [attachments, fonts] = await Promise.all([
-                getAttachmentCacheSize(),
-                getFontCacheSize(),
-            ]);
-            setCacheStats({ attachments, fonts });
+            const attachments = await getAttachmentCacheSize();
+            setCacheStats({ attachments, fonts: 0 });
         };
         refreshCache();
 
@@ -176,7 +182,7 @@ export default function SettingsView({
     const syncAvailable = Boolean(currentUser);
     const storagePercent = Number.isFinite(storageUsage?.percent) ? storageUsage.percent : 0;
     const storageLimit = Number(storageUsage?.limit || 0);
-    const totalCacheSize = cacheStats.attachments + cacheStats.fonts;
+    const totalCacheSize = cacheStats.attachments;
     const currentLicenseName = keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : t('settings.no_active_license', 'No active license');
     const windowEffectOptions = getWindowEffectOptions(osType);
     const biometricInfo = getBiometricPlatformInfo(osType);
@@ -184,6 +190,25 @@ export default function SettingsView({
     const handleClearAttachmentCache = async () => {
         await clearAttachmentCache();
         setCacheStats((stats) => ({ ...stats, attachments: 0 }));
+    };
+
+    const refreshDevices = async () => {
+        setDevicesStatus('');
+        const { data, error } = await dataService.listDevices();
+        if (error) {
+            setDevicesStatus(error.message || String(error));
+            return;
+        }
+        setDevices(data || []);
+    };
+
+    const handleRevokeDevice = async (deviceId) => {
+        const { error } = await dataService.revokeDevice(deviceId);
+        if (error) {
+            setDevicesStatus(error.message || String(error));
+            return;
+        }
+        await refreshDevices();
     };
 
     const handleCheckUpdates = async () => {
@@ -531,7 +556,7 @@ export default function SettingsView({
 
                             {/* Window Effects */}
                             <div className="bg-warm-card-light dark:bg-warm-card-dark border border-warm-border-light dark:border-warm-border-dark rounded-2xl p-4 space-y-4">
-                                <label className="text-sm font-semibold block">{t('settings.window_effects_title', 'Effets de Transparence')}</label>
+                                <label className="text-sm font-semibold block">{t('settings.window_effects_title', 'Effets de fenêtre')}</label>
                                 <div className="bg-warm-sidebar-light dark:bg-warm-sidebar-dark rounded-xl p-1 flex gap-1 border border-warm-border-light dark:border-warm-border-dark">
                                     {windowEffectOptions.map((effect) => (
                                         <button
@@ -550,7 +575,7 @@ export default function SettingsView({
                                     ))}
                                 </div>
                                 <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                    {t('settings.window_effects_desc', 'Les effets non supportes par votre OS restent desactives. Windows prend en charge Mica/Acrylic/Blur, macOS Vibrancy, Linux aucun effet natif.')}
+                                    {t('settings.window_effects_desc', 'Les effets non supportes par votre OS restent desactives. macOS prend en charge Vibrancy/Sidebar, Windows Mica/Acrylic/Blur, Linux aucun effet natif. Ce reglage reste local a cet appareil.')}
                                 </p>
                             </div>
                         </div>
@@ -674,6 +699,52 @@ export default function SettingsView({
                                                     {t('settings.sync_now', 'Sync now')}
                                                 </button>
                                             )}
+                                        </div>
+
+                                        <div className="rounded-2xl border border-warm-border-light bg-warm-card-light p-4 dark:border-warm-border-dark dark:bg-warm-card-dark">
+                                            <div className="mb-3 flex items-center justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold">{t('settings.connected_devices', 'Appareils connectes')}</p>
+                                                    <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                                        {t('settings.connected_devices_desc', 'Appareils ayant ouvert Fiip avec ce compte. La deconnexion est une revocation cote Fiip.')}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={refreshDevices}
+                                                    className="rounded-xl border border-warm-border-light px-3 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-warm-border-dark dark:hover:bg-white/10"
+                                                >
+                                                    {t('settings.refresh', 'Actualiser')}
+                                                </button>
+                                            </div>
+                                            {devicesStatus && (
+                                                <p className="mb-3 rounded-xl border border-red-500/25 bg-red-500/10 p-2 text-xs font-semibold text-red-600 dark:text-red-300">
+                                                    {devicesStatus}
+                                                </p>
+                                            )}
+                                            <div className="space-y-2">
+                                                {devices.length > 0 ? devices.map((device) => (
+                                                    <div key={device.id} className="flex items-center justify-between gap-3 rounded-xl border border-warm-border-light bg-white/60 p-3 dark:border-white/10 dark:bg-white/[0.045]">
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-xs font-bold">{device.name || device.platform || t('settings.unknown_device', 'Appareil inconnu')}</p>
+                                                            <p className="mt-1 truncate text-[10px] text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                                                {(device.ip_address || t('settings.unknown_ip', 'IP inconnue'))} - {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : t('settings.never', 'Never')}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRevokeDevice(device.id)}
+                                                            className="shrink-0 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-500/15 dark:text-red-300"
+                                                        >
+                                                            {t('settings.disconnect', 'Deconnecter')}
+                                                        </button>
+                                                    </div>
+                                                )) : (
+                                                    <p className="rounded-xl border border-dashed border-warm-border-light p-3 text-xs text-warm-text-muted-light dark:border-warm-border-dark dark:text-warm-text-muted-dark">
+                                                        {t('settings.no_connected_devices', 'Aucun appareil synchronise pour le moment.')}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -887,7 +958,6 @@ export default function SettingsView({
                                 {[
                                     [t('settings.total', 'Total'), formatBytes(totalCacheSize)],
                                     [t('settings.attachments', 'Attachments'), formatBytes(cacheStats.attachments)],
-                                    [t('settings.fonts', 'Fonts'), formatBytes(cacheStats.fonts)],
                                 ].map(([label, value]) => (
                                     <div key={label} className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark p-4">
                                         <p className="text-[11px] font-semibold text-warm-text-muted-light">{label}</p>

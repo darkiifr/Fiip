@@ -8,6 +8,11 @@ coverage/
 playwright-report/
 test-results/
 blob-report/
+.playwright-mcp/
+*.log
+*.reg
+*.bak
+*.tmp
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -114,6 +119,7 @@ Mobile/ios/*.dSYM
 Mobile/ios/altstore.json
 Mobile/ios/Payload/
 Mobile/ios/DerivedData/
+Mobile/ios/.xcode.env
 Mobile/ios/**/*.pbxuser
 Mobile/ios/**/*.mode1v3
 Mobile/ios/**/*.mode2v3

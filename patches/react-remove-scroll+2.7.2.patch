@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-remove-scroll/dist/es5/UI.js b/node_modules/react-remove-scroll/dist/es5/UI.js
+index b33bf5f..96f7561 100644
+--- a/node_modules/react-remove-scroll/dist/es5/UI.js
++++ b/node_modules/react-remove-scroll/dist/es5/UI.js
+@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.RemoveScroll = void 0;
+ var tslib_1 = require("tslib");
+ var React = tslib_1.__importStar(require("react"));
+-var constants_1 = require("react-remove-scroll-bar/constants");
++var constants_1 = require("react-remove-scroll-bar/dist/es5/constants.js");
+ var use_callback_ref_1 = require("use-callback-ref");
+ var medium_1 = require("./medium");
+ var nothing = function () {

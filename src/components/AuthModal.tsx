@@ -20,6 +20,14 @@ import IconUpload from '~icons/mingcute/upload-2-fill';
 import IconUser from '~icons/mingcute/user-4-fill';
 import IconUserAdd from '~icons/mingcute/user-add-fill';
 
+function getOAuthErrorMessage(error?: any) {
+    if (error?.code === 'SUPABASE_CONFIG_MISSING') {
+        return error.message;
+    }
+
+    return "Connexion Google impossible. Vérifiez que Safari a ouvert Fiip, puis réessayez.";
+}
+
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -539,7 +547,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                                                 await open(data.url);
                                             }
                                         } catch (err) {
-                                            setError(err.message);
+                                            console.error('Google OAuth error:', err);
+                                            setError(getOAuthErrorMessage(err));
                                             setLoading(false);
                                         }
                                     }}

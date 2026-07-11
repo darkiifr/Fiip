@@ -38,6 +38,20 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- USER DEVICES TABLE
+CREATE TABLE IF NOT EXISTS public.user_devices (
+  id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL DEFAULT 'Fiip device',
+  platform TEXT DEFAULT 'unknown',
+  user_agent TEXT DEFAULT '',
+  ip_address TEXT,
+  last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  revoked_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- USER BADGES TABLE
 CREATE TABLE IF NOT EXISTS public.user_badges (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
@@ -110,6 +124,14 @@ WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own settings" 
 ON public.user_settings FOR UPDATE 
 USING (auth.uid() = user_id);
+
+-- Devices
+ALTER TABLE public.user_devices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own devices"
+ON public.user_devices FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
 
 -- Badges
 ALTER TABLE public.user_badges ENABLE ROW LEVEL SECURITY;

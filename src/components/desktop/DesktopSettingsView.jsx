@@ -30,8 +30,8 @@ export default function DesktopSettingsView({ settings, onUpdateSettings, onMana
         <div className="fiip-settings-card">
           <Row
             title="Thème"
-            description="Choisissez l'apparence de l'application."
-            right={<div className="fiip-segment"><button>Clair</button><button>Sombre</button></div>}
+            description="Fiip utilise un thème sombre unique."
+            right={<div className="fiip-segment"><button>Sombre</button></div>}
           />
           <Row
             title="Typographie"

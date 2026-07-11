@@ -51,7 +51,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
     const [isUserLoaded, setIsUserLoaded] = useState(false);
 
     const isOwner = selectedNote && currentUser 
-        ? (selectedNote.user_id || selectedNote.userId) === currentUser.id
+        ? !(selectedNote.user_id || selectedNote.userId) || (selectedNote.user_id || selectedNote.userId) === currentUser.id
         : false;
     const isProtectedNote = Boolean(selectedNote?.isProtected || selectedNote?.is_locked || selectedNote?.encryptedContent || selectedNote?.encrypted_content);
 

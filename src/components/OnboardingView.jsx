@@ -23,6 +23,14 @@ const localBenefits = [
   'Synchronisation activable après connexion',
 ];
 
+function getOAuthErrorMessage(error) {
+  if (error?.code === 'SUPABASE_CONFIG_MISSING') {
+    return error.message;
+  }
+
+  return "Connexion Google impossible. Vérifiez que Safari a ouvert Fiip, puis réessayez.";
+}
+
 export default function OnboardingView({ onComplete, onLoginSuccess }) {
   const [activeTab, setActiveTab] = useState('trial');
   const [formData, setFormData] = useState({
@@ -73,7 +81,8 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
 
       setSuccess('Connexion Google ouverte. Terminez la validation dans votre navigateur.');
     } catch (err) {
-      setError(err.message || 'Une erreur est survenue lors de la connexion Google.');
+      console.error('Google OAuth error:', err);
+      setError(getOAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -122,8 +131,8 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
   };
 
   return (
-    <main className="min-h-screen w-screen overflow-hidden bg-[color:var(--bg-content)] text-[color:var(--text-primary)] antialiased">
-      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(135deg,rgba(255,255,255,0.42),rgba(255,255,255,0)_42%),radial-gradient(circle_at_top_right,rgba(184,138,45,0.12),rgba(184,138,45,0)_32%)] dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.055),rgba(255,255,255,0)_42%),radial-gradient(circle_at_top_right,rgba(217,174,74,0.08),rgba(217,174,74,0)_32%)]" />
+    <main className="dark min-h-screen w-screen overflow-hidden bg-[#111110] text-[#f2efe7] antialiased">
+      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(135deg,rgba(255,255,255,0.055),rgba(255,255,255,0)_42%),radial-gradient(circle_at_top_right,rgba(217,174,74,0.08),rgba(217,174,74,0)_32%)]" />
 
       <section className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-10 px-6 py-10 sm:px-10 lg:grid-cols-[0.95fr_1.05fr] lg:px-12">
         <div className="space-y-6">
