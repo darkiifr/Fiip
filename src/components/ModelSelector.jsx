@@ -25,8 +25,8 @@ export default function ModelSelector({ selectedModel, onSelectModel, defaultMod
     }, []);
 
     const getModelDisplay = () => {
-        if (selectedModel === 'default') {
-            return `${t('dexter.model_selector', 'Modèle par défaut')} (${defaultModelLabel})`;
+        if (!selectedModel || selectedModel === 'default' || selectedModel === 'auto') {
+            return t('dexter.model_auto', 'Automatique');
         }
         const m = models.find(x => x.id === selectedModel);
         return m ? m.name : selectedModel.split('/').pop();
@@ -51,18 +51,19 @@ export default function ModelSelector({ selectedModel, onSelectModel, defaultMod
                         ) : (
                             <div className="overflow-y-auto custom-scrollbar p-1">
                                 <button
-                                    onClick={() => { onSelectModel('default'); setIsOpen(false); }}
-                                    className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between rounded-lg transition-colors mb-1 ${selectedModel === 'default' ? 'bg-blue-500/20 text-blue-400 font-bold' : 'text-gray-300 hover:bg-white/10'}`}
+                                    onClick={() => { onSelectModel('auto'); setIsOpen(false); }}
+                                    className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between rounded-lg transition-colors mb-1 ${(!selectedModel || selectedModel === 'default' || selectedModel === 'auto') ? 'bg-blue-500/20 text-blue-400 font-bold' : 'text-gray-300 hover:bg-white/10'}`}
                                 >
-                                    <span className="truncate">{t('dexter.model_selector', 'Modèle par défaut')}</span>
-                                    {selectedModel === 'default' && <IconCheck className="w-3.5 h-3.5 shrink-0" />}
+                                    <span className="truncate">{t('dexter.model_auto', 'Automatique')}</span>
+                                    {(!selectedModel || selectedModel === 'default' || selectedModel === 'auto') && <IconCheck className="w-3.5 h-3.5 shrink-0" />}
                                 </button>
                                 
                                 {models.map((model) => (
                                     <button
                                         key={model.id}
+                                        disabled={model.available === false}
                                         onClick={() => { onSelectModel(model.id); setIsOpen(false); }}
-                                        className={`w-full text-left px-2 py-2 text-xs flex items-center gap-2 rounded-lg transition-colors ${selectedModel === model.id ? 'bg-blue-500/20 text-blue-400 font-bold' : 'text-gray-300 hover:bg-white/10'}`}
+                                        className={`w-full text-left px-2 py-2 text-xs flex items-center gap-2 rounded-lg transition-colors ${model.available === false ? 'opacity-45 cursor-not-allowed text-gray-500' : selectedModel === model.id ? 'bg-blue-500/20 text-blue-400 font-bold' : 'text-gray-300 hover:bg-white/10'}`}
                                         title={model.description || model.id}
                                     >
                                         <img src={model.logo_url} alt={model.provider} className="w-4 h-4 rounded-sm" onError={(e) => { e.target.style.display = 'none'; }} />
@@ -70,7 +71,7 @@ export default function ModelSelector({ selectedModel, onSelectModel, defaultMod
                                             <div>{model.name}</div>
                                             {(model.pricing || model.context_length) && (
                                                 <div className="text-[9px] text-gray-500 font-normal">
-                                                    {model.context_length ? `${(model.context_length/1000).toFixed(0)}k ctx` : ''} 
+                                                    {model.estimated_price_eur_per_million ? `${model.estimated_price_eur_per_million}€/M` : model.context_length ? `${(model.context_length/1000).toFixed(0)}k ctx` : ''}
                                                 </div>
                                             )}
                                         </div>

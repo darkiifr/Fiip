@@ -191,7 +191,7 @@ export default function ChatModal({ isOpen, onClose }) {
             fetchMessages(); 
         } else {
             if (result.message === "Chat channel not found") {
-                setError(t('chat.channel_not_found', "Erreur: Canal inexistant sur le serveur (Vérifiez KeyAuth)"));
+                setError(t('chat.channel_not_found', "Erreur: canal de discussion indisponible."));
             } else {
                 setError(result.message);
             }
@@ -290,7 +290,7 @@ export default function ChatModal({ isOpen, onClose }) {
                             </button>
                         ))}
                     </div>
-                    {/* User Mini Profile (Connected via KeyAuth) - Click to open settings */}
+                    {/* User Mini Profile - Click to open settings */}
                     <div 
                         className="h-[52px] bg-[#232428] px-2 flex items-center gap-2 cursor-pointer hover:bg-[#1E1F22] transition-colors"
                         onClick={() => setShowProfileModal(true)}

@@ -30,7 +30,7 @@ create table if not exists public.user_badges (
 );
 
 create table if not exists public.note_collaborators (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   note_id uuid references public.notes(id) on delete cascade not null,
   user_id uuid references auth.users(id) on delete cascade not null,
   role text check (role in ('viewer', 'editor')) default 'viewer',

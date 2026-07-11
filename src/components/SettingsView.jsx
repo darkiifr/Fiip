@@ -6,8 +6,17 @@ import { check } from '@tauri-apps/plugin-updater';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import {
+    FIIP_COOKIES_URL,
+    FIIP_DISCORD_SUPPORT_URL,
+    FIIP_LEGAL_URL,
+    FIIP_LICENSE_PURCHASE_URL,
+    FIIP_PRIVACY_URL,
+    FIIP_REFUNDS_URL,
+    FIIP_TERMS_URL,
+} from '../config/links';
 import { useUI } from '../providers/UIProvider';
-import { FIIP_LICENSE_PURCHASE_URL } from '../config/links';
+import { listAccountLicenses, selectAccountLicense } from '../services/accountLicenses';
 import { getLastAIUsageStats, subscribeToAIUsage } from '../services/ai';
 import { clearAttachmentCache, formatBytes, getAttachmentCacheSize } from '../services/attachmentCache';
 import {
@@ -24,7 +33,6 @@ import { authService } from '../services/supabase';
 import { fetchGitHubLatestRelease, getUpdatePresentation } from '../services/updates';
 import { coerceWindowEffect, getWindowEffectOptions } from '../utils/windowEffects';
 
-import FontManager from './FontManager';
 import NucleoFlag from './NucleoFlag';
 import { GlassSwitch } from './ui/GlassSwitch';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from './ui/Select';
@@ -73,6 +81,13 @@ export default function SettingsView({
     const [isInstallingUpdate, setIsInstallingUpdate] = useState(false);
     const [biometricStatus, setBiometricStatus] = useState('');
     const [biometricAvailable, setBiometricAvailable] = useState(false);
+    const [licenseKeyInput, setLicenseKeyInput] = useState('');
+    const [licenseActivationStatus, setLicenseActivationStatus] = useState('');
+    const [isActivatingLicense, setIsActivatingLicense] = useState(false);
+    const [accountLicenses, setAccountLicenses] = useState([]);
+    const [activeAccountLicenseId, setActiveAccountLicenseId] = useState(null);
+    const [accountLicenseStatus, setAccountLicenseStatus] = useState('');
+    const [isLoadingAccountLicenses, setIsLoadingAccountLicenses] = useState(false);
 
     const languages = LANGUAGES;
     const selectedLanguage = getLanguageOption(localSettings.language || i18n.language);
@@ -86,7 +101,14 @@ export default function SettingsView({
     }, [initialTab]);
 
     useEffect(() => {
-        authService.getUser().then(setCurrentUser).catch(() => setCurrentUser(null));
+        authService.getUser()
+            .then((user) => {
+                setCurrentUser(user);
+                if (user) {
+                    refreshAccountLicenses();
+                }
+            })
+            .catch(() => setCurrentUser(null));
         const unsubscribeAI = subscribeToAIUsage(setAiUsage);
         const refreshCache = async () => {
             const [attachments, fonts] = await Promise.all([
@@ -232,6 +254,72 @@ export default function SettingsView({
             handleUpdate({ ...localSettings, biometricLockEnabled: true });
         } catch (error) {
             setBiometricStatus(error?.message || t('settings.biometric_setup_error', 'Biometric setup is unavailable.'));
+        }
+    };
+
+    const handleActivateLicense = async (event) => {
+        event.preventDefault();
+        const key = licenseKeyInput.trim();
+        if (!key) {
+            setLicenseActivationStatus(t('settings.license_key_required', 'Enter your license key first.'));
+            return;
+        }
+
+        setIsActivatingLicense(true);
+        setLicenseActivationStatus(t('settings.license_checking', 'Checking license...'));
+        try {
+            const result = await keyAuthService.verifyLicense(key);
+            if (!result.success) {
+                setLicenseActivationStatus(result.message || t('settings.license_activation_failed', 'License activation failed.'));
+                return;
+            }
+
+            localStorage.setItem('saved_license_key', key);
+            await authService.updateSubscription(result.level, key).catch(console.error);
+            setLicenseActivationStatus(t('settings.license_activation_success', 'License activated. Fiip Premium is now available on this device.'));
+            setLicenseKeyInput('');
+            await message(t('settings.license_activation_success', 'License activated. Fiip Premium is now available on this device.'), { title: 'Fiip', kind: 'info' }).catch(console.error);
+        } catch (error) {
+            setLicenseActivationStatus(error?.message || t('settings.license_activation_failed', 'License activation failed.'));
+        } finally {
+            setIsActivatingLicense(false);
+        }
+    };
+
+    const refreshAccountLicenses = async () => {
+        setIsLoadingAccountLicenses(true);
+        setAccountLicenseStatus('');
+        try {
+            const result = await listAccountLicenses();
+            setAccountLicenses(result.licenses);
+            setActiveAccountLicenseId(result.activeLicenseId);
+        } catch (error) {
+            setAccountLicenseStatus(error?.message || t('settings.licenses_load_failed', 'Impossible de charger les licences du compte.'));
+        } finally {
+            setIsLoadingAccountLicenses(false);
+        }
+    };
+
+    const handleSelectAccountLicense = async (license) => {
+        const confirmed = await ask(
+            t('settings.license_switch_confirm', 'Activer cette licence pour ce compte ? Fiip va redémarrer pour appliquer les droits.'),
+            { title: 'Fiip Premium', kind: 'info' }
+        ).catch(() => false);
+        if (!confirmed) return;
+
+        setAccountLicenseStatus(t('settings.license_switching', 'Activation de la licence...'));
+        try {
+            const result = await selectAccountLicense(license.id);
+            setActiveAccountLicenseId(result.active_license_id || license.id);
+            keyAuthService.setLocalLevel(license.keyauth_level || 0, currentUser?.email, license.keyauth_license_key || null);
+            if (license.keyauth_license_key) {
+                localStorage.setItem('saved_license_key', license.keyauth_license_key);
+            }
+            setAccountLicenseStatus(t('settings.license_switch_success', 'Licence sélectionnée. Redémarrage de Fiip...'));
+            await message(t('settings.license_switch_success', 'Licence sélectionnée. Redémarrage de Fiip...'), { title: 'Fiip Premium', kind: 'info' }).catch(console.error);
+            await relaunch();
+        } catch (error) {
+            setAccountLicenseStatus(error?.message || t('settings.license_switch_failed', 'Impossible de sélectionner cette licence.'));
         }
     };
 
@@ -488,9 +576,6 @@ export default function SettingsView({
                                     />
                                 </div>
                             </div>
-
-                            {/* Polices du système */}
-                            <FontManager />
                         </div>
                     )}
 
@@ -652,10 +737,10 @@ export default function SettingsView({
                                         <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.last_response', 'Last response')}</p>
                                         <p className="mt-2 flex items-center gap-2 text-sm font-semibold">
                                             <IconCpu className="h-4 w-4 text-amber-500" />
-                                            {aiUsage?.usage?.total_tokens ?? aiUsage?.usage?.tokens ?? 0} tokens
+                                            {aiUsage?.model ? t('settings.ai_response_ready', 'Réponse générée') : `${aiUsage?.usage?.total_tokens ?? aiUsage?.usage?.tokens ?? 0} tokens`}
                                         </p>
                                         <p className="mt-1 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                            {aiUsage?.createdAt ? t('settings.last_activity', 'Last activity: {{date}}', { date: new Date(aiUsage.createdAt).toLocaleString() }) : t('settings.ai_stats_waiting', 'Statistics appear after a Dexter response.')}
+                                            {aiUsage?.budget ? `${Number(aiUsage.budget.used_eur || 0).toFixed(2)}€ utilisés / ${Number(aiUsage.budget.limit_eur || 0).toFixed(2)}€` : aiUsage?.createdAt ? t('settings.last_activity', 'Last activity: {{date}}', { date: new Date(aiUsage.createdAt).toLocaleString() }) : t('settings.ai_stats_waiting', 'Statistics appear after a Dexter response.')}
                                         </p>
                                     </div>
                                 </div>
@@ -680,12 +765,101 @@ export default function SettingsView({
                                         </span>
                                         <h4 className="text-xl font-semibold tracking-tight">{t('settings.fiip_license_title', 'Your Fiip license')}</h4>
                                         <p className="max-w-md text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
-                                            {t('settings.fiip_license_desc', 'Enable sync, extended limits, and Dexter without entering any technical key.')}
+                                            {t('settings.fiip_license_desc', 'Enable sync, extended limits, Dexter, and device permissions with the license key received by e-mail.')}
                                         </p>
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light bg-white/70 px-4 py-3 text-right dark:border-white/10 dark:bg-white/[0.06]">
                                         <p className="text-[11px] font-semibold text-warm-text-muted-light">{t('settings.current_license', 'Current license')}</p>
                                         <p className="mt-1 text-sm font-semibold">{currentLicenseName}</p>
+                                    </div>
+                                </div>
+                                <form onSubmit={handleActivateLicense} className="mt-5 rounded-2xl border border-warm-border-light bg-white/60 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                                    <label className="text-xs font-bold uppercase tracking-wide text-warm-text-muted-light dark:text-warm-text-muted-dark" htmlFor="fiip-license-key">
+                                        {t('settings.license_key_input', 'License key')}
+                                    </label>
+                                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                                        <input
+                                            id="fiip-license-key"
+                                            value={licenseKeyInput}
+                                            onChange={(event) => setLicenseKeyInput(event.target.value)}
+                                            placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX"
+                                            className="min-h-11 flex-1 rounded-2xl border border-warm-border-light bg-white px-4 text-sm font-semibold outline-none transition focus:border-amber-500 dark:border-white/10 dark:bg-black/20"
+                                            autoComplete="off"
+                                            spellCheck={false}
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={isActivatingLicense}
+                                            className="rounded-2xl bg-amber-500 px-4 py-2 text-xs font-bold text-zinc-950 transition-all hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70"
+                                        >
+                                            {isActivatingLicense ? t('settings.activating', 'Activating...') : t('settings.activate_license', 'Activate license')}
+                                        </button>
+                                    </div>
+                                    <p className="mt-2 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                        {licenseActivationStatus || t('settings.license_key_help', 'Paste the license sent by e-mail after purchase.')}
+                                    </p>
+                                </form>
+                                <div className="mt-5 rounded-2xl border border-warm-border-light bg-white/60 p-4 dark:border-white/10 dark:bg-white/[0.04]">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-wide text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                                {t('settings.account_licenses', 'Licences du compte')}
+                                            </p>
+                                            <p className="mt-1 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                                {currentUser ? t('settings.account_licenses_desc', 'Choisissez quelle licence active applique les droits du compte.') : t('settings.account_licenses_login', 'Connectez-vous pour afficher les licences liées au compte.')}
+                                            </p>
+                                        </div>
+                                        {currentUser && (
+                                            <button
+                                                type="button"
+                                                onClick={refreshAccountLicenses}
+                                                disabled={isLoadingAccountLicenses}
+                                                className="rounded-2xl border border-warm-border-light px-3 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active disabled:cursor-wait disabled:opacity-70 dark:border-white/10 dark:hover:bg-white/10"
+                                            >
+                                                {isLoadingAccountLicenses ? t('settings.loading', 'Chargement') : t('settings.refresh', 'Actualiser')}
+                                            </button>
+                                        )}
+                                    </div>
+                                    {accountLicenseStatus ? (
+                                        <p className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-200">
+                                            {accountLicenseStatus}
+                                        </p>
+                                    ) : null}
+                                    <div className="mt-4 grid gap-2">
+                                        {accountLicenses.length === 0 ? (
+                                            <p className="rounded-xl border border-dashed border-warm-border-light px-3 py-3 text-xs text-warm-text-muted-light dark:border-white/10 dark:text-warm-text-muted-dark">
+                                                {currentUser ? t('settings.no_account_licenses', 'Aucune licence liée à ce compte pour le moment.') : t('settings.no_connected_account', 'No connected account')}
+                                            </p>
+                                        ) : accountLicenses.map((license) => {
+                                            const active = license.id === activeAccountLicenseId;
+                                            const key = license.keyauth_license_key || '';
+                                            const maskedKey = key ? `${key.slice(0, 8)}...${key.slice(-6)}` : t('settings.no_license_key', 'Clé non disponible');
+                                            const expiresAt = license.expires_at ? new Date(license.expires_at).toLocaleDateString() : t('settings.no_expiry', 'Sans expiration');
+
+                                            return (
+                                                <div
+                                                    key={license.id}
+                                                    className={`rounded-2xl border p-3 ${active ? 'border-emerald-500/35 bg-emerald-500/10' : 'border-warm-border-light bg-white/50 dark:border-white/10 dark:bg-black/10'}`}
+                                                >
+                                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                                        <div>
+                                                            <p className="text-sm font-bold capitalize">{String(license.tier || 'basic').replace('_', ' ')}</p>
+                                                            <p className="mt-1 text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                                                {maskedKey} · {license.status} · {expiresAt}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            disabled={active || license.status !== 'active'}
+                                                            onClick={() => handleSelectAccountLicense(license)}
+                                                            className="rounded-xl bg-zinc-950 px-3 py-2 text-xs font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0 dark:bg-white dark:text-zinc-950"
+                                                        >
+                                                            {active ? t('settings.active_license', 'Active') : t('settings.use_license', 'Utiliser')}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                                 <div className="mt-5 flex flex-wrap gap-2 border-t border-warm-border-light pt-4 dark:border-white/10">
@@ -695,13 +869,6 @@ export default function SettingsView({
                                         className="rounded-2xl bg-zinc-950 px-4 py-2 text-xs font-semibold text-white transition-all hover:-translate-y-0.5 dark:bg-white dark:text-zinc-950"
                                     >
                                         {t('settings.buy_license', 'Buy a license')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => open(FIIP_LICENSE_PURCHASE_URL)}
-                                        className="rounded-2xl border border-warm-border-light px-4 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10"
-                                    >
-                                        {t('settings.update_license', 'Update license')}
                                     </button>
                                 </div>
                             </div>
@@ -848,9 +1015,24 @@ export default function SettingsView({
                                     <button onClick={() => open('https://github.com/darkiifr/Fiip')} className="rounded-2xl border border-warm-border-light px-4 py-3 text-left text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10">
                                         {t('settings.source_and_versions', 'Source code and versions')}
                                     </button>
-                                    <button onClick={() => open('mailto:darkii_fr@hotmail.com')} className="rounded-2xl border border-warm-border-light px-4 py-3 text-left text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10">
-                                        {t('settings.contact_support', 'Contact support')}
+                                    <button onClick={() => open(FIIP_DISCORD_SUPPORT_URL)} className="rounded-2xl border border-warm-border-light px-4 py-3 text-left text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10">
+                                        {t('settings.official_support_discord', 'Serveur officiel de support')}
                                     </button>
+                                    {[
+                                        [t('settings.legal_notice', 'Mentions legales'), FIIP_LEGAL_URL],
+                                        [t('settings.terms_of_use', 'Conditions d’utilisation'), FIIP_TERMS_URL],
+                                        [t('settings.privacy_policy', 'Confidentialite'), FIIP_PRIVACY_URL],
+                                        [t('settings.cookies_policy', 'Cookies'), FIIP_COOKIES_URL],
+                                        [t('settings.refund_policy', 'Paiement et remboursements'), FIIP_REFUNDS_URL],
+                                    ].map(([label, url]) => (
+                                        <button
+                                            key={url}
+                                            onClick={() => open(url)}
+                                            className="rounded-2xl border border-warm-border-light px-4 py-3 text-left text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10"
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         </div>

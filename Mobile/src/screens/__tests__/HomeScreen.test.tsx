@@ -99,4 +99,23 @@ describe('HomeScreen', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('NoteEditor', undefined);
   });
+
+  it('filters notes from the native search field', () => {
+    const { getByPlaceholderText, getByText, queryByText } = render(<HomeScreen />);
+
+    fireEvent.changeText(getByPlaceholderText('Rechercher une note'), 'deuxième');
+
+    expect(getByText('Deuxième note')).toBeTruthy();
+    expect(queryByText('Note de test')).toBeNull();
+  });
+
+  it('switches to the favorites filter without losing the dashboard', () => {
+    const { getByText, queryByText } = render(<HomeScreen />);
+
+    fireEvent.press(getByText('Favoris'));
+
+    expect(getByText('Notes récentes')).toBeTruthy();
+    expect(getByText('Note de test')).toBeTruthy();
+    expect(queryByText('Deuxième note')).toBeNull();
+  });
 });

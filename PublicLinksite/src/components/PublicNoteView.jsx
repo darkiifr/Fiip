@@ -71,7 +71,7 @@ export default function PublicNoteView() {
         setNote(data);
       } catch (err) {
         if (err === 'Configuration missing') {
-          setError('Configuration Supabase manquante.');
+          setError('Configuration du service public manquante.');
         } else if (err?.code === 'PGRST116') {
           setError('Note introuvable ou privée.');
         } else {
@@ -145,7 +145,7 @@ export default function PublicNoteView() {
         <section className="note-loading public-panel">
           <IconifyIcon icon="mingcute:loading-fill" className="spin-icon" />
           <h1>Chargement</h1>
-          <p>Récupération de la note publique depuis Supabase.</p>
+          <p>Récupération de la note publique depuis Fiip.</p>
         </section>
       </main>
     );

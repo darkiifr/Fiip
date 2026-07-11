@@ -16,6 +16,26 @@ import IconFileText from '~icons/mingcute/file-fill';
 import IconLoading from '~icons/mingcute/loading-fill';
 import IconLock from '~icons/mingcute/lock-fill';
 
+function getShareErrorMessage(error) {
+    const message = typeof error === 'string' ? error : error?.message || error?.error || '';
+    if (message === 'FREE_PUBLIC_SHARE_DISABLED') {
+        return 'Le partage public demande une licence active.';
+    }
+    if (message === 'FREE_NOTE_LIMIT_EXCEEDED') {
+        return 'Limite de notes cloud atteinte pour votre licence.';
+    }
+    if (/protegees|protégées|locked|encrypted/i.test(message)) {
+        return 'Les notes protegees ne peuvent pas etre publiees.';
+    }
+    if (/not authenticated|auth/i.test(message)) {
+        return 'Connectez-vous pour publier cette note.';
+    }
+    if (/row|single|not found|pgrst116|0 rows/i.test(message)) {
+        return 'La note doit etre synchronisee avant publication. Reessayez dans un instant.';
+    }
+    return message || 'Erreur lors de la mise a jour.';
+}
+
 export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdateNote }) {
     const [selectedNote, setSelectedNote] = useState(note);
     const [isSharing, setIsSharing] = useState(false);
@@ -123,25 +143,31 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
         try {
             const saveRes = await dataService.saveNote(selectedNote);
             if (saveRes && saveRes.error) throw saveRes.error;
+            const syncedNote = {
+                ...selectedNote,
+                id: saveRes?.data?.id || selectedNote.id,
+                user_id: saveRes?.data?.user_id || selectedNote.user_id || currentUser?.id,
+            };
 
             if (isPublic) {
-                const { error } = await dataService.unpublishNote(selectedNote.id);
+                const { error } = await dataService.unpublishNote(syncedNote.id);
                 if (error) throw error;
                 setIsPublic(false);
                 setPublicUrl('');
                 setStatus({ type: 'success', message: 'Note rendue privée.' });
-                onUpdateNote({ ...selectedNote, public_slug: null, shared: false });
+                onUpdateNote({ ...syncedNote, public_slug: null, shared: false });
             } else {
-                const { data, error } = await dataService.publishNote(selectedNote.id);
+                const { data, error } = await dataService.publishNote(syncedNote.id);
                 if (error) throw error;
+                if (!data?.public_slug) throw new Error('NOTE_NOT_READY_FOR_SHARE');
                 setIsPublic(true);
                 setPublicUrl(buildPublicNoteUrl(data.public_slug));
                 setStatus({ type: 'success', message: 'Note publiée avec succès !' });
-                onUpdateNote({ ...selectedNote, public_slug: data.public_slug, shared: true });
+                onUpdateNote({ ...syncedNote, public_slug: data.public_slug, shared: true });
             }
         } catch (error) {
             console.error('Erreur Publish:', error);
-            setStatus({ type: 'error', message: 'Erreur lors de la mise à jour.' });
+            setStatus({ type: 'error', message: getShareErrorMessage(error) });
         } finally {
             setIsSharing(false);
         }

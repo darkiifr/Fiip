@@ -1,0 +1,3 @@
+[functions.sellauth-dynamic-delivery]
+verify_jwt = false
+

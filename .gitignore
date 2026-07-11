@@ -92,6 +92,16 @@ supabase/.env*
 !supabase/snippets/*.sql
 DA/directionArtistique.txt
 
+# SellAuth theme CLI local state and exports
+sellauth-theme/.auth*
+sellauth-theme/.cache/
+sellauth-theme/**/*.zip
+sellauth-theme-backup-*/
+.sellauth*
+
+# Local operational notes
+docs/fiip-fr-domain-setup.md
+
 # Mobile (React Native / iOS / Android)
 Mobile/node_modules/
 Mobile/coverage/

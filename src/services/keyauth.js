@@ -9,8 +9,8 @@ const KA_CONFIG = {
     name: import.meta.env.VITE_KEYAUTH_NAME, // Nom de votre application
     ownerid: import.meta.env.VITE_KEYAUTH_OWNERID, // Owner ID
     secret: import.meta.env.VITE_KEYAUTH_SECRET, // Application Secret
-    version: "1.0", // Version fixée à 1.0 pour éviter les conflits KeyAuth
-    apiUrl: import.meta.env.VITE_KEYAUTH_APIURL // URL de l'API
+    version: import.meta.env.VITE_KEYAUTH_VERSION || "1.0",
+    apiUrl: "https://keyauth.win/api/1.2/"
 };
 
 export const SUBSCRIPTION_LEVELS = {
@@ -128,7 +128,7 @@ class KeyAuthService {
         }
 
         if (!this.sessionid) {
-            return { success: false, message: initError || "Erreur d'initialisation KeyAuth." };
+            return { success: false, message: initError || "Erreur d'initialisation de la licence." };
         }
 
         try {

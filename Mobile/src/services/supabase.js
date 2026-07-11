@@ -52,15 +52,9 @@ export const authService = {
   },
 
   async signIn(identifier, password) {
-    let email = identifier;
-    
-    // S'il n'y a pas d'@, on considère que c'est un pseudo
-    if (identifier && !identifier.includes('@')) {
-        const { data: foundEmail, error: rpcError } = await supabase.rpc('get_email_by_pseudo', { p_pseudo: identifier });
-        if (rpcError || !foundEmail) {
-            return { error: { message: "Ce pseudo n'existe pas ou l'identifiant est incorrect." } };
-        }
-        email = foundEmail;
+    const email = String(identifier || '').trim();
+    if (!email.includes('@')) {
+        return { error: { message: 'Connectez-vous avec votre adresse e-mail.' } };
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({

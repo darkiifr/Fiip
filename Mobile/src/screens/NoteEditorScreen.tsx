@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Alert, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, KeyboardAvoidingView, Alert, Modal, Pressable } from 'react-native';
 import { Icon } from '../components/ui/Icon';
 import { triggerHaptic } from '../utils/hapticEngine';
 import { authenticateBiometric } from '../services/biometrics';
 import { useNotesStore } from '../store/notesStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { GlassCard } from '../components/ui/GlassCard';
+import { FiipAction, FiipScreen, FiipToolbar } from '../components/ui/FiipNative';
 import { ShareModal } from '../components/ShareModal';
 import { getNoteMetrics } from '../utils/noteMetrics';
 import { FiipTag, normalizeNoteTags, serializeLegacyBadges } from '../utils/noteTags';
+import { scanImageToText } from '../services/ocr';
 
 interface NoteEditorScreenProps {
   route: any;
@@ -201,15 +201,36 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
     ));
   };
 
+  const handleScanOcr = async () => {
+    try {
+      setActionMenuVisible(false);
+      const { pick } = await import('@react-native-documents/picker');
+      const [image] = await pick({ type: ['image/*'], allowMultiSelection: false });
+      const pickedImage = image as typeof image & { fileCopyUri?: string | null };
+      const imagePath = pickedImage.fileCopyUri || pickedImage.uri;
+      const text = await scanImageToText(imagePath);
+      if (!text.trim()) {
+        Alert.alert('Scan OCR', 'Aucun texte lisible détecté.');
+        return;
+      }
+      setContent((value: string) => `${value}${value.trim() ? '\n\n' : ''}${text.trim()}`);
+      triggerHaptic('notificationSuccess');
+    } catch (error: any) {
+      if (String(error?.message || '').toLowerCase().includes('cancel')) {
+        return;
+      }
+      Alert.alert('Scan OCR', error?.message || "Impossible d'extraire le texte de cette image.");
+    }
+  };
+
   return (
-    <SafeAreaView style={[styles.screenContainer, { backgroundColor: '#0E0E0E' }]} edges={['top', 'left', 'right']}>
+    <FiipScreen style={{ backgroundColor: colors.background }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         
-        {/* Editor Screen Header matching Screen 5 */}
         <View style={styles.header}>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Retour" style={styles.backBtn} onPress={() => { saveCurrentNote(); onClose(); }} activeOpacity={0.6}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backBtn} onPress={() => { saveCurrentNote(); onClose(); }}>
              <Icon sfSymbol="chevron.left" mdIcon="chevron-left" size={22} color={colors.text} />
-          </TouchableOpacity>
+          </Pressable>
           
           <View style={styles.headerTitleGroup}>
             <Icon sfSymbol="doc.text" mdIcon="file-document-outline" size={16} color={colors.textSecondary} />
@@ -217,18 +238,10 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
           </View>
           
           <View style={styles.headerActions}>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Favori" style={styles.actionBtn} onPress={toggleFavorite} activeOpacity={0.6}>
-                <Icon sfSymbol={isFavorite ? "star.fill" : "star"} mdIcon="star" size={20} color={isFavorite ? "#FFD700" : colors.text} />
-              </TouchableOpacity>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Protéger" style={styles.actionBtn} onPress={toggleLock} activeOpacity={0.6}>
-                <Icon sfSymbol={isLocked ? "lock.fill" : "lock.open"} mdIcon="lock" size={20} color={isLocked ? "#FF3B30" : colors.text} />
-              </TouchableOpacity>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Partager" style={styles.actionBtn} onPress={handleShare} activeOpacity={0.6}>
-                <Icon sfSymbol="square.and.arrow.up" mdIcon="export-variant" size={20} color={colors.text} />
-              </TouchableOpacity>
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Plus d'actions" style={styles.actionBtn} onPress={() => setActionMenuVisible(true)} activeOpacity={0.6}>
-                <Icon sfSymbol="ellipsis" mdIcon="dots-horizontal" size={20} color={colors.text} />
-              </TouchableOpacity>
+              <FiipAction label="Favori" sfSymbol={isFavorite ? "star.fill" : "star"} mdIcon="star" compact selected={isFavorite} onPress={toggleFavorite} />
+              <FiipAction label="Protéger" sfSymbol={isLocked ? "lock.fill" : "lock.open"} mdIcon="lock" compact destructive={isLocked} onPress={toggleLock} />
+              <FiipAction label="Partager" sfSymbol="square.and.arrow.up" mdIcon="export-variant" compact onPress={handleShare} />
+              <FiipAction label="Plus d'actions" sfSymbol="ellipsis" mdIcon="dots-horizontal" compact onPress={() => setActionMenuVisible(true)} />
           </View>
         </View>
 
@@ -296,7 +309,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
 
           {/* Stats Capsule floating underneath note text */}
           <View style={styles.statsContainer}>
-            <GlassCard intensity={30} cornerRadius={16} style={styles.statsCard}>
+            <FiipToolbar style={styles.statsCard}>
               <View style={styles.statsRow}>
                 {showWordCount && (
                   <View style={styles.statItem}>
@@ -318,7 +331,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
                   </View>
                 )}
               </View>
-            </GlassCard>
+            </FiipToolbar>
           </View>
 
           <View style={{ height: 160 }} />
@@ -347,6 +360,10 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
               <Icon sfSymbol="square.and.arrow.up" mdIcon="export-variant" size={18} color={colors.text} />
               <Text style={[styles.menuText, { color: colors.text }]}>Partager</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.menuItem} onPress={handleScanOcr}>
+              <Icon sfSymbol="doc.text.viewfinder" mdIcon="text-recognition" size={18} color={colors.text} />
+              <Text style={[styles.menuText, { color: colors.text }]}>Scanner OCR</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.menuItem} onPress={() => { setActionMenuVisible(false); handleDelete(); }}>
               <Icon sfSymbol="trash" mdIcon="trash-can-outline" size={18} color="#EF4444" />
               <Text style={[styles.menuText, { color: '#EF4444' }]}>Supprimer</Text>
@@ -354,14 +371,11 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </FiipScreen>
   );
 };
 
 const styles = StyleSheet.create({
-  screenContainer: { 
-    flex: 1 
-  },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -385,9 +399,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     alignItems: 'center', 
     gap: 16 
-  },
-  actionBtn: { 
-    padding: 4 
   },
   editorContent: { 
     paddingHorizontal: 24, 

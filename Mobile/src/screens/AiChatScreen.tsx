@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GlassCard } from '../components/ui/GlassCard';
 import { Icon } from '../components/ui/Icon';
+import { FiipAction, FiipScreen, FiipToolbar } from '../components/ui/FiipNative';
 import { generateText, getLastAIUsageStats, subscribeToAIUsage } from '../services/ai';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useNotesStore } from '../store/notesStore';
@@ -36,12 +36,20 @@ export function AiChatScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [usage, setUsage] = useState<any>(getLastAIUsageStats());
 
-  useEffect(() => subscribeToAIUsage(setUsage), []);
+  useEffect(() => {
+    const unsubscribe = subscribeToAIUsage(setUsage);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const usageLabel = useMemo(() => {
     const raw = usage?.usage;
     const prompt = raw?.prompt_tokens ?? raw?.tokens_prompt ?? raw?.native_tokens_prompt;
     const completion = raw?.completion_tokens ?? raw?.tokens_completion ?? raw?.native_tokens_completion;
+    if (usage?.model) {
+      return `Modèle utilisé : ${usage.model}`;
+    }
     if (!prompt && !completion) {
       return 'Aucune génération mesurée';
     }
@@ -87,7 +95,7 @@ export function AiChatScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <FiipScreen>
       <View style={styles.header}>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="Retour" onPress={() => navigation.goBack()} style={styles.iconButton}>
           <Icon sfSymbol="chevron.left" mdIcon="chevron-left" size={22} color={colors.text} />
@@ -108,12 +116,14 @@ export function AiChatScreen({ navigation }: any) {
 
         <View style={styles.quickGrid}>
           {quickPrompts.map((item) => (
-            <TouchableOpacity key={item.label} accessibilityRole="button" activeOpacity={0.78} onPress={() => askFiip(item.prompt)} style={styles.quickItem}>
-              <GlassCard intensity={isIOS ? 24 : 0} cornerRadius={isIOS ? fiipRadius.md : 20} interactive style={styles.quickCard}>
-                <Icon sfSymbol={item.sfSymbol} mdIcon={item.mdIcon} size={16} color={colors.primary} />
-                <Text style={[styles.quickText, { color: colors.text }]}>{item.label}</Text>
-              </GlassCard>
-            </TouchableOpacity>
+            <FiipAction
+              key={item.label}
+              label={item.label}
+              sfSymbol={item.sfSymbol}
+              mdIcon={item.mdIcon}
+              onPress={() => askFiip(item.prompt)}
+              style={styles.quickItem}
+            />
           ))}
         </View>
 
@@ -136,7 +146,7 @@ export function AiChatScreen({ navigation }: any) {
       </ScrollView>
 
       <View style={styles.composer}>
-        <GlassCard intensity={isIOS ? 36 : 0} cornerRadius={isIOS ? 28 : 28} interactive style={styles.inputCard}>
+        <FiipToolbar style={styles.inputCard}>
           <TextInput
             value={input}
             onChangeText={setInput}
@@ -149,9 +159,9 @@ export function AiChatScreen({ navigation }: any) {
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Envoyer" onPress={() => askFiip(input)} style={[styles.sendButton, { backgroundColor: isIOS ? colors.primary : colors.primaryContainer }]}>
             <Icon sfSymbol="arrow.up" mdIcon="arrow-up" size={18} color={isIOS ? '#FFF' : colors.onPrimaryContainer} />
           </TouchableOpacity>
-        </GlassCard>
+        </FiipToolbar>
       </View>
-    </SafeAreaView>
+    </FiipScreen>
   );
 }
 
@@ -169,8 +179,6 @@ const styles = StyleSheet.create({
   noteText: { marginTop: 8, fontSize: 14, lineHeight: 21 },
   quickGrid: { flexDirection: 'row', gap: 10 },
   quickItem: { flex: 1 },
-  quickCard: { paddingVertical: 14, alignItems: 'center', gap: 8 },
-  quickText: { fontSize: 12, fontWeight: '800' },
   answerCard: { padding: 18 },
   answerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   answerText: { marginTop: 12, fontSize: 16, lineHeight: 24 },
@@ -180,7 +188,7 @@ const styles = StyleSheet.create({
   usageCard: { padding: 16 },
   usageText: { marginTop: 8, fontSize: 18, fontWeight: '900' },
   composer: { position: 'absolute', left: 16, right: 16, bottom: 24 },
-  inputCard: { minHeight: 58, flexDirection: 'row', alignItems: 'center', paddingLeft: 18, paddingRight: 8 },
+  inputCard: { minHeight: 58, paddingLeft: 14, paddingRight: 8 },
   input: { flex: 1, fontSize: 16, paddingVertical: 12 },
   sendButton: { width: 42, height: 42, borderRadius: Platform.OS === 'android' ? 14 : 21, alignItems: 'center', justifyContent: 'center' },
 });

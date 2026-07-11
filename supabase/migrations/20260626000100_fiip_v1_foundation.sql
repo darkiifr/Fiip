@@ -13,7 +13,7 @@ alter table if exists public.notes
   add column if not exists conflict_of uuid references public.notes(id) on delete set null;
 
 create table if not exists public.notebooks (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users(id) on delete cascade not null,
   name text not null default 'Toutes les notes',
   color text not null default '#D97706',
@@ -25,7 +25,7 @@ create table if not exists public.notebooks (
 );
 
 create table if not exists public.tags (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users(id) on delete cascade not null,
   label text not null,
   slug text not null,
@@ -44,7 +44,7 @@ create table if not exists public.note_tags (
 );
 
 create table if not exists public.note_tasks (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   note_id uuid references public.notes(id) on delete cascade not null,
   user_id uuid references auth.users(id) on delete cascade not null,
   title text not null,
@@ -59,7 +59,7 @@ create table if not exists public.note_tasks (
 );
 
 create table if not exists public.note_attachments (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   note_id uuid references public.notes(id) on delete cascade not null,
   user_id uuid references auth.users(id) on delete cascade not null,
   name text not null,
@@ -88,7 +88,7 @@ create index if not exists note_search_index_text_trgm
 on public.note_search_index using gin (search_text gin_trgm_ops);
 
 create table if not exists public.note_activity (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   note_id uuid references public.notes(id) on delete cascade not null,
   actor_id uuid references auth.users(id) on delete set null,
   type text not null,
@@ -107,7 +107,7 @@ create table if not exists public.home_widgets (
 );
 
 create table if not exists public.notebook_collaborators (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   notebook_id uuid references public.notebooks(id) on delete cascade not null,
   user_id uuid references auth.users(id) on delete cascade not null,
   role text check (role in ('viewer', 'editor')) default 'viewer',

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { generateText } from '../services/ai';
+import { buildDexterNoteContext } from '../services/dexterContext';
 
 // Icons Import
 import IconCheck from '~icons/mingcute/check-fill';
@@ -174,16 +175,14 @@ export default function Dexter({
         abortController.current = new AbortController();
 
         try {
-            const noteContext = currentNote
-                ? `Titre: ${currentNote.title || 'Sans titre'}\nContenu HTML de la note:\n${currentNote.content || ''}`
-                : 'Aucune note active.';
+            const noteContext = buildDexterNoteContext(currentNote);
 
             const response = await generateText({
                 signal: abortController.current.signal,
                 messages: [
                     {
                         role: 'system',
-                        content: "Tu es Dexter, assistant de rédaction intégré à Fiip. Tu aides à écrire, structurer, corriger et résumer des notes. Réponds en français clair par défaut, sois concis, n'invente pas de faits, ne promets pas de lire des fichiers et précise que les PDF ne sont pas lus directement.",
+                        content: "Tu es Dexter, assistant de rédaction intégré à Fiip. Comprends d'abord l'intention de la demande utilisateur, puis réponds en utilisant uniquement le contexte fourni: titre, texte de note et textes OCR disponibles. Si la demande est ambiguë, pose une question courte. Si une information manque ou si un fichier/PDF n'a pas de texte OCR, dis-le clairement. Réponds en français clair par défaut, sois concis, n'invente pas de faits et ne promets pas de lire des fichiers directement.",
                     },
                     {
                         role: 'user',

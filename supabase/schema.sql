@@ -198,18 +198,14 @@ EXECUTE FUNCTION public.refresh_profile_session();
 -- FUNCTION TO GET EMAIL BY PSEUDO/NICKNAME
 CREATE OR REPLACE FUNCTION public.get_email_by_pseudo(p_pseudo TEXT)
 RETURNS TEXT AS $$
-DECLARE
-  v_email TEXT;
 BEGIN
-  SELECT auth.users.email INTO v_email
-  FROM public.profiles
-  JOIN auth.users ON public.profiles.id = auth.users.id
-  WHERE LOWER(public.profiles.nickname) = LOWER(p_pseudo) OR LOWER(public.profiles.username) = LOWER(p_pseudo)
-  LIMIT 1;
-  
-  RETURN v_email;
+  RAISE EXCEPTION 'Pseudo login email lookup is disabled';
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE ALL ON FUNCTION public.get_email_by_pseudo(TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_email_by_pseudo(TEXT) FROM anon;
+REVOKE ALL ON FUNCTION public.get_email_by_pseudo(TEXT) FROM authenticated;
 
 -- 1. Create the table
 CREATE TABLE IF NOT EXISTS public.note_collaborators (

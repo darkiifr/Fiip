@@ -44,7 +44,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const isIOS = Platform.OS === 'ios';
   
   const [loading, setLoading] = useState(false);
-  const publicUrl = publicSlug ? \`https://fiip-app.netlify.app/n/\${publicSlug}\` : null;
+  const publicUrl = publicSlug ? \`https://fiip.fr/n/\${publicSlug}\` : null;
 
   // Custom animations
   const [showModal, setShowModal] = useState(visible);
@@ -123,7 +123,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const handleShareNative = async () => {
     triggerHaptic('selection');
     try {
-      const urlToShare = publicUrl ? publicUrl : \`https://fiip-app.netlify.app/install\`;
+      const urlToShare = publicUrl ? publicUrl : \`https://fiip.fr/install\`;
       const messageToShare = publicUrl 
         ? t('Découvrez ma note Fiip : ') + urlToShare
         : t('Découvrez Fiip, le bloc-notes ultra-rapide et intelligent !');

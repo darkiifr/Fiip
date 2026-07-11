@@ -1,4 +1,5 @@
 // use tauri::Manager;
+mod ocr;
 
 #[cfg(target_os = "windows")]
 use window_vibrancy::{
@@ -104,6 +105,11 @@ fn read_launch_fiin_file() -> Result<Option<(String, String)>, String> {
 }
 
 #[tauri::command]
+fn scan_image_to_text(image_path: String) -> Result<ocr::OcrResult, String> {
+    ocr::scan_image_to_text(&image_path)
+}
+
+#[tauri::command]
 fn get_hwid() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
@@ -198,7 +204,7 @@ pub fn run() {
            }
            let _ = window.set_focus();
         }))
-        .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, read_launch_fiin_file, get_hwid, register_deep_link])
+        .invoke_handler(tauri::generate_handler![greet, set_window_effect, is_portable, read_launch_fiin_file, scan_image_to_text, get_hwid, register_deep_link])
         .setup(|_app| {
             println!("App setup starting...");
 

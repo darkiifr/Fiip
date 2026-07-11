@@ -6,24 +6,21 @@ vi.mock('./keyauth', () => ({
   },
 }));
 
-describe('OpenRouter AI service', () => {
+const invokeMock = vi.fn();
+
+vi.mock('./supabase', () => ({
+  supabase: {
+    functions: {
+      invoke: invokeMock,
+    },
+  },
+}));
+
+describe('Supabase AI proxy service', () => {
   beforeEach(() => {
     vi.resetModules();
-    vi.stubEnv('VITE_OPENROUTER_KEY', 'test-openrouter-key');
-    global.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 'gen-test',
-          choices: [{ message: { content: 'Réponse test' } }],
-          usage: { total_tokens: 12 },
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { total_cost: 0 } }),
-      });
+    invokeMock.mockReset();
+    global.fetch = vi.fn();
   });
 
   afterEach(() => {
@@ -31,72 +28,87 @@ describe('OpenRouter AI service', () => {
     vi.restoreAllMocks();
   });
 
-  it('forces the free OpenRouter model router', async () => {
-    const { FREE_MODEL_ROUTER, generateText } = await import('./ai');
+  it('calls the Supabase AI proxy and reports the model used', async () => {
+    invokeMock.mockResolvedValueOnce({
+      data: {
+        content: 'Réponse test',
+        model_used: 'deepseek/deepseek-v3.2',
+        usage: { total_tokens: 12, total_cost_eur: 0.00002 },
+        budget: { used_eur: 0.12, limit_eur: 1.35 },
+      },
+      error: null,
+    });
+    const { generateText, getLastAIUsageStats } = await import('./ai');
 
-    const response = await generateText('Résumé rapide');
-    const requestBody = JSON.parse(global.fetch.mock.calls[0][1].body);
+    const response = await generateText('Résumé rapide', 'auto');
 
     expect(response).toBe('Réponse test');
-    expect(requestBody.model).toBe(FREE_MODEL_ROUTER);
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://openrouter.ai/api/v1/chat/completions',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: 'Bearer test-openrouter-key',
-        }),
+    expect(invokeMock).toHaveBeenCalledWith('ai-proxy', expect.objectContaining({
+      body: expect.objectContaining({
+        model: 'auto',
+        taskType: 'chat',
       }),
-    );
-  });
-
-  it('rejects AI calls when the OpenRouter secret is missing', async () => {
-    vi.resetModules();
-    import.meta.env.VITE_OPENROUTER_KEY = '';
-    global.fetch = vi.fn();
-
-    const { generateText } = await import('./ai');
-
-    await expect(generateText('Résumé rapide')).rejects.toThrow('VITE_OPENROUTER_KEY');
+    }));
+    expect(getLastAIUsageStats()).toMatchObject({
+      model: 'deepseek/deepseek-v3.2',
+      budget: { used_eur: 0.12 },
+    });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('filters OpenRouter models to free models only by default', async () => {
-    vi.resetModules();
-    import.meta.env.VITE_OPENROUTER_KEY = 'test-openrouter-key';
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+  it('surfaces explicit budget errors from the AI proxy', async () => {
+    invokeMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'Budget IA mensuel dépassé.' },
+    });
+
+    const { generateText } = await import('./ai');
+
+    await expect(generateText('Résumé rapide')).rejects.toThrow('Budget IA mensuel dépassé.');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('lists models through the Supabase cacheable models endpoint', async () => {
+    invokeMock.mockResolvedValueOnce({
+      data: {
         data: [
-          { id: 'provider/free-model:free', pricing: { prompt: '0', completion: '0' } },
-          { id: 'provider/paid-model', pricing: { prompt: '0.0001', completion: '0.0001' } },
-          { id: 'provider/free-priced-model', pricing: { prompt: '0', completion: '0' } },
+          { id: 'auto', name: 'Automatique' },
+          { id: 'deepseek/deepseek-v3.2', pricing: { prompt: '0.00000014', completion: '0.00000028' } },
         ],
-      }),
+      },
+      error: null,
     });
 
     const { listOpenRouterModels } = await import('./ai');
     const models = await listOpenRouterModels();
 
-    expect(models.map((model) => model.id)).toEqual([
-      'provider/free-model:free',
-      'provider/free-priced-model',
-    ]);
+    expect(models.map((model) => model.id)).toEqual(['auto', 'deepseek/deepseek-v3.2']);
+    expect(invokeMock).toHaveBeenCalledWith('ai-models-list', expect.objectContaining({
+      body: { freeOnly: true },
+    }));
   });
 
-  it('surfaces OpenRouter 401 errors with server key context', async () => {
-    vi.resetModules();
-    import.meta.env.VITE_OPENROUTER_KEY = 'test-openrouter-key';
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      statusText: 'Unauthorized',
-      json: async () => ({ error: { message: 'User not found' } }),
+  it('uses task metadata when provided', async () => {
+    invokeMock.mockResolvedValueOnce({
+      data: { content: 'Titre', model_used: 'deepseek/deepseek-v3.2' },
+      error: null,
     });
 
     const { generateText } = await import('./ai');
 
-    await expect(generateText('Résumé rapide')).rejects.toThrow(
-      'Erreur OpenRouter (401): User not found. Vérifiez le secret serveur VITE_OPENROUTER_KEY',
-    );
+    await generateText({
+      taskType: 'generate_title',
+      inputLength: 128,
+      model: 'auto',
+      messages: [{ role: 'user', content: 'Note' }],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('ai-proxy', expect.objectContaining({
+      body: expect.objectContaining({
+        taskType: 'generate_title',
+        inputLength: 128,
+        model: 'auto',
+      }),
+    }));
   });
 });

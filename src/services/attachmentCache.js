@@ -1,3 +1,4 @@
+import { appDataDir, join } from '@tauri-apps/api/path';
 import {
   BaseDirectory,
   exists,
@@ -7,9 +8,11 @@ import {
   remove,
   stat,
   writeFile,
+  readTextFile,
+  writeTextFile,
 } from '@tauri-apps/plugin-fs';
 
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg']);
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic', 'heif', 'bmp', 'tif', 'tiff', 'svg']);
 const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'mov', 'm4v', 'avi', 'mkv']);
 const AUDIO_EXTENSIONS = new Set(['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac']);
 const TEXT_EXTENSIONS = new Set(['txt', 'md', 'markdown', 'csv', 'json', 'xml', 'html', 'css', 'js', 'ts', 'tsx', 'jsx', 'rs', 'py', 'java', 'kt', 'swift', 'go', 'sql', 'toml', 'yaml', 'yml']);
@@ -35,6 +38,10 @@ export function normalizeAttachmentName(name = '') {
 function getExtension(name = '') {
   const match = String(name).toLowerCase().match(/\.([a-z0-9]+)$/);
   return match ? match[1] : '';
+}
+
+function getAttachmentLocalPath(attachment = {}) {
+  return attachment.path || attachment.filePath || attachment.localPath || attachment.absolutePath || '';
 }
 
 export function classifyAttachment({ name = '', mimeType = '' } = {}) {
@@ -91,8 +98,34 @@ export async function cacheAttachment(file, noteId) {
   };
 }
 
-export async function getAttachmentPreviewUrl(attachment) {
+export async function resolveAttachmentCachePath(attachment) {
   if (!attachment?.cachePath) {
+    return getAttachmentLocalPath(attachment);
+  }
+  if (typeof window === 'undefined' || !window.__TAURI_INTERNALS__) {
+    return attachment.cachePath;
+  }
+
+  try {
+    return await join(await appDataDir(), attachment.cachePath);
+  } catch {
+    return attachment.cachePath;
+  }
+}
+
+export async function getAttachmentPreviewUrl(attachment) {
+  const localPath = getAttachmentLocalPath(attachment);
+
+  if (!attachment?.cachePath) {
+    if (localPath && typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
+      try {
+        const bytes = await readFile(localPath);
+        const blob = new Blob([bytes], { type: attachment.mimeType || 'application/octet-stream' });
+        return URL.createObjectURL(blob);
+      } catch {
+        return attachment.url || '';
+      }
+    }
     return attachment?.url || '';
   }
 
@@ -102,6 +135,45 @@ export async function getAttachmentPreviewUrl(attachment) {
     return URL.createObjectURL(blob);
   } catch {
     return attachment.url || '';
+  }
+}
+
+function getOcrCachePath(attachment) {
+  return attachment?.cachePath ? `${attachment.cachePath}.ocr.json` : '';
+}
+
+export async function readAttachmentOcrCache(attachment) {
+  const path = getOcrCachePath(attachment);
+  if (!path) return null;
+
+  try {
+    if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) return null;
+    const raw = await readTextFile(path, { baseDir: BaseDirectory.AppData });
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== 1 || parsed?.attachmentId !== attachment.id) return null;
+    return parsed.ocr || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function writeAttachmentOcrCache(attachment, ocr) {
+  const path = getOcrCachePath(attachment);
+  if (!path || !ocr) return false;
+
+  try {
+    const payload = {
+      version: 1,
+      attachmentId: attachment.id,
+      sourceName: attachment.name,
+      sourceSize: attachment.size || 0,
+      cachedAt: new Date().toISOString(),
+      ocr,
+    };
+    await writeTextFile(path, JSON.stringify(payload), { baseDir: BaseDirectory.AppData });
+    return true;
+  } catch {
+    return false;
   }
 }
 

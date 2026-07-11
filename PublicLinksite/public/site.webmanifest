@@ -1,0 +1,22 @@
+{
+  "name": "Fiip",
+  "short_name": "Fiip",
+  "description": "Boutique de licences, portail compte et partage public de notes Fiip.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07080d",
+  "theme_color": "#07080d",
+  "icons": [
+    {
+      "src": "/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

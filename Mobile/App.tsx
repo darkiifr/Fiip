@@ -3,7 +3,6 @@ import { Platform, View, StyleSheet, Text, ActivityIndicator } from 'react-nativ
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { PaperProvider, MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 // @ts-ignore
 import { LiquidGlassView } from '@callstack/liquid-glass';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -77,7 +76,7 @@ function App() {
           if (success) setAppUnlocked(true);
        });
     } else {
-       queueMicrotask(() => setAppUnlocked(true));
+       Promise.resolve().then(() => setAppUnlocked(true));
     }
   }, [globalLockEnabled]);
 
@@ -99,62 +98,21 @@ function App() {
   // Determine active theme
   const isDark = true;
   const appTheme = getFiipTheme(isDark, Platform.OS);
-  const paperBaseTheme = isDark ? MD3DarkTheme : MD3LightTheme;
-  const paperTheme = {
-    ...paperBaseTheme,
-    colors: {
-      ...paperBaseTheme.colors,
-      primary: appTheme.primary,
-      onPrimary: appTheme.onPrimary,
-      primaryContainer: appTheme.primaryContainer,
-      onPrimaryContainer: appTheme.onPrimaryContainer,
-      secondaryContainer: appTheme.secondaryContainer ?? appTheme.surfaceContainerHigh,
-      background: appTheme.background,
-      surface: appTheme.surface,
-      surfaceVariant: appTheme.surfaceContainerHighest,
-      surfaceDisabled: appTheme.surfaceContainerHigh,
-      onSurface: appTheme.text,
-      onSurfaceVariant: appTheme.textSecondary,
-      outline: appTheme.outline,
-      outlineVariant: appTheme.outlineVariant,
-      error: appTheme.danger,
-    },
-  };
-
-  if (Platform.OS === 'ios') {
-    return (
-      <I18nextProvider i18n={i18n}>
-        <View style={[styles.container, { backgroundColor: appTheme.background }]}>
-          <LiquidGlassView style={StyleSheet.absoluteFill} />
-          <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="MainTabs" component={TabNavigator} />
-              <Stack.Screen name="NoteEditor" component={NoteEditorScreen} options={{ presentation: 'modal' }} />
-              <Stack.Screen name="AiChat" component={AiChatScreen} options={{ presentation: 'modal' }} />
-              <Stack.Screen name="PdfViewer" component={PdfViewerScreen} options={{ presentation: 'modal' }} />
-              <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} options={{ presentation: 'modal' }} />
-              <Stack.Screen name="Auth" component={SupabaseAuthScreen} options={{ presentation: 'fullScreenModal' }} />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </View>
-      </I18nextProvider>
-    );
-  }
-
   return (
     <I18nextProvider i18n={i18n}>
-      <PaperProvider theme={paperTheme}>
+      <View style={[styles.container, { backgroundColor: appTheme.background }]}>
+        {Platform.OS === 'ios' ? <LiquidGlassView style={StyleSheet.absoluteFill} effect="clear" /> : null}
         <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="MainTabs" component={TabNavigator} />
-            <Stack.Screen name="NoteEditor" component={NoteEditorScreen} />
-            <Stack.Screen name="AiChat" component={AiChatScreen} />
-            <Stack.Screen name="PdfViewer" component={PdfViewerScreen} />
-            <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} />
-            <Stack.Screen name="Auth" component={SupabaseAuthScreen} />
+            <Stack.Screen name="NoteEditor" component={NoteEditorScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
+            <Stack.Screen name="AiChat" component={AiChatScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
+            <Stack.Screen name="PdfViewer" component={PdfViewerScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
+            <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
+            <Stack.Screen name="Auth" component={SupabaseAuthScreen} options={{ presentation: Platform.OS === 'ios' ? 'fullScreenModal' : 'card' }} />
           </Stack.Navigator>
         </NavigationContainer>
-      </PaperProvider>
+      </View>
     </I18nextProvider>
   );
 }

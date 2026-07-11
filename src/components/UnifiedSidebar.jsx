@@ -12,7 +12,6 @@ import {
     Pencil
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import { authService, dataService } from '../services/supabase';
@@ -67,8 +66,6 @@ export default function UnifiedSidebar({
     onOpenProfile,
     onCreateNote,
     onRestoreNote,
-    onToggleFavorite,
-    onDeleteNote,
     onEmptyTrash,
     notebooks = [],
     onCreateNotebook,
@@ -79,7 +76,6 @@ export default function UnifiedSidebar({
     const [searchQuery, setSearchQuery] = useState('');
     const [user, setUser] = useState(null);
     const [profile, setProfile] = useState(null);
-    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, noteId: null });
     const [editingNotebookId, setEditingNotebookId] = useState('');
     const [notebookDraft, setNotebookDraft] = useState('');
 
@@ -249,22 +245,10 @@ export default function UnifiedSidebar({
     const renderNoteItem = (note) => {
         const isSelected = selectedNoteId === note.id;
         const noteTags = normalizeNoteTags(note.tags || []);
-        const openContextMenu = (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onSelectNote(note.id);
-            const menuWidth = 220;
-            const menuHeight = activeNav === 'trash' ? 118 : 104;
-            const x = Math.max(8, Math.min(event.clientX, window.innerWidth - menuWidth - 8));
-            const y = Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8));
-            setContextMenu({ visible: true, x, y, noteId: note.id });
-        };
-
         return (
             <button
                 key={note.id}
                 onClick={() => onSelectNote(note.id)}
-                onContextMenu={openContextMenu}
                 className={`w-full text-left px-3.5 py-3 rounded-xl border transition-all duration-200 group relative overflow-hidden flex flex-col gap-1 ${
                     isSelected 
                         ? 'bg-warm-card-dark/86 border-warm-border-dark dark:border-warm-border-dark shadow-sm dark:bg-white/[0.07]' 
@@ -310,18 +294,6 @@ export default function UnifiedSidebar({
         );
     };
 
-    useEffect(() => {
-        if (!contextMenu.visible) return undefined;
-        const close = () => setContextMenu((current) => ({ ...current, visible: false }));
-        window.addEventListener('click', close);
-        window.addEventListener('keydown', close);
-        return () => {
-            window.removeEventListener('click', close);
-            window.removeEventListener('keydown', close);
-        };
-    }, [contextMenu.visible]);
-
-    const contextNote = notes.find((note) => note.id === contextMenu.noteId);
     const formatCount = (key, count) => t(key, '{{count}}', { count });
     const emptyDateLabel = t('sidebar.no_note_date', 'No note');
     const newNoteLabel = activeNotebookId === 'all-notes'
@@ -586,53 +558,6 @@ export default function UnifiedSidebar({
                 </div>
             </div>
 
-            {contextMenu.visible && contextNote && createPortal(
-                <div
-                    className="fixed z-[10000] w-56 overflow-hidden rounded-2xl border border-black/10 bg-[#fbfaf6]/95 p-1.5 text-sm shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#111316]/95"
-                    style={{ top: contextMenu.y, left: contextMenu.x }}
-                    onContextMenu={(event) => event.preventDefault()}
-                >
-                    <button
-                        type="button"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onToggleFavorite?.(contextNote.id);
-                            setContextMenu((current) => ({ ...current, visible: false }));
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-warm-text-secondary-dark transition-all hover:bg-black/[0.04] dark:text-warm-text-secondary-dark dark:hover:bg-white/10"
-                    >
-                        <Star size={14} className={contextNote.favorite ? 'fill-amber-500 text-amber-500' : ''} />
-                        {contextNote.favorite ? t('sidebar.unfavorite', 'Remove from favorites') : t('sidebar.favorite', 'Add to favorites')}
-                    </button>
-                    {activeNav === 'trash' && (
-                        <button
-                            type="button"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onRestoreNote?.(contextNote.id);
-                                setContextMenu((current) => ({ ...current, visible: false }));
-                            }}
-                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-emerald-600 transition-all hover:bg-emerald-500/10 dark:text-emerald-300"
-                        >
-                            <Plus size={14} />
-                            {t('sidebar.restore', 'Restore')}
-                        </button>
-                    )}
-                    <button
-                        type="button"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onDeleteNote?.(contextNote.id);
-                            setContextMenu((current) => ({ ...current, visible: false }));
-                        }}
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-red-600 transition-all hover:bg-red-500/10 dark:text-red-300"
-                    >
-                        <Trash2 size={14} />
-                        {activeNav === 'trash' ? t('sidebar.delete_permanently', 'Delete permanently') : t('sidebar.delete', 'Delete')}
-                    </button>
-                </div>,
-                document.body
-            )}
         </aside>
     );
 }
