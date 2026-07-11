@@ -1,0 +1,251 @@
+{% if properties.background_image == 'DEFAULT' %}
+  {% set bgImageUrl = 'hero.jpg' | assetUrl %}
+{% else %}
+  {% set bgImageUrl = properties.background_image | imageUrl %}
+{% endif %}
+
+<section class="hero alignment-{{ properties.alignment }} height-{{ properties.height }} component" style="background-image: url('{{ bgImageUrl }}');" data-component-id="{{ componentId }}">
+  <div class="bg-overlay"></div>
+  <div class="container">
+    <div class="content">
+      <h1>
+        {{ properties.title | renderString }}
+      </h1>
+      <p>
+        {{ properties.subtitle | renderString }}
+      </p>
+      {% if properties.show_searchbar %}
+      <div class="form-group fake-searchbar" data-bs-toggle="modal" data-bs-target="#searchModal" role="button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#000000" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
+        <input type="text" class="form-control" placeholder="Search for products..." readonly>
+      </div>
+      {% endif %}
+      {% if properties.cta and properties.cta_text %}
+      <a href="{{ properties.cta | shopUrl }}" class="btn btn-primary">
+        {{ properties.cta_text }}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          style="height: 1rem; width: 1rem; vertical-align: -0.125em"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
+          />
+        </svg>
+      </a>
+      {% endif %}
+      {% if properties.show_feedback_rating or properties.show_products_sold or properties.total_customers %}
+      <div class="stats-wrapper">
+        <div class="stats">
+          {% if properties.show_feedback_rating %}
+          <div>
+            <span class="value">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+                />
+              </svg>
+              {{ shop.average_rating }}
+            </span>
+            <span class="label">Feedback Rating</span>
+          </div>
+          {% endif %}
+          {% if properties.show_products_sold %}
+          <div>
+            <span class="value">{{ shop.products_sold }}</span>
+            <span class="label">Products Sold</span>
+          </div>
+          {% endif %}
+          {% if properties.show_total_customers %}
+          <div>
+            <span class="value">{{ shop.total_customers }}</span>
+            <span class="label">Total Customers</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% if properties.side_image %}
+    <div class="image">
+      <img src="{{ properties.side_image | imageUrl }}" alt="" class="img-fluid">
+    </div>
+    {% else %}
+    <div></div>
+    {% endif %}
+  </div>
+  {% if properties.show_searchbar %}
+  <div class="modal fade search-modal" id="searchModal" x-data="searchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="form-group searchbar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#000000" viewBox="0 0 256 256"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path></svg>
+            <input type="text" class="form-control" placeholder="Search for products..." x-model="term">
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="products" x-ref="productsContainer">
+            {% for product in sortedItems %}
+            {% if product.type != 'group' %}
+            <a href="{{ ('/product/' + product.path) | shopUrl }}" class="product" data-title="{{ product.name }}">
+              <div class="left">
+                <div class="image aspect-product-card-image">
+                  {% if product.image_urls|length > 0 %}
+                  <img src="{{ product.image_urls[0] }}" class="img-fluid aspect-product-card-image object-product-image" />
+                  {% elif product.image_url %}
+                  <img src="{{ product.image_url }}" class="img-fluid aspect-product-card-image object-product-image" />
+                  {% else %}
+                  <div
+                    class="product-img-placeholder aspect-product-card-image"
+                    style="color: {{ global.properties.theme_color }};"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="32"
+                      height="32"
+                      viewBox="0 0 256 256"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="m222.72 67.91l-88-48.18a13.9 13.9 0 0 0-13.44 0l-88 48.18A14 14 0 0 0 26 80.18v95.64a14 14 0 0 0 7.28 12.27l88 48.18a13.92 13.92 0 0 0 13.44 0l88-48.18a14 14 0 0 0 7.28-12.27V80.18a14 14 0 0 0-7.28-12.27ZM127 30.25a2 2 0 0 1 1.92 0L212.51 76l-33.94 18.57l-84.52-46.26ZM122 223l-83-45.43a2 2 0 0 1-1-1.75V86.66l84 46ZM43.49 76l38.07-20.85l84.51 46.26L128 122.24ZM218 175.82a2 2 0 0 1-1 1.75L134 223v-90.36l36-19.71V152a6 6 0 0 0 12 0v-45.63l36-19.71Z"
+                      />
+                    </svg>
+                  </div>
+                  {% endif %}
+
+                  {% if product.product_badges.card|length > 0 %}
+                    <div class="badges">
+                    {% for productBadge in product.product_badges.card %}
+                      <div style="background-color: {{ productBadge.color }}" data-text="{{ productBadge.label }}" data-color="{{ productBadge.color }}">
+                        {% if productBadge.icon %}
+                          <i class="{{ productBadge.icon }} fa-fw"></i>
+                        {% endif %}
+                        {{ productBadge.label }}
+                      </div>
+                    {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="text">
+                  <h3>{{ product.name }}</h3>
+                  <p>
+                    {% if product.min_price != product.max_price %}
+                      <span x-text="appCurrency.format({{ product.min_price }}, '{{ product.currency }}')">
+                        {{ formatPrice(product.min_price, product.currency) }}
+                      </span>
+                      -
+                      <span x-text="appCurrency.format({{ product.max_price }}, '{{ product.currency }}')">
+                        {{ formatPrice(product.max_price, product.currency) }}
+                      </span>
+                    {% elif product.min_price %}
+                      <span x-text="appCurrency.format({{ product.min_price }}, '{{ product.currency }}')">
+                        {{ formatPrice(product.min_price, product.currency) }}
+                      </span>
+                    {% else %}
+                      -
+                    {% endif %}
+
+                    {% if product.min_price_slash and product.max_price_slash and product.min_price_slash != product.max_price_slash %}
+                      <s class="opacity-50">
+                        <span x-text="appCurrency.format({{ product.min_price_slash }}, '{{ product.currency }}')">
+                          {{ formatPrice(product.min_price_slash, product.currency) }}
+                        </span>
+                        -
+                        <span x-text="appCurrency.format({{ product.max_price_slash }}, '{{ product.currency }}')">
+                          {{ formatPrice(product.max_price_slash, product.currency) }}
+                        </span>
+                      </s>
+                    {% elif product.min_price_slash %}
+                      <s class="opacity-50">
+                        <span x-text="appCurrency.format({{ product.min_price_slash }}, '{{ product.currency }}')">
+                          {{ formatPrice(product.min_price_slash, product.currency) }}
+                        </span>
+                      </s>
+                    {% endif %}
+                  </p>
+                  <p class="stock text-primary">
+                    {% if product.type == 'group' %}
+                    {{ product.products | length }} Products
+                    {% else %}
+                      {% if product.stock === 0 %}
+                      Out of Stock
+                      {% elif product.hide_stock_count %}
+                      In Stock
+                      {% elif product.stock === -1 %}
+                      <span class="stock-unlimited">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 256 256"><path d="M248,128a56,56,0,0,1-95.6,39.6l-.33-.35L92.12,99.55a40,40,0,1,0,0,56.9l8.52-9.62a8,8,0,1,1,12,10.61l-8.69,9.81-.33.35a56,56,0,1,1,0-79.2l.33.35,59.95,67.7a40,40,0,1,0,0-56.9l-8.52,9.62a8,8,0,1,1-12-10.61l8.69-9.81.33-.35A56,56,0,0,1,248,128Z"></path></svg>
+                        In Stock
+                      </span>
+                      {% else %}
+                      {{ product.stock + ' In Stock' }}
+                      {% endif %}
+                    {% endif %}
+                  </p>
+                </div>
+              </div>
+              <div class="right">
+                <p class="text-primary">
+                  {% if product.type == 'group' %}
+                    {{ product.products | length }} Products
+                  {% else %}
+                    {% if product.stock === 0 %}
+                      Out of Stock
+                    {% elif product.hide_stock_count %}
+                      In Stock
+                    {% elif product.stock === -1 %}
+                      <span class="stock-unlimited">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 256 256"><path d="M248,128a56,56,0,0,1-95.6,39.6l-.33-.35L92.12,99.55a40,40,0,1,0,0,56.9l8.52-9.62a8,8,0,1,1,12,10.61l-8.69,9.81-.33.35a56,56,0,1,1,0-79.2l.33.35,59.95,67.7a40,40,0,1,0,0-56.9l-8.52,9.62a8,8,0,1,1-12-10.61l8.69-9.81.33-.35A56,56,0,0,1,248,128Z"></path></svg>
+                        In Stock
+                      </span>
+                    {% else %}
+                      {{ product.stock + ' In Stock' }}
+                    {% endif %}
+                  {% endif %}
+                </p>
+              </div>
+            </a>
+            {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('searchModal', () => ({
+        term: '',
+        init() {
+          this.$watch('term', () => {
+            this.$refs.productsContainer.querySelectorAll('.product').forEach((product) => {
+              if (product.dataset.title.toLowerCase().includes(this.term.toLowerCase())) {
+                product.classList.remove('d-none');
+              } else {
+                product.classList.add('d-none');
+              }
+            });
+          });
+        }
+      }));
+    });
+
+    document.querySelector('.search-modal').addEventListener('shown.bs.modal', function() {
+      this.querySelector('.searchbar input').focus();
+    });
+  </script>
+  {% endif %}
+</section>

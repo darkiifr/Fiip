@@ -52,6 +52,19 @@ describe('PublicNoteView security', () => {
     expect(screen.getByRole('link', { name: /Document sûr/i })).toHaveAttribute('href', 'https://example.com/doc.pdf');
   });
 
+  it('does not call the public note RPC for injection-shaped slugs', async () => {
+    window.history.pushState({}, '', '/n/%27%3Bdrop-table-notes--');
+    vi.mocked(dataService.getPublicNote).mockResolvedValue({
+      data: null,
+      error: new Error('Lien public invalide.'),
+    });
+
+    render(<PublicNoteView />);
+
+    expect(await screen.findByText('Lien public invalide.')).toBeInTheDocument();
+    expect(dataService.getPublicNote).toHaveBeenCalledWith('%27%3Bdrop-table-notes--');
+  });
+
   it('renders the local demo note without Supabase', async () => {
     window.history.pushState({}, '', '/n/demo');
 

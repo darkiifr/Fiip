@@ -419,11 +419,10 @@ export default function SettingsModal({
 
                             <p className="text-[10px] text-gray-400 px-1 pt-2 border-t border-white/5 mt-1 flex flex-col gap-1">
                                 <span>{t('settings.cloud_sync_desc')}</span>
-                                <span className="text-blue-400 flex items-center gap-1">Propulsé par Supabase Cloud</span>
+                                <span className="text-blue-400 flex items-center gap-1">Propulsé par le cloud Fiip</span>
                             </p>
                          </div>
                     </div>
-
                     {/* Window Effects */}
                     <div className="space-y-3">
                         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.window_effects_title')}</h3>
@@ -808,7 +807,6 @@ export default function SettingsModal({
         </GlassDialog>
     );
 }
-
 
 
 

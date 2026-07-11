@@ -91,9 +91,23 @@ export function normalizeAttachment(input = {}, noteId = '') {
     size: Number(input.size || 0),
     path: input.path || input.storage_path || input.cachePath || '',
     cachePath: input.cachePath || input.cache_path || '',
+    filePath: input.filePath || input.file_path || '',
+    localPath: input.localPath || input.local_path || '',
+    absolutePath: input.absolutePath || input.absolute_path || '',
     url: input.url || input.publicUrl || '',
     previewable: input.previewable ?? meta.previewable,
     ocrText: input.ocrText || input.ocr_text || '',
+    ocrWords: input.ocrWords || input.ocr_words || [],
+    ocrStatus: input.ocrStatus || input.ocr_status || '',
+    ocrConfidence: Number(input.ocrConfidence || input.ocr_confidence || 0),
+    ocrKind: input.ocrKind || input.ocr_kind || '',
+    ocrLabel: input.ocrLabel || input.ocr_label || '',
+    ocrEngine: input.ocrEngine || input.ocr_engine || '',
+    ocrVariant: input.ocrVariant || input.ocr_variant || '',
+    ocrQualityScore: Number(input.ocrQualityScore || input.ocr_quality_score || 0),
+    ocrQualityLevel: input.ocrQualityLevel || input.ocr_quality_level || '',
+    ocrQualityLabel: input.ocrQualityLabel || input.ocr_quality_label || '',
+    ocrQualityReasons: input.ocrQualityReasons || input.ocr_quality_reasons || [],
     createdAt: input.createdAt || input.created_at || nowIso(),
   };
 }
@@ -167,6 +181,10 @@ export function createTask(input = {}) {
     updated_at: updatedAt,
     completed_at: input.completed_at || input.completedAt || null,
   };
+}
+
+export function removeTaskById(tasks = [], taskId = '') {
+  return (Array.isArray(tasks) ? tasks : []).filter((task) => task?.id !== taskId);
 }
 
 export function getDueTasks(tasks = [], { now = new Date(), includeOverdue = true } = {}) {

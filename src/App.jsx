@@ -33,7 +33,7 @@ import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } fro
 import { keyAuthService } from "./services/keyauth";
 import { queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
 import { soundManager } from "./services/soundManager";
-import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook } from './services/fiipV1';
+import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook, removeTaskById } from './services/fiipV1';
 import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
 import { applyTheme } from './services/theme';
 import { normalizeNoteTags } from './utils/noteTags';
@@ -872,6 +872,11 @@ function App() {
     return task;
   };
 
+  const handleDeleteTask = async (taskId) => {
+    setTasks((prev) => removeTaskById(prev, taskId));
+    dataService.deleteTask(taskId).catch(console.error);
+  };
+
   const handleAdvancedSearch = (query) => {
     const matches = filterNotesAdvanced(notes, query, { tasks });
     if (matches[0]) {
@@ -1014,7 +1019,7 @@ function App() {
       {
         id: 'settings-sync',
         label: 'Synchronisation',
-        description: 'Voir le statut Supabase',
+        description: 'Voir le statut du cloud Fiip',
         icon: <Database size={15} />,
         group: 'Réglages',
         onSelect: () => openSettingsTab('sync')
@@ -1022,7 +1027,7 @@ function App() {
       {
         id: 'settings-ai',
         label: 'Intelligence artificielle',
-        description: 'Voir le routeur OpenRouter et les statistiques',
+        description: "Voir l'activité de l'assistant et les statistiques",
         icon: <Bot size={15} />,
         group: 'Réglages',
         onSelect: () => openSettingsTab('ai')
@@ -1162,6 +1167,7 @@ function App() {
                     notebooks={notebooks}
                     tasks={tasks.filter((task) => task.note_id === activeNote.id)}
                     onSaveTask={handleSaveTask}
+                    onDeleteTask={handleDeleteTask}
                     storageUsage={storageUsage}
                     planLevel={planLevel}
                 />

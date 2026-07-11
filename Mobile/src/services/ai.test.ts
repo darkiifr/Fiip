@@ -8,63 +8,61 @@ jest.mock('./keyauth', () => ({
   },
 }));
 
-process.env.VITE_OPENROUTER_KEY = 'test-openrouter-key';
+const mockInvoke = jest.fn();
 
-const { FREE_MODEL_ROUTER, generateText, listOpenRouterModels } = require('./ai');
+jest.mock('./supabase', () => ({
+  supabase: {
+    functions: {
+      invoke: mockInvoke,
+    },
+  },
+}));
 
-describe('mobile OpenRouter client', () => {
+describe('mobile Supabase AI proxy client', () => {
   beforeEach(() => {
-    global.fetch = jest.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 'gen-1',
-          usage: { prompt_tokens: 8, completion_tokens: 13 },
-          choices: [{ message: { content: 'Réponse gratuite' } }],
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { total_cost: 0 } }),
-      }) as jest.Mock;
+    mockInvoke.mockReset();
+    global.fetch = jest.fn() as jest.Mock;
   });
 
-  it('forces the OpenRouter free model router', async () => {
+  it('calls the Supabase AI proxy', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: {
+        content: 'Réponse proxy',
+        model_used: 'deepseek/deepseek-v3.2',
+        usage: { prompt_tokens: 8, completion_tokens: 13 },
+      },
+      error: null,
+    });
+
+    const { generateText } = require('./ai');
     const result = await generateText({
       messages: [{ role: 'user', content: 'Bonjour' }],
     });
 
-    expect(result).toBe('Réponse gratuite');
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://openrouter.ai/api/v1/chat/completions',
-      expect.objectContaining({
-        body: expect.stringContaining(`"model":"${FREE_MODEL_ROUTER}"`),
-      }),
-    );
+    expect(result).toBe('Réponse proxy');
+    expect(mockInvoke).toHaveBeenCalledWith('ai-proxy', expect.objectContaining({
+      body: expect.objectContaining({ model: 'auto', taskType: 'chat' }),
+    }));
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('filters model listings to free OpenRouter models', async () => {
-    global.fetch = jest.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
+  it('lists models through the Supabase models endpoint', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      data: {
         data: [
-          { id: 'provider/free:free', pricing: { prompt: '0', completion: '0' } },
-          { id: 'provider/free-priced', pricing: { prompt: '0', completion: '0' } },
-          { id: 'provider/paid', pricing: { prompt: '0.01', completion: '0.01' } },
+          { id: 'auto', name: 'Automatique' },
+          { id: 'deepseek/deepseek-v3.2', name: 'DeepSeek V3.2' },
         ],
-      }),
-    }) as jest.Mock;
+      },
+      error: null,
+    });
 
+    const { listOpenRouterModels } = require('./ai');
     const models = await listOpenRouterModels();
 
-    expect(models.map((model: any) => model.id)).toEqual(['provider/free:free', 'provider/free-priced']);
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://openrouter.ai/api/v1/models',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: expect.stringMatching(/^Bearer\s+\S+/),
-        }),
-      }),
-    );
+    expect(models.map((model: any) => model.id)).toEqual(['auto', 'deepseek/deepseek-v3.2']);
+    expect(mockInvoke).toHaveBeenCalledWith('ai-models-list', expect.objectContaining({
+      body: { freeOnly: true },
+    }));
   });
 });

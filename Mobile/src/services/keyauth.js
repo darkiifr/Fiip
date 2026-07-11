@@ -1,14 +1,14 @@
 import DeviceInfo from 'react-native-device-info';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { VITE_KEYAUTH_NAME, VITE_KEYAUTH_OWNERID, VITE_KEYAUTH_SECRET, VITE_KEYAUTH_APIURL } from '@env';
+import { VITE_KEYAUTH_NAME, VITE_KEYAUTH_OWNERID, VITE_KEYAUTH_SECRET, VITE_KEYAUTH_VERSION } from '@env';
 
 // Configuration KeyAuth - À REMPLACER PAR VOS INFORMATIONS
 const KA_CONFIG = {
     name: VITE_KEYAUTH_NAME || process.env.EXPO_PUBLIC_KEYAUTH_NAME,
     ownerid: VITE_KEYAUTH_OWNERID || process.env.EXPO_PUBLIC_KEYAUTH_OWNERID,
     secret: VITE_KEYAUTH_SECRET || process.env.EXPO_PUBLIC_KEYAUTH_SECRET,
-    version: "1.0",
-    apiUrl: VITE_KEYAUTH_APIURL || process.env.EXPO_PUBLIC_KEYAUTH_APIURL
+    version: VITE_KEYAUTH_VERSION || process.env.EXPO_PUBLIC_KEYAUTH_VERSION || "1.0",
+    apiUrl: "https://keyauth.win/api/1.2/"
 };
 
 export const SUBSCRIPTION_LEVELS = {

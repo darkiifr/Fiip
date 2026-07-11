@@ -1,6 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+import { buildDexterNoteContext } from '../services/dexterContext';
+
 import Dexter from './Dexter';
 
 const mockGenerateText = vi.fn();
@@ -138,5 +140,20 @@ describe('Dexter Assistant', () => {
         });
 
         expect(await screen.findByText('Cette fonctionnalité nécessite un abonnement actif.')).toBeInTheDocument();
+    });
+
+    it('includes plain note text and OCR attachment text for the AI prompt', () => {
+        const context = buildDexterNoteContext({
+            title: 'Facture client',
+            content: '<h1>Total</h1><p>À vérifier</p>',
+            attachments: [
+                { name: 'recu.webp', ocrText: 'Montant TTC 42 EUR' },
+                { name: 'photo.png', ocrText: '' },
+            ],
+        });
+
+        expect(context).toContain('Titre: Facture client');
+        expect(context).toContain('Total À vérifier');
+        expect(context).toContain('- recu.webp: Montant TTC 42 EUR');
     });
 });

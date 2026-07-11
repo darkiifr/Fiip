@@ -1,6 +1,6 @@
 import { Sparkles, X, ThumbsDown, ThumbsUp, Clipboard, ArrowRightCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { generateText } from '../../services/ai';
+import { generateText, getLastAIUsageStats } from '../../services/ai';
 
 const SUGGESTIONS = [
   'Résumer',
@@ -13,6 +13,7 @@ export default function DesktopAssistantPanel({ note, onApplyText, onClose }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState('');
+  const [modelUsed, setModelUsed] = useState(() => getLastAIUsageStats()?.model || 'auto');
 
   const selectedText = useMemo(() => {
     const plain = (note?.content || '').replace(/<[^>]+>/g, ' ');
@@ -29,6 +30,7 @@ export default function DesktopAssistantPanel({ note, onApplyText, onClose }) {
       ];
       const res = await generateText({ messages });
       setAnswer(res || 'Aucune réponse.');
+      setModelUsed(getLastAIUsageStats()?.model || 'auto');
     } catch (e) {
       setAnswer(e.message || 'Erreur IA.');
     } finally {
@@ -54,6 +56,7 @@ export default function DesktopAssistantPanel({ note, onApplyText, onClose }) {
 
       <section className="fiip-assistant-response">
         <h4>RÉPONSE DE FIIP</h4>
+        <span className="status-pill">{modelUsed ? 'Réponse générée' : 'Assistant prêt'}</span>
         <p>Voici une reformulation plus claire et percutante de la phrase sélectionnée :</p>
         <blockquote>{answer || selectedText || 'Choisissez une suggestion pour commencer.'}</blockquote>
         <div className="fiip-assistant-actions">

@@ -1,0 +1,326 @@
+{
+    "templates": {
+        "shop": {
+            "layout": "master",
+            "components": {
+                "hero": {
+                    "type": "hero",
+                    "properties": {
+                        "title": "Fiip licences par Vins Studio",
+                        "subtitle": "Achetez une licence Fiip officielle et recevez votre cle automatiquement apres paiement.",
+                        "cta": null,
+                        "cta_text": null,
+                        "show_searchbar": true,
+                        "show_feedback_rating": true,
+                        "show_products_sold": true,
+                        "show_total_customers": true,
+                        "alignment": "center",
+                        "height": "medium",
+                        "background_image": "DEFAULT",
+                        "side_image": null
+                    }
+                },
+                "products": {
+                    "type": "products",
+                    "properties": {
+                        "title": "Licences Fiip",
+                        "subtitle": null
+                    }
+                },
+                "feedbacks": {
+                    "type": "feedbacks",
+                    "properties": {
+                        "title": "Avis",
+                        "subtitle": null,
+                        "amount": 4
+                    }
+                },
+                "socials": {
+                    "type": "socials",
+                    "properties": {
+                        "title": "Support officiel",
+                        "subtitle": null
+                    }
+                }
+            },
+            "components_order": [
+                "hero",
+                "products",
+                "socials",
+                "feedbacks"
+            ]
+        },
+        "cart": {
+            "layout": "master",
+            "components": {
+                "cart-page": {
+                    "type": "cart-page",
+                    "properties": []
+                }
+            },
+            "components_order": [
+                "cart-page"
+            ]
+        },
+        "products": {
+            "layout": "master",
+            "components": {
+                "products-page": {
+                    "type": "products-page",
+                    "properties": {
+                        "default_title": "Our Products",
+                        "category_title": "{{ category.name }} Products"
+                    }
+                }
+            },
+            "components_order": [
+                "products-page"
+            ]
+        },
+        "product": {
+            "layout": "master",
+            "components": {
+                "product-page": {
+                    "type": "product-page",
+                    "properties": {
+                        "hide_add_to_cart": false,
+                        "hide_buy_now": false
+                    }
+                }
+            },
+            "components_order": [
+                "product-page"
+            ]
+        },
+        "feedback": {
+            "layout": "master",
+            "components": {
+                "feedback-page": {
+                    "type": "feedback-page",
+                    "properties": []
+                }
+            },
+            "components_order": [
+                "feedback-page"
+            ]
+        },
+        "status": {
+            "layout": "master",
+            "components": {
+                "status-page": {
+                    "type": "status-page",
+                    "properties": []
+                }
+            },
+            "components_order": [
+                "status-page"
+            ]
+        },
+        "faq": {
+            "layout": "master",
+            "components": {},
+            "components_order": []
+        },
+        "terms": {
+            "layout": "master",
+            "components": {
+                "terms-page": {
+                    "type": "terms-page",
+                    "properties": []
+                }
+            },
+            "components_order": [
+                "terms-page"
+            ]
+        },
+        "privacy-policy": {
+            "layout": "master",
+            "components": {
+                "privacy-policy-page": {
+                    "type": "privacy-policy-page",
+                    "properties": []
+                }
+            },
+            "components_order": [
+                "privacy-policy-page"
+            ]
+        },
+        "refund-policy": {
+            "layout": "master",
+            "components": {
+                "refund-policy-page": {
+                    "type": "refund-policy-page",
+                    "properties": []
+                }
+            },
+            "components_order": [
+                "refund-policy-page"
+            ]
+        },
+        "blog": {
+            "layout": "master",
+            "components": {
+                "blog-posts": {
+                    "type": "blog-posts",
+                    "properties": {
+                        "title": "Our Blog"
+                    }
+                }
+            },
+            "components_order": [
+                "blog-posts"
+            ]
+        },
+        "blog-post": {
+            "layout": "master",
+            "components": {
+                "blog-post": {
+                    "type": "blog-post-page",
+                    "properties": []
+                }
+            },
+            "components_order": [
+                "blog-post-page"
+            ]
+        },
+        "customer-dashboard": {
+            "layout": "master",
+            "components": [],
+            "components_order": []
+        },
+        "customer-invoices": {
+            "layout": "master",
+            "components": [],
+            "components_order": []
+        },
+        "customer-tickets": {
+            "layout": "master",
+            "components": [],
+            "components_order": []
+        },
+        "customer-ticket": {
+            "layout": "master",
+            "components": [],
+            "components_order": []
+        },
+        "customer-balance": {
+            "layout": "master",
+            "components": [],
+            "components_order": []
+        },
+        "customer-affiliate": {
+            "layout": "master",
+            "components": [],
+            "components_order": []
+        },
+        "maintenance": {
+            "layout": "master",
+            "components": [],
+            "components_order": []
+        }
+    },
+    "global": {
+        "properties": {
+            "theme_color": "#6571FF",
+            "primary_background_color": "#0a0a0a",
+            "secondary_background_color": "#141414",
+            "primary_border_color": "#ffffff0d",
+            "font": "Poppins",
+            "snow": false,
+            "snow_color": "#ffffff",
+            "product_card_image_aspect_ratio": "16\/9",
+            "product_page_image_aspect_ratio": "16\/9",
+            "product_image_fit": "cover",
+            "group_card_image_aspect_ratio": "16\/9",
+            "group_image_fit": "cover",
+            "blog_card_image_aspect_ratio": "16\/9",
+            "blog_image_fit": "cover"
+        },
+        "components": {
+            "announcement": {
+                "text": null,
+                "link": null,
+                "link_text": null
+            },
+            "navbar": {
+                "show_shop_name": true,
+                "show_logo": true,
+                "left_links": [
+                    {
+                        "text": "Accueil",
+                        "link": "\/",
+                        "shape": "regular"
+                    },
+                    {
+                        "text": "Licences",
+                        "link": "\/products",
+                        "shape": "regular"
+                    },
+                    {
+                        "text": "Avis",
+                        "link": "\/feedback",
+                        "shape": "regular"
+                    },
+                    {
+                        "text": "Statut",
+                        "link": "\/status",
+                        "shape": "regular"
+                    },
+                    {
+                        "text": "Support Discord",
+                        "link": "https:\/\/discord.gg\/nghHqs2pvN",
+                        "shape": "regular"
+                    }
+                ],
+                "right_links": [],
+                "hide_currency_selector": false,
+                "hide_customer_dashboard": false,
+                "hide_cart": false
+            },
+            "footer": {
+                "show_shop_name": true,
+                "show_logo": false,
+                "show_socials": true,
+                "links_title": "Navigation",
+                "links": [
+                    {
+                        "text": "Accueil",
+                        "link": "\/"
+                    },
+                    {
+                        "text": "Licences",
+                        "link": "\/products"
+                    },
+                    {
+                        "text": "Avis",
+                        "link": "\/feedback"
+                    },
+                    {
+                        "text": "Statut",
+                        "link": "\/status",
+                        "shape": "regular"
+                    },
+                    {
+                        "text": "Support officiel",
+                        "link": "https:\/\/discord.gg\/nghHqs2pvN"
+                    }
+                ],
+                "links_2_title": "Legal",
+                "links_2": [
+                    {
+                        "text": "CGU",
+                        "link": "\/terms-of-service"
+                    },
+                    {
+                        "text": "Confidentialite",
+                        "link": "\/privacy-policy"
+                    },
+                    {
+                        "text": "Remboursements",
+                        "link": "\/refund-policy"
+                    }
+                ]
+            }
+        }
+    }
+}

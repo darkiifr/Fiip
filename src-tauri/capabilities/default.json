@@ -25,39 +25,83 @@
     },
     {
       "identifier": "fs:allow-read-file",
-      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+      "allow": [
+        { "path": "$APP_DATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" }
+      ]
     },
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+      "allow": [
+        { "path": "$APP_DATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" }
+      ]
     },
     {
       "identifier": "fs:allow-write-file",
-      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+      "allow": [
+        { "path": "$APP_DATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" }
+      ]
     },
     {
       "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+      "allow": [
+        { "path": "$APP_DATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" }
+      ]
     },
     {
       "identifier": "fs:allow-exists",
-      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+      "allow": [
+        { "path": "$APP_DATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" }
+      ]
     },
     {
       "identifier": "fs:allow-mkdir",
-      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+      "allow": [
+        { "path": "$APP_DATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" }
+      ]
     },
     {
       "identifier": "fs:allow-read-dir",
-      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+      "allow": [
+        { "path": "$APP_DATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" }
+      ]
     },
     {
       "identifier": "fs:allow-stat",
-      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+      "allow": [
+        { "path": "$APP_DATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$PICTURE/**" }
+      ]
     },
     {
       "identifier": "fs:allow-remove",
-      "allow": [{ "path": "**" }, { "path": "$APP_DATA/**" }]
+      "allow": [{ "path": "$APP_DATA/**" }]
     },
     "dialog:default",
     "shell:allow-open",

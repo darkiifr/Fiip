@@ -1,7 +1,8 @@
 import { Icon as IconifyIcon } from '@iconify/react';
-import { X, User, Shield, CreditCard, Save, Upload, RefreshCw, Cloud, BadgeCheck } from 'lucide-react';
+import { X, User, Shield, CreditCard, Save, Upload, RefreshCw, Cloud, BadgeCheck, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
+import { getAccountSummary } from '../services/accountLicenses';
 import { keyAuthService } from '../services/keyauth';
 import { authService, dataService } from '../services/supabase';
 
@@ -38,6 +39,27 @@ function getDisplayName(user, profile) {
     user?.email?.split('@')[0] ||
     'Utilisateur Fiip'
   );
+}
+
+function getMemberLabel(member) {
+  return member?.invited_email || member?.email || member?.user_id || 'Compte Fiip';
+}
+
+function formatFamilyRole(role) {
+  return role === 'admin' ? 'Admin' : 'Membre';
+}
+
+function getModalTitle(activeTab) {
+  if (activeTab === 'profile') {
+    return 'Profil public';
+  }
+  if (activeTab === 'account') {
+    return 'Détails du compte';
+  }
+  if (activeTab === 'family') {
+    return 'Famille';
+  }
+  return 'Sécurité';
 }
 
 function ProfileAvatar({ user, profile, onUpload }) {
@@ -77,16 +99,32 @@ export default function UserProfileModal({ isOpen, onClose }) {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState('');
+  const [accountSummary, setAccountSummary] = useState(null);
+  const [familyStatus, setFamilyStatus] = useState('');
+  const [isLoadingFamily, setIsLoadingFamily] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      return;
+    }
     let mounted = true;
 
     const loadProfile = async () => {
       const currentUser = await authService.getUser();
-      const { data } = await dataService.fetchProfile();
-      if (!mounted) return;
+      const [{ data }, account] = await Promise.all([
+        dataService.fetchProfile(),
+        getAccountSummary().catch((error) => ({ error })),
+      ]);
+      if (!mounted) {
+        return;
+      }
       setUser(currentUser);
+      if (account?.error) {
+        setFamilyStatus('Informations famille indisponibles pour le moment.');
+      } else {
+        setAccountSummary(account);
+        setFamilyStatus('');
+      }
       const nextProfile = {
         nickname: getDisplayName(currentUser, data),
         bio: data?.bio || '',
@@ -126,7 +164,9 @@ export default function UserProfileModal({ isOpen, onClose }) {
 
   const handleAvatarChange = async (event) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
     if (file.size > 2 * 1024 * 1024) {
       setStatus("L'image est trop volumineuse. Taille maximale: 2 Mo.");
       return;
@@ -155,15 +195,42 @@ export default function UserProfileModal({ isOpen, onClose }) {
     });
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   const displayName = getDisplayName(user, publicProfile);
   const subscription = keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : 'Aucune licence active';
   const cloudActive = Boolean(user) && JSON.parse(localStorage.getItem('fiip-settings') || '{}').cloudSync !== false;
+  const familyMembers = Array.isArray(accountSummary?.family_members) ? accountSummary.family_members : [];
+  const pendingInvites = Array.isArray(accountSummary?.pending_family_invites) ? accountSummary.pending_family_invites : [];
+  const familyLicense = accountSummary?.license || null;
+  const familyGroup = accountSummary?.family_group || null;
+  const isFamilyPro = familyLicense?.tier === 'family_pro' || Number(familyLicense?.keyauth_level || accountSummary?.profile?.plan_level || 0) >= 4;
+  const maxFamilySlots = Number(familyLicense?.family_slots || 5);
+  const usedFamilySlots = familyMembers.filter((member) => member.status !== 'removed').length;
+  const activeFamilyMembers = familyMembers.filter((member) => member.status === 'active');
+  const invitedFamilyMembers = [
+    ...familyMembers.filter((member) => member.status === 'invited'),
+    ...pendingInvites,
+  ].filter((member, index, list) => list.findIndex((item) => item.id === member.id) === index);
+
+  const refreshFamilySummary = async () => {
+    setIsLoadingFamily(true);
+    setFamilyStatus('');
+    try {
+      setAccountSummary(await getAccountSummary());
+    } catch {
+      setFamilyStatus('Informations famille indisponibles pour le moment.');
+    } finally {
+      setIsLoadingFamily(false);
+    }
+  };
 
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'account', label: 'Compte', icon: CreditCard },
+    { id: 'family', label: 'Famille', icon: Users },
     { id: 'legal', label: 'Sécurité', icon: Shield },
   ];
 
@@ -195,9 +262,11 @@ export default function UserProfileModal({ isOpen, onClose }) {
           <header className="flex items-center justify-between border-b border-warm-border-dark px-6 py-4 dark:border-white/10">
             <div>
               <h2 className="fiip-dark-profile-heading text-lg font-black tracking-tight">
-                {activeTab === 'profile' ? 'Profil public' : activeTab === 'account' ? 'Détails du compte' : 'Sécurité'}
+                {getModalTitle(activeTab)}
               </h2>
-              <p className="text-xs text-warm-text-muted-dark dark:text-warm-text-muted-dark">Informations visibles dans Fiip et la collaboration.</p>
+              <p className="text-xs text-warm-text-muted-dark dark:text-warm-text-muted-dark">
+                {activeTab === 'family' ? 'Membres, invitations et accès Family Pro.' : 'Informations visibles dans Fiip et la collaboration.'}
+              </p>
             </div>
             <button type="button" onClick={onClose} className="rounded-xl p-2 text-warm-text-muted-dark hover:bg-warm-sidebar-item-active dark:hover:bg-white/10">
               <X size={18} />
@@ -284,7 +353,7 @@ export default function UserProfileModal({ isOpen, onClose }) {
                     <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-300">
                       <Cloud size={17} />
                     </div>
-                    <p className="text-sm font-black">Cloud Supabase</p>
+                    <p className="text-sm font-black">Cloud Fiip</p>
                     <p className="mt-1 text-xs text-warm-text-muted-dark dark:text-warm-text-muted-dark">{cloudActive ? 'Actif pour ce compte.' : 'Désactivé ou non connecté.'}</p>
                   </div>
                   <div className="rounded-3xl border border-warm-border-dark bg-warm-card-dark p-4 dark:border-white/10 dark:bg-white/[0.045]">
@@ -298,12 +367,117 @@ export default function UserProfileModal({ isOpen, onClose }) {
               </div>
             )}
 
+            {activeTab === 'family' && (
+              <div className="space-y-4">
+                <section className="rounded-3xl border border-warm-border-dark bg-warm-card-dark p-5 dark:border-white/10 dark:bg-white/[0.045]">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-700 dark:text-amber-300">
+                        <Users size={18} />
+                      </div>
+                      <p className="text-sm font-black">Family Pro</p>
+                      <p className="mt-2 text-sm leading-6 text-warm-text-secondary-dark dark:text-warm-text-secondary-dark">
+                        {isFamilyPro
+                          ? 'Gérez les comptes inclus dans votre foyer Fiip et suivez les invitations.'
+                          : 'Aucun groupe Family Pro actif sur ce compte.'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={refreshFamilySummary}
+                      disabled={isLoadingFamily}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-warm-border-dark px-3 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active disabled:opacity-60 dark:border-white/10 dark:hover:bg-white/10"
+                    >
+                      <RefreshCw size={14} className={isLoadingFamily ? 'animate-spin' : ''} />
+                      Actualiser
+                    </button>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-warm-border-dark bg-black/10 p-3 dark:border-white/10">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-warm-text-muted-dark">Comptes</p>
+                      <p className="mt-2 text-lg font-black">{usedFamilySlots}/{maxFamilySlots} comptes</p>
+                    </div>
+                    <div className="rounded-2xl border border-warm-border-dark bg-black/10 p-3 dark:border-white/10">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-warm-text-muted-dark">Rôle</p>
+                      <p className="mt-2 text-lg font-black">{accountSummary?.is_family_admin ? 'Admin' : familyGroup ? 'Membre' : '-'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-warm-border-dark bg-black/10 p-3 dark:border-white/10">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-warm-text-muted-dark">Budget IA partagé</p>
+                      <p className="mt-2 text-lg font-black">{familyGroup?.ai_budget_limit_eur ? `${familyGroup.ai_budget_limit_eur} €` : '-'}</p>
+                    </div>
+                  </div>
+                </section>
+
+                {familyStatus ? (
+                  <p className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs font-bold text-amber-200">
+                    {familyStatus}
+                  </p>
+                ) : null}
+
+                <section className="rounded-3xl border border-warm-border-dark bg-warm-card-dark p-5 dark:border-white/10 dark:bg-white/[0.045]">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black">Membres</p>
+                      <p className="mt-1 text-xs text-warm-text-muted-dark dark:text-warm-text-muted-dark">Comptes actifs dans le foyer.</p>
+                    </div>
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black">
+                      {activeFamilyMembers.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {activeFamilyMembers.length ? activeFamilyMembers.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between gap-3 rounded-2xl border border-warm-border-dark bg-black/10 px-3 py-3 dark:border-white/10">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-black">{getMemberLabel(member)}</p>
+                          <p className="mt-1 text-xs text-warm-text-muted-dark">{member.status === 'active' ? 'Actif' : member.status}</p>
+                        </div>
+                        <span className="rounded-full bg-emerald-500/12 px-3 py-1 text-[11px] font-black text-emerald-300">
+                          {formatFamilyRole(member.role)}
+                        </span>
+                      </div>
+                    )) : (
+                      <p className="rounded-2xl border border-dashed border-warm-border-dark px-4 py-4 text-sm text-warm-text-muted-dark dark:border-white/10">
+                        Aucun membre actif pour le moment.
+                      </p>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-3xl border border-warm-border-dark bg-warm-card-dark p-5 dark:border-white/10 dark:bg-white/[0.045]">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black">Invitations</p>
+                      <p className="mt-1 text-xs text-warm-text-muted-dark dark:text-warm-text-muted-dark">Invitations en attente liées au foyer.</p>
+                    </div>
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black">
+                      {invitedFamilyMembers.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {invitedFamilyMembers.length ? invitedFamilyMembers.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between gap-3 rounded-2xl border border-warm-border-dark bg-black/10 px-3 py-3 dark:border-white/10">
+                        <p className="min-w-0 truncate text-sm font-black">{getMemberLabel(member)}</p>
+                        <span className="rounded-full bg-amber-500/12 px-3 py-1 text-[11px] font-black text-amber-200">
+                          En attente
+                        </span>
+                      </div>
+                    )) : (
+                      <p className="rounded-2xl border border-dashed border-warm-border-dark px-4 py-4 text-sm text-warm-text-muted-dark dark:border-white/10">
+                        Aucune invitation en attente.
+                      </p>
+                    )}
+                  </div>
+                </section>
+              </div>
+            )}
+
             {activeTab === 'legal' && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-3xl border border-warm-border-dark bg-warm-card-dark p-5 dark:border-white/10 dark:bg-white/[0.045]">
                   <Shield className="mb-3 text-emerald-600 dark:text-emerald-300" size={20} />
                   <h3 className="text-sm font-black">Confidentialité</h3>
-                  <p className="mt-2 text-sm leading-6 text-warm-text-secondary-dark dark:text-warm-text-secondary-dark">Vos notes restent locales tant que vous ne connectez pas Supabase. Les liens publics sont explicitement activés note par note.</p>
+                  <p className="mt-2 text-sm leading-6 text-warm-text-secondary-dark dark:text-warm-text-secondary-dark">Vos notes restent locales tant que vous ne connectez pas le cloud Fiip. Les liens publics sont explicitement activés note par note.</p>
                 </div>
                 <div className="rounded-3xl border border-warm-border-dark bg-warm-card-dark p-5 dark:border-white/10 dark:bg-white/[0.045]">
                   <CreditCard className="mb-3 text-blue-600 dark:text-blue-300" size={20} />

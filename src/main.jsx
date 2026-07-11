@@ -4,8 +4,8 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PublicNoteView from "./components/PublicNoteView";
-import { UIProvider } from "./providers/UIProvider";
 import { ToastProvider } from "./components/ui/Toast";
+import { UIProvider } from "./providers/UIProvider";
 import "./index.css";
 import "./i18n";
 

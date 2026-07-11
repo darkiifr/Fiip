@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "description": "Capture web pages, selections, and source metadata into Fiip.",
   "permissions": ["activeTab", "scripting", "storage"],
-  "homepage_url": "https://fiip.netlify.app/",
+  "homepage_url": "https://fiip.fr/",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",

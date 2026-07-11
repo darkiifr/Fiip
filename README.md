@@ -7,7 +7,10 @@ Outil de prise de notes simple et rapide.
 ## Site public
 
 Site public et liens de notes partagees :
-[https://fiip-app.netlify.app/](https://fiip-app.netlify.app/)
+[https://fiip.fr/](https://fiip.fr/)
+
+Portail compte :
+[https://portail.fiip.fr/](https://portail.fiip.fr/)
 
 ## Licence & Achat
 

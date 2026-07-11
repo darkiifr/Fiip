@@ -551,10 +551,8 @@ export const dataService = {
 
   async getPublicNote(slug) {
     const { data, error } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('public_slug', slug)
-      .single();
+      .rpc('get_public_note_by_slug', { p_slug: slug })
+      .maybeSingle();
     
     return { data, error };
   },

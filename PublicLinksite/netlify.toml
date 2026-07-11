@@ -1,2 +1,16 @@
 [build.environment]
   SECRETS_SCAN_OMIT_KEYS = "VITE_SUPABASE_ANON_KEY,VITE_SUPABASE_URL"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://fqouvzkovppyqocfxanl.supabase.co wss://fqouvzkovppyqocfxanl.supabase.co https://*.supabase.co wss://*.supabase.co https://vinsstudio.mysellauth.com https://fiip.fr https://portail.fiip.fr; frame-src https://challenges.cloudflare.com;"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

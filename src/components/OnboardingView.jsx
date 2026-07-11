@@ -69,7 +69,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
         throw oauthError;
       }
       if (!data?.url) {
-        throw new Error("Supabase n'a pas renvoyé d'URL de connexion Google.");
+        throw new Error("Le compte Fiip n'a pas renvoyé d'URL de connexion Google.");
       }
 
       try {
@@ -145,7 +145,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
               Un départ clair, sans friction.
             </h1>
             <p className="max-w-lg text-sm leading-6 text-[color:var(--text-secondary)] sm:text-[15px]">
-              Commencez en local ou connectez votre compte Supabase. La licence est retirée de cet écran : le compte se lie dès la création et la connexion.
+              Commencez en local ou connectez votre compte Fiip. La licence est retirée de cet écran : le compte se lie dès la création et la connexion.
             </p>
           </div>
 

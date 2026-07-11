@@ -11,6 +11,16 @@ export const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
   : null;
 
+const PUBLIC_NOTE_SLUG_RE = /^[a-z0-9][a-z0-9_-]{1,79}$/i;
+
+export function normalizePublicNoteSlug(slug) {
+  const value = String(slug || '').trim();
+  if (!PUBLIC_NOTE_SLUG_RE.test(value)) {
+    throw new Error('Lien public invalide.');
+  }
+  return value;
+}
+
 export const dataService = {
   async getPublicNote(slug) {
     if (!supabase) {
@@ -18,27 +28,21 @@ export const dataService = {
       return { data: null, error: "Configuration missing" };
     }
 
+    let safeSlug;
+    try {
+      safeSlug = normalizePublicNoteSlug(slug);
+    } catch (error) {
+      return { data: null, error };
+    }
+
     const { data, error } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('public_slug', slug)
-      .single();
+      .rpc('get_public_note_by_slug', { p_slug: safeSlug })
+      .maybeSingle();
 
     if (data) {
        data.updatedAt = data.updated_at ? new Date(data.updated_at).getTime() : Date.now();
        data.badges = data.badges || [];
        
-       // Récupérer le pseudo du créateur
-       if (data.user_id) {
-           const { data: profileData } = await supabase
-               .from('profiles')
-               .select('username')
-               .eq('id', data.user_id)
-               .single();
-           if (profileData) {
-               data.author_username = profileData.username;
-           }
-       }
     }
 
     return { data, error };

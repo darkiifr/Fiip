@@ -21,6 +21,7 @@ export default defineConfig({
       '**/src-tauri/**',
       '**/Mobile/**',
       '**/PublicLinksite/**',
+      '**/supabase/**',
       '**/.{idea,git,cache,output,temp}/**',
     ],
     alias: {
@@ -29,7 +30,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'src-tauri/', 'Mobile/', 'PublicLinksite/'],
+      exclude: ['node_modules/', 'src-tauri/', 'Mobile/', 'PublicLinksite/', 'supabase/'],
       // Baseline measured on the desktop/web suite. Raise these as new tests land.
       thresholds: {
         branches: 11,

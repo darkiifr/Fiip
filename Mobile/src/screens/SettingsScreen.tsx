@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Platform, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 
 import { GlassCard } from '../components/ui/GlassCard';
 import { Icon } from '../components/ui/Icon';
+import { FiipAction, FiipScreen } from '../components/ui/FiipNative';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useSettingsStore, FontSizeMode } from '../store/settingsStore';
 import { fiipRadius } from '../theme/fiipDesign';
@@ -64,18 +64,14 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <FiipScreen>
       <ScrollView contentContainerStyle={[styles.content, !isIOS && styles.contentAndroid]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
             <Text style={[styles.kicker, { color: colors.textSecondary }]}>Fiip</Text>
             <Text style={[styles.title, { color: colors.text }]}>Réglages</Text>
           </View>
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Compte" onPress={() => navigation.navigate('Auth')} style={[isIOS ? styles.accountButton : styles.accountButtonAndroid, {
-            backgroundColor: isIOS ? colors.text : colors.primaryContainer,
-          }]}>
-            <Icon sfSymbol="person" mdIcon="account" size={18} color={isIOS ? colors.background : colors.onPrimaryContainer} />
-          </TouchableOpacity>
+          <FiipAction label="Compte" sfSymbol="person" mdIcon="account" compact onPress={() => navigation.navigate('Auth')} />
         </View>
 
         <Section title="Apparence" colors={colors} isIOS={isIOS}>
@@ -101,11 +97,12 @@ export default function SettingsScreen() {
         <Section title="Cloud et sécurité" colors={colors} isIOS={isIOS}>
           <SettingSwitch title="Synchronisation cloud" caption="Synchronise vos notes et fichiers avec votre compte cloud." value={syncEnabled} onChange={setSyncEnabled} colors={colors} isIOS={isIOS} />
           <SettingSwitch title="Verrouillage biométrique" caption="Protège l’ouverture de l’application." value={globalLockEnabled} onChange={setGlobalLockEnabled} colors={colors} isIOS={isIOS} />
+          <SettingAction title="Compte et licence" caption="Connexion, abonnement et activation Fiip." onPress={() => navigation.navigate('Auth')} colors={colors} danger={false} />
           <SettingAction title="Se déconnecter" caption="Ferme la session cloud sur cet appareil." onPress={handleSignOut} colors={colors} danger={false} />
           <SettingAction title="Supprimer le compte cloud" caption="Demande la suppression du compte et des données cloud associées." onPress={handleRequestAccountDeletion} colors={colors} danger />
         </Section>
       </ScrollView>
-    </SafeAreaView>
+    </FiipScreen>
   );
 }
 
@@ -166,8 +163,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   kicker: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
   title: { marginTop: 4, fontSize: 36, fontWeight: '900' },
-  accountButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  accountButtonAndroid: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', elevation: 2 },
   section: { marginBottom: 18 },
   sectionTitle: { marginLeft: 8, marginBottom: 8, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.9 },
   sectionCard: { padding: 10, gap: 10 },

@@ -1,4 +1,4 @@
-import { FREE_MODEL_ROUTER, listOpenRouterModels } from './ai';
+import { AUTO_MODEL_ROUTER, listOpenRouterModels } from './ai';
 
 const LOGO_BASE_URL = 'https://models.dev/logos/';
 
@@ -8,10 +8,10 @@ export const ModelsService = {
 
     if (models.length === 0) {
       return [{
-        id: FREE_MODEL_ROUTER,
-        name: 'Free Models Router',
-        provider: 'OpenRouter',
-        description: 'Route automatiquement vers les modèles gratuits compatibles avec la requête.',
+        id: AUTO_MODEL_ROUTER,
+        name: 'Automatique',
+        provider: 'Fiip',
+        description: 'Choisit le modèle adapté à la tâche, au volume de texte et au budget du tier.',
         logo_url: `${LOGO_BASE_URL}openrouter.svg`,
       }];
     }
@@ -26,6 +26,9 @@ export const ModelsService = {
         description: model.description,
         context_length: model.context_length,
         pricing: model.pricing,
+        tier: model.tier,
+        available: model.available !== false,
+        estimated_price_eur_per_million: model.estimated_price_eur_per_million,
         architecture: model.architecture,
         logo_url: `${LOGO_BASE_URL}${provider}.svg`,
       };
@@ -33,7 +36,7 @@ export const ModelsService = {
   },
 
   detectProvider(modelId) {
-    if (!modelId || modelId === FREE_MODEL_ROUTER) {
+    if (!modelId || modelId === AUTO_MODEL_ROUTER) {
       return 'openrouter';
     }
 

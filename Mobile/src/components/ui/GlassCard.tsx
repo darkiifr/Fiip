@@ -9,6 +9,7 @@ interface GlassCardProps {
   intensity?: number;
   cornerRadius?: number;
   interactive?: boolean;
+  tint?: string;
 }
 
 export const GlassCard: React.FC<GlassCardProps> = ({ 
@@ -17,6 +18,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   intensity = 30, 
   cornerRadius = fiipRadius.lg,
   interactive = false,
+  tint,
 }) => {
   const { colors, isDark } = useAppTheme();
 
@@ -50,15 +52,20 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   };
 
   if (Platform.OS === 'ios') {
-    // We import dynamically to avoid issues if not running on iOS
-    const { LiquidGlassView } = require('@callstack/liquid-glass');
+    // Dynamic require keeps Android and Jest from loading the iOS-only native view.
+    const { LiquidGlassView, isLiquidGlassSupported } = require('@callstack/liquid-glass');
+    const supportsLiquidGlass = typeof isLiquidGlassSupported === 'function' ? isLiquidGlassSupported() : true;
     return (
       <View testID="glass-card" style={[cardStyle, style]}>
-        <LiquidGlassView 
-          style={StyleSheet.absoluteFill} 
-          intensity={normalizedIntensity}
-          interactive={interactive}
-        />
+        {supportsLiquidGlass ? (
+          <LiquidGlassView
+            style={StyleSheet.absoluteFill}
+            effect={normalizedIntensity > 18 ? 'regular' : 'clear'}
+            tintColor={tint || (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.18)')}
+            colorScheme={isDark ? 'dark' : 'light'}
+            interactive={interactive}
+          />
+        ) : null}
         <View style={[StyleSheet.absoluteFill, {
           backgroundColor: isDark ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.22)',
           borderRadius: cornerRadius,
@@ -124,7 +131,11 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   androidDepthLine: {
-    ...StyleSheet.absoluteFillObject,
+    bottom: 0,
     borderWidth: 1,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
 });

@@ -3,7 +3,6 @@ import {
     ChevronLeft, 
     Share2, 
     Trash2, 
-    Type, 
     Save,
     Image as ImageIcon,
     FileText,
@@ -21,7 +20,6 @@ import {
     LockKeyhole,
     UnlockKeyhole,
     CheckSquare,
-    FileDown,
     ScanLine,
     PenLine,
     CalendarDays,
@@ -30,7 +28,6 @@ import {
     ChevronRight,
     ChevronDown
 } from 'lucide-react';
-import DOMPurify from 'dompurify';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import AttachmentViewer from './AttachmentViewer';
@@ -40,14 +37,15 @@ import EditorActionBar from './EditorActionBar';
 import RichTextEditor from './RichTextEditor';
 import { exportNoteAsFiin } from '../services/fileManager';
 import { createTask } from '../services/fiipV1';
-import { cacheAttachment, classifyAttachment, formatBytes, getAttachmentPreviewUrl } from '../services/attachmentCache';
-import { extractImageOcr } from '../services/ocr';
+import { cacheAttachment, classifyAttachment, formatBytes, getAttachmentPreviewUrl, readAttachmentOcrCache, resolveAttachmentCachePath, writeAttachmentOcrCache } from '../services/attachmentCache';
+import { canRunImageOcr, extractImageOcr, shouldRunAttachmentOcr } from '../services/ocr';
 import { getAttachmentLimitAlert, getStorageLimitAlert } from '../services/planLimits';
 import { dataService } from '../services/supabase';
 import { soundManager } from '../services/soundManager';
 import { decryptData, encryptData } from '../utils/crypto';
 import { getTagColorClasses, normalizeNoteTags, serializeNoteTags } from '../utils/noteTags';
 import { getNoteStats } from '../utils/notePresentation';
+import { normalizeTaskTime } from '../utils/taskTime';
 
 const getCurrentTimestamp = () => new Date().getTime();
 
@@ -60,7 +58,7 @@ const escapeHtml = (value = '') => String(value)
 
 function buildDateTimeLocal(dateValue = '', timeValue = '') {
     if (!dateValue) return '';
-    const time = /^\d{2}:\d{2}$/.test(timeValue) ? timeValue : '09:00';
+    const time = normalizeTaskTime(timeValue) || '09:00';
     return `${dateValue}T${time}`;
 }
 
@@ -180,11 +178,58 @@ const attachmentIcons = {
     file: FileText,
 };
 
-const MediaAttachment = ({ type, url, name, size, mimeType, previewable, showPreview, ocrStatus, ocrLabel, ocrConfidence, onRemove, onOpen }) => {
+const getOcrBadge = (status, label, confidence, qualityScore = 0, qualityLevel = '') => {
+    if (status === 'processing') return { label: 'OCR en cours...', detail: '', Icon: ScanLine };
+    if (status === 'failed') return { label: 'OCR indisponible', detail: '', Icon: AlertCircle };
+    if (status === 'empty') return { label: label || 'Aucun texte détecté', detail: '', Icon: AlertCircle };
+    if (status === 'complete') {
+        const qualityDetail = qualityScore ? `Qualité OCR ${Math.round(qualityScore)}%` : '';
+        const qualityLabel = qualityLevel === 'low' ? 'Scan OCR à vérifier' : label || 'OCR terminé';
+        return {
+            label: qualityLabel,
+            detail: qualityDetail || (confidence ? `Score OCR ${Math.round(confidence)}%` : ''),
+            Icon: qualityLevel === 'low' ? AlertCircle : CheckCircle2,
+        };
+    }
+    return { label: label || 'OCR terminé', detail: '', Icon: ScanLine };
+};
+
+const buildOcrAttachmentFields = (ocr = {}) => ({
+    ocrText: ocr.text || '',
+    ocrStatus: ocr.status || 'failed',
+    ocrConfidence: Number(ocr.confidence || 0),
+    ocrKind: ocr.classification?.kind || '',
+    ocrLabel: ocr.classification?.label || '',
+    ocrWords: ocr.words || [],
+    ocrEngine: ocr.engine || '',
+    ocrVariant: ocr.ocrVariant || '',
+    ocrQualityScore: Number(ocr.qualityScore || ocr.quality?.score || 0),
+    ocrQualityLevel: ocr.qualityLevel || ocr.quality?.level || '',
+    ocrQualityLabel: ocr.quality?.label || '',
+    ocrQualityReasons: ocr.quality?.reasons || [],
+});
+
+const isSessionPreviewUrl = (value = '') => typeof value === 'string' && value.startsWith('blob:');
+
+const stripSessionPreviewUrls = (items = []) => items.map((attachment) => {
+    if (!isSessionPreviewUrl(attachment?.url)) {
+        return attachment;
+    }
+    const persistableAttachment = { ...attachment };
+    delete persistableAttachment.url;
+    return persistableAttachment;
+});
+
+const MediaAttachment = ({ type, url, name, size, mimeType, previewable, showPreview, ocrStatus, ocrLabel, ocrConfidence, ocrQualityScore, ocrQualityLevel, onRemove, onOpen }) => {
     const meta = classifyAttachment({ name, mimeType });
     const kind = type || meta.kind;
     const Icon = attachmentIcons[kind] || FileText;
+    const [previewFailed, setPreviewFailed] = useState(false);
     const canPreview = showPreview && previewable !== false && url;
+    const ocrBadge = ocrStatus && !['skipped', 'skipped-protected'].includes(ocrStatus)
+        ? getOcrBadge(ocrStatus, ocrLabel, ocrConfidence, ocrQualityScore, ocrQualityLevel)
+        : null;
+    const OcrIcon = ocrBadge?.Icon || ScanLine;
     
     return (
         <div
@@ -199,8 +244,14 @@ const MediaAttachment = ({ type, url, name, size, mimeType, previewable, showPre
             }}
             className="group relative h-32 w-36 overflow-hidden rounded-2xl border border-warm-border-light bg-warm-card-light text-left shadow-md transition-all hover:-translate-y-0.5 hover:border-amber-500/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/35 dark:border-warm-border-dark dark:bg-warm-card-dark"
         >
-            {canPreview && kind === 'image' ? (
-                <img src={url} alt={name} className="w-full h-full object-cover" />
+            {canPreview && kind === 'image' && !previewFailed ? (
+                <img
+                    src={url}
+                    alt={name}
+                    className="w-full h-full object-cover"
+                    onError={() => setPreviewFailed(true)}
+                    onLoad={() => setPreviewFailed(false)}
+                />
             ) : canPreview && kind === 'video' ? (
                 <video src={url} className="w-full h-full object-cover" muted />
             ) : canPreview && kind === 'audio' ? (
@@ -215,10 +266,13 @@ const MediaAttachment = ({ type, url, name, size, mimeType, previewable, showPre
                     {size ? <span className="mt-1 text-[9px] text-warm-text-muted-light">{formatBytes(size)}</span> : null}
                 </div>
             )}
-            {ocrStatus && !['skipped', 'skipped-protected'].includes(ocrStatus) ? (
+            {ocrBadge ? (
                 <div className="absolute bottom-1.5 left-1.5 right-1.5 rounded-lg border border-black/10 bg-white/88 px-2 py-1 text-[8px] font-semibold text-zinc-700 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-950/78 dark:text-zinc-200">
-                    <span className="block truncate">{ocrLabel || 'OCR terminé'}</span>
-                    {ocrConfidence ? <span className="text-[7px] text-warm-text-muted-light">{Math.round(ocrConfidence)}% fiable</span> : null}
+                    <span className="flex min-w-0 items-center gap-1">
+                        <OcrIcon size={10} className={ocrStatus === 'processing' ? 'animate-pulse text-amber-500' : 'text-amber-500'} />
+                        <span className="block truncate">{ocrBadge.label}</span>
+                    </span>
+                    {ocrBadge.detail ? <span className="text-[7px] text-warm-text-muted-light">{ocrBadge.detail}</span> : null}
                 </div>
             ) : null}
             <button 
@@ -248,6 +302,7 @@ export default function Editor({
     notebooks = [],
     tasks = [],
     onSaveTask,
+    onDeleteTask,
     storageUsage,
     planLevel = 0
 }) {
@@ -256,9 +311,10 @@ export default function Editor({
     const [isSaving, setIsSaving] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [attachments, setAttachments] = useState(note.attachments || []);
+    const attachmentsRef = useRef(note.attachments || []);
+    const ocrRetryRef = useRef(new Set());
     const [tags, setTags] = useState(() => normalizeNoteTags(note.tags || ['Réflexion']));
     const [showAttachmentPreviews, setShowAttachmentPreviews] = useState(settings?.attachmentPreviews !== false);
-    const [contextMenu, setContextMenu] = useState(null);
     const [selectedAttachment, setSelectedAttachment] = useState(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -288,6 +344,7 @@ export default function Editor({
     useEffect(() => {
         setTitle(note.title);
         setAttachments(note.attachments || []);
+        attachmentsRef.current = note.attachments || [];
         setTags(normalizeNoteTags(note.tags || ['Réflexion']));
     }, [note]);
 
@@ -295,14 +352,22 @@ export default function Editor({
         let cancelled = false;
         const hydrateAttachmentUrls = async () => {
             const hydrated = await Promise.all((note.attachments || []).map(async (attachment) => {
-                if (attachment.url || !attachment.previewable) {
-                    return attachment;
+                const nextAttachment = { ...attachment };
+                const hasLocalSource = Boolean(nextAttachment.cachePath || nextAttachment.path || nextAttachment.filePath || nextAttachment.localPath || nextAttachment.absolutePath);
+                const shouldRefreshPreview = nextAttachment.previewable && (!nextAttachment.url || (isSessionPreviewUrl(nextAttachment.url) && hasLocalSource));
+                if (shouldRefreshPreview) {
+                    const url = await getAttachmentPreviewUrl(nextAttachment);
+                    if (url) nextAttachment.url = url;
                 }
-                const url = await getAttachmentPreviewUrl(attachment);
-                return url ? { ...attachment, url } : attachment;
+                if (!nextAttachment.ocrStatus && canRunImageOcr(nextAttachment)) {
+                    const cachedOcr = await readAttachmentOcrCache(nextAttachment);
+                    if (cachedOcr) Object.assign(nextAttachment, buildOcrAttachmentFields(cachedOcr));
+                }
+                return nextAttachment;
             }));
             if (!cancelled) {
                 setAttachments(hydrated);
+                attachmentsRef.current = hydrated;
             }
         };
         hydrateAttachmentUrls();
@@ -312,20 +377,58 @@ export default function Editor({
     }, [note.attachments]);
 
     useEffect(() => {
-        if (!contextMenu) return undefined;
-        const closeMenu = () => setContextMenu(null);
-        const closeOnEscape = (event) => {
-            if (event.key === 'Escape') closeMenu();
-        };
-        window.addEventListener('click', closeMenu);
-        window.addEventListener('scroll', closeMenu, true);
-        window.addEventListener('keydown', closeOnEscape);
-        return () => {
-            window.removeEventListener('click', closeMenu);
-            window.removeEventListener('scroll', closeMenu, true);
-            window.removeEventListener('keydown', closeOnEscape);
-        };
-    }, [contextMenu]);
+        const protectedNote = Boolean(note.is_locked || note.encrypted_content);
+        if (protectedNote) return;
+
+        const retryableAttachments = attachmentsRef.current.filter((attachment) => (
+            attachment.ocrStatus === 'failed'
+            && canRunImageOcr(attachment)
+            && (attachment.cachePath || attachment.path || attachment.filePath || attachment.localPath || attachment.absolutePath)
+            && !ocrRetryRef.current.has(attachment.id)
+        ));
+
+        retryableAttachments.forEach((attachment) => {
+            ocrRetryRef.current.add(attachment.id);
+            const processingAttachments = attachmentsRef.current.map((current) => (
+                current.id === attachment.id
+                    ? { ...current, ocrStatus: 'processing', ocrLabel: 'OCR en cours...', ocrKind: 'processing' }
+                    : current
+            ));
+            attachmentsRef.current = processingAttachments;
+            setAttachments(processingAttachments);
+
+            (async () => {
+                const nativeOcrPath = await resolveAttachmentCachePath(attachment);
+                let fallbackFile = null;
+                try {
+                    const previewUrl = await getAttachmentPreviewUrl(attachment);
+                    if (previewUrl) {
+                        const blob = await fetch(previewUrl).then((response) => response.blob());
+                        fallbackFile = new File([blob], attachment.name || 'image.png', { type: attachment.mimeType || blob.type || 'image/png' });
+                    }
+                } catch {
+                    fallbackFile = null;
+                }
+                const ocr = await extractImageOcr({
+                    name: attachment.name,
+                    type: attachment.mimeType,
+                    mimeType: attachment.mimeType,
+                    path: nativeOcrPath,
+                }, { protectedNote, fallbackFile });
+                await writeAttachmentOcrCache(attachment, ocr);
+                const ocrFields = buildOcrAttachmentFields(ocr);
+                const nextAttachments = attachmentsRef.current.map((current) => (
+                    current.id === attachment.id ? { ...current, ...ocrFields } : current
+                ));
+                attachmentsRef.current = nextAttachments;
+                setAttachments(nextAttachments);
+                const nextNote = { ...note, attachments: stripSessionPreviewUrls(nextAttachments), updatedAt: getCurrentTimestamp() };
+                onUpdateNote(nextNote);
+            })().catch((error) => {
+                console.error('OCR retry failed:', error);
+            });
+        });
+    }, [note, onUpdateNote]);
 
     const handleTitleChange = (e) => {
         const newTitle = e.target.value;
@@ -340,22 +443,9 @@ export default function Editor({
     };
 
     const handleManualSave = () => {
-        onUpdateNote({ ...note, title, tags: serializeNoteTags(tags), attachments, updatedAt: getCurrentTimestamp() });
+        onUpdateNote({ ...note, title, tags: serializeNoteTags(tags), attachments: stripSessionPreviewUrls(attachments), updatedAt: getCurrentTimestamp() });
         setIsSaving(false);
         soundManager.play('interaction').catch(console.error);
-    };
-
-    const handleExportPdf = () => {
-        const printWindow = window.open('', '_blank', 'popup,width=900,height=1100');
-        if (!printWindow) return;
-        const sanitizedContent = DOMPurify.sanitize(note.content || '', {
-            USE_PROFILES: { html: true },
-            FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-            FORBID_ATTR: ['onerror', 'onload', 'onclick'],
-        });
-        printWindow.document.write(`<!doctype html><html><head><title>${escapeHtml(title || 'Fiip note')}</title><style>body{font-family:Inter,Arial,sans-serif;max-width:760px;margin:40px auto;line-height:1.6;color:#171717}h1{font-size:32px}.meta{color:#777;font-size:12px;margin-bottom:24px}img,video{max-width:100%;height:auto}pre{white-space:pre-wrap}</style></head><body><h1>${escapeHtml(title || 'Sans titre')}</h1><p class="meta">Export Fiip - ${new Date().toLocaleString()}</p>${sanitizedContent}<script>window.addEventListener('load',()=>setTimeout(()=>window.print(),120));</script></body></html>`);
-        printWindow.document.close();
-        printWindow.focus();
     };
 
     const handleExportFiin = async () => {
@@ -502,7 +592,7 @@ export default function Editor({
 
     const handleSaveDrawing = async (blob) => {
         const file = new File([blob], `croquis-${Date.now()}.png`, { type: 'image/png' });
-        await addFiles([file]);
+        await addFiles([file], { attachmentSource: 'drawing', skipOcr: true });
         setIsDrawing(false);
     };
 
@@ -512,7 +602,7 @@ export default function Editor({
         setIsScannerOpen(false);
     };
 
-    const addFiles = async (files) => {
+    const addFiles = async (files, { attachmentSource = '', skipOcr = false } = {}) => {
         const incomingFiles = Array.from(files || []);
         if (!incomingFiles.length) return;
 
@@ -537,26 +627,45 @@ export default function Editor({
             return;
         }
 
-        const newFiles = await Promise.all(incomingFiles.map(async (file) => {
+        const protectedNote = Boolean(note.is_locked || note.encrypted_content);
+        const preparedFiles = await Promise.all(incomingFiles.map(async (file) => {
             const cached = await cacheAttachment(file, note.id);
             const meta = classifyAttachment({ name: file.name, mimeType: file.type });
-            const ocr = await extractImageOcr(file, { protectedNote: Boolean(note.is_locked || note.encrypted_content) });
+            const canRunOcr = shouldRunAttachmentOcr({ name: cached.name, mimeType: cached.mimeType, attachmentSource, skipOcr }, { protectedNote });
+            const cachedOcr = canRunOcr ? await readAttachmentOcrCache(cached) : null;
+            const ocrFields = cachedOcr
+                ? buildOcrAttachmentFields(cachedOcr)
+                : canRunOcr
+                    ? {
+                        ocrText: '',
+                        ocrStatus: 'processing',
+                        ocrConfidence: 0,
+                        ocrKind: 'processing',
+                        ocrLabel: 'OCR en cours...',
+                        ocrWords: [],
+                    }
+                    : {};
+
             return {
+                file,
+                shouldRunOcr: canRunOcr && !cachedOcr,
+                attachment: {
                 ...cached,
                 type: meta.kind,
                 previewable: meta.previewable,
-                ocrText: ocr.text,
-                ocrStatus: ocr.status,
-                ocrConfidence: ocr.confidence,
-                ocrKind: ocr.classification.kind,
-                ocrLabel: ocr.classification.label,
+                attachmentSource,
+                skipOcr,
+                ...ocrFields,
                 url: URL.createObjectURL(file),
+                },
             };
         }));
 
+        const newFiles = preparedFiles.map(({ attachment }) => attachment);
         const updatedAttachments = [...attachments, ...newFiles];
         setAttachments(updatedAttachments);
-        const updatedNote = { ...note, attachments: updatedAttachments, updatedAt: getCurrentTimestamp() };
+        attachmentsRef.current = updatedAttachments;
+        const updatedNote = { ...note, attachments: stripSessionPreviewUrls(updatedAttachments), updatedAt: getCurrentTimestamp() };
         onUpdateNote(updatedNote);
 
         if (!updatedNote.is_locked && !updatedNote.encrypted_content) {
@@ -568,6 +677,38 @@ export default function Editor({
                 dataService.upsertSearchIndex(updatedNote, { attachmentTexts }),
             ]);
         }
+
+        const ocrJobs = preparedFiles.filter(({ shouldRunOcr }) => shouldRunOcr);
+        ocrJobs.forEach(({ attachment, file }) => {
+            (async () => {
+                const nativeOcrPath = window.__TAURI_INTERNALS__ ? await resolveAttachmentCachePath(attachment) : '';
+                const ocrInput = nativeOcrPath
+                    ? { name: attachment.name, type: attachment.mimeType, mimeType: attachment.mimeType, path: nativeOcrPath }
+                    : file;
+                const ocr = await extractImageOcr(ocrInput, { protectedNote, fallbackFile: file });
+                await writeAttachmentOcrCache(attachment, ocr);
+                const ocrFields = buildOcrAttachmentFields(ocr);
+                const nextAttachments = attachmentsRef.current.map((current) => (
+                    current.id === attachment.id ? { ...current, ...ocrFields } : current
+                ));
+                attachmentsRef.current = nextAttachments;
+                setAttachments(nextAttachments);
+                const nextNote = { ...note, attachments: stripSessionPreviewUrls(nextAttachments), updatedAt: getCurrentTimestamp() };
+                onUpdateNote(nextNote);
+
+                if (!protectedNote) {
+                    const attachmentTexts = nextAttachments
+                        .filter((current) => current.ocrText)
+                        .map((current) => ({ id: current.id, text: current.ocrText }));
+                    await Promise.allSettled([
+                        dataService.upsertAttachmentMetadata(nextNote.id, { ...attachment, ...ocrFields }),
+                        dataService.upsertSearchIndex(nextNote, { attachmentTexts }),
+                    ]);
+                }
+            })().catch((error) => {
+                console.error('OCR attachment processing failed:', error);
+            });
+        });
     };
 
     const handleDrop = async (e) => {
@@ -589,17 +730,6 @@ export default function Editor({
         onUpdateNote({ ...note, tags: updatedTags, updatedAt: getCurrentTimestamp() });
     };
 
-    const handleContextMenu = (event) => {
-        const editableTarget = event.target.closest?.('[contenteditable="true"], textarea, input');
-        if (editableTarget) return;
-
-        event.preventDefault();
-        setContextMenu({
-            x: Math.min(event.clientX, window.innerWidth - 220),
-            y: Math.min(event.clientY, window.innerHeight - 250),
-        });
-    };
-
     const noteStats = getNoteStats(note);
     const hasContent = noteStats.hasReadableText;
     const visibleTags = normalizeNoteTags(tags).sort((a, b) => a.label.localeCompare(b.label, 'fr'));
@@ -613,7 +743,6 @@ export default function Editor({
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             onPaste={handlePaste}
-            onContextMenu={handleContextMenu}
         >
             {/* Header Actions */}
             <header className="flex items-center justify-between mb-6 z-20 select-none border-b border-warm-border-light dark:border-warm-border-dark pb-4">
@@ -719,15 +848,6 @@ export default function Editor({
 
                     <button
                         type="button"
-                        onClick={handleExportPdf}
-                        className="p-1.5 rounded-xl border border-warm-border-light dark:border-warm-border-dark hover:bg-blue-500/10 hover:border-blue-500/30 transition-all text-warm-text-muted-light hover:text-blue-600"
-                        title="Exporter en PDF"
-                    >
-                        <FileDown size={15} />
-                    </button>
-
-                    <button
-                        type="button"
                         onClick={handleExportFiin}
                         className="p-1.5 rounded-xl border border-warm-border-light dark:border-warm-border-dark hover:bg-blue-500/10 hover:border-blue-500/30 transition-all text-warm-text-muted-light hover:text-blue-600"
                         title="Exporter en .fiin"
@@ -769,7 +889,8 @@ export default function Editor({
                                 onRemove={() => {
                                     const updatedAttachments = attachments.filter(a => a.id !== att.id);
                                     setAttachments(updatedAttachments);
-                                    onUpdateNote({ ...note, attachments: updatedAttachments, updatedAt: getCurrentTimestamp() });
+                                    attachmentsRef.current = updatedAttachments;
+                                    onUpdateNote({ ...note, attachments: stripSessionPreviewUrls(updatedAttachments), updatedAt: getCurrentTimestamp() });
                                 }} 
                             />
                         ))}
@@ -804,7 +925,8 @@ export default function Editor({
                                 type="text"
                                 inputMode="numeric"
                                 value={taskDueTime}
-                                onChange={(event) => setTaskDueTime(event.target.value)}
+                                onChange={(event) => setTaskDueTime(event.target.value.replace(/[^\d:]/g, '').slice(0, 5))}
+                                onBlur={(event) => setTaskDueTime(normalizeTaskTime(event.target.value))}
                                 placeholder="09:00"
                                 pattern="\d{2}:\d{2}"
                                 className="w-12 bg-transparent outline-none"
@@ -832,10 +954,13 @@ export default function Editor({
                     {tasks.length > 0 && (
                         <div className="md:col-span-2 flex flex-wrap gap-2">
                             {tasks.map((task) => (
-                                <span key={task.id} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                                <span key={task.id} className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
                                     <CheckSquare size={12} />
                                     {task.title}
                                     {task.due_at ? <span className="text-emerald-700/60 dark:text-emerald-200/60">{new Date(task.due_at).toLocaleDateString()}</span> : null}
+                                    <button type="button" onClick={() => onDeleteTask?.(task.id)} className="rounded-md p-0.5 text-emerald-700/60 hover:bg-emerald-500/15 hover:text-red-600 dark:text-emerald-200/60 dark:hover:text-red-300" aria-label={`Supprimer la tâche ${task.title}`}>
+                                        <X size={12} />
+                                    </button>
                                 </span>
                             ))}
                         </div>
@@ -880,77 +1005,6 @@ export default function Editor({
                 editorRef={editorRef}
             />
 
-            {contextMenu && (
-                <div
-                    className="fixed z-[90] w-56 overflow-hidden rounded-2xl border border-warm-border-light/80 bg-white/92 p-1.5 text-sm text-warm-text-primary-light shadow-[0_22px_70px_rgba(20,17,12,0.18)] backdrop-blur-2xl dark:border-white/10 dark:bg-zinc-950/88 dark:text-warm-text-primary-dark"
-                    style={{ left: contextMenu.x, top: contextMenu.y }}
-                    role="menu"
-                    tabIndex={-1}
-                    onClick={(event) => event.stopPropagation()}
-                >
-                    <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold hover:bg-amber-500/10"
-                        onClick={() => {
-                            setContextMenu(null);
-                            editorRef.current?.getEditor()?.commands.focus();
-                        }}
-                        role="menuitem"
-                    >
-                        <Type size={14} />
-                        Focus éditeur
-                    </button>
-                    <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold hover:bg-amber-500/10"
-                        onClick={() => {
-                            setContextMenu(null);
-                            onOpenShare?.();
-                        }}
-                        role="menuitem"
-                    >
-                        <Share2 size={14} />
-                        Partager la note
-                    </button>
-                    <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold hover:bg-amber-500/10"
-                        onClick={() => {
-                            setContextMenu(null);
-                            fileInputRef.current?.click();
-                        }}
-                        role="menuitem"
-                    >
-                        <ImageIcon size={14} />
-                        Joindre un fichier
-                    </button>
-                    <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold hover:bg-amber-500/10"
-                        onClick={() => {
-                            setContextMenu(null);
-                            setShowAttachmentPreviews((value) => !value);
-                        }}
-                        role="menuitem"
-                    >
-                        {showAttachmentPreviews ? <EyeOff size={14} /> : <Eye size={14} />}
-                        {showAttachmentPreviews ? 'Masquer les aperçus' : 'Afficher les aperçus'}
-                    </button>
-                    <div className="my-1 h-px bg-warm-border-light dark:bg-white/10" />
-                    <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold text-red-600 hover:bg-red-500/10 dark:text-red-300"
-                        onClick={() => {
-                            setContextMenu(null);
-                            onDeleteNote?.(note.id);
-                        }}
-                        role="menuitem"
-                    >
-                        <Trash2 size={14} />
-                        Supprimer la note
-                    </button>
-                </div>
-            )}
             
             {/* Minimalist Save shortcut notification */}
             <div className="absolute top-20 right-6 flex flex-col gap-2 pointer-events-none select-none opacity-0 hover:opacity-100 transition-opacity">

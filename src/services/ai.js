@@ -1,11 +1,10 @@
-import { FIIP_PUBLIC_SITE_URL } from '../config/links';
-
+import { supabase } from './supabase';
 import { keyAuthService } from './keyauth';
 
-export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-export const FREE_MODEL_ROUTER = 'openrouter/free';
-
-const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
+export const AI_PROXY_FUNCTION = 'ai-proxy';
+export const AI_MODELS_FUNCTION = 'ai-models-list';
+export const AUTO_MODEL_ROUTER = 'auto';
+export const FREE_MODEL_ROUTER = AUTO_MODEL_ROUTER;
 
 const usageListeners = new Set();
 let lastUsageStats = null;
@@ -13,50 +12,32 @@ let lastUsageStats = null;
 function normalizeGenerateTextArgs(input, model, signal) {
   if (typeof input === 'string') {
     return {
-      model,
+      model: model || AUTO_MODEL_ROUTER,
       signal,
+      taskType: 'chat',
       messages: [{ role: 'user', content: input }],
     };
   }
 
-  return input || {};
+  return {
+    model: input?.model || model || AUTO_MODEL_ROUTER,
+    taskType: input?.taskType || 'chat',
+    inputLength: input?.inputLength,
+    messages: input?.messages || [],
+    signal: input?.signal || signal,
+    jsonMode: Boolean(input?.jsonMode),
+  };
 }
 
-function assertOpenRouterKey() {
-  if (!OPENROUTER_KEY) {
-    throw new Error('OpenRouter est configuré via le secret GitHub VITE_OPENROUTER_KEY. Aucune clé locale personnalisée n’est acceptée.');
+function assertSupabaseFunctions() {
+  if (!supabase?.functions?.invoke) {
+    throw new Error("Le service IA Fiip n'est pas configuré.");
   }
-}
-
-function buildOpenRouterErrorMessage(status, statusText, errorData = {}) {
-  const rawMessage = errorData.error?.message || errorData.message || statusText || 'Erreur inconnue';
-  if (status === 401) {
-    return `Erreur OpenRouter (401): ${rawMessage}. Vérifiez le secret serveur VITE_OPENROUTER_KEY et le compte OpenRouter associé.`;
-  }
-  return `Erreur OpenRouter (${status}): ${rawMessage}`;
 }
 
 function notifyUsage(stats) {
   lastUsageStats = stats;
   usageListeners.forEach((listener) => listener(stats));
-}
-
-async function fetchGenerationStats(generationId) {
-  if (!generationId) {
-    return null;
-  }
-
-  const response = await fetch(`${OPENROUTER_BASE_URL}/generation?id=${encodeURIComponent(generationId)}`, {
-    headers: {
-      Authorization: `Bearer ${OPENROUTER_KEY}`,
-    },
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  return response.json();
 }
 
 export function subscribeToAIUsage(listener) {
@@ -72,116 +53,63 @@ export function getLastAIUsageStats() {
   return lastUsageStats;
 }
 
+function formatFunctionError(error, fallback) {
+  if (!error) return fallback;
+  return error.message || error.error_description || error.error || fallback;
+}
+
 export async function listOpenRouterModels({ freeOnly = true } = {}) {
-  assertOpenRouterKey();
+  assertSupabaseFunctions();
 
-  const response = await fetch(`${OPENROUTER_BASE_URL}/models`, {
-    headers: {
-      Authorization: `Bearer ${OPENROUTER_KEY}`,
-    },
+  const { data, error } = await supabase.functions.invoke(AI_MODELS_FUNCTION, {
+    body: { freeOnly },
   });
 
-  if (!response.ok) {
-    throw new Error(`Erreur modèles OpenRouter (${response.status})`);
+  if (error) {
+    throw new Error(formatFunctionError(error, 'Impossible de charger les modèles IA.'));
   }
 
-  const payload = await response.json();
-  const models = Array.isArray(payload.data) ? payload.data : [];
-
-  if (!freeOnly) {
-    return models;
-  }
-
-  return models.filter((model) => {
-    const promptPrice = Number(model.pricing?.prompt || 0);
-    const completionPrice = Number(model.pricing?.completion || 0);
-    return model.id?.endsWith(':free') || (promptPrice === 0 && completionPrice === 0);
-  });
+  return Array.isArray(data?.data) ? data.data : [];
 }
 
 export const generateText = async (input, model, signal) => {
-  const { messages, signal: requestedSignal, jsonMode } = normalizeGenerateTextArgs(input, model, signal);
+  const request = normalizeGenerateTextArgs(input, model, signal);
 
   if (!keyAuthService.hasAIAccess()) {
     throw new Error('Cette fonctionnalité nécessite un abonnement actif. Veuillez activer votre licence.');
   }
 
-  assertOpenRouterKey();
+  assertSupabaseFunctions();
 
-  const maxRetries = 3;
-  let attempt = 0;
+  const { data, error } = await supabase.functions.invoke(AI_PROXY_FUNCTION, {
+    body: {
+      messages: request.messages,
+      model: request.model,
+      taskType: request.taskType,
+      inputLength: request.inputLength,
+      jsonMode: request.jsonMode,
+    },
+    signal: request.signal,
+  });
 
-  while (attempt < maxRetries) {
-    try {
-      const body = {
-        model: FREE_MODEL_ROUTER,
-        messages,
-        temperature: 0.7,
-      };
-
-      if (jsonMode) {
-        body.response_format = { type: 'json_object' };
-      }
-
-      const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': FIIP_PUBLIC_SITE_URL,
-          'X-Title': 'Fiip',
-        },
-        body: JSON.stringify(body),
-        signal: requestedSignal,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-
-        if ((response.status === 429 || response.status === 503) && attempt < maxRetries - 1) {
-          attempt += 1;
-          await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
-          continue;
-        }
-
-        const requestError = new Error(buildOpenRouterErrorMessage(response.status, response.statusText, errorData));
-        requestError.noRetry = response.status >= 400 && response.status < 500;
-        throw requestError;
-      }
-
-      const data = await response.json();
-      const generationId = data.id;
-      const generationStats = await fetchGenerationStats(generationId);
-
-      notifyUsage({
-        id: generationId,
-        model: FREE_MODEL_ROUTER,
-        usage: data.usage || generationStats?.data || generationStats || null,
-        createdAt: new Date().toISOString(),
-      });
-
-      return data.choices?.[0]?.message?.content || '';
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        throw error;
-      }
-
-      if (error.noRetry) {
-        throw error;
-      }
-
-      if (attempt === maxRetries - 1) {
-        throw error;
-      }
-
-      attempt += 1;
-      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
-    }
+  if (error) {
+    throw new Error(formatFunctionError(error, "L'assistant n'a pas pu répondre."));
   }
+
+  notifyUsage({
+    id: data?.id,
+    model: data?.model_used || request.model || AUTO_MODEL_ROUTER,
+    usage: data?.usage || null,
+    budget: data?.budget || null,
+    createdAt: new Date().toISOString(),
+  });
+
+  return data?.content || '';
 };
 
 export const aiService = {
   FREE_MODEL_ROUTER,
+  AUTO_MODEL_ROUTER,
   getLastUsageStats: getLastAIUsageStats,
   listModels: listOpenRouterModels,
   subscribeToUsage: subscribeToAIUsage,
@@ -192,6 +120,7 @@ export const aiService = {
       : input || {};
 
     return generateText({
+      taskType: 'rewrite',
       messages: [
         {
           role: 'system',
@@ -207,6 +136,7 @@ export const aiService = {
 
   async getSmartSuggestions(content) {
     const response = await generateText({
+      taskType: 'auto_tag',
       jsonMode: true,
       messages: [
         {

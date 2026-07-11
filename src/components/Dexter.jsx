@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { generateText } from '../services/ai';
+import { buildDexterNoteContext } from '../services/dexterContext';
 
 // Icons Import
 import IconCheck from '~icons/mingcute/check-fill';
@@ -174,9 +175,7 @@ export default function Dexter({
         abortController.current = new AbortController();
 
         try {
-            const noteContext = currentNote
-                ? `Titre: ${currentNote.title || 'Sans titre'}\nContenu HTML de la note:\n${currentNote.content || ''}`
-                : 'Aucune note active.';
+            const noteContext = buildDexterNoteContext(currentNote);
 
             const response = await generateText({
                 signal: abortController.current.signal,

@@ -82,7 +82,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAccount }) {
   const refreshAuthData = async () => {
       setRefreshing(true);
       
-      // Si connecté (KeyAuth ou Essai), on affiche les données
+      // Si connecté (licence officielle ou essai), on affiche les données
       if (keyAuthService.isAuthenticated || keyAuthService.isTrialActive) {
           const isTrial = keyAuthService.isTrialActive && !keyAuthService.isAuthenticated;
           

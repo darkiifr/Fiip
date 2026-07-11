@@ -13,6 +13,7 @@ import {
   normalizeNotebook,
   normalizeNoteForV1,
   parseAdvancedSearchQuery,
+  removeTaskById,
   sanitizeClipperPayload,
 } from './fiipV1';
 
@@ -24,7 +25,17 @@ describe('Fiip V1 domain helpers', () => {
       content: '<p>Hello</p>',
       folder_id: 'work',
       tags: ['Projet'],
-      attachments: [{ id: 'att-1', name: 'doc.pdf', type: 'pdf' }],
+      attachments: [{
+        id: 'att-1',
+        name: 'doc.pdf',
+        type: 'pdf',
+        filePath: 'C:/tmp/doc.pdf',
+        ocrStatus: 'complete',
+        ocrConfidence: 91,
+        ocrEngine: 'tesseract.js',
+        ocrQualityScore: 86,
+        ocrQualityLevel: 'high',
+      }],
       deleted: false,
       updatedAt: 10,
     });
@@ -37,7 +48,17 @@ describe('Fiip V1 domain helpers', () => {
       syncStatus: 'synced',
     });
     expect(note.tags).toEqual([{ id: 'tag-projet', label: 'Projet', icon: 'Tag', color: 4 }]);
-    expect(note.attachments[0]).toMatchObject({ id: 'att-1', name: 'doc.pdf', type: 'pdf' });
+    expect(note.attachments[0]).toMatchObject({
+      id: 'att-1',
+      name: 'doc.pdf',
+      type: 'pdf',
+      filePath: 'C:/tmp/doc.pdf',
+      ocrStatus: 'complete',
+      ocrConfidence: 91,
+      ocrEngine: 'tesseract.js',
+      ocrQualityScore: 86,
+      ocrQualityLevel: 'high',
+    });
   });
 
   it('keeps protected locked notes out of search, AI, OCR sync, sharing, and collaboration', () => {
@@ -99,6 +120,15 @@ describe('Fiip V1 domain helpers', () => {
     ];
 
     expect(getDueTasks(tasks, { now: new Date('2026-06-26T09:00:00.000Z') }).map((task) => task.id)).toEqual(['now']);
+  });
+
+  it('removes a task by id without changing the others', () => {
+    const tasks = [
+      createTask({ id: 'keep', noteId: 'n', title: 'Keep' }),
+      createTask({ id: 'delete', noteId: 'n', title: 'Delete' }),
+    ];
+
+    expect(removeTaskById(tasks, 'delete').map((task) => task.id)).toEqual(['keep']);
   });
 
   it('sanitizes extension clipper payloads and rejects unsafe urls', () => {

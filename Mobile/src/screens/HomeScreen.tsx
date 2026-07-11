@@ -1,10 +1,18 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useMemo, useState } from 'react';
+import {
+  FlatList,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
-import { Icon } from '../components/ui/Icon';
 import { GlassCard } from '../components/ui/GlassCard';
+import { Icon } from '../components/ui/Icon';
+import { FiipAction, FiipEmptyState, FiipListRow, FiipScreen, FiipToolbar, textStyles } from '../components/ui/FiipNative';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useNotesStore } from '../store/notesStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -12,182 +20,344 @@ import { fiipRadius } from '../theme/fiipDesign';
 import { triggerHaptic } from '../utils/hapticEngine';
 import { getNoteMetrics } from '../utils/noteMetrics';
 
+type HomeFilter = 'recent' | 'favorites' | 'shared';
+
+const FILTERS: Array<{ label: string; value: HomeFilter; sfSymbol: string; mdIcon: string }> = [
+  { label: 'Récents', value: 'recent', sfSymbol: 'clock', mdIcon: 'clock-outline' },
+  { label: 'Favoris', value: 'favorites', sfSymbol: 'star', mdIcon: 'star-outline' },
+  { label: 'Partagées', value: 'shared', sfSymbol: 'person.2', mdIcon: 'account-multiple-outline' },
+];
+
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const { colors, isDark } = useAppTheme();
   const isIOS = Platform.OS === 'ios';
   const notesById = useNotesStore((state) => state.notes);
+  const isSyncing = useNotesStore((state) => state.isSyncing);
   const syncEnabled = useSettingsStore((state) => state.syncEnabled);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<HomeFilter>('recent');
 
-  const notes = useMemo(
+  const allNotes = useMemo(
     () => Object.values(notesById)
-      .filter((note) => !note.deleted_at)
-      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
+      .filter((note: any) => !note.deleted_at)
+      .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()),
     [notesById],
   );
 
-  const stats = useMemo(() => {
-    const words = notes.reduce((sum, note) => sum + getNoteMetrics(note.content).wordCount, 0);
-    const favorites = notes.filter((note) => note.is_favorite).length;
-    return { words, favorites, readingTime: words === 0 ? 0 : Math.ceil(words / 220) };
-  }, [notes]);
+  const filteredNotes = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    return allNotes.filter((note: any) => {
+      if (filter === 'favorites' && !note.is_favorite) return false;
+      if (filter === 'shared' && !(note.shared || note.public_slug)) return false;
+      if (!normalizedQuery) return true;
 
-  const featuredNote = notes[0];
-  const recentNotes = notes.slice(0, 5);
+      const haystack = `${note.title || ''} ${getNoteMetrics(note.content || '').plainText || ''} ${(note.badges || []).join(' ')}`.toLocaleLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [allNotes, filter, query]);
+
+  const stats = useMemo(() => {
+    const words = allNotes.reduce((sum: number, note: any) => sum + getNoteMetrics(note.content || '').wordCount, 0);
+    const favorites = allNotes.filter((note: any) => note.is_favorite).length;
+    const shared = allNotes.filter((note: any) => note.shared || note.public_slug).length;
+    return { words, favorites, shared, readingTime: words === 0 ? 0 : Math.ceil(words / 220) };
+  }, [allNotes]);
+
+  const featuredNote = filteredNotes[0] || allNotes[0];
+  const displayText = textStyles(colors);
+  const showHero = !query.trim() && filter === 'recent';
 
   const openNote = (note?: any) => {
     triggerHaptic('selection');
     navigation.navigate('NoteEditor', note ? { noteToEdit: note } : undefined);
   };
 
+  const switchFilter = (next: HomeFilter) => {
+    triggerHaptic('selection');
+    setFilter(next);
+  };
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={[styles.content, !isIOS && styles.contentAndroid]} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View>
-            <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>{isIOS ? 'Fiip' : 'Aujourd’hui'}</Text>
-            <Text style={[isIOS ? styles.title : styles.titleAndroid, { color: colors.text }]}>
-              {isIOS ? 'Accueil' : 'Vos notes'}
-            </Text>
-          </View>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Créer une note"
-            activeOpacity={0.76}
-            onPress={() => openNote()}
-            style={[isIOS ? styles.createButton : styles.createButtonAndroid, {
-              backgroundColor: isIOS ? colors.text : colors.primaryContainer,
-            }]}
-          >
-            <Icon sfSymbol="plus" mdIcon="plus" size={20} color={isIOS ? colors.background : colors.onPrimaryContainer} />
-          </TouchableOpacity>
-        </View>
-
-        <GlassCard intensity={isIOS ? 48 : 0} cornerRadius={isIOS ? fiipRadius.xl : 28} interactive style={styles.heroCard}>
-          <View style={styles.heroTop}>
-            <View>
-              <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Aujourd'hui</Text>
-              <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={2}>
-                {featuredNote?.title || 'Nouvelle note'}
-              </Text>
+    <FiipScreen contentStyle={styles.container}>
+      <FlatList
+        data={filteredNotes}
+        keyExtractor={(item: any) => item.id}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          <View style={styles.headerStack}>
+            <View style={styles.header}>
+              <View>
+                <Text style={displayText.kicker}>Fiip</Text>
+                <Text style={displayText.title}>Accueil</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Créer une note"
+                onPress={() => openNote()}
+                style={({ pressed }) => [
+                  styles.createButton,
+                  { backgroundColor: isIOS ? colors.text : colors.primaryContainer, opacity: pressed ? 0.74 : 1 },
+                ]}
+              >
+                <Icon sfSymbol="plus" mdIcon="plus" size={21} color={isIOS ? colors.background : colors.onPrimaryContainer} />
+              </Pressable>
             </View>
-            <View style={[styles.syncPill, {
-              borderColor: colors.outlineVariant,
-              backgroundColor: isIOS ? 'transparent' : colors.surfaceContainerHighest,
-            }]}>
-              <Icon sfSymbol={syncEnabled ? 'icloud.fill' : 'icloud.slash'} mdIcon={syncEnabled ? 'cloud-check' : 'cloud-off-outline'} size={14} color={syncEnabled ? colors.success : colors.textSecondary} />
-              <Text style={[styles.syncText, { color: colors.textSecondary }]}>{syncEnabled ? 'Cloud' : 'Local'}</Text>
-            </View>
-          </View>
-          <Text style={[styles.heroExcerpt, { color: colors.textSecondary }]} numberOfLines={4}>
-            {featuredNote ? getNoteMetrics(featuredNote.content).plainText || 'Note vide' : 'Commencez une note, puis laissez Fiip structurer votre pensée.'}
-          </Text>
-          <View style={styles.metricGrid}>
-            <Metric label="Notes" value={String(notes.length)} color={colors} />
-            <Metric label="Favoris" value={String(stats.favorites)} color={colors} />
-            <Metric label="Lecture" value={`${stats.readingTime} min`} color={colors} />
-          </View>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Ouvrir la note sélectionnée"
-            activeOpacity={0.82}
-            onPress={() => openNote(featuredNote)}
-            style={[isIOS ? styles.primaryAction : styles.primaryActionAndroid, {
-              backgroundColor: isIOS ? colors.primary : colors.primary,
-            }]}
-          >
-            <Text style={styles.primaryActionText}>Reprendre</Text>
-            <Icon sfSymbol="arrow.right" mdIcon="arrow-right" size={16} color="#FFF" />
-          </TouchableOpacity>
-        </GlassCard>
 
-        <View style={styles.quickActions}>
-          <QuickAction title="Assistant" icon="sparkles" mdIcon="sparkles" onPress={() => navigation.navigate('Assistant')} colors={colors} isIOS={isIOS} />
-          <QuickAction title="Recherche" icon="magnifyingglass" mdIcon="magnify" onPress={() => navigation.navigate('Search')} colors={colors} isIOS={isIOS} />
-          <QuickAction title="Réglages" icon="slider.horizontal.3" mdIcon="tune" onPress={() => navigation.navigate('Settings')} colors={colors} isIOS={isIOS} />
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes récentes</Text>
-          <Text style={[styles.sectionCaption, { color: colors.textSecondary }]}>{stats.words} mots indexés</Text>
-        </View>
-
-        <View style={styles.noteList}>
-          {recentNotes.map((note) => (
-            <TouchableOpacity key={note.id} activeOpacity={0.78} onPress={() => openNote(note)}>
-              <GlassCard intensity={isIOS ? 26 : 0} cornerRadius={isIOS ? fiipRadius.lg : 18} interactive style={styles.noteRow}>
-                <View style={[styles.noteIcon, { backgroundColor: isIOS ? (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(20,19,18,0.05)') : colors.primaryContainer }]}>
-                  <Icon sfSymbol={note.is_favorite ? 'star.fill' : 'doc.text'} mdIcon={note.is_favorite ? 'star' : 'file-document-outline'} size={18} color={note.is_favorite ? '#FFB340' : colors.textSecondary} />
+            {showHero ? (
+              <GlassCard intensity={isIOS ? 38 : 0} cornerRadius={isIOS ? fiipRadius.xl : 28} interactive style={styles.heroCard}>
+                <View style={styles.heroTop}>
+                  <View style={styles.heroTitleGroup}>
+                    <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Studio du jour</Text>
+                    <Text style={[styles.heroTitle, { color: colors.text }]} numberOfLines={2}>
+                      {featuredNote?.title || 'Écrire sans friction'}
+                    </Text>
+                  </View>
+                  <View style={[styles.syncPill, { borderColor: colors.outlineVariant, backgroundColor: colors.surfaceContainerLow }]}>
+                    <Icon sfSymbol={syncEnabled ? 'icloud.fill' : 'icloud.slash'} mdIcon={syncEnabled ? 'cloud-check' : 'cloud-off-outline'} size={14} color={syncEnabled ? colors.success : colors.textSecondary} />
+                    <Text style={[styles.syncText, { color: syncEnabled ? colors.success : colors.textSecondary }]}>
+                      {isSyncing ? 'Sync' : syncEnabled ? 'Cloud' : 'Local'}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.noteText}>
-                  <Text style={[styles.noteTitle, { color: colors.text }]} numberOfLines={1}>{note.title || 'Sans titre'}</Text>
-                  <Text style={[styles.noteExcerpt, { color: colors.textSecondary }]} numberOfLines={1}>{getNoteMetrics(note.content).plainText || 'Note vide'}</Text>
+                <Text style={[styles.heroExcerpt, { color: colors.textSecondary }]} numberOfLines={3}>
+                  {featuredNote ? getNoteMetrics(featuredNote.content || '').plainText || 'Note vide' : 'Créez une note, retrouvez-la vite, puis synchronisez-la quand vous êtes prêt.'}
+                </Text>
+                <View style={styles.metricGrid}>
+                  <Metric label="Notes" value={String(allNotes.length)} />
+                  <Metric label="Étoiles" value={String(stats.favorites)} />
+                  <Metric label="Partagées" value={String(stats.shared)} />
                 </View>
-                <Icon sfSymbol="chevron.right" mdIcon="chevron-right" size={16} color={colors.textSecondary} />
               </GlassCard>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            ) : null}
+
+            <FiipToolbar>
+              <Icon sfSymbol="magnifyingglass" mdIcon="magnify" size={18} color={colors.textSecondary} />
+              <TextInput
+                placeholder="Rechercher une note"
+                placeholderTextColor={colors.textSecondary}
+                value={query}
+                onChangeText={setQuery}
+                autoCorrect={false}
+                clearButtonMode="while-editing"
+                style={[styles.searchInput, { color: colors.text }]}
+              />
+            </FiipToolbar>
+
+            <View style={styles.filterRow}>
+              {FILTERS.map((item) => (
+                <FiipAction
+                  key={item.value}
+                  label={item.label}
+                  sfSymbol={item.sfSymbol}
+                  mdIcon={item.mdIcon}
+                  selected={filter === item.value}
+                  onPress={() => switchFilter(item.value)}
+                  style={styles.filterAction}
+                />
+              ))}
+            </View>
+
+            <View style={styles.quickActions}>
+              <QuickAction title="Dexter" sfSymbol="sparkles" mdIcon="robot-outline" onPress={() => navigation.navigate('Assistant')} />
+              <QuickAction title="Réglages" sfSymbol="slider.horizontal.3" mdIcon="tune" onPress={() => navigation.navigate('Settings')} />
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <Text style={displayText.section}>Notes récentes</Text>
+              <Text style={[styles.sectionCaption, { color: colors.textSecondary }]}>{stats.words} mots indexés</Text>
+            </View>
+          </View>
+        }
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        renderItem={({ item }: any) => (
+          <FiipListRow
+            title={item.title || 'Sans titre'}
+            subtitle={getNoteMetrics(item.content || '').plainText || 'Note vide'}
+            meta={item.public_slug ? 'Public' : item.is_favorite ? 'Favori' : undefined}
+            sfSymbol={item.is_locked ? 'lock.fill' : item.is_favorite ? 'star.fill' : 'doc.text'}
+            mdIcon={item.is_locked ? 'lock' : item.is_favorite ? 'star' : 'file-document-outline'}
+            accentColor={item.is_favorite ? '#FFB340' : item.public_slug ? colors.success : undefined}
+            onPress={() => openNote(item)}
+          />
+        )}
+        ListEmptyComponent={
+          <FiipEmptyState
+            title={query || filter !== 'recent' ? 'Aucune note trouvée' : 'Votre espace est prêt'}
+            message={query || filter !== 'recent' ? 'Essayez une autre recherche ou un autre filtre.' : 'Créez votre première note pour démarrer votre bibliothèque Fiip.'}
+            sfSymbol="doc.text.magnifyingglass"
+            mdIcon="file-search-outline"
+            actionLabel="Nouvelle note"
+            onAction={() => openNote()}
+          />
+        }
+      />
+    </FiipScreen>
   );
 }
 
-function Metric({ label, value, color }: any) {
+function Metric({ label, value }: { label: string; value: string }) {
+  const { colors } = useAppTheme();
+
   return (
-    <View style={[styles.metric, { borderColor: color.outlineVariant, backgroundColor: color.surfaceContainerLow }]}>
-      <Text style={[styles.metricValue, { color: color.text }]}>{value}</Text>
-      <Text style={[styles.metricLabel, { color: color.textSecondary }]}>{label}</Text>
+    <View style={[styles.metric, { borderColor: colors.outlineVariant, backgroundColor: colors.surfaceContainerLow }]}>
+      <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
+      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>{label}</Text>
     </View>
   );
 }
 
-function QuickAction({ title, icon, mdIcon, onPress, colors, isIOS }: any) {
+function QuickAction({ title, sfSymbol, mdIcon, onPress }: { title: string; sfSymbol: string; mdIcon: string; onPress: () => void }) {
+  const { colors } = useAppTheme();
+
   return (
-    <TouchableOpacity accessibilityRole="button" accessibilityLabel={title} activeOpacity={0.76} onPress={onPress} style={styles.quickAction}>
-      <GlassCard intensity={isIOS ? 28 : 0} cornerRadius={isIOS ? fiipRadius.lg : 20} interactive style={styles.quickCard}>
-        <Icon sfSymbol={icon} mdIcon={mdIcon} size={20} color={isIOS ? colors.text : colors.primary} />
-        <Text style={[styles.quickTitle, { color: colors.text }]}>{title}</Text>
-      </GlassCard>
-    </TouchableOpacity>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={() => {
+        triggerHaptic('selection');
+        onPress();
+      }}
+      style={({ pressed }) => [styles.quickAction, { backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant, opacity: pressed ? 0.78 : 1 }]}
+    >
+      <Icon sfSymbol={sfSymbol} mdIcon={mdIcon} size={18} color={colors.primary} />
+      <Text style={[styles.quickTitle, { color: colors.text }]}>{title}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 140 },
-  contentAndroid: { paddingHorizontal: 16, paddingTop: 8 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
-  eyebrow: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: Platform.OS === 'ios' ? 0.8 : 0.3, marginBottom: 6 },
-  title: { fontSize: 34, lineHeight: 38, fontWeight: '800', maxWidth: 280 },
-  titleAndroid: { fontSize: 28, lineHeight: 34, fontWeight: '700', maxWidth: 280 },
-  createButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  createButtonAndroid: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', elevation: 3 },
-  heroCard: { padding: 20, gap: 18 },
-  heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
-  cardLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.7, marginBottom: 6 },
-  heroTitle: { fontSize: 27, lineHeight: 32, fontWeight: '800', maxWidth: 220 },
-  syncPill: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 32, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1 },
-  syncText: { fontSize: 12, fontWeight: '700' },
-  heroExcerpt: { fontSize: 16, lineHeight: 24 },
-  metricGrid: { flexDirection: 'row', gap: 10 },
-  metric: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 12 },
-  metricValue: { fontSize: 19, fontWeight: '800' },
-  metricLabel: { fontSize: 11, fontWeight: '700', marginTop: 3 },
-  primaryAction: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
-  primaryActionAndroid: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, elevation: 1 },
-  primaryActionText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
-  quickActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  quickAction: { flex: 1 },
-  quickCard: { paddingVertical: 14, alignItems: 'center', gap: 8 },
-  quickTitle: { fontSize: 12, fontWeight: '800' },
-  sectionHeader: { marginTop: 26, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  sectionTitle: { fontSize: 22, fontWeight: '800' },
-  sectionCaption: { fontSize: 12, fontWeight: '600' },
-  noteList: { gap: 10 },
-  noteRow: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  noteIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  noteText: { flex: 1 },
-  noteTitle: { fontSize: 15, fontWeight: '800' },
-  noteExcerpt: { fontSize: 13, marginTop: 3 },
+  container: {
+    flex: 1,
+  },
+  listContent: {
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 132,
+  },
+  headerStack: {
+    gap: 14,
+    marginBottom: 12,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  createButton: {
+    width: 48,
+    height: 48,
+    borderRadius: Platform.OS === 'ios' ? 24 : 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: Platform.OS === 'android' ? 3 : 0,
+  },
+  heroCard: {
+    padding: 18,
+    gap: 16,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  heroTitleGroup: {
+    flex: 1,
+  },
+  cardLabel: {
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 6,
+  },
+  heroTitle: {
+    fontSize: 26,
+    lineHeight: 31,
+    fontWeight: '900',
+  },
+  heroExcerpt: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  syncPill: {
+    height: 34,
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  syncText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  metricGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  metric: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    padding: 11,
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  metricLabel: {
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  searchInput: {
+    flex: 1,
+    minHeight: 42,
+    fontSize: 16,
+    fontWeight: '700',
+    paddingVertical: 8,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterAction: {
+    flex: 1,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  quickAction: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: Platform.OS === 'ios' ? 22 : 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  quickTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  sectionHeader: {
+    marginTop: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    gap: 12,
+  },
+  sectionCaption: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  separator: {
+    height: 10,
+  },
 });

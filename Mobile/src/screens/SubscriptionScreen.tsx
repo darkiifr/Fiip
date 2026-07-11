@@ -1,14 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { useTranslation } from 'react-i18next';
-import { Button } from 'react-native-paper';
 import { useSettingsStore } from '../store/settingsStore';
 import { triggerHaptic } from '../utils/hapticEngine';
 import { GlassCard } from '../components/ui/GlassCard';
 import { Icon } from '../components/ui/Icon';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { FiipAction, FiipScreen } from '../components/ui/FiipNative';
 
 const plans = [
   {
@@ -50,7 +48,7 @@ export default function SubscriptionScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isIOS ? 'transparent' : colors.card }]}>
+    <FiipScreen>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <TouchableOpacity
@@ -105,30 +103,20 @@ export default function SubscriptionScreen() {
               </View>
 
               {!isActive && (
-                isIOS ? (
-                  <TouchableOpacity 
-                    style={[styles.subscribeButtonIOS, { backgroundColor: plan.id === 'free' ? plan.color : colors.border }]} 
-                    onPress={() => handleSelectPlan(plan.id as any)}
-                    disabled={plan.id !== 'free'}
-                  >
-                    <Text style={styles.subscribeButtonTextIOS}>{plan.id === 'free' ? 'Choisir ce plan' : 'Bientôt via App Store'}</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <Button 
-                    mode="contained" 
-                    buttonColor={plan.color}
-                    style={styles.subscribeButtonAndroid}
-                    onPress={() => handleSelectPlan(plan.id as any)}
-                  >
-                    Choisir ce plan
-                  </Button>
-                )
+                <FiipAction
+                  label={isIOS && plan.id !== 'free' ? 'Bientôt via App Store' : 'Choisir ce plan'}
+                  sfSymbol="checkmark.circle"
+                  mdIcon="check-circle-outline"
+                  selected={plan.id === 'free' || !isIOS}
+                  disabled={isIOS && plan.id !== 'free'}
+                  onPress={() => handleSelectPlan(plan.id as any)}
+                />
               )}
             </GlassCard>
           );
         })}
       </ScrollView>
-    </SafeAreaView>
+    </FiipScreen>
   );
 }
 
@@ -223,17 +211,4 @@ const styles = StyleSheet.create({
     color: '#3C3C43',
     marginLeft: 10,
   },
-  subscribeButtonIOS: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  subscribeButtonTextIOS: {
-    color: '#FFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  subscribeButtonAndroid: {
-    borderRadius: 8,
-  }
 });

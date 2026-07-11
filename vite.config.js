@@ -87,5 +87,11 @@ export default defineConfig(async () => ({
     environment: 'jsdom',
     setupFiles: './src/setupTests.js',
     css: true,
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/src-tauri/**',
+      'supabase/**',
+    ],
   },
 }));

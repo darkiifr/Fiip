@@ -72,7 +72,7 @@ export default function HomeDashboard({
             messages: [
                 {
                     role: 'system',
-                    content: 'Tu es Dexter, assistant Fiip. Génère un seul commentaire court, utile et naturel en français pour guider le travail de rédaction. Ne mentionne pas le modèle, OpenRouter, les tags de recherche, ni les permissions.',
+                    content: 'Tu es Dexter, assistant Fiip. Génère un seul commentaire court, utile et naturel en français pour guider le travail de rédaction. Ne mentionne pas le modèle, le fournisseur technique, les tags de recherche, ni les permissions.',
                 },
                 {
                     role: 'user',
