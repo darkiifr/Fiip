@@ -26,6 +26,17 @@ export default [
     ] 
   },
   {
+    files: ['sellauth-theme/**/*.js'],
+    languageOptions: {
+      globals: {
+        Alpine: 'readonly',
+        Choices: 'readonly',
+        Cookies: 'readonly',
+        $: 'readonly',
+      },
+    },
+  },
+  {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
       ecmaVersion: 2022,

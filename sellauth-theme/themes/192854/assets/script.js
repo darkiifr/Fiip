@@ -293,7 +293,7 @@ document.addEventListener('alpine:init', () => {
           }
         } catch (error) {
           console.error(error);
-          this.modalOtpError = data?.message || 'Invalid credentials.';
+          this.modalOtpError = 'Invalid credentials.';
         } finally {
           this.modalLoading = false;
         }
