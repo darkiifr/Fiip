@@ -154,17 +154,6 @@ export function assertCaptchaToken(captchaToken, siteKey = import.meta.env.VITE_
   }
 }
 
-export function isLocalDevWithoutCaptcha() {
-  return isLocalDevHost() && !getCaptchaSiteKey();
-}
-
-function getLocalDevCaptchaError() {
-  return {
-    message: "Connexion au compte désactivée en développement local car le CAPTCHA est activé sur le projet Supabase distant. Utilisez l'essai local, ou activez temporairement VITE_ENABLE_CAPTCHA_IN_DEV=true avec VITE_TURNSTILE_SITE_KEY.",
-    code: 'LOCAL_DEV_CAPTCHA_DISABLED',
-  };
-}
-
 function normalizeAuthError(error) {
   const message = String(error?.message || error || '');
   if (/captcha|challenge|captcha_token/i.test(message)) {
@@ -182,9 +171,6 @@ export const authService = {
   async signUp(email, password, username, captchaToken = '') {
     if (!isSupabaseConfigured) {
       return { data: null, error: getSupabaseConfigError() };
-    }
-    if (isLocalDevWithoutCaptcha() && !captchaToken) {
-      return { data: null, error: getLocalDevCaptchaError() };
     }
 
     const { data, error } = await supabase.auth.signUp({
@@ -215,9 +201,6 @@ export const authService = {
     if (!isSupabaseConfigured) {
       return { data: null, error: getSupabaseConfigError() };
     }
-    if (isLocalDevWithoutCaptcha() && !captchaToken) {
-      return { data: null, error: getLocalDevCaptchaError() };
-    }
 
     let email = identifier;
     
@@ -241,9 +224,6 @@ export const authService = {
   async sendPasswordReset(email, captchaToken = '') {
     if (!isSupabaseConfigured) {
       return { data: null, error: getSupabaseConfigError() };
-    }
-    if (isLocalDevWithoutCaptcha() && !captchaToken) {
-      return { data: null, error: getLocalDevCaptchaError() };
     }
 
     const { data, error } = await supabase.auth.resetPasswordForEmail(String(email || '').trim(), {

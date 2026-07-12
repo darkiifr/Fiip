@@ -7,6 +7,7 @@ import { authService } from '../services/supabase';
 import OnboardingView from './OnboardingView';
 
 vi.mock('../services/supabase', () => ({
+  getCaptchaSiteKey: vi.fn(() => ''),
   authService: {
     signInWithOAuth: vi.fn(),
     signIn: vi.fn(),
