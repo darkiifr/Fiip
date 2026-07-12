@@ -167,7 +167,7 @@ describe('Supabase authService', () => {
         expect(supabase.auth.signOut).toHaveBeenCalled();
     });
 
-    it('signInWithOAuth uses the Fiip deep link inside Tauri', async () => {
+    it('signInWithOAuth uses the portal callback inside Tauri before returning to the app', async () => {
         window.__TAURI_INTERNALS__ = {};
         supabase.auth.signInWithOAuth.mockResolvedValueOnce({ data: { url: 'https://auth.example' }, error: null });
 
@@ -176,7 +176,7 @@ describe('Supabase authService', () => {
         expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
             provider: 'google',
             options: {
-                redirectTo: 'fiip://login-callback',
+                redirectTo: 'https://portail.fiip.fr/auth/callback',
                 skipBrowserRedirect: true,
             },
         });

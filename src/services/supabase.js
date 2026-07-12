@@ -12,6 +12,7 @@ import {
   sanitizeClipperPayload,
 } from './fiipV1';
 import { serializeNoteTags } from '../utils/noteTags';
+import { FIIP_ACCOUNT_PORTAL_URL } from '../config/links';
 import { canAttachFile, canCreateNote, getStorageLimit, resolvePlanLevel } from './planLimits';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -22,6 +23,10 @@ const PLACEHOLDER_SUPABASE_URL = 'https://placeholder.supabase.co';
 const PLACEHOLDER_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx';
 const SUPABASE_CONFIG_ERROR = "Configuration Supabase manquante. Ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY avant d'utiliser la connexion Google.";
 const ENABLE_CAPTCHA_IN_DEV = import.meta.env.VITE_ENABLE_CAPTCHA_IN_DEV === 'true';
+
+function isTauriRuntime() {
+  return typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
+}
 
 export function hasUsableSupabaseConfig(url = SUPABASE_URL, anonKey = SUPABASE_ANON_KEY) {
   const normalizedUrl = String(url || '').trim();
@@ -60,8 +65,8 @@ export const supabase = createClient(
 export { getStorageLimit };
 
 export function getOAuthRedirectUrl() {
-  if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
-    return 'fiip://login-callback';
+  if (isTauriRuntime()) {
+    return new URL('/auth/callback', FIIP_ACCOUNT_PORTAL_URL).toString();
   }
 
   if (typeof window !== 'undefined' && window.location?.origin) {

@@ -28,17 +28,6 @@ export function assertCaptchaToken(captchaToken, siteKey = import.meta.env.VITE_
   }
 }
 
-export function isLocalDevWithoutCaptcha() {
-  return isLocalDevHost() && !getCaptchaSiteKey();
-}
-
-function getLocalDevCaptchaError() {
-  return {
-    message: "Connexion au compte désactivée en développement local car le CAPTCHA est activé sur le projet Supabase distant. Utilisez le site déployé ou activez temporairement VITE_ENABLE_CAPTCHA_IN_DEV=true avec VITE_TURNSTILE_SITE_KEY.",
-    code: 'LOCAL_DEV_CAPTCHA_DISABLED',
-  };
-}
-
 export async function getSessionUser() {
   if (!supabase) return null;
   const { data } = await supabase.auth.getUser();
@@ -103,9 +92,6 @@ export async function checkAccountEmailExists(email) {
 
 export async function signInWithMagicLink(email, captchaToken) {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
-  if (isLocalDevWithoutCaptcha() && !captchaToken) {
-    return { data: null, error: getLocalDevCaptchaError() };
-  }
   const exists = await checkAccountEmailExists(email);
   if (!exists) {
     return { data: null, error: { message: 'Aucun compte Fiip n’existe avec cette adresse e-mail.' } };
@@ -132,9 +118,6 @@ export async function verifyMagicCode(email, token) {
 
 export async function sendPasswordReset(email, captchaToken) {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
-  if (isLocalDevWithoutCaptcha() && !captchaToken) {
-    return { data: null, error: getLocalDevCaptchaError() };
-  }
   const exists = await checkAccountEmailExists(email);
   if (!exists) {
     return { data: null, error: { message: 'Aucun compte Fiip n’existe avec cette adresse e-mail.' } };
@@ -148,9 +131,6 @@ export async function sendPasswordReset(email, captchaToken) {
 
 export async function signInWithPassword(email, password, captchaToken) {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
-  if (isLocalDevWithoutCaptcha() && !captchaToken) {
-    return { data: null, error: getLocalDevCaptchaError() };
-  }
   return supabase.auth.signInWithPassword({
     email: normalizeAccountEmail(email),
     password,

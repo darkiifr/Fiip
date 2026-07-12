@@ -227,11 +227,17 @@ describe('account service device actions', () => {
     expect(supabase.auth.signInWithOtp).not.toHaveBeenCalled();
   });
 
-  it('blocks local development auth without a captcha token before Supabase rejects it', async () => {
+  it('does not block local development auth when Turnstile is hidden', async () => {
+    supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
+
     const result = await signInWithPassword('buyer@fiip.fr', 'password', '');
 
-    expect(result.error.code).toBe('LOCAL_DEV_CAPTCHA_DISABLED');
-    expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(result.error).toBeNull();
+    expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
+      email: 'buyer@fiip.fr',
+      password: 'password',
+      options: undefined,
+    });
   });
 
   it('formats Supabase mail and captcha errors for users', () => {
