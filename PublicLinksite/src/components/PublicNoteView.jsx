@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import DOMPurify from 'dompurify';
-import html2pdf from 'html2pdf.js';
 import { Icon as IconifyIcon } from '@iconify/react';
 import { marked } from 'marked';
-import TurndownService from 'turndown';
 
 import { DEMO_PUBLIC_NOTE } from '../demoNote';
 import { dataService } from '../services/supabase';
@@ -106,37 +104,6 @@ export default function PublicNoteView() {
       return;
     }
     downloadBlob(JSON.stringify(note, null, 2), 'application/json', 'fiin');
-  };
-
-  const handleDownloadMd = () => {
-    if (!note) {
-      return;
-    }
-    const turndownService = new TurndownService({ headingStyle: 'atx' });
-    const mdContent = `# ${note.title || 'Nouvelle Note'}\n\n${turndownService.turndown(note.content || '')}`;
-    downloadBlob(mdContent, 'text/markdown', 'md');
-  };
-
-  const handleDownloadPdf = () => {
-    const element = document.getElementById('note-print-area');
-    if (!element) {
-      return;
-    }
-
-    const clone = element.cloneNode(true);
-    clone.querySelectorAll('video, audio, iframe').forEach((el) => el.remove());
-
-    html2pdf()
-      .set({
-        margin: [0.5, 0.5, 0.5, 0.5],
-        filename: `${safeTitle}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      })
-      .from(clone)
-      .save()
-      .catch(() => setError('Erreur lors de la génération du PDF.'));
   };
 
   if (loading) {
@@ -250,8 +217,6 @@ export default function PublicNoteView() {
           <p>Conservez une copie portable ou ouvrez la note dans Fiip.</p>
           <div className="download-actions">
             <button type="button" onClick={handleDownloadFiin}>.fiin</button>
-            <button type="button" onClick={handleDownloadMd}>.md</button>
-            <button type="button" onClick={handleDownloadPdf}>.pdf</button>
           </div>
         </aside>
       </section>

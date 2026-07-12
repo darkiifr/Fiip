@@ -6,8 +6,12 @@ const { mockSupabaseClient } = vi.hoisted(() => {
             auth: {
                 getSession: vi.fn(),
                 getUser: vi.fn(),
+                resetPasswordForEmail: vi.fn(),
                 signInWithOAuth: vi.fn(),
+                signInWithPasskey: vi.fn(),
                 signInWithPassword: vi.fn(),
+                verifyOtp: vi.fn(),
+                registerPasskey: vi.fn(),
                 signUp: vi.fn(),
                 signOut: vi.fn(),
                 onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } }))
@@ -62,17 +66,98 @@ describe('Supabase authService', () => {
 
     it('signIn should call supabase.auth.signInWithPassword', async () => {
         supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
-        await authService.signIn('test@example.com', 'password123');
-        expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password123' });
+        await authService.signIn('test@example.com', 'password123', 'captcha-login');
+        expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password123', options: { captchaToken: 'captcha-login' } });
+    });
+
+    it('does not require a captcha token in local development by default', async () => {
+        supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
+
+        const result = await authService.signIn('test@example.com', 'password123');
+
+        expect(result.error).toBeNull();
+        expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
+            email: 'test@example.com',
+            password: 'password123',
+            options: undefined,
+        });
+    });
+
+    it('signIn and signUp pass captcha tokens to Supabase Auth', async () => {
+        supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
+        supabase.auth.signUp.mockResolvedValueOnce({ data: {}, error: null });
+
+        await authService.signIn('test@example.com', 'password123', 'captcha-login');
+        await authService.signUp('new@example.com', 'password123', 'newuser', 'captcha-register');
+
+        expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
+            email: 'test@example.com',
+            password: 'password123',
+            options: { captchaToken: 'captcha-login' },
+        });
+        expect(supabase.auth.signUp).toHaveBeenCalledWith(expect.objectContaining({
+            email: 'new@example.com',
+            password: 'password123',
+            options: expect.objectContaining({ captchaToken: 'captcha-register' }),
+        }));
+    });
+
+    it('sends password reset and verifies email OTP codes', async () => {
+        supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ data: {}, error: null });
+        supabase.auth.verifyOtp.mockResolvedValueOnce({ data: {}, error: null });
+
+        await authService.sendPasswordReset('test@example.com', 'captcha-reset');
+        await authService.verifyEmailOtp('test@example.com', '123456');
+
+        expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('test@example.com', {
+            redirectTo: 'http://localhost:3000/auth/callback',
+            captchaToken: 'captcha-reset',
+        });
+        expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
+            email: 'test@example.com',
+            token: '123456',
+            type: 'email',
+        });
+    });
+
+    it('uses Supabase passkey helpers when WebAuthn is available', async () => {
+        Object.defineProperty(window, 'PublicKeyCredential', {
+            configurable: true,
+            value: function PublicKeyCredential() {},
+        });
+        supabase.auth.signInWithPasskey.mockResolvedValueOnce({ data: {}, error: null });
+        supabase.auth.registerPasskey.mockResolvedValueOnce({ data: {}, error: null });
+
+        await authService.signInWithPasskey();
+        await authService.registerPasskey();
+
+        expect(supabase.auth.signInWithPasskey).toHaveBeenCalledTimes(1);
+        expect(supabase.auth.registerPasskey).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call Supabase passkey helpers without WebAuthn support', async () => {
+        Object.defineProperty(window, 'PublicKeyCredential', {
+            configurable: true,
+            value: undefined,
+        });
+
+        await expect(authService.signInWithPasskey()).resolves.toMatchObject({
+            error: { message: expect.stringContaining('passkeys') },
+        });
+        await expect(authService.registerPasskey()).resolves.toMatchObject({
+            error: { message: expect.stringContaining('passkeys') },
+        });
+        expect(supabase.auth.signInWithPasskey).not.toHaveBeenCalled();
+        expect(supabase.auth.registerPasskey).not.toHaveBeenCalled();
     });
 
     it('signUp should call supabase.auth.signUp', async () => {
         supabase.auth.signUp.mockResolvedValueOnce({ data: {}, error: null });
-        await authService.signUp('test@example.com', 'password123', 'testuser');
+        await authService.signUp('test@example.com', 'password123', 'testuser', 'captcha-register');
         expect(supabase.auth.signUp).toHaveBeenCalledWith({
             email: 'test@example.com',
             password: 'password123',
-            options: { data: { username: 'testuser', nickname: 'testuser', subscription_level: 0 } }
+            options: { captchaToken: 'captcha-register', data: { username: 'testuser', nickname: 'testuser', subscription_level: 0 } }
         });
     });
 

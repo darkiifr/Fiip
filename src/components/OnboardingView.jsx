@@ -2,6 +2,8 @@ import { open } from '@tauri-apps/plugin-shell';
 import { useState } from 'react';
 
 import { authService } from '../services/supabase';
+import { keyAuthService } from '../services/keyauth';
+import TurnstileCaptcha from './TurnstileCaptcha';
 
 import IconGoogle from '~icons/logos/google-icon';
 import IconArrowRight from '~icons/mingcute/arrow-right-line';
@@ -41,6 +43,8 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   const switchTab = (tabId) => {
     setActiveTab(tabId);
@@ -53,6 +57,10 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
   };
 
   const handleFreeTrial = () => {
+    if (!keyAuthService.startTrial()) {
+      setError("L'essai gratuit a déjà été utilisé sur cet appareil ou une licence est déjà active.");
+      return;
+    }
     localStorage.setItem('fiip-onboarding-completed', 'true');
     localStorage.setItem('fiip-mode-local', 'true');
     onComplete();
@@ -96,7 +104,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
 
     try {
       if (activeTab === 'login') {
-        const { error: loginError } = await authService.signIn(formData.email, formData.password);
+        const { error: loginError } = await authService.signIn(formData.email, formData.password, captchaToken);
         if (loginError) {
           throw loginError;
         }
@@ -115,6 +123,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
           formData.email,
           formData.password,
           formData.username,
+          captchaToken,
         );
         if (registerError) {
           throw registerError;
@@ -126,6 +135,28 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
     } catch (err) {
       setError(err.message || 'Une erreur est survenue.');
     } finally {
+      setCaptchaToken('');
+      setCaptchaResetKey((current) => current + 1);
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    try {
+      const { error: resetError } = await authService.sendPasswordReset(formData.email, captchaToken);
+      if (resetError) {
+        throw resetError;
+      }
+      setSuccess('Lien de réinitialisation envoyé. Vérifiez votre boîte mail.');
+    } catch (err) {
+      setError(err.message || 'Impossible d’envoyer le lien de réinitialisation.');
+    } finally {
+      setCaptchaToken('');
+      setCaptchaResetKey((current) => current + 1);
       setLoading(false);
     }
   };
@@ -212,6 +243,9 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
 
               {activeTab === 'trial' && (
                 <div className="animate-[fadeIn_220ms_ease-out] space-y-5 motion-reduce:animate-none">
+                  <div className="rounded-2xl border border-amber-400/35 bg-amber-400/10 px-4 py-3 text-sm font-semibold leading-6 text-amber-100 shadow-[0_0_0_4px_rgba(245,158,11,0.06)]">
+                    Essai local limité à 7 jours et une seule activation par installation. La synchronisation et les droits premium restent réservés aux licences.
+                  </div>
                   <div className="space-y-3">
                     {localBenefits.map((benefit) => (
                       <div key={benefit} className="flex items-center gap-3 text-sm font-semibold text-[#34312d] dark:text-[#ede9df]">
@@ -273,6 +307,8 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
                     required
                   />
 
+                  <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaResetKey} />
+
                   <button
                     type="submit"
                     disabled={loading}
@@ -283,6 +319,15 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
 
                   {activeTab === 'login' && (
                     <div className="space-y-4 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleForgotPassword}
+                        disabled={loading}
+                        className="w-full rounded-2xl border border-black/10 bg-white/8 px-5 py-3 text-sm font-bold text-[color:var(--text-primary)] transition duration-300 hover:bg-white/12 disabled:opacity-55 dark:border-white/10"
+                      >
+                        Mot de passe oublié
+                      </button>
+
                       <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-[0.18em] text-[#858078] dark:text-[#9f9a91]">
                         <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
                         ou

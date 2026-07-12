@@ -1,5 +1,6 @@
 import { Icon as IconifyIcon } from '@iconify/react';
 import { getDeviceLimitState, getLicenseState, getOcrState } from '../../services/accountPresentation';
+import { FIIP_PUBLIC_SITE_URL } from '../../config/links';
 
 const tabs = [
   ['account', '/account', 'mingcute:user-3-fill', 'Compte'],
@@ -18,7 +19,7 @@ export default function AccountLayout({ active, account, user, onNavigate, onSig
   return (
     <main className="account-shell">
       <aside className="account-sidebar">
-        <a href="/" className="brand-mark account-brand">Fiip</a>
+        <a href={FIIP_PUBLIC_SITE_URL} className="brand-mark account-brand">Fiip</a>
         <nav>
           {tabs.map(([id, href, icon, label]) => (
             <a

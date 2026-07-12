@@ -9,6 +9,7 @@ const mockGetPlanLevel = vi.fn();
 const mockOnAuthStateChange = vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
 
 vi.mock('../services/supabase', () => ({
+  getCaptchaSiteKey: () => '',
   authService: {
     getUser: () => mockGetCurrentUser(),
     getPlanLevel: (...args) => mockGetPlanLevel(...args),

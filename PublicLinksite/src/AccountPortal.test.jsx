@@ -15,13 +15,21 @@ vi.mock('./services/account', () => ({
     device_limit: 1,
   }),
   fetchSecurityEvents: vi.fn(),
+  getCaptchaSiteKey: vi.fn(() => ''),
+  getAuthErrorMessage: vi.fn((error) => error?.message || String(error || '')),
   getSessionUser: vi.fn(),
+  registerPasskey: vi.fn(),
   registerCurrentDevice: vi.fn(),
   revokeAllDevices: vi.fn(),
   revokeDevice: vi.fn(),
+  assertCaptchaToken: vi.fn(),
+  selectLicense: vi.fn(),
+  sendPasswordReset: vi.fn(),
+  signInWithPasskey: vi.fn(),
   signInWithMagicLink: vi.fn(),
   signInWithPassword: vi.fn(),
   signOut: vi.fn(),
+  verifyMagicCode: vi.fn(),
 }));
 
 describe('AccountPortal navigation', () => {
@@ -37,6 +45,7 @@ describe('AccountPortal navigation', () => {
     render(<App />);
 
     expect(await screen.findAllByText('OCR limite')).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Fiip' })).toHaveAttribute('href', 'https://fiip.fr/');
 
     fireEvent.click(screen.getByRole('link', { name: /Appareils/i }));
 

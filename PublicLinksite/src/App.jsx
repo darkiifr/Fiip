@@ -6,24 +6,31 @@ import AccountOverview from './components/account/AccountOverview';
 import LegalPage from './components/LegalPage';
 import PricingCheckout from './components/account/PricingCheckout';
 import PublicNoteView from './components/PublicNoteView';
-import { FIIP_ACCOUNT_PORTAL_URL, FIIP_DISCORD_SUPPORT_URL, FIIP_PUBLIC_SITE_URL } from './config/links';
+import { FIIP_ACCOUNT_PORTAL_URL, FIIP_DISCORD_SUPPORT_URL, FIIP_DOWNLOAD_URL, FIIP_PUBLIC_SITE_URL } from './config/links';
 import { LEGAL_NAV_ITEMS } from './config/legal';
 import {
   activateLicense,
   fetchAccountDevices,
   fetchAccountSummary,
   fetchSecurityEvents,
+  getCaptchaSiteKey,
+  getAuthErrorMessage,
   getSessionUser,
+  registerPasskey,
   registerCurrentDevice,
   revokeAllDevices,
   revokeDevice,
   assertCaptchaToken,
   signInWithMagicLink,
+  signInWithPasskey,
   signInWithPassword,
+  sendPasswordReset,
+  selectLicense,
   signOut,
+  verifyMagicCode,
 } from './services/account';
 
-const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+const TURNSTILE_SITE_KEY = getCaptchaSiteKey();
 
 const AccountAiUsage = lazy(() => import('./components/account/AccountAiUsage'));
 const AccountDevices = lazy(() => import('./components/account/AccountDevices'));
@@ -105,7 +112,9 @@ function AccountPortal({ path }) {
   const [sections, setSections] = useState({});
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [message, setMessage] = useState('');
+  const [messageTone, setMessageTone] = useState('info');
   const [loading, setLoading] = useState(true);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
@@ -224,37 +233,132 @@ function AccountPortal({ path }) {
     return result;
   };
 
+  const handleSelectLicense = async (licenseId) => {
+    const result = await selectLicense(licenseId);
+    const summary = await fetchAccountSummary();
+    setAccount(summary);
+    setSections((current) => {
+      const next = { ...current };
+      delete next.devices;
+      delete next.security;
+      return next;
+    });
+    return result;
+  };
+
   const handlePasswordLogin = async (event) => {
     event.preventDefault();
     setMessage('');
+    setMessageTone('info');
     try {
       assertCaptchaToken(captchaToken, TURNSTILE_SITE_KEY);
     } catch (error) {
       setMessage(error.message);
+      setMessageTone('error');
       return;
     }
-    const { error } = await signInWithPassword(email, password, captchaToken);
-    setCaptchaToken('');
-    setCaptchaResetKey((current) => current + 1);
-    if (error) {
-      setMessage(error.message);
-      return;
+    try {
+      const { error } = await signInWithPassword(email, password, captchaToken);
+      if (error) {
+        setMessage(getAuthErrorMessage(error));
+        setMessageTone('error');
+        return;
+      }
+      window.location.reload();
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error));
+      setMessageTone('error');
+    } finally {
+      setCaptchaToken('');
+      setCaptchaResetKey((current) => current + 1);
     }
-    window.location.reload();
   };
 
   const handleMagicLink = async () => {
     setMessage('');
+    setMessageTone('info');
     try {
       assertCaptchaToken(captchaToken, TURNSTILE_SITE_KEY);
     } catch (error) {
       setMessage(error.message);
+      setMessageTone('error');
       return;
     }
-    const { error } = await signInWithMagicLink(email, captchaToken);
-    setCaptchaToken('');
-    setCaptchaResetKey((current) => current + 1);
-    setMessage(error ? error.message : 'Lien de connexion envoyé.');
+    try {
+      const { error } = await signInWithMagicLink(email, captchaToken);
+      setMessage(error ? getAuthErrorMessage(error) : 'Lien de connexion envoyé. Vérifiez votre boîte mail.');
+      setMessageTone(error ? 'error' : 'success');
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error));
+      setMessageTone('error');
+    } finally {
+      setCaptchaToken('');
+      setCaptchaResetKey((current) => current + 1);
+    }
+  };
+
+  const handleVerifyMagicCode = async () => {
+    setMessage('');
+    setMessageTone('info');
+    try {
+      const { error } = await verifyMagicCode(email, otpCode);
+      if (error) {
+        setMessage(getAuthErrorMessage(error));
+        setMessageTone('error');
+        return;
+      }
+      window.location.reload();
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error));
+      setMessageTone('error');
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    setMessage('');
+    setMessageTone('info');
+    try {
+      assertCaptchaToken(captchaToken, TURNSTILE_SITE_KEY);
+    } catch (error) {
+      setMessage(error.message);
+      setMessageTone('error');
+      return;
+    }
+    try {
+      const { error } = await sendPasswordReset(email, captchaToken);
+      setMessage(error ? getAuthErrorMessage(error) : 'Lien de réinitialisation envoyé. Vérifiez votre boîte mail.');
+      setMessageTone(error ? 'error' : 'success');
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error));
+      setMessageTone('error');
+    } finally {
+      setCaptchaToken('');
+      setCaptchaResetKey((current) => current + 1);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    setMessage('');
+    setMessageTone('info');
+    try {
+      const { error } = await signInWithPasskey();
+      if (error) {
+        setMessage(getAuthErrorMessage(error));
+        setMessageTone('error');
+        return;
+      }
+      window.location.reload();
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error));
+      setMessageTone('error');
+    }
+  };
+
+  const handleRegisterPasskey = async () => {
+    const { error } = await registerPasskey();
+    if (error) {
+      throw new Error(getAuthErrorMessage(error));
+    }
   };
 
   if (loading) {
@@ -269,10 +373,16 @@ function AccountPortal({ path }) {
           <p>Connectez-vous pour gérer votre licence, vos appareils et vos options.</p>
           <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email@exemple.com" type="email" />
           <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" type="password" />
+          <div className="otp-row">
+            <input value={otpCode} onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="Code reçu par e-mail" inputMode="numeric" />
+            <button className="secondary-link" type="button" onClick={handleVerifyMagicCode}>Valider le code</button>
+          </div>
           <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaResetKey} />
           <button className="download-link" type="submit">Se connecter</button>
+          <button className="secondary-link" type="button" onClick={handlePasskeyLogin}>Se connecter avec une passkey</button>
           <button className="secondary-link" type="button" onClick={handleMagicLink}>Recevoir un magic link</button>
-          {message ? <p className="account-error">{message}</p> : null}
+          <button className="secondary-link" type="button" onClick={handleForgotPassword}>Mot de passe oublié</button>
+          {message ? <p className={messageTone === 'error' ? 'account-error' : 'account-message'}>{message}</p> : null}
         </form>
       </main>
     );
@@ -283,7 +393,7 @@ function AccountPortal({ path }) {
       {active === 'account' ? <AccountOverview account={account} /> : null}
       {active !== 'account' ? (
         <Suspense fallback={<section className="account-section"><p className="account-message">Chargement de la section...</p></section>}>
-          {active === 'subscription' ? <AccountSubscription account={account} onActivateLicense={handleActivateLicense} /> : null}
+          {active === 'subscription' ? <AccountSubscription account={account} onActivateLicense={handleActivateLicense} onSelectLicense={handleSelectLicense} /> : null}
           {active === 'devices' ? (
             <AccountDevices
               account={account}
@@ -300,6 +410,7 @@ function AccountPortal({ path }) {
               section={sections.security}
               onRefresh={reloadSecurity}
               onRevokeAll={handleRevokeAllDevices}
+              onRegisterPasskey={handleRegisterPasskey}
             />
           ) : null}
         </Suspense>
@@ -312,7 +423,7 @@ function PricingPage() {
   return (
     <main className="public-shell">
       <nav className="site-nav">
-        <a href="/" className="brand-mark">Fiip</a>
+        <a href={FIIP_PUBLIC_SITE_URL} className="brand-mark">Fiip</a>
         <div className="nav-actions">
           <a href="/" className="ghost-link">Accueil</a>
           <a href={FIIP_ACCOUNT_PORTAL_URL} className="ghost-link">Compte</a>
@@ -347,7 +458,7 @@ function SharePage() {
   return (
     <main className="public-shell">
       <nav className="site-nav">
-        <a href="/" className="brand-mark">Fiip</a>
+        <a href={FIIP_PUBLIC_SITE_URL} className="brand-mark">Fiip</a>
         <div className="nav-actions">
           <a href="/pricing" className="ghost-link">Licences</a>
           <a href={FIIP_ACCOUNT_PORTAL_URL} className="ghost-link">Compte</a>
@@ -467,12 +578,12 @@ function App() {
   return (
     <main className="public-shell">
       <nav className="site-nav">
-        <a href="/" className="brand-mark">Fiip</a>
+        <a href={FIIP_PUBLIC_SITE_URL} className="brand-mark">Fiip</a>
         <div className="nav-actions">
           <a href="/pricing" className="ghost-link">Licences</a>
           <a href="/share" className="ghost-link">Partage</a>
           <a href={FIIP_ACCOUNT_PORTAL_URL} className="ghost-link">Compte</a>
-          <a href={FIIP_PUBLIC_SITE_URL} className="primary-link">Télécharger</a>
+          <a href={FIIP_DOWNLOAD_URL} className="primary-link">Télécharger</a>
           <a href={FIIP_DISCORD_SUPPORT_URL} className="ghost-link">Support Discord</a>
         </div>
       </nav>
@@ -541,7 +652,7 @@ function App() {
       </section>
 
       <footer className="site-footer">
-        <a href="/" className="brand-mark">Fiip</a>
+        <a href={FIIP_PUBLIC_SITE_URL} className="brand-mark">Fiip</a>
         <nav>
           {LEGAL_NAV_ITEMS.map((item) => (
             <a key={item.path} href={item.path}>{item.label}</a>

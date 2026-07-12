@@ -28,6 +28,7 @@ src-tauri/temp_portable/
 
 # Environment Variables (Critical for Public Repos)
 .env
+.env.local
 .env.*
 !.env.example
 *.local

@@ -34,8 +34,8 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
         
         const resize = () => {
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+            canvas.width = Math.max(640, container.clientWidth || 0);
+            canvas.height = Math.max(420, container.clientHeight || 0);
             
             if (isOverlay) {
                ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -172,8 +172,14 @@ export default function CanvasDraw({ onSave, onClose, initialImage, isOverlay })
     };
 
     const handleSave = () => {
-        canvasRef.current.toBlob((blob) => {
-            onSave(blob);
+        const canvas = canvasRef.current;
+        if (!canvas || canvas.width <= 0 || canvas.height <= 0) {
+            return;
+        }
+        canvas.toBlob((blob) => {
+            if (blob) {
+                onSave(blob);
+            }
         }, 'image/png');
     };
 

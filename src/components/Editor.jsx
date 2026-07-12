@@ -591,12 +591,20 @@ export default function Editor({
     };
 
     const handleSaveDrawing = async (blob) => {
+        if (!blob) {
+            setPasswordDialog({ mode: 'notice', title: 'Croquis non enregistré', message: "Fiip n'a pas pu générer l'image du croquis. Réessayez après avoir dessiné un trait." });
+            return;
+        }
         const file = new File([blob], `croquis-${Date.now()}.png`, { type: 'image/png' });
         await addFiles([file], { attachmentSource: 'drawing', skipOcr: true });
         setIsDrawing(false);
     };
 
     const handleSaveScan = async (blob) => {
+        if (!blob) {
+            setPasswordDialog({ mode: 'notice', title: 'Scan non enregistré', message: "Fiip n'a pas pu générer l'image du scan. Reprenez la photo puis réessayez." });
+            return;
+        }
         const file = new File([blob], `scan-webcam-${Date.now()}.png`, { type: 'image/png' });
         await addFiles([file]);
         setIsScannerOpen(false);
@@ -979,6 +987,7 @@ export default function Editor({
                 ref={fileInputRef}
                 type="file"
                 multiple
+                accept="image/*,audio/*,video/*,.pdf,.txt,.md,.csv,.json,.doc,.docx,.rtf,.odt,.xls,.xlsx,.ppt,.pptx,.zip"
                 className="hidden"
                 onChange={async (event) => {
                     if (event.target.files?.length) {

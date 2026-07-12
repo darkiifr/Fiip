@@ -13,6 +13,11 @@ const KA_CONFIG = {
     apiUrl: "https://keyauth.win/api/1.2/"
 };
 
+const TRIAL_USED_KEY = 'fiip-trial-used';
+const TRIAL_EXPIRY_KEY = 'fiip-trial-expiry';
+const TRIAL_DEVICE_KEY = 'fiip-trial-device-proof';
+const TRIAL_DAYS = 7;
+
 export const SUBSCRIPTION_LEVELS = {
     BASIC: 1,
     AI: 1.5,
@@ -53,6 +58,10 @@ class KeyAuthService {
             console.error("Failed to get HWID:", e);
             this.hwid = "UNKNOWN";
         }
+    }
+
+    _getTrialDeviceKey() {
+        return this.hwid && this.hwid !== 'UNKNOWN' ? this.hwid : navigator.userAgent || 'browser';
     }
 
     async init() {
@@ -204,7 +213,7 @@ class KeyAuthService {
         this.isTrialActive = false;
         this.trialExpiry = null;
         localStorage.removeItem('saved_license_key');
-        localStorage.removeItem('fiip-trial-expiry');
+        localStorage.removeItem(TRIAL_EXPIRY_KEY);
     }
 
     _processUserData(info) {
@@ -269,24 +278,27 @@ class KeyAuthService {
 
     // --- Trial Management ---
     canStartTrial() {
-        const trialUsed = localStorage.getItem('fiip-trial-used') === 'true';
-        return !this.isAuthenticated && !trialUsed;
+        const trialUsed = localStorage.getItem(TRIAL_USED_KEY) === 'true';
+        const proof = localStorage.getItem(TRIAL_DEVICE_KEY);
+        const currentProof = this._getTrialDeviceKey();
+        return !this.isAuthenticated && !trialUsed && (!proof || proof === currentProof);
     }
 
     startTrial() {
         if (!this.canStartTrial()) {return false;}
         const now = Date.now();
-        const duration = 15 * 24 * 60 * 60 * 1000; 
+        const duration = TRIAL_DAYS * 24 * 60 * 60 * 1000;
         const expiry = now + duration;
-        localStorage.setItem('fiip-trial-used', 'true');
-        localStorage.setItem('fiip-trial-expiry', expiry.toString());
+        localStorage.setItem(TRIAL_USED_KEY, 'true');
+        localStorage.setItem(TRIAL_EXPIRY_KEY, expiry.toString());
+        localStorage.setItem(TRIAL_DEVICE_KEY, this._getTrialDeviceKey());
         this.isTrialActive = true;
         this.trialExpiry = new Date(expiry).toISOString().split('T')[0];
         return true;
     }
     
     _restoreTrial() {
-        const expiryStr = localStorage.getItem('fiip-trial-expiry');
+        const expiryStr = localStorage.getItem(TRIAL_EXPIRY_KEY);
         if (expiryStr) {
             const expiry = parseInt(expiryStr, 10);
             if (Date.now() < expiry) {

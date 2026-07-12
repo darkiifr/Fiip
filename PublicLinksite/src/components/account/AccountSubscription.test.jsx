@@ -17,7 +17,7 @@ describe('AccountSubscription', () => {
     expect(screen.getByText('Licence activee et synchronisee.')).toBeInTheDocument();
   });
 
-  it('still shows synchronized success when the backend rejects the license', async () => {
+  it('shows the real backend error when license activation fails', async () => {
     const onActivateLicense = vi.fn().mockRejectedValue(new Error('Invalid license'));
 
     render(<AccountSubscription account={{ license: null }} onActivateLicense={onActivateLicense} />);
@@ -26,7 +26,39 @@ describe('AccountSubscription', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Activer' }));
 
     await waitFor(() => expect(onActivateLicense).toHaveBeenCalledWith('ANY-LICENSE'));
-    expect(screen.getByText('Licence activee et synchronisee.')).toBeInTheDocument();
-    expect(screen.queryByText('Invalid license')).not.toBeInTheDocument();
+    expect(screen.getByText('Invalid license')).toBeInTheDocument();
+    expect(screen.queryByText('Licence activee et synchronisee.')).not.toBeInTheDocument();
+  });
+
+  it('lists account licenses and selects another active license', async () => {
+    const onSelectLicense = vi.fn().mockResolvedValue({ ok: true });
+    const account = {
+      active_license_id: 'license-1',
+      license: { id: 'license-1', billing_interval: 'monthly' },
+      licenses: [
+        {
+          id: 'license-1',
+          tier: 'basic',
+          billing_interval: 'monthly',
+          keyauth_license_key: 'BASIC-KEY',
+          status: 'active',
+        },
+        {
+          id: 'license-2',
+          tier: 'pro',
+          billing_interval: 'yearly',
+          keyauth_license_key: 'PRO-KEY',
+          status: 'active',
+        },
+      ],
+    };
+
+    render(<AccountSubscription account={account} onActivateLicense={vi.fn()} onSelectLicense={onSelectLicense} />);
+
+    expect(screen.getByText('BASIC-KEY')).toBeInTheDocument();
+    expect(screen.getByText('PRO-KEY')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Utiliser' }));
+
+    await waitFor(() => expect(onSelectLicense).toHaveBeenCalledWith('license-2'));
   });
 });

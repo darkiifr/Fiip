@@ -11,6 +11,13 @@ vi.mock('../services/supabase', () => ({
     signInWithOAuth: vi.fn(),
     signIn: vi.fn(),
     signUp: vi.fn(),
+    sendPasswordReset: vi.fn(),
+  },
+}));
+
+vi.mock('../services/keyauth', () => ({
+  keyAuthService: {
+    startTrial: vi.fn(() => true),
   },
 }));
 

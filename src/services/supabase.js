@@ -21,6 +21,7 @@ const FIIP_DEVICE_ID_KEY = 'fiip-device-id';
 const PLACEHOLDER_SUPABASE_URL = 'https://placeholder.supabase.co';
 const PLACEHOLDER_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx';
 const SUPABASE_CONFIG_ERROR = "Configuration Supabase manquante. Ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY avant d'utiliser la connexion Google.";
+const ENABLE_CAPTCHA_IN_DEV = import.meta.env.VITE_ENABLE_CAPTCHA_IN_DEV === 'true';
 
 export function hasUsableSupabaseConfig(url = SUPABASE_URL, anonKey = SUPABASE_ANON_KEY) {
   const normalizedUrl = String(url || '').trim();
@@ -126,16 +127,71 @@ async function getPublicIpAddress() {
 }
 
 // Auth Services
+function buildCaptchaOptions(captchaToken) {
+  return captchaToken ? { captchaToken } : undefined;
+}
+
+function isLocalDevHost() {
+  if (import.meta.env.DEV) return true;
+  if (typeof window === 'undefined') return false;
+  return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+}
+
+export function getCaptchaSiteKey(siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
+  if (isLocalDevHost() && !ENABLE_CAPTCHA_IN_DEV) {
+    return '';
+  }
+  return String(siteKey || '').trim();
+}
+
+export function requiresCaptcha(siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
+  return Boolean(getCaptchaSiteKey(siteKey));
+}
+
+export function assertCaptchaToken(captchaToken, siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
+  if (requiresCaptcha(siteKey) && !String(captchaToken || '').trim()) {
+    throw new Error('Veuillez valider le captcha avant de continuer.');
+  }
+}
+
+export function isLocalDevWithoutCaptcha() {
+  return isLocalDevHost() && !getCaptchaSiteKey();
+}
+
+function getLocalDevCaptchaError() {
+  return {
+    message: "Connexion au compte désactivée en développement local car le CAPTCHA est activé sur le projet Supabase distant. Utilisez l'essai local, ou activez temporairement VITE_ENABLE_CAPTCHA_IN_DEV=true avec VITE_TURNSTILE_SITE_KEY.",
+    code: 'LOCAL_DEV_CAPTCHA_DISABLED',
+  };
+}
+
+function normalizeAuthError(error) {
+  const message = String(error?.message || error || '');
+  if (/captcha|challenge|captcha_token/i.test(message)) {
+    return {
+      ...error,
+      message: isLocalDevHost()
+        ? "Supabase demande un CAPTCHA pour cette connexion. En développement local, utilisez l'essai local ou activez VITE_ENABLE_CAPTCHA_IN_DEV=true avec une clé Turnstile."
+        : 'Validation anti-bot refusée. Revalidez le captcha puis réessayez.',
+    };
+  }
+  return error;
+}
+
 export const authService = {
-  async signUp(email, password, username) {
+  async signUp(email, password, username, captchaToken = '') {
     if (!isSupabaseConfigured) {
       return { data: null, error: getSupabaseConfigError() };
+    }
+    if (isLocalDevWithoutCaptcha() && !captchaToken) {
+      return { data: null, error: getLocalDevCaptchaError() };
     }
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        ...buildCaptchaOptions(captchaToken),
         data: {
           username,
           nickname: username,
@@ -152,12 +208,15 @@ export const authService = {
             
         if (profileError) {console.error("Error creating profile:", profileError);}
     }
-    return { data, error };
+    return { data, error: normalizeAuthError(error) };
   },
 
-  async signIn(identifier, password) {
+  async signIn(identifier, password, captchaToken = '') {
     if (!isSupabaseConfigured) {
       return { data: null, error: getSupabaseConfigError() };
+    }
+    if (isLocalDevWithoutCaptcha() && !captchaToken) {
+      return { data: null, error: getLocalDevCaptchaError() };
     }
 
     let email = identifier;
@@ -173,9 +232,37 @@ export const authService = {
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      password
+      password,
+      options: buildCaptchaOptions(captchaToken),
     });
-    return { data, error };
+    return { data, error: normalizeAuthError(error) };
+  },
+
+  async sendPasswordReset(email, captchaToken = '') {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+    if (isLocalDevWithoutCaptcha() && !captchaToken) {
+      return { data: null, error: getLocalDevCaptchaError() };
+    }
+
+    const { data, error } = await supabase.auth.resetPasswordForEmail(String(email || '').trim(), {
+      redirectTo: getOAuthRedirectUrl(),
+      ...buildCaptchaOptions(captchaToken),
+    });
+    return { data, error: normalizeAuthError(error) };
+  },
+
+  async verifyEmailOtp(email, token) {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+
+    return await supabase.auth.verifyOtp({
+      email: String(email || '').trim(),
+      token: String(token || '').trim(),
+      type: 'email',
+    });
   },
 
   async signInWithOAuth(provider) {
@@ -217,6 +304,34 @@ export const authService = {
     }
 
     return { data: null, error: { message: 'Callback Google incomplet.' } };
+  },
+
+  async signInWithPasskey() {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+    if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+      return { data: null, error: { message: 'Les passkeys ne sont pas disponibles sur cet appareil.' } };
+    }
+    if (typeof supabase.auth.signInWithPasskey !== 'function') {
+      return { data: null, error: { message: 'Les passkeys ne sont pas encore disponibles dans cette version Supabase.' } };
+    }
+
+    return await supabase.auth.signInWithPasskey();
+  },
+
+  async registerPasskey() {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+    if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+      return { data: null, error: { message: 'Les passkeys ne sont pas disponibles sur cet appareil.' } };
+    }
+    if (typeof supabase.auth.registerPasskey !== 'function') {
+      return { data: null, error: { message: 'Les passkeys ne sont pas encore disponibles dans cette version Supabase.' } };
+    }
+
+    return await supabase.auth.registerPasskey();
   },
 
   async signOut() {

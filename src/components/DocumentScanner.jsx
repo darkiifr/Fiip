@@ -136,7 +136,15 @@ function cropToBounds(crop, width, height) {
 }
 
 async function canvasToBlob(canvas) {
-    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 0.95));
+    return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+            if (blob) {
+                resolve(blob);
+            } else {
+                reject(new Error('Impossible de générer l’image du scan.'));
+            }
+        }, 'image/png', 0.95);
+    });
 }
 
 export default function DocumentScanner({ onSave, onClose }) {
@@ -270,7 +278,7 @@ export default function DocumentScanner({ onSave, onClose }) {
             context.drawImage(source, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, output.width, output.height);
 
             const blob = await canvasToBlob(output);
-            if (blob) await onSave(blob);
+            await onSave(blob);
         } finally {
             setIsCapturing(false);
         }

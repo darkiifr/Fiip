@@ -956,8 +956,8 @@ export default function SettingsView({
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 {[
-                                    [t('settings.total', 'Total'), formatBytes(totalCacheSize)],
-                                    [t('settings.attachments', 'Attachments'), formatBytes(cacheStats.attachments)],
+                                    [t('settings.total', 'Total'), totalCacheSize > 0 ? formatBytes(totalCacheSize) : t('settings.cache_empty', 'Aucun fichier')],
+                                    [t('settings.attachments', 'Attachments'), cacheStats.attachments > 0 ? formatBytes(cacheStats.attachments) : t('settings.cache_empty', 'Aucun fichier')],
                                 ].map(([label, value]) => (
                                     <div key={label} className="rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark p-4">
                                         <p className="text-[11px] font-semibold text-warm-text-muted-light">{label}</p>
@@ -974,6 +974,7 @@ export default function SettingsView({
                                 <button
                                     type="button"
                                     onClick={handleClearAttachmentCache}
+                                    disabled={cacheStats.attachments <= 0}
                                     className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-300 hover:bg-red-500/15"
                                 >
                                     {t('settings.clean', 'Clean')}

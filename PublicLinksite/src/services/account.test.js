@@ -4,7 +4,11 @@ vi.mock('./supabase.js', () => ({
   supabase: {
     auth: {
       signInWithOtp: vi.fn(),
+      signInWithPasskey: vi.fn(),
       signInWithPassword: vi.fn(),
+      registerPasskey: vi.fn(),
+      resetPasswordForEmail: vi.fn(),
+      verifyOtp: vi.fn(),
     },
     functions: {
       invoke: vi.fn(),
@@ -16,13 +20,21 @@ import {
   activateLicense,
   fetchAccountDevices,
   fetchSecurityEvents,
+  getAccountRedirectUrl,
+  getAuthErrorMessage,
   registerCurrentDevice,
+  registerPasskey,
+  sendPasswordReset,
+  selectLicense,
   revokeAllDevices,
   revokeDevice,
   assertCaptchaToken,
+  checkAccountEmailExists,
+  signInWithPasskey,
   requiresCaptcha,
   signInWithMagicLink,
   signInWithPassword,
+  verifyMagicCode,
 } from './account';
 import { supabase } from './supabase';
 
@@ -104,7 +116,21 @@ describe('account service device actions', () => {
     });
   });
 
+  it('selects the active license through the account backend', async () => {
+    supabase.functions.invoke.mockResolvedValueOnce({ data: { ok: true, active_license_id: 'license-2' }, error: null });
+
+    await selectLicense('license-2');
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('account-api', {
+      body: {
+        action: 'select_license',
+        license_id: 'license-2',
+      },
+    });
+  });
+
   it('passes CAPTCHA tokens to Supabase auth calls', async () => {
+    supabase.functions.invoke.mockResolvedValue({ data: { exists: true }, error: null });
     supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
     supabase.auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: null });
 
@@ -119,16 +145,104 @@ describe('account service device actions', () => {
     expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
       email: 'buyer@fiip.fr',
       options: {
-        emailRedirectTo: `${window.location.origin}/account`,
+        shouldCreateUser: false,
+        emailRedirectTo: 'https://portail.fiip.fr/account',
         captchaToken: 'magic-token',
       },
     });
   });
 
+  it('verifies magic codes and sends password reset links', async () => {
+    supabase.functions.invoke.mockResolvedValueOnce({ data: { exists: true }, error: null });
+    supabase.auth.verifyOtp.mockResolvedValueOnce({ data: {}, error: null });
+    supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ data: {}, error: null });
+
+    await verifyMagicCode(' BUYER@FIIP.FR ', '123456');
+    await sendPasswordReset('buyer@fiip.fr', 'reset-token');
+
+    expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
+      email: 'buyer@fiip.fr',
+      token: '123456',
+      type: 'email',
+    });
+    expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('buyer@fiip.fr', {
+      redirectTo: 'https://portail.fiip.fr/account',
+      captchaToken: 'reset-token',
+    });
+  });
+
+  it('uses Supabase WebAuthn passkey helpers when supported', async () => {
+    Object.defineProperty(window, 'PublicKeyCredential', {
+      configurable: true,
+      value: function PublicKeyCredential() {},
+    });
+    supabase.auth.signInWithPasskey.mockResolvedValueOnce({ data: {}, error: null });
+    supabase.auth.registerPasskey.mockResolvedValueOnce({ data: {}, error: null });
+
+    await signInWithPasskey();
+    await registerPasskey();
+
+    expect(supabase.auth.signInWithPasskey).toHaveBeenCalledTimes(1);
+    expect(supabase.auth.registerPasskey).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks passkey actions on unsupported browsers before calling Supabase', async () => {
+    Object.defineProperty(window, 'PublicKeyCredential', {
+      configurable: true,
+      value: undefined,
+    });
+
+    await expect(signInWithPasskey()).rejects.toThrow('passkeys ne sont pas disponibles');
+    await expect(registerPasskey()).rejects.toThrow('passkeys ne sont pas disponibles');
+    expect(supabase.auth.signInWithPasskey).not.toHaveBeenCalled();
+    expect(supabase.auth.registerPasskey).not.toHaveBeenCalled();
+  });
+
+  it('normalizes auth email and exposes the canonical account redirect URL', async () => {
+    supabase.functions.invoke.mockResolvedValueOnce({ data: { exists: true }, error: null });
+    supabase.auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: null });
+
+    await signInWithMagicLink(' BUYER@FIIP.FR ', 'magic-token');
+
+    expect(getAccountRedirectUrl()).toBe('https://portail.fiip.fr/account');
+    expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
+      email: 'buyer@fiip.fr',
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: 'https://portail.fiip.fr/account',
+        captchaToken: 'magic-token',
+      },
+    });
+  });
+
+  it('checks account existence before sending magic links', async () => {
+    supabase.functions.invoke
+      .mockResolvedValueOnce({ data: { exists: false }, error: null })
+      .mockResolvedValueOnce({ data: { exists: false }, error: null });
+
+    expect(await checkAccountEmailExists('missing@fiip.fr')).toBe(false);
+    const result = await signInWithMagicLink('missing@fiip.fr', 'magic-token');
+
+    expect(result.error.message).toContain('Aucun compte Fiip');
+    expect(supabase.auth.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it('blocks local development auth without a captcha token before Supabase rejects it', async () => {
+    const result = await signInWithPassword('buyer@fiip.fr', 'password', '');
+
+    expect(result.error.code).toBe('LOCAL_DEV_CAPTCHA_DISABLED');
+    expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('formats Supabase mail and captcha errors for users', () => {
+    expect(getAuthErrorMessage(new Error('Error sending confirmation email'))).toContain('configuration SMTP Supabase/Resend');
+    expect(getAuthErrorMessage(new Error('captcha verification failed'))).toContain('Supabase demande un CAPTCHA');
+  });
+
   it('requires a CAPTCHA token when Turnstile is configured', () => {
     expect(requiresCaptcha('')).toBe(false);
-    expect(requiresCaptcha('0xPUBLIC_SITE_KEY')).toBe(true);
-    expect(() => assertCaptchaToken('', '0xPUBLIC_SITE_KEY')).toThrow('Veuillez valider la protection anti-bot.');
+    expect(requiresCaptcha('0xPUBLIC_SITE_KEY')).toBe(false);
+    expect(() => assertCaptchaToken('', '0xPUBLIC_SITE_KEY')).not.toThrow();
     expect(() => assertCaptchaToken('turnstile-token', '0xPUBLIC_SITE_KEY')).not.toThrow();
   });
 });

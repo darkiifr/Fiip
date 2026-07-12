@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { keyAuthService } from '../services/keyauth';
 import { authService, supabase, dataService } from '../services/supabase';
+import TurnstileCaptcha from './TurnstileCaptcha';
 import { GlassDialog, GlassButton, GlassInput } from './ui';
 
 // Icons Import (Pim's Edition)
@@ -47,6 +48,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [captchaToken, setCaptchaToken] = useState('');
+    const [captchaResetKey, setCaptchaResetKey] = useState(0);
     const [user, setUser] = useState<any>(null);
     const [isChecking, setIsChecking] = useState(false);
     const [isEditingPseudo, setIsEditingPseudo] = useState(false);
@@ -199,7 +202,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
 
         try {
             if (mode === 'login') {
-                const { error } = await authService.signIn(formData.email, formData.password);
+                const { error } = await authService.signIn(formData.email, formData.password, captchaToken);
                 if (error) {
                     setError(error.message);
                 } else {
@@ -210,7 +213,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                     }, 1000);
                 }
             } else {
-                const { error } = await authService.signUp(formData.email, formData.password, formData.username);
+                const { error } = await authService.signUp(formData.email, formData.password, formData.username, captchaToken);
                 if (error) {
                     setError(error.message);
                 } else {
@@ -220,6 +223,78 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             }
         } catch (e) {
             setError(e.message || t('auth.error_generic', "Une erreur est survenue."));
+        } finally {
+            setCaptchaToken('');
+            setCaptchaResetKey((current) => current + 1);
+            setLoading(false);
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        const email = formData.email.trim();
+        if (!email) {
+            setError('Entrez votre adresse e-mail avant de demander un nouveau mot de passe.');
+            return;
+        }
+
+        setError(null);
+        setSuccess(null);
+        setLoading(true);
+
+        try {
+            const { error } = await authService.sendPasswordReset(email, captchaToken);
+            if (error) {
+                setError(error.message || 'Impossible d’envoyer le lien de réinitialisation.');
+                return;
+            }
+            setSuccess('Lien de réinitialisation envoyé. Vérifiez votre boîte mail.');
+        } catch (e) {
+            setError(e.message || 'Impossible d’envoyer le lien de réinitialisation.');
+        } finally {
+            setCaptchaToken('');
+            setCaptchaResetKey((current) => current + 1);
+            setLoading(false);
+        }
+    };
+
+    const handlePasskeyLogin = async () => {
+        setError(null);
+        setSuccess(null);
+        setLoading(true);
+
+        try {
+            const { data, error } = await authService.signInWithPasskey();
+            if (error) {
+                setError(error.message || 'Connexion passkey impossible.');
+                return;
+            }
+
+            setSuccess('Connexion passkey réussie.');
+            if (data?.session?.user || data?.user) {
+                if (onLoginSuccess) {onLoginSuccess();}
+                await checkUser();
+            }
+        } catch (e) {
+            setError(e.message || 'Connexion passkey impossible.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRegisterPasskey = async () => {
+        setError(null);
+        setSuccess(null);
+        setLoading(true);
+
+        try {
+            const { error } = await authService.registerPasskey();
+            if (error) {
+                setError(error.message || 'Ajout de passkey impossible.');
+                return;
+            }
+            setSuccess('Passkey ajoutée à ce compte.');
+        } catch (e) {
+            setError(e.message || 'Ajout de passkey impossible.');
         } finally {
             setLoading(false);
         }
@@ -452,6 +527,28 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                                 </div>
                             </div>
                         </div>
+
+                        <div className="space-y-4 mb-8">
+                            <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-left">
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                    <IconKey className="w-3.5 h-3.5" />
+                                    Passkey
+                                </h3>
+                                <p className="text-xs text-gray-400 leading-relaxed mb-4">
+                                    Ajoutez Windows Hello, Touch ID ou une clé de sécurité pour vous connecter sans mot de passe.
+                                </p>
+                                <GlassButton
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={handleRegisterPasskey}
+                                    isLoading={loading}
+                                    className="w-full"
+                                    icon={<IconKey className="w-4 h-4" />}
+                                >
+                                    Ajouter une passkey
+                                </GlassButton>
+                            </div>
+                        </div>
                         
                         <GlassButton
                             variant="danger"
@@ -506,6 +603,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                             />
                         </div>
 
+                        <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaResetKey} />
+
                         {error && (
                             <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-in fade-in slide-in-from-top-2">
                                 {error}
@@ -528,6 +627,29 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                                 {mode === 'login' ? t('auth.login', 'Se connecter') : t('auth.create_account', 'S\'inscrire')}
                             </GlassButton>
                         </div>
+
+                        {mode === 'login' && (
+                            <GlassButton
+                                type="button"
+                                variant="secondary"
+                                onClick={handlePasskeyLogin}
+                                isLoading={loading}
+                                className="w-full py-3 text-sm"
+                                icon={<IconKey className="w-4 h-4" />}
+                            >
+                                Se connecter avec une passkey
+                            </GlassButton>
+                        )}
+
+                        {mode === 'login' && (
+                            <button
+                                type="button"
+                                onClick={handleForgotPassword}
+                                className="w-full text-center text-xs font-bold text-blue-400 transition-colors hover:text-blue-300"
+                            >
+                                Mot de passe oublié
+                            </button>
+                        )}
 
                         {mode === 'login' && (
                             <div className="flex flex-col items-center gap-4">

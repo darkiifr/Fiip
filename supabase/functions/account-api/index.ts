@@ -10,8 +10,39 @@ import {
   parseKeyAuthLicenseInfo,
 } from './license-activation.ts';
 
+const PUBLIC_EMAIL_CHECKS = new Map<string, { count: number; resetAt: number }>();
+const PUBLIC_EMAIL_CHECK_LIMIT = 20;
+const PUBLIC_EMAIL_CHECK_WINDOW_MS = 15 * 60 * 1000;
+
 function normalizeEmail(value: unknown) {
   return String(value || '').trim().toLowerCase();
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function getClientIp(req: Request) {
+  const forwarded = req.headers.get('x-forwarded-for') || '';
+  return forwarded.split(',')[0]?.trim() || req.headers.get('cf-connecting-ip') || 'unknown';
+}
+
+function assertPublicEmailCheckRateLimit(req: Request) {
+  const now = Date.now();
+  const key = getClientIp(req);
+  const current = PUBLIC_EMAIL_CHECKS.get(key);
+
+  if (!current || current.resetAt <= now) {
+    PUBLIC_EMAIL_CHECKS.set(key, { count: 1, resetAt: now + PUBLIC_EMAIL_CHECK_WINDOW_MS });
+    return;
+  }
+
+  if (current.count >= PUBLIC_EMAIL_CHECK_LIMIT) {
+    throw new Error('RATE_LIMITED');
+  }
+
+  current.count += 1;
+  PUBLIC_EMAIL_CHECKS.set(key, current);
 }
 
 function isFamilyLicense(profile: any, license: any) {
@@ -235,10 +266,28 @@ Deno.serve(async (req) => {
   if (options) return options;
 
   try {
-    const { user } = await getAuthenticatedUser(req);
-    const supabaseAdmin = createAdminClient();
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const action = body.action || new URL(req.url).searchParams.get('action') || 'summary';
+    const supabaseAdmin = createAdminClient();
+
+    if (action === 'check_account_email') {
+      try {
+        assertPublicEmailCheckRateLimit(req);
+      } catch {
+        return jsonResponse({ error: 'Trop de tentatives. Réessayez dans quelques minutes.' }, { status: 429 });
+      }
+
+      const email = normalizeEmail(body.email);
+      if (!isValidEmail(email)) {
+        return jsonResponse({ error: 'Adresse e-mail invalide.' }, { status: 400 });
+      }
+
+      return jsonResponse({
+        exists: Boolean(await findUserIdByEmail(supabaseAdmin, email)),
+      });
+    }
+
+    const { user } = await getAuthenticatedUser(req);
 
     const { data: profile } = await supabaseAdmin
       .from('profiles')

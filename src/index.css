@@ -72,6 +72,17 @@
   --radius-sm: 8px;
 }
 
+.fiip-turnstile-box {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: center;
+}
+
+.fiip-turnstile-box:empty {
+  display: none;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /*  Radix UI + Component Keyframes                                             */
 /* ═══════════════════════════════════════════════════════════════════════════ */
