@@ -311,7 +311,7 @@ jobs:
         run: npm run package:extensions -- --version "${{ steps.extension_version.outputs.version }}"
 
       - name: Upload Chrome Store and manual Edge extension packages
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           files: |
@@ -636,7 +636,7 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Upload Release APK
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           files: Mobile/android/app/build/outputs/apk/release/*.apk
@@ -761,7 +761,7 @@ jobs:
           EOF
 
       - name: Upload Release IPA and AltStore JSON
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           files: |
