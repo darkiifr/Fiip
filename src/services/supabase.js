@@ -22,7 +22,6 @@ const FIIP_DEVICE_ID_KEY = 'fiip-device-id';
 const PLACEHOLDER_SUPABASE_URL = 'https://placeholder.supabase.co';
 const PLACEHOLDER_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx';
 const SUPABASE_CONFIG_ERROR = "Configuration Supabase manquante. Ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY avant d'utiliser la connexion Google.";
-const ENABLE_CAPTCHA_IN_DEV = import.meta.env.VITE_ENABLE_CAPTCHA_IN_DEV === 'true';
 const oauthCallbacksInFlight = new Map();
 const successfulOAuthCallbacks = new Set();
 
@@ -147,12 +146,6 @@ function validateCaptcha(captchaToken) {
   }
 }
 
-function isLocalDevHost() {
-  if (import.meta.env.DEV) return true;
-  if (typeof window === 'undefined') return false;
-  return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-}
-
 export function getCaptchaSiteKey(siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
   return String(siteKey || '').trim();
 }
@@ -172,9 +165,7 @@ function normalizeAuthError(error) {
   if (/captcha|challenge|captcha_token/i.test(message)) {
     return {
       ...error,
-      message: isLocalDevHost()
-        ? "Supabase demande un CAPTCHA pour cette connexion. En développement local, utilisez l'essai local ou activez VITE_ENABLE_CAPTCHA_IN_DEV=true avec une clé Turnstile."
-        : 'Validation anti-bot refusée. Revalidez le captcha puis réessayez.',
+      message: 'Validation anti-bot refusée. Revalidez le captcha puis réessayez.',
     };
   }
   return error;
@@ -283,6 +274,25 @@ export const authService = {
     return { data, error };
   },
 
+  async linkGoogleIdentity() {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+
+    if (typeof supabase.auth.linkIdentity !== 'function') {
+      return { data: null, error: { message: 'La liaison Google n’est pas disponible dans cette version Supabase.' } };
+    }
+
+    const { data, error } = await supabase.auth.linkIdentity({
+      provider: 'google',
+      options: {
+        redirectTo: getOAuthRedirectUrl(),
+        skipBrowserRedirect: true,
+      },
+    });
+    return { data, error };
+  },
+
   async completeOAuthCallback(callbackUrl) {
     if (!isSupabaseConfigured) {
       return { data: null, error: getSupabaseConfigError() };
@@ -336,7 +346,14 @@ export const authService = {
     oauthCallbacksInFlight.set(callbackKey, callbackPromise);
     try {
       const result = await callbackPromise;
-      if (!result?.error) successfulOAuthCallbacks.add(callbackKey);
+      if (!result?.error) {
+        successfulOAuthCallbacks.add(callbackKey);
+        if (result?.data?.session?.user) {
+          await dataService.fetchProfile().catch((profileError) => {
+            console.warn('Could not sync OAuth profile:', profileError);
+          });
+        }
+      }
       return { ...result, handled: !result?.error };
     } finally {
       oauthCallbacksInFlight.delete(callbackKey);

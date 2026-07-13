@@ -240,7 +240,7 @@ describe('account service device actions', () => {
     expect(supabase.auth.signInWithOtp).not.toHaveBeenCalled();
   });
 
-  it('does not block local development auth when Turnstile is hidden', async () => {
+  it('does not require a CAPTCHA token when no Turnstile key is configured', async () => {
     supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
 
     const result = await signInWithPassword('buyer@fiip.fr', 'password', '');
@@ -255,13 +255,23 @@ describe('account service device actions', () => {
 
   it('formats Supabase mail and captcha errors for users', () => {
     expect(getAuthErrorMessage(new Error('Error sending confirmation email'))).toContain('configuration SMTP Supabase/Resend');
-    expect(getAuthErrorMessage(new Error('captcha verification failed'))).toContain('Supabase demande un CAPTCHA');
+    expect(getAuthErrorMessage(new Error('captcha verification failed'))).toContain('Validation anti-bot refusée');
   });
 
   it('requires a CAPTCHA token when Turnstile is configured', () => {
     expect(requiresCaptcha('')).toBe(false);
-    expect(requiresCaptcha('0xPUBLIC_SITE_KEY')).toBe(false);
-    expect(() => assertCaptchaToken('', '0xPUBLIC_SITE_KEY')).not.toThrow();
+    expect(requiresCaptcha('0xPUBLIC_SITE_KEY')).toBe(true);
+    expect(() => assertCaptchaToken('', '0xPUBLIC_SITE_KEY')).toThrow('Veuillez valider la protection anti-bot.');
     expect(() => assertCaptchaToken('turnstile-token', '0xPUBLIC_SITE_KEY')).not.toThrow();
+  });
+
+  it('requires a CAPTCHA token on localhost when Turnstile is configured', () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: new URL('http://localhost:5173/account'),
+    });
+
+    expect(requiresCaptcha('local-turnstile-key')).toBe(true);
+    expect(() => assertCaptchaToken('', 'local-turnstile-key')).toThrow('Veuillez valider la protection anti-bot.');
   });
 });

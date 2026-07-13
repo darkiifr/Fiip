@@ -3,18 +3,8 @@ import { getCurrentDeviceDescriptor, getInstallationId } from './deviceIdentity'
 import { FIIP_ACCOUNT_PORTAL_URL } from '../config/links';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ENABLE_CAPTCHA_IN_DEV = import.meta.env.VITE_ENABLE_CAPTCHA_IN_DEV === 'true';
-
-function isLocalDevHost() {
-  if (import.meta.env.DEV) return true;
-  if (typeof window === 'undefined') return false;
-  return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-}
 
 export function getCaptchaSiteKey(siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
-  if (isLocalDevHost() && !ENABLE_CAPTCHA_IN_DEV) {
-    return '';
-  }
   return String(siteKey || '').trim();
 }
 
@@ -61,9 +51,7 @@ export function getAuthErrorMessage(error) {
   }
 
   if (/captcha|challenge/i.test(message)) {
-    return isLocalDevHost()
-      ? "Supabase demande un CAPTCHA pour cette connexion. En local, utilisez le site déployé ou activez VITE_ENABLE_CAPTCHA_IN_DEV=true avec une clé Turnstile."
-      : 'Validation anti-bot refusée. Revalidez le captcha puis réessayez.';
+    return 'Validation anti-bot refusée. Revalidez le captcha puis réessayez.';
   }
 
   if (/user not found|account not found|not exist|introuvable|no user/i.test(message)) {

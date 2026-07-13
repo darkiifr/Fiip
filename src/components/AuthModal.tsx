@@ -26,6 +26,11 @@ function getOAuthErrorMessage(error?: any) {
         return error.message;
     }
 
+    const message = String(error?.message || '').trim();
+    if (message) {
+        return `Connexion Google impossible : ${message}`;
+    }
+
     return "Connexion Google impossible. Vérifiez que Safari a ouvert Fiip, puis réessayez.";
 }
 
@@ -276,6 +281,45 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             }
         } catch (e) {
             setError(e.message || 'Connexion passkey impossible.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = async () => {
+        setError(null);
+        setSuccess(null);
+        setLoading(true);
+
+        try {
+            const { data, error } = await authService.signInWithOAuth('google');
+            if (error) {throw error;}
+            if (!data?.url) {throw new Error("Le compte Fiip n'a pas renvoyé d'URL de connexion Google.");}
+            await open(data.url);
+        } catch (err) {
+            console.error('Google OAuth error:', err);
+            setError(getOAuthErrorMessage(err));
+        } finally {
+            setCaptchaToken('');
+            setCaptchaResetKey((current) => current + 1);
+            setLoading(false);
+        }
+    };
+
+    const handleLinkGoogleIdentity = async () => {
+        setError(null);
+        setSuccess(null);
+        setLoading(true);
+
+        try {
+            const { data, error } = await authService.linkGoogleIdentity();
+            if (error) {throw error;}
+            if (!data?.url) {throw new Error("Le compte Fiip n'a pas renvoyé d'URL de liaison Google.");}
+            await open(data.url);
+            setSuccess('Connexion Google ouverte. Terminez la liaison dans votre navigateur.');
+        } catch (err) {
+            console.error('Google identity link error:', err);
+            setError(getOAuthErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -547,6 +591,16 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                                 >
                                     Ajouter une passkey
                                 </GlassButton>
+                                <GlassButton
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={handleLinkGoogleIdentity}
+                                    isLoading={loading}
+                                    className="w-full mt-3"
+                                    icon={<IconGoogle className="w-4 h-4" />}
+                                >
+                                    Lier Google à ce compte
+                                </GlassButton>
                             </div>
                         </div>
                         
@@ -660,23 +714,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                                 </div>
                                 <button 
                                     type="button" 
-                                    onClick={async () => {
-                                        setLoading(true);
-                                        try {
-                                            const { data, error } = await authService.signInWithOAuth('google');
-                                            if (error) {throw error;}
-                                            if (data?.url) {
-                                                await open(data.url);
-                                            }
-                                        } catch (err) {
-                                            console.error('Google OAuth error:', err);
-                                            setError(getOAuthErrorMessage(err));
-                                        } finally {
-                                            setCaptchaToken('');
-                                            setCaptchaResetKey((current) => current + 1);
-                                            setLoading(false);
-                                        }
-                                    }}
+                                    onClick={handleGoogleLogin}
                                     className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all duration-300 border border-white/10 hover:border-white/20 hover:scale-110 active:scale-95"
                                 >
                                     <IconGoogle className="w-6 h-6" />

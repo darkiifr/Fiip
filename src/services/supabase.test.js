@@ -8,6 +8,7 @@ const { mockSupabaseClient } = vi.hoisted(() => {
                 getUser: vi.fn(),
                 resetPasswordForEmail: vi.fn(),
                 signInWithOAuth: vi.fn(),
+                linkIdentity: vi.fn(),
                 exchangeCodeForSession: vi.fn(),
                 setSession: vi.fn(),
                 signInWithPasskey: vi.fn(),
@@ -35,6 +36,10 @@ describe('Supabase authService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         import.meta.env.VITE_TURNSTILE_SITE_KEY = '';
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            value: new URL('http://localhost:3000/'),
+        });
     });
 
     afterAll(() => {
@@ -79,7 +84,7 @@ describe('Supabase authService', () => {
         expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password123', options: { captchaToken: 'captcha-login' } });
     });
 
-    it('does not require a captcha token in local development by default', async () => {
+    it('does not require a captcha token when no Turnstile key is configured', async () => {
         supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
 
         const result = await authService.signIn('test@example.com', 'password123');
@@ -226,6 +231,37 @@ describe('Supabase authService', () => {
         expect((await authService.sendPasswordReset('a@example.com')).error?.code).toBe('CAPTCHA_REQUIRED');
         expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
         import.meta.env.VITE_TURNSTILE_SITE_KEY = previous;
+    });
+
+    it('requires captcha on localhost when a Turnstile key is configured', async () => {
+        const previous = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+        import.meta.env.VITE_TURNSTILE_SITE_KEY = 'local-turnstile-key';
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            value: new URL('http://localhost:1420/'),
+        });
+
+        const result = await authService.signIn('local@example.com', 'secret');
+
+        expect(result.error?.code).toBe('CAPTCHA_REQUIRED');
+        expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+        import.meta.env.VITE_TURNSTILE_SITE_KEY = previous;
+    });
+
+    it('starts Google identity linking with the portal callback for an authenticated desktop account', async () => {
+        window.__TAURI_INTERNALS__ = {};
+        supabase.auth.linkIdentity.mockResolvedValueOnce({ data: { url: 'https://auth.example/link' }, error: null });
+
+        await authService.linkGoogleIdentity();
+
+        expect(supabase.auth.linkIdentity).toHaveBeenCalledWith({
+            provider: 'google',
+            options: {
+                redirectTo: 'https://portail.fiip.fr/auth/callback',
+                skipBrowserRedirect: true,
+            },
+        });
+        delete window.__TAURI_INTERNALS__;
     });
 
     it('rejects lookalike callback URLs and returns provider errors', async () => {

@@ -30,6 +30,11 @@ function getOAuthErrorMessage(error) {
     return error.message;
   }
 
+  const message = String(error?.message || '').trim();
+  if (message) {
+    return `Connexion Google impossible : ${message}`;
+  }
+
   return "Connexion Google impossible. Vérifiez que Safari a ouvert Fiip, puis réessayez.";
 }
 
