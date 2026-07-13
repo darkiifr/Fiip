@@ -1,3 +1,5 @@
+import { getTierCapabilities } from '../_shared/tiers.ts';
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PLATFORMS = new Set(['desktop', 'mobile', 'web']);
 const SAFE_METADATA_KEYS = new Set(['reason', 'platform', 'device_name', 'count']);
@@ -50,4 +52,14 @@ export function sanitizeSecurityMetadata(input: Record<string, unknown> = {}) {
     }
   }
   return metadata;
+}
+
+export function resolveAccountDeviceLimit(activeLicense: any, isActive: (license: any) => boolean) {
+  if (!isActive(activeLicense)) return 1;
+  const fallbackLimit = getTierCapabilities(activeLicense.tier).deviceLimit;
+  if (activeLicense.device_limit === null || activeLicense.device_limit === undefined || activeLicense.device_limit === '') {
+    return fallbackLimit;
+  }
+  const limit = Number(activeLicense.device_limit || 0);
+  return limit > 0 ? limit : fallbackLimit;
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PricingCheckout from './PricingCheckout';
+import { formatAccountDate } from '../../services/accountPresentation';
 
 function isValidLicenseDate(value) {
   if (!value) return false;
@@ -20,7 +21,7 @@ function formatLicenseName(license) {
 }
 
 function formatDate(value) {
-  return isValidLicenseDate(value) ? new Date(value).toLocaleDateString('fr-FR') : 'Sans expiration';
+  return formatAccountDate(value);
 }
 
 export default function AccountSubscription({ account, onActivateLicense, onSelectLicense }) {

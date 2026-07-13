@@ -60,7 +60,14 @@ if (!isSupabaseConfigured) {
 
 export const supabase = createClient(
   isSupabaseConfigured ? SUPABASE_URL.trim() : PLACEHOLDER_SUPABASE_URL,
-  isSupabaseConfigured ? SUPABASE_ANON_KEY.trim() : PLACEHOLDER_SUPABASE_ANON_KEY
+  isSupabaseConfigured ? SUPABASE_ANON_KEY.trim() : PLACEHOLDER_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      experimental: {
+        passkey: true,
+      },
+    },
+  }
 );
 
 export { getStorageLimit };

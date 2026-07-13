@@ -1,6 +1,7 @@
 import { assertEquals, assertThrows } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 
 import {
+  resolveAccountDeviceLimit,
   sanitizeDeviceInput,
   sanitizeSecurityMetadata,
   validateUuid,
@@ -41,4 +42,13 @@ Deno.test('sanitizeSecurityMetadata keeps only safe short values', () => {
     reason: 'manual',
     count: 2,
   });
+});
+
+Deno.test('resolveAccountDeviceLimit preserves real tier capabilities', () => {
+  const isActive = (license: any) => license?.status === 'active';
+
+  assertEquals(resolveAccountDeviceLimit(null, isActive), 1);
+  assertEquals(resolveAccountDeviceLimit({ status: 'active', tier: 'basic', device_limit: null }, isActive), 2);
+  assertEquals(resolveAccountDeviceLimit({ status: 'active', tier: 'family_pro', device_limit: null }, isActive), null);
+  assertEquals(resolveAccountDeviceLimit({ status: 'active', tier: 'pro', device_limit: 3 }, isActive), 3);
 });

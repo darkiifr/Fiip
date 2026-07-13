@@ -469,11 +469,14 @@ function AccountPortal({ path }) {
             type="button"
             onClick={handlePasskeyLogin}
             disabled={busy || !passkeysAvailable}
-            title={passkeysAvailable ? 'Utilise une passkey déjà créée depuis Sécurité.' : 'Ce navigateur ne prend pas en charge les passkeys.'}
+            title={passkeysAvailable ? 'Le navigateur vous demandera de valider la passkey liée à ce compte.' : 'Les passkeys ne sont pas disponibles dans ce navigateur.'}
           >
-            {authAction === 'passkey' ? 'Connexion passkey...' : 'Passkey déjà configurée'}
+            {authAction === 'passkey' ? 'Validation passkey...' : 'Se connecter avec une passkey'}
           </button>
-          <p className="auth-hint">Les passkeys se créent après connexion dans Compte &gt; Sécurité.</p>
+          <p className="auth-hint">
+            Choisissez ce mode si vous avez déjà ajouté une passkey dans Compte &gt; Sécurité. Le navigateur demandera
+            Windows Hello, Touch ID, Face ID ou votre clé de sécurité avant d’ouvrir la session.
+          </p>
           {message ? <p className={messageTone === 'error' ? 'account-error' : 'account-message'}>{message}</p> : null}
         </form>
       </main>

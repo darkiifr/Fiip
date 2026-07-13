@@ -135,13 +135,16 @@ export async function signInWithGoogle() {
 }
 
 export function canUsePasskeys() {
-  return typeof window !== 'undefined' && typeof window.PublicKeyCredential !== 'undefined';
+  return typeof window !== 'undefined'
+    && typeof window.PublicKeyCredential !== 'undefined'
+    && typeof supabase?.auth?.signInWithPasskey === 'function'
+    && typeof supabase?.auth?.registerPasskey === 'function';
 }
 
 export async function signInWithPasskey() {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
   if (!canUsePasskeys()) {
-    throw new Error('Les passkeys ne sont pas disponibles sur ce navigateur.');
+    throw new Error('Les passkeys ne sont pas disponibles avec cette version du portail ou de ce navigateur.');
   }
 
   return supabase.auth.signInWithPasskey();
@@ -150,7 +153,7 @@ export async function signInWithPasskey() {
 export async function registerPasskey() {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
   if (!canUsePasskeys()) {
-    throw new Error('Les passkeys ne sont pas disponibles sur ce navigateur.');
+    throw new Error('Les passkeys ne sont pas disponibles avec cette version du portail ou de ce navigateur.');
   }
 
   return supabase.auth.registerPasskey();

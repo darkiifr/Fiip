@@ -1,4 +1,4 @@
-import { getDeviceLimitState, getDisplayLicense, getLicenseState, getOcrState } from '../../services/accountPresentation';
+import { formatAccountDate, getDeviceLimitState, getDisplayLicense, getLicenseState, getOcrState } from '../../services/accountPresentation';
 import IconCalendar from '~icons/mingcute/calendar-2-fill';
 import IconCertificate from '~icons/mingcute/certificate-fill';
 import IconDevices from '~icons/mingcute/device-fill';
@@ -31,7 +31,7 @@ export default function AccountOverview({ account }) {
         <article className="account-metric">
           <IconCalendar />
           <span>Renouvellement</span>
-          <strong>{renewal ? new Date(renewal).toLocaleDateString('fr-FR') : 'Non defini'}</strong>
+          <strong>{formatAccountDate(renewal)}</strong>
         </article>
         <article className="account-metric" data-tone={ocrState.tone}>
           <IconScan />

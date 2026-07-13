@@ -3,7 +3,7 @@ import { createAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts'
 import { getKeyAuthLicenseInfo, resetKeyAuthHwid } from '../_shared/keyauth.ts';
 import { sendTemplateEmail } from '../_shared/mailer.ts';
 import { getTierCapabilities } from '../_shared/tiers.ts';
-import { sanitizeDeviceInput, sanitizeSecurityMetadata, validateUuid } from './device-security.ts';
+import { resolveAccountDeviceLimit, sanitizeDeviceInput, sanitizeSecurityMetadata, validateUuid } from './device-security.ts';
 import {
   assertLicenseCanAttach,
   normalizeLicenseKeyInput,
@@ -61,8 +61,7 @@ function isLicenseActive(license: any) {
 }
 
 function getDeviceLimit(activeLicense: any) {
-  const limit = Number(activeLicense?.device_limit || 0);
-  return limit > 0 ? limit : 1;
+  return resolveAccountDeviceLimit(activeLicense, isLicenseActive);
 }
 
 function serializeDevice(device: any, currentInstallationId?: string | null) {
@@ -461,7 +460,7 @@ Deno.serve(async (req) => {
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .is('revoked_at', null);
-        if (Number(count || 0) >= deviceLimit) {
+        if (deviceLimit !== null && Number(count || 0) >= deviceLimit) {
           return jsonResponse({ error: `Limite atteinte (${deviceLimit} appareil${deviceLimit > 1 ? 's' : ''}).` }, { status: 409 });
         }
       }

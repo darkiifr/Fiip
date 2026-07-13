@@ -104,8 +104,8 @@ describe('AccountPortal Google sign-in', () => {
     expect(await screen.findByRole('button', { name: 'Se connecter' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Recevoir un magic link' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Mot de passe oublié' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Passkey déjà configurée' })).toBeEnabled();
-    expect(screen.getByText(/Les passkeys se créent après connexion/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Se connecter avec une passkey' })).toBeEnabled();
+    expect(screen.getByText(/Windows Hello, Touch ID, Face ID/i)).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('email@exemple.com'), { target: { value: 'vincent@fiip.fr' } });
 

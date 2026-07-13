@@ -1,3 +1,5 @@
+import { getTierPolicy } from '../config/billing';
+
 function isValidLicenseDate(value) {
   if (!value) return false;
   const date = new Date(value);
@@ -31,6 +33,49 @@ function formatTier(tier) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function normalizeTier(tier) {
+  const value = String(tier || '').toLowerCase().replace(/[-\s]/g, '_');
+  if (value === 'family' || value === 'family_pro') return 'family_pro';
+  if (value === 'ai') return 'ai';
+  if (value === 'pro') return 'pro';
+  if (value === 'basic') return 'basic';
+  return '';
+}
+
+function resolveNullableCapability(rawValue, policyValue) {
+  if (rawValue === undefined || rawValue === null || rawValue === '') return policyValue;
+  const value = Number(rawValue);
+  return value > 0 ? value : policyValue;
+}
+
+export function getLicenseCapabilities(license) {
+  const tier = normalizeTier(license?.tier);
+  if (!tier) {
+    return {
+      deviceLimit: 1,
+      ocrLimit: 0,
+      familySlots: 1,
+      aiEnabled: false,
+      sharingEnabled: false,
+      extensionEnabled: false,
+    };
+  }
+
+  const policy = getTierPolicy(tier);
+  return {
+    ...policy,
+    deviceLimit: resolveNullableCapability(license?.device_limit, policy.deviceLimit),
+    ocrLimit: resolveNullableCapability(license?.ocr_limit, policy.ocrLimit),
+    familySlots: Number(license?.family_slots || policy.familySlots || 1),
+    aiEnabled: Boolean(license?.ai_enabled ?? policy.aiEnabled),
+    sharingEnabled: Boolean(license?.sharing_enabled ?? policy.sharingEnabled),
+  };
+}
+
+export function formatAccountDate(value, fallback = 'Sans expiration') {
+  return isValidLicenseDate(value) ? new Date(value).toLocaleDateString('fr-FR') : fallback;
+}
+
 export function getLicenseState(account) {
   const license = getDisplayLicense(account);
   const hasActiveLicense = isActiveLicense(license);
@@ -51,10 +96,10 @@ export function getOcrState(account) {
     };
   }
 
-  const limit = Number(license.ocr_limit || 0);
-  if (limit > 0) {
+  const { ocrLimit } = getLicenseCapabilities(license);
+  if (Number(ocrLimit || 0) > 0) {
     return {
-      label: `${Number(license.ocr_scans_used || 0)}/${limit} scans`,
+      label: `${Number(license.ocr_scans_used || 0)}/${ocrLimit} scans`,
       detail: 'Ce mois',
       tone: 'ok',
     };
@@ -70,12 +115,13 @@ export function getOcrState(account) {
 export function getDeviceLimitState(account) {
   const license = getDisplayLicense(account);
   const used = Number(account?.device_count || account?.devices?.length || 0);
-  const limit = isActiveLicense(license) && Number(license.device_limit || 0) > 0
-    ? Number(license.device_limit)
-    : 1;
+  const limit = isActiveLicense(license) ? getLicenseCapabilities(license).deviceLimit : 1;
+  const plural = used > 1 ? 's' : '';
   return {
     used,
     limit,
-    label: `${used}/${limit} appareil${used > 1 ? 's' : ''}`,
+    label: limit === null
+      ? `${used} appareil${plural} / illimité`
+      : `${used}/${limit} appareil${plural}`,
   };
 }

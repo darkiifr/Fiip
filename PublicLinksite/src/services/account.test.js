@@ -212,6 +212,23 @@ describe('account service device actions', () => {
     expect(supabase.auth.registerPasskey).not.toHaveBeenCalled();
   });
 
+  it('blocks passkey actions when the Supabase client does not expose WebAuthn helpers', async () => {
+    Object.defineProperty(window, 'PublicKeyCredential', {
+      configurable: true,
+      value: function PublicKeyCredential() {},
+    });
+    const originalSignIn = supabase.auth.signInWithPasskey;
+    const originalRegister = supabase.auth.registerPasskey;
+    supabase.auth.signInWithPasskey = undefined;
+    supabase.auth.registerPasskey = undefined;
+
+    await expect(signInWithPasskey()).rejects.toThrow('version du portail');
+    await expect(registerPasskey()).rejects.toThrow('version du portail');
+
+    supabase.auth.signInWithPasskey = originalSignIn;
+    supabase.auth.registerPasskey = originalRegister;
+  });
+
   it('normalizes auth email and exposes the canonical account redirect URL', async () => {
     supabase.functions.invoke.mockResolvedValueOnce({ data: { exists: true }, error: null });
     supabase.auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: null });
