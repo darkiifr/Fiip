@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 
 const { mockSupabaseClient } = vi.hoisted(() => {
     return {
@@ -29,9 +29,16 @@ vi.mock('@supabase/supabase-js', () => ({
 
 import { authService, dataService, getSyncedSettings, getOAuthRedirectUrl, supabase } from './supabase';
 
+const ORIGINAL_TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
 describe('Supabase authService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        import.meta.env.VITE_TURNSTILE_SITE_KEY = '';
+    });
+
+    afterAll(() => {
+        import.meta.env.VITE_TURNSTILE_SITE_KEY = ORIGINAL_TURNSTILE_SITE_KEY;
     });
 
     it('getUser should return the user if successful', async () => {
