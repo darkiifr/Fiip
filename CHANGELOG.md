@@ -1,14 +1,21 @@
-# Fiip v.8.0.2
+# Fiip v9.0.4
 
-## Fixes
+## Authentification
 
-- Fixed desktop release builds by aligning the Tauri JavaScript packages with the Rust Tauri crates.
-- Fixed the release failures on macOS, Linux, and Windows caused by mismatched `@tauri-apps/*` versions.
-- Kept the previous security fixes for CodeQL and dependency audits included in this release line.
+- Fiabilise les flux d'authentification Supabase sur desktop, portail et mobile.
+- Conserve le CAPTCHA Turnstile visible et obligatoire sur les flux email, avec remise a zero et erreurs distinctes.
+- Ajoute Google OAuth sur les trois surfaces avec callbacks valides, rejet des schemas inattendus et protection contre les doubles traitements.
+- Conserve le relais desktop `https://portail.fiip.fr/auth/callback` vers `fiip://login-callback`.
+- Ajoute la gestion mobile du callback `fiip://login-callback` pour les liens entrants a froid et a chaud.
+
+## Portail et configuration
+
+- Securise la page relais du portail en conservant query/hash et en proposant un bouton manuel si l'ouverture automatique echoue.
+- Documente `VITE_TURNSTILE_SITE_KEY` dans `.env.example` sans versionner de secret.
 
 ## Validation
 
-- Desktop Tauri package alignment verified with `npm run tauri -- info`.
-- Desktop build verified with `npm run tauri -- build --no-bundle`.
-- Frontend targeted tests passed for the security and attachment viewer fixes.
-- Root npm audit reports 0 moderate-or-higher vulnerabilities.
+- Tests desktop auth, build Vite, lint et audit npm valides.
+- Tests portail, build portail et audit npm valides.
+- Tests mobile auth, audit npm mobile, `cargo check` et `cargo test` valides.
+- `cargo audit` termine avec les avertissements upstream deja presents.

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow, LogicalSize, LogicalPosition, currentMonitor } from '@tauri-apps/api/window';
-import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
+import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { type } from '@tauri-apps/plugin-os';
 import { Bot, Crown, Database, FileText, Link, Lock, Plus, Search, Settings, Share2 } from 'lucide-react';
@@ -396,6 +396,8 @@ function App() {
 
   // --- Initialization ---
   useEffect(() => {
+    let disposed = false;
+    let cleanupInit = () => {};
     const init = async () => {
       try {
         console.log("Fiip v" + (await invoke("get_app_version").catch(() => "3.0.0")) + " initializing...");
@@ -410,16 +412,16 @@ function App() {
         
         const setupDeepLink = async () => {
           try {
-            const unlisten = await onOpenUrl(async (urls) => {
+            const handleUrls = async (urls) => {
               console.log('URLs deep link received:', urls);
               for (const url of urls) {
                 try {
                     const parsedUrl = new URL(url);
-                    if (parsedUrl.host === 'login-callback' || parsedUrl.pathname.includes('/login-callback')) {
-                        const { data, error } = await authService.completeOAuthCallback(url);
+                    if (parsedUrl.protocol === 'fiip:' && parsedUrl.host === 'login-callback' && (!parsedUrl.pathname || parsedUrl.pathname === '/')) {
+                        const { data, error, handled } = await authService.completeOAuthCallback(url);
                         if (error) {
                             await message(`Connexion Google impossible : ${error.message}`, { title: 'Fiip', kind: 'error' }).catch(console.error);
-                        } else if (data?.session?.user) {
+                        } else if (data?.session?.user && handled) {
                             setUser(data.session.user);
                             dataService.registerCurrentDevice().catch(console.warn);
                             localStorage.setItem('fiip-onboarding-completed', 'true');
@@ -461,8 +463,12 @@ function App() {
                     console.error("Deep link parse error", e);
                 }
               }
-            });
-            return unlisten;
+            };
+            const unlistenOpen = await onOpenUrl(handleUrls);
+            const unlistenSecondInstance = await listen('fiip://oauth-callback', (event) => handleUrls([event.payload]));
+            const startupUrls = await getCurrent();
+            if (startupUrls?.length) await handleUrls(startupUrls);
+            return () => { unlistenOpen(); unlistenSecondInstance(); };
           } catch (e) {
             console.error("Deep link setup failed", e);
           }
@@ -470,7 +476,7 @@ function App() {
         
         let unlistenFn;
         if (window.__TAURI_INTERNALS__) {
-            setupDeepLink().then(fn => unlistenFn = fn).catch(console.error);
+            unlistenFn = await setupDeepLink();
         }
         
         const sessionUser = await authService.getUser();
@@ -514,7 +520,15 @@ function App() {
           : { isLoading: false, status: '' });
       }
     };
-    init();
+    init().then((cleanup) => {
+      if (!cleanup) return;
+      if (disposed) cleanup();
+      else cleanupInit = cleanup;
+    });
+    return () => {
+      disposed = true;
+      cleanupInit();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

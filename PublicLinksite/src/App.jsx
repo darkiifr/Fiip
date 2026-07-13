@@ -6,6 +6,7 @@ import AccountOverview from './components/account/AccountOverview';
 import LegalPage from './components/LegalPage';
 import PricingCheckout from './components/account/PricingCheckout';
 import PublicNoteView from './components/PublicNoteView';
+import OAuthCallback from './components/OAuthCallback';
 import { FIIP_ACCOUNT_PORTAL_URL, FIIP_DISCORD_SUPPORT_URL, FIIP_DOWNLOAD_URL, FIIP_PUBLIC_SITE_URL } from './config/links';
 import { LEGAL_NAV_ITEMS } from './config/legal';
 import {
@@ -22,6 +23,7 @@ import {
   revokeDevice,
   assertCaptchaToken,
   signInWithMagicLink,
+  signInWithGoogle,
   signInWithPasskey,
   signInWithPassword,
   sendPasswordReset,
@@ -118,6 +120,7 @@ function AccountPortal({ path }) {
   const [loading, setLoading] = useState(true);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -354,6 +357,24 @@ function AccountPortal({ path }) {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setMessage('');
+    setMessageTone('info');
+    setGoogleLoading(true);
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setMessage(getAuthErrorMessage(error));
+        setMessageTone('error');
+        setGoogleLoading(false);
+      }
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error));
+      setMessageTone('error');
+      setGoogleLoading(false);
+    }
+  };
+
   const handleRegisterPasskey = async () => {
     const { error } = await registerPasskey();
     if (error) {
@@ -378,6 +399,9 @@ function AccountPortal({ path }) {
             <button className="secondary-link" type="button" onClick={handleVerifyMagicCode}>Valider le code</button>
           </div>
           <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaResetKey} />
+          <button className="secondary-link" type="button" onClick={handleGoogleLogin} disabled={googleLoading}>
+            {googleLoading ? 'Connexion à Google...' : 'Continuer avec Google'}
+          </button>
           <button className="download-link" type="submit">Se connecter</button>
           <button className="secondary-link" type="button" onClick={handlePasskeyLogin}>Se connecter avec une passkey</button>
           <button className="secondary-link" type="button" onClick={handleMagicLink}>Recevoir un magic link</button>
@@ -534,21 +558,7 @@ function App() {
   const isPortalHost = hostname === 'portail.fiip.fr';
 
   if (path && path.toLowerCase().startsWith('/auth/callback')) {
-    const hash = window.location.hash;
-    const search = window.location.search;
-    setTimeout(() => {
-      window.location.replace(`fiip://login-callback${hash || search}`);
-    }, 500);
-
-    return (
-      <main className="public-shell public-center">
-        <section className="public-panel auth-panel">
-          <IconifyIcon icon="mingcute:loading-fill" className="spin-icon" />
-          <h1>Connexion à Fiip</h1>
-          <p>Redirection sécurisée vers l’application.</p>
-        </section>
-      </main>
-    );
+    return <OAuthCallback />;
   }
 
   if (path && path.toLowerCase() === '/oauth/consent') {

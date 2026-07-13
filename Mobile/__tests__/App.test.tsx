@@ -47,6 +47,11 @@ jest.mock('../src/services/biometrics', () => ({
   authenticateBiometric: jest.fn(() => Promise.resolve(true)),
 }));
 
+const mockCleanupGoogleAuth = jest.fn();
+jest.mock('../src/services/googleAuth', () => ({
+  installGoogleAuthLifecycle: jest.fn(() => mockCleanupGoogleAuth),
+}));
+
 jest.mock('react-native-vector-icons/Ionicons', () => 'Ionicons');
 jest.mock('react-native-vector-icons/MaterialCommunityIcons', () => 'MaterialCommunityIcons');
 
@@ -56,9 +61,18 @@ jest.mock('../src/i18n', () => ({
 }));
 
 import App from '../App';
+import { installGoogleAuthLifecycle } from '../src/services/googleAuth';
 
 test('renders correctly', async () => {
   await ReactTestRenderer.act(async () => {
     ReactTestRenderer.create(<App />);
   });
+  expect(installGoogleAuthLifecycle).toHaveBeenCalledTimes(1);
+});
+
+test('cleans up the root OAuth callback lifecycle on unmount', async () => {
+  let renderer!: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(<App />); });
+  await ReactTestRenderer.act(async () => { renderer.unmount(); });
+  expect(mockCleanupGoogleAuth).toHaveBeenCalled();
 });

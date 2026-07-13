@@ -93,6 +93,22 @@ where
     })
 }
 
+fn oauth_callback_from_args<I>(args: I) -> Option<String>
+where
+    I: IntoIterator<Item = String>,
+{
+    args.into_iter().skip(1).find(|arg| {
+        url::Url::parse(arg).map(|url| {
+            url.scheme() == "fiip"
+                && url.host_str() == Some("login-callback")
+                && url.path() == ""
+                && url.username().is_empty()
+                && url.password().is_none()
+                && url.port().is_none()
+        }).unwrap_or(false)
+    })
+}
+
 #[tauri::command]
 fn read_launch_fiin_file() -> Result<Option<(String, String)>, String> {
     let Some(path) = launch_fiin_path_from_args(std::env::args()) else {
@@ -199,8 +215,10 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
            use tauri::{Emitter, Manager};
            let window = app.get_webview_window("main").expect("no main window");
-           if let Some(path) = launch_fiin_path_from_args(args) {
+           if let Some(path) = launch_fiin_path_from_args(args.clone()) {
                let _ = window.emit("fiip://open-fiin", path);
+           } else if let Some(url) = oauth_callback_from_args(args) {
+               let _ = window.emit("fiip://oauth-callback", url);
            }
            let _ = window.set_focus();
         }))
@@ -223,4 +241,18 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::oauth_callback_from_args;
+
+    #[test]
+    fn extracts_only_strict_oauth_callback_from_second_instance_args() {
+        assert_eq!(oauth_callback_from_args(["fiip.exe", "fiip://login-callback?code=abc"].map(String::from)), Some("fiip://login-callback?code=abc".into()));
+        assert_eq!(oauth_callback_from_args(["fiip.exe", "https://evil.test/login-callback?code=abc"].map(String::from)), None);
+        assert_eq!(oauth_callback_from_args(["fiip.exe", "fiip://user@login-callback?code=abc"].map(String::from)), None);
+        assert_eq!(oauth_callback_from_args(["fiip.exe", "fiip://:secret@login-callback?code=abc"].map(String::from)), None);
+        assert_eq!(oauth_callback_from_args(["fiip.exe", "fiip://login-callback:42?code=abc"].map(String::from)), None);
+    }
 }

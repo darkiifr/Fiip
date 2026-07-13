@@ -23,6 +23,8 @@ const PLACEHOLDER_SUPABASE_URL = 'https://placeholder.supabase.co';
 const PLACEHOLDER_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx';
 const SUPABASE_CONFIG_ERROR = "Configuration Supabase manquante. Ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY avant d'utiliser la connexion Google.";
 const ENABLE_CAPTCHA_IN_DEV = import.meta.env.VITE_ENABLE_CAPTCHA_IN_DEV === 'true';
+const oauthCallbacksInFlight = new Map();
+const successfulOAuthCallbacks = new Set();
 
 function isTauriRuntime() {
   return typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
@@ -136,6 +138,15 @@ function buildCaptchaOptions(captchaToken) {
   return captchaToken ? { captchaToken } : undefined;
 }
 
+function validateCaptcha(captchaToken) {
+  try {
+    assertCaptchaToken(captchaToken);
+    return null;
+  } catch (error) {
+    return { data: null, error: { code: 'CAPTCHA_REQUIRED', message: error.message } };
+  }
+}
+
 function isLocalDevHost() {
   if (import.meta.env.DEV) return true;
   if (typeof window === 'undefined') return false;
@@ -143,9 +154,6 @@ function isLocalDevHost() {
 }
 
 export function getCaptchaSiteKey(siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
-  if (isLocalDevHost() && !ENABLE_CAPTCHA_IN_DEV) {
-    return '';
-  }
   return String(siteKey || '').trim();
 }
 
@@ -178,6 +186,8 @@ export const authService = {
       return { data: null, error: getSupabaseConfigError() };
     }
 
+    const captchaValidation = validateCaptcha(captchaToken);
+    if (captchaValidation) return captchaValidation;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -207,6 +217,8 @@ export const authService = {
       return { data: null, error: getSupabaseConfigError() };
     }
 
+    const captchaValidation = validateCaptcha(captchaToken);
+    if (captchaValidation) return captchaValidation;
     let email = identifier;
     
     // S'il n'y a pas d'@, on considère que c'est un pseudo
@@ -231,6 +243,8 @@ export const authService = {
       return { data: null, error: getSupabaseConfigError() };
     }
 
+    const captchaValidation = validateCaptcha(captchaToken);
+    if (captchaValidation) return captchaValidation;
     const { data, error } = await supabase.auth.resetPasswordForEmail(String(email || '').trim(), {
       redirectTo: getOAuthRedirectUrl(),
       ...buildCaptchaOptions(captchaToken),
@@ -255,8 +269,12 @@ export const authService = {
       return { data: null, error: getSupabaseConfigError() };
     }
 
+    if (provider !== 'google') {
+      return { data: null, error: { code: 'OAUTH_PROVIDER_NOT_ALLOWED', message: 'Seule la connexion Google est autorisée.' } };
+    }
+
     const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: provider,
+      provider: 'google',
       options: {
         redirectTo: getOAuthRedirectUrl(),
         skipBrowserRedirect: true
@@ -270,25 +288,59 @@ export const authService = {
       return { data: null, error: getSupabaseConfigError() };
     }
 
-    const parsedUrl = new URL(callbackUrl);
-    const params = new URLSearchParams(parsedUrl.search);
-    const hashParams = new URLSearchParams(parsedUrl.hash.replace(/^#/, ''));
-    const code = params.get('code') || hashParams.get('code');
-    const accessToken = hashParams.get('access_token');
-    const refreshToken = hashParams.get('refresh_token');
-
-    if (code) {
-      return await supabase.auth.exchangeCodeForSession(code);
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(callbackUrl);
+    } catch {
+      return { data: null, error: { code: 'OAUTH_CALLBACK_INVALID', message: 'URL de callback Google invalide.' } };
+    }
+    if (parsedUrl.protocol !== 'fiip:' || parsedUrl.hostname !== 'login-callback' || parsedUrl.username || parsedUrl.password || parsedUrl.port || (parsedUrl.pathname && parsedUrl.pathname !== '/')) {
+      return { data: null, error: { code: 'OAUTH_CALLBACK_INVALID', message: 'URL de callback Google refusée.' } };
     }
 
-    if (accessToken && refreshToken) {
-      return await supabase.auth.setSession({
+    const callbackKey = parsedUrl.toString();
+    if (successfulOAuthCallbacks.has(callbackKey)) return { data: null, error: null };
+    if (oauthCallbacksInFlight.has(callbackKey)) {
+      const result = await oauthCallbacksInFlight.get(callbackKey);
+      return { ...result, handled: false };
+    }
+
+    const params = new URLSearchParams(parsedUrl.search);
+    const hashParams = new URLSearchParams(parsedUrl.hash.replace(/^#/, ''));
+    const oauthError = params.get('error') || hashParams.get('error');
+    if (oauthError) {
+      return {
+        data: null,
+        error: {
+          code: oauthError,
+          message: params.get('error_description') || hashParams.get('error_description') || 'Connexion Google refusée.',
+        },
+      };
+    }
+    const code = params.get('code') || hashParams.get('code');
+    const accessToken = params.get('access_token') || hashParams.get('access_token');
+    const refreshToken = params.get('refresh_token') || hashParams.get('refresh_token');
+
+    let callbackPromise;
+    if (code) {
+      callbackPromise = supabase.auth.exchangeCodeForSession(code);
+    } else if (accessToken && refreshToken) {
+      callbackPromise = supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: refreshToken,
       });
+    } else {
+      return { data: null, error: { message: 'Callback Google incomplet.' } };
     }
 
-    return { data: null, error: { message: 'Callback Google incomplet.' } };
+    oauthCallbacksInFlight.set(callbackKey, callbackPromise);
+    try {
+      const result = await callbackPromise;
+      if (!result?.error) successfulOAuthCallbacks.add(callbackKey);
+      return { ...result, handled: !result?.error };
+    } finally {
+      oauthCallbacksInFlight.delete(callbackKey);
+    }
   },
 
   async signInWithPasskey() {

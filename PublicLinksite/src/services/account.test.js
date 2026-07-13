@@ -4,6 +4,7 @@ vi.mock('./supabase.js', () => ({
   supabase: {
     auth: {
       signInWithOtp: vi.fn(),
+      signInWithOAuth: vi.fn(),
       signInWithPasskey: vi.fn(),
       signInWithPassword: vi.fn(),
       registerPasskey: vi.fn(),
@@ -33,6 +34,7 @@ import {
   signInWithPasskey,
   requiresCaptcha,
   signInWithMagicLink,
+  signInWithGoogle,
   signInWithPassword,
   verifyMagicCode,
 } from './account';
@@ -149,6 +151,17 @@ describe('account service device actions', () => {
         emailRedirectTo: 'https://portail.fiip.fr/account',
         captchaToken: 'magic-token',
       },
+    });
+  });
+
+  it('starts Google OAuth with the canonical portal account redirect', async () => {
+    supabase.auth.signInWithOAuth.mockResolvedValueOnce({ data: { url: 'https://accounts.google.com/' }, error: null });
+
+    await signInWithGoogle();
+
+    expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
+      provider: 'google',
+      options: { redirectTo: 'https://portail.fiip.fr/account' },
     });
   });
 
