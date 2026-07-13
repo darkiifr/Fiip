@@ -33,6 +33,7 @@ tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-http = "2.5.6"
 tauri-plugin-single-instance = "2.3.7"
+url = "2"
 
 [patch.crates-io]
 plist = { path = "vendor/plist-1.9.0" }

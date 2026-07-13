@@ -671,6 +671,9 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                                         } catch (err) {
                                             console.error('Google OAuth error:', err);
                                             setError(getOAuthErrorMessage(err));
+                                        } finally {
+                                            setCaptchaToken('');
+                                            setCaptchaResetKey((current) => current + 1);
                                             setLoading(false);
                                         }
                                     }}

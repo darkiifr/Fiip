@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { dataService, supabase } from '../services/supabase';
 import { useNotesStore } from '../store/notesStore';
+import { startGoogleOAuth, subscribeGoogleOAuthResults } from '../services/googleAuth';
 
 interface SupabaseAuthScreenProps {
   route?: any;
@@ -29,6 +30,28 @@ export const SupabaseAuthScreen: React.FC<SupabaseAuthScreenProps> = (props) => 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const finishGoogleAuth = () => {
+    triggerHaptic('notificationSuccess');
+    setGoogleLoading(false);
+    onClose();
+  };
+
+  React.useEffect(() => subscribeGoogleOAuthResults(
+    finishGoogleAuth,
+    error => { setGoogleLoading(false); triggerHaptic('notificationError'); Alert.alert(t('Erreur'), error.message); },
+  ), []); // OAuth callback listener is owned by this screen and removed on unmount.
+
+  const handleGoogleAuth = async () => {
+    setGoogleLoading(true);
+    try { await startGoogleOAuth(); }
+    catch (err: any) {
+      setGoogleLoading(false);
+      triggerHaptic('notificationError');
+      Alert.alert(t('Erreur'), err?.message || t('Une erreur est survenue.'));
+    }
+  };
 
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
@@ -95,6 +118,9 @@ export const SupabaseAuthScreen: React.FC<SupabaseAuthScreenProps> = (props) => 
         />
 
         <View style={styles.actions}>
+          <TouchableOpacity style={[styles.btnSecondary, styles.googleButton, { borderColor: colors.textSecondary }]} onPress={handleGoogleAuth} disabled={loading || googleLoading} accessibilityLabel={t('Continuer avec Google')}>
+            {googleLoading ? <ActivityIndicator color={colors.primary} /> : <Text style={[isIOS ? styles.btnSecTextIOS : styles.btnSecTextAndroid, { color: colors.text }]}>{t('Continuer avec Google')}</Text>}
+          </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.btnPrimary, isIOS ? styles.btnPrimaryIOS : styles.btnPrimaryAndroid, { backgroundColor: colors.primary }]} 
             onPress={handleAuth}
@@ -182,6 +208,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  googleButton: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 20,
   },
   btnSecondaryIOS: {
     backgroundColor: 'rgba(0,0,0,0.05)',

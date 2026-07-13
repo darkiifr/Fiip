@@ -21,7 +21,9 @@ import { checkForUpdatesAndInstall } from './src/services/updater';
 import { useSettingsStore } from './src/store/settingsStore';
 import { authenticateBiometric } from './src/services/biometrics';
 import { keyAuthService } from './src/services/keyauth';
-import { authService } from './src/services/supabase';
+import { authService, dataService } from './src/services/supabase';
+import { installGoogleAuthLifecycle } from './src/services/googleAuth';
+import { useNotesStore } from './src/store/notesStore';
 import { getFiipTheme } from './src/theme/fiipDesign';
 
 import { FloatingTabBar } from './src/components/FloatingTabBar';
@@ -50,6 +52,11 @@ function TabNavigator() {
 function App() {
   const { globalLockEnabled, lang } = useSettingsStore();
   const [appUnlocked, setAppUnlocked] = useState(!globalLockEnabled);
+
+  useEffect(() => installGoogleAuthLifecycle(async () => {
+    await dataService.fetchProfile().catch(() => null);
+    await useNotesStore.getState().syncWithCloud().catch(() => null);
+  }), []);
 
   useEffect(() => {
     i18n.changeLanguage(lang);

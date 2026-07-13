@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
-import { fetchAccountDevices, getSessionUser, registerCurrentDevice } from './services/account';
+import { fetchAccountDevices, getSessionUser, registerCurrentDevice, signInWithGoogle } from './services/account';
 
 vi.mock('./services/account', () => ({
   activateLicense: vi.fn(),
@@ -27,6 +27,7 @@ vi.mock('./services/account', () => ({
   sendPasswordReset: vi.fn(),
   signInWithPasskey: vi.fn(),
   signInWithMagicLink: vi.fn(),
+  signInWithGoogle: vi.fn(),
   signInWithPassword: vi.fn(),
   signOut: vi.fn(),
   verifyMagicCode: vi.fn(),
@@ -51,5 +52,28 @@ describe('AccountPortal navigation', () => {
 
     await waitFor(() => expect(fetchAccountDevices).toHaveBeenCalledTimes(1));
     expect(window.location.pathname).toBe('/account/devices');
+  });
+});
+
+describe('AccountPortal Google sign-in', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.history.pushState({}, '', '/account');
+    getSessionUser.mockResolvedValue(null);
+  });
+
+  it('shows loading while Google OAuth starts and reports an OAuth error', async () => {
+    let rejectOAuth;
+    signInWithGoogle.mockReturnValue(new Promise((resolve, reject) => { rejectOAuth = reject; }));
+    render(<App />);
+
+    const button = await screen.findByRole('button', { name: /continuer avec google/i });
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent(/connexion à google/i);
+
+    rejectOAuth(new Error('Google indisponible'));
+    expect(await screen.findByText('Google indisponible')).toHaveClass('account-error');
+    expect(button).not.toBeDisabled();
   });
 });

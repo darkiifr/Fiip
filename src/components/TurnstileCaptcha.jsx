@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { getCaptchaSiteKey } from '../services/supabase';
 
@@ -6,6 +6,7 @@ const TURNSTILE_SCRIPT_ID = 'fiip-turnstile-script';
 
 export default function TurnstileCaptcha({ siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '', onVerify, resetKey = 0 }) {
   const containerRef = useRef(null);
+  const [statusError, setStatusError] = useState('');
   const activeSiteKey = getCaptchaSiteKey(siteKey);
 
   useEffect(() => {
@@ -26,19 +27,23 @@ export default function TurnstileCaptcha({ siteKey = import.meta.env.VITE_TURNST
       widgetId = window.turnstile.render(containerRef.current, {
         sitekey: activeSiteKey,
         theme: 'dark',
-        callback: (token) => onVerify?.(token),
-        'expired-callback': () => onVerify?.(''),
-        'error-callback': () => onVerify?.(''),
+        callback: (token) => { setStatusError(''); onVerify?.(token, null); },
+        'expired-callback': () => { setStatusError('Le défi anti-bot a expiré. Revalidez-le.'); onVerify?.('', 'expired'); },
+        'error-callback': () => { setStatusError('Le défi anti-bot a rencontré une erreur. Réessayez.'); onVerify?.('', 'error'); },
       });
     };
 
     const existingScript = document.getElementById(TURNSTILE_SCRIPT_ID);
-    if (existingScript) {
-      if (window.turnstile) {
-        renderWidget();
-      } else {
+    if (window.turnstile) {
+      renderWidget();
+    } else if (existingScript) {
         existingScript.addEventListener('load', renderWidget, { once: true });
-      }
+        existingScript.addEventListener('error', () => {
+          if (!cancelled) {
+            setStatusError("Le chargement de la protection anti-bot a échoué.");
+            onVerify?.('', 'load');
+          }
+        }, { once: true });
     } else {
       const script = document.createElement('script');
       script.id = TURNSTILE_SCRIPT_ID;
@@ -46,6 +51,12 @@ export default function TurnstileCaptcha({ siteKey = import.meta.env.VITE_TURNST
       script.async = true;
       script.defer = true;
       script.addEventListener('load', renderWidget, { once: true });
+      script.addEventListener('error', () => {
+        if (!cancelled) {
+          setStatusError("Le chargement de la protection anti-bot a échoué.");
+          onVerify?.('', 'load');
+        }
+      }, { once: true });
       document.head.appendChild(script);
     }
 
@@ -64,6 +75,7 @@ export default function TurnstileCaptcha({ siteKey = import.meta.env.VITE_TURNST
   return (
     <div className="fiip-turnstile-box">
       <div ref={containerRef} />
+      {statusError && <p role="alert">{statusError}</p>}
     </div>
   );
 }

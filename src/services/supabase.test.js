@@ -8,6 +8,8 @@ const { mockSupabaseClient } = vi.hoisted(() => {
                 getUser: vi.fn(),
                 resetPasswordForEmail: vi.fn(),
                 signInWithOAuth: vi.fn(),
+                exchangeCodeForSession: vi.fn(),
+                setSession: vi.fn(),
                 signInWithPasskey: vi.fn(),
                 signInWithPassword: vi.fn(),
                 verifyOtp: vi.fn(),
@@ -181,6 +183,79 @@ describe('Supabase authService', () => {
             },
         });
         delete window.__TAURI_INTERNALS__;
+    });
+
+    it('rejects OAuth providers other than Google', async () => {
+        const result = await authService.signInWithOAuth('github');
+        expect(result.error?.code).toBe('OAUTH_PROVIDER_NOT_ALLOWED');
+        expect(supabase.auth.signInWithOAuth).not.toHaveBeenCalled();
+    });
+
+    it('strictly accepts the Fiip login callback and exchanges its code once', async () => {
+        supabase.auth.exchangeCodeForSession.mockResolvedValueOnce({ data: { session: { user: { id: 'u1' } } }, error: null });
+        const url = 'fiip://login-callback?code=one-time-code';
+        const first = await authService.completeOAuthCallback(url);
+        const second = await authService.completeOAuthCallback(url);
+        expect(first.data?.session?.user?.id).toBe('u1');
+        expect(second).toEqual({ data: null, error: null });
+        expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows an OAuth callback retry after a failed exchange', async () => {
+        const url = 'fiip://login-callback?code=retry-code';
+        supabase.auth.exchangeCodeForSession
+            .mockResolvedValueOnce({ data: null, error: { message: 'network' } })
+            .mockResolvedValueOnce({ data: { session: { user: { id: 'u2' } } }, error: null });
+        expect((await authService.completeOAuthCallback(url)).error?.message).toBe('network');
+        expect((await authService.completeOAuthCallback(url)).data?.session?.user?.id).toBe('u2');
+        expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(2);
+    });
+
+    it('requires captcha for password actions when a site key is configured', async () => {
+        const previous = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+        import.meta.env.VITE_TURNSTILE_SITE_KEY = 'configured-key';
+        expect((await authService.signIn('a@example.com', 'secret')).error?.code).toBe('CAPTCHA_REQUIRED');
+        expect((await authService.signUp('a@example.com', 'secret', 'a')).error?.code).toBe('CAPTCHA_REQUIRED');
+        expect((await authService.sendPasswordReset('a@example.com')).error?.code).toBe('CAPTCHA_REQUIRED');
+        expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
+        import.meta.env.VITE_TURNSTILE_SITE_KEY = previous;
+    });
+
+    it('rejects lookalike callback URLs and returns provider errors', async () => {
+        const invalid = await authService.completeOAuthCallback('https://evil.test/login-callback?code=stolen');
+        const oauthError = await authService.completeOAuthCallback('fiip://login-callback?error=access_denied&error_description=Refus%C3%A9');
+        expect(invalid.error?.code).toBe('OAUTH_CALLBACK_INVALID');
+        expect(oauthError.error).toMatchObject({ code: 'access_denied', message: 'Refusé' });
+        expect(supabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        'fiip://user@login-callback?code=stolen',
+        'fiip://:secret@login-callback?code=stolen',
+        'fiip://login-callback:42?code=stolen',
+    ])('rejects callback authority variants: %s', async (url) => {
+        const result = await authService.completeOAuthCallback(url);
+        expect(result.error?.code).toBe('OAUTH_CALLBACK_INVALID');
+        expect(supabase.auth.exchangeCodeForSession).not.toHaveBeenCalled();
+    });
+
+    it('marks only one concurrent callback delivery for application handling', async () => {
+        let resolveExchange;
+        supabase.auth.exchangeCodeForSession.mockReturnValue(new Promise(resolve => { resolveExchange = resolve; }));
+        const url = 'fiip://login-callback?code=application-once';
+        const first = authService.completeOAuthCallback(url);
+        const second = authService.completeOAuthCallback(url);
+        resolveExchange({ data: { session: { user: { id: 'owner' } } }, error: null });
+        const results = await Promise.all([first, second]);
+        expect(results.filter(result => result.handled)).toHaveLength(1);
+    });
+
+    it('accepts OAuth tokens from query or hash', async () => {
+        supabase.auth.setSession.mockResolvedValue({ data: { session: {} }, error: null });
+        await authService.completeOAuthCallback('fiip://login-callback?access_token=query-access&refresh_token=query-refresh');
+        await authService.completeOAuthCallback('fiip://login-callback#access_token=hash-access&refresh_token=hash-refresh');
+        expect(supabase.auth.setSession).toHaveBeenNthCalledWith(1, { access_token: 'query-access', refresh_token: 'query-refresh' });
+        expect(supabase.auth.setSession).toHaveBeenNthCalledWith(2, { access_token: 'hash-access', refresh_token: 'hash-refresh' });
     });
 
     it('getOAuthRedirectUrl keeps browser callbacks on the current origin', () => {

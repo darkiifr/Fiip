@@ -138,6 +138,14 @@ export async function signInWithPassword(email, password, captchaToken) {
   });
 }
 
+export async function signInWithGoogle() {
+  if (!supabase) throw new Error('Compte Fiip non configuré.');
+  return supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: getAccountRedirectUrl() },
+  });
+}
+
 export function canUsePasskeys() {
   return typeof window !== 'undefined' && typeof window.PublicKeyCredential !== 'undefined';
 }
