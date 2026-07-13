@@ -1,14 +1,19 @@
-import { Icon as IconifyIcon } from '@iconify/react';
 import { getDeviceLimitState, getLicenseState, getOcrState } from '../../services/accountPresentation';
 import { FIIP_PUBLIC_SITE_URL } from '../../config/links';
+import IconBankCard from '~icons/mingcute/bank-card-fill';
+import IconDevices from '~icons/mingcute/device-fill';
+import IconGroup from '~icons/mingcute/group-3-fill';
+import IconRobot from '~icons/mingcute/robot-fill';
+import IconShield from '~icons/mingcute/shield-fill';
+import IconUser from '~icons/mingcute/user-3-fill';
 
 const tabs = [
-  ['account', '/account', 'mingcute:user-3-fill', 'Compte'],
-  ['subscription', '/account/subscription', 'mingcute:bank-card-fill', 'Abonnement'],
-  ['devices', '/account/devices', 'mingcute:devices-fill', 'Appareils'],
-  ['ai-usage', '/account/ai-usage', 'mingcute:robot-fill', 'Usage IA'],
-  ['family', '/account/family', 'mingcute:group-3-fill', 'Famille'],
-  ['security', '/account/security', 'mingcute:shield-fill', 'Sécurité'],
+  ['account', '/account', IconUser, 'Compte'],
+  ['subscription', '/account/subscription', IconBankCard, 'Abonnement'],
+  ['devices', '/account/devices', IconDevices, 'Appareils'],
+  ['ai-usage', '/account/ai-usage', IconRobot, 'Usage IA'],
+  ['family', '/account/family', IconGroup, 'Famille'],
+  ['security', '/account/security', IconShield, 'Sécurité'],
 ];
 
 export default function AccountLayout({ active, account, user, onNavigate, onSignOut, children }) {
@@ -21,14 +26,14 @@ export default function AccountLayout({ active, account, user, onNavigate, onSig
       <aside className="account-sidebar">
         <a href={FIIP_PUBLIC_SITE_URL} className="brand-mark account-brand">Fiip</a>
         <nav>
-          {tabs.map(([id, href, icon, label]) => (
+          {tabs.map(([id, href, Icon, label]) => (
             <a
               key={id}
               href={href}
               className={active === id ? 'active' : ''}
               onClick={(event) => onNavigate(event, href)}
             >
-              <IconifyIcon icon={icon} />
+              <Icon />
               {label}
             </a>
           ))}

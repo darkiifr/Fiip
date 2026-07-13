@@ -494,6 +494,36 @@ describe('Supabase dataService', () => {
         fetchSpy.mockRestore();
     });
 
+    it('listDevices enriches connected device rows for settings display', async () => {
+        localStorage.getItem.mockImplementation((key) => key === 'fiip-device-id' ? 'current-device' : null);
+        const order = vi.fn().mockResolvedValue({
+            data: [{
+                id: 'current-device',
+                name: 'Fiip Web - Windows',
+                platform: 'Win32',
+                user_agent: 'Mozilla/5.0 Chrome/120.0.0.0',
+                ip_address: '203.0.113.10',
+                last_seen_at: '2026-07-13T10:00:00.000Z',
+            }],
+            error: null,
+        });
+        const is = vi.fn().mockReturnValue({ order });
+        const eq = vi.fn().mockReturnValue({ is });
+        const select = vi.fn().mockReturnValue({ eq });
+        supabase.from.mockReturnValueOnce({ select });
+
+        const result = await dataService.listDevices();
+
+        expect(result.data[0]).toMatchObject({
+            id: 'current-device',
+            is_current: true,
+            surface: 'Web',
+            browser: 'Chrome',
+            platform_label: 'Win32',
+            ip_address: '203.0.113.10',
+        });
+    });
+
     it('fetchProfile should fetch from profiles table', async () => {
         const mockSingle = vi.fn().mockResolvedValue({ data: { id: '123', nickname: 'test' }, error: null });
         supabase.from.mockReturnValue({

@@ -74,13 +74,39 @@
 
 .fiip-turnstile-box {
   display: flex;
+  width: 100%;
   min-height: 68px;
   align-items: center;
+  flex-direction: column;
+  gap: 8px;
   justify-content: center;
+  overflow: visible;
 }
 
 .fiip-turnstile-box:empty {
   display: none;
+}
+
+.fiip-turnstile-frame {
+  width: 300px;
+  max-width: 100%;
+  min-height: 65px;
+  display: flex;
+  justify-content: center;
+}
+
+.fiip-turnstile-frame > iframe {
+  max-width: 100%;
+}
+
+.fiip-turnstile-error {
+  max-width: 300px;
+  margin: 0;
+  color: #fca5a5;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */

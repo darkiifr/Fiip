@@ -1,4 +1,3 @@
-import { Icon as IconifyIcon } from '@iconify/react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 
 import AccountLayout from './components/account/AccountLayout';
@@ -32,6 +31,14 @@ import {
   verifyMagicCode,
 } from './services/account';
 
+import IconAttachment from '~icons/mingcute/attachment-fill';
+import IconEdit from '~icons/mingcute/edit-2-fill';
+import IconFileExport from '~icons/mingcute/file-export-fill';
+import IconLink from '~icons/mingcute/link-fill';
+import IconShield from '~icons/mingcute/shield-fill';
+import IconShoppingBag from '~icons/mingcute/shopping-bag-3-fill';
+import IconUser from '~icons/mingcute/user-3-fill';
+
 const TURNSTILE_SITE_KEY = getCaptchaSiteKey();
 
 const AccountAiUsage = lazy(() => import('./components/account/AccountAiUsage'));
@@ -51,6 +58,7 @@ function getAccountSection(path) {
 
 function TurnstileCaptcha({ onVerify, resetKey }) {
   const containerRef = useRef(null);
+  const [statusError, setStatusError] = useState('');
 
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY) {
@@ -65,19 +73,36 @@ function TurnstileCaptcha({ onVerify, resetKey }) {
     const renderWidget = () => {
       if (cancelled || !containerRef.current || !window.turnstile) return;
       containerRef.current.innerHTML = '';
+      setStatusError('');
       widgetId = window.turnstile.render(containerRef.current, {
         sitekey: TURNSTILE_SITE_KEY,
         theme: 'dark',
-        callback: (token) => onVerify(token),
-        'expired-callback': () => onVerify(''),
-        'error-callback': () => onVerify(''),
+        callback: (token) => {
+          setStatusError('');
+          onVerify(token, null);
+        },
+        'expired-callback': () => {
+          setStatusError('Le défi anti-bot a expiré. Revalidez-le avant de continuer.');
+          onVerify('', 'expired');
+        },
+        'error-callback': () => {
+          setStatusError('Le défi anti-bot a rencontré une erreur. Réessayez ou vérifiez que ce domaine est autorisé dans Cloudflare Turnstile.');
+          onVerify('', 'error');
+        },
       });
+    };
+
+    const handleScriptError = () => {
+      if (cancelled) return;
+      setStatusError("Le chargement de la protection anti-bot a échoué. Réessayez dans quelques instants.");
+      onVerify('', 'load');
     };
 
     const existing = document.getElementById(scriptId);
     if (existing) {
       if (window.turnstile) renderWidget();
       else existing.addEventListener('load', renderWidget, { once: true });
+      existing.addEventListener('error', handleScriptError, { once: true });
     } else {
       const script = document.createElement('script');
       script.id = scriptId;
@@ -85,6 +110,7 @@ function TurnstileCaptcha({ onVerify, resetKey }) {
       script.async = true;
       script.defer = true;
       script.addEventListener('load', renderWidget, { once: true });
+      script.addEventListener('error', handleScriptError, { once: true });
       document.head.appendChild(script);
     }
 
@@ -102,7 +128,8 @@ function TurnstileCaptcha({ onVerify, resetKey }) {
 
   return (
     <div className="captcha-box">
-      <div ref={(node) => { containerRef.current = node; }} />
+      <div className="captcha-frame" ref={(node) => { containerRef.current = node; }} />
+      {statusError ? <p className="captcha-error" role="alert">{statusError}</p> : null}
     </div>
   );
 }
@@ -199,8 +226,14 @@ function AccountPortal({ path }) {
 
   const reloadSecurity = async () => {
     setSections((current) => ({ ...current, security: { status: 'loading' } }));
-    const data = await fetchSecurityEvents();
-    setSections((current) => ({ ...current, security: { status: 'ready', data } }));
+    try {
+      const data = await fetchSecurityEvents();
+      setSections((current) => ({ ...current, security: { status: 'ready', data } }));
+      return data;
+    } catch (error) {
+      setSections((current) => ({ ...current, security: { status: 'error', error: error.message } }));
+      throw error;
+    }
   };
 
   const handleRevokeDevice = async (deviceId) => {
@@ -479,6 +512,12 @@ function PricingPage() {
 }
 
 function SharePage() {
+  const featureItems = [
+    { Icon: IconShield, title: 'Lecture contrôlée', text: 'Seules les notes que vous choisissez de publier deviennent visibles.' },
+    { Icon: IconFileExport, title: 'Exports utiles', text: 'Le lecteur peut garder une copie dans les formats courants.' },
+    { Icon: IconAttachment, title: 'Médias lisibles', text: 'Images, audios et fichiers restent présentés dans une interface calme.' },
+  ];
+
   return (
     <main className="public-shell">
       <nav className="site-nav">
@@ -499,13 +538,9 @@ function SharePage() {
       </section>
 
       <section className="feature-band spacious-band">
-        {[
-          ['mingcute:shield-fill', 'Lecture contrôlée', 'Seules les notes que vous choisissez de publier deviennent visibles.'],
-          ['mingcute:file-export-fill', 'Exports utiles', 'Le lecteur peut garder une copie dans les formats courants.'],
-          ['mingcute:attachment-fill', 'Médias lisibles', 'Images, audios et fichiers restent présentés dans une interface calme.'],
-        ].map(([icon, title, text]) => (
+        {featureItems.map(({ Icon, title, text }) => (
           <article key={title} className="feature-card public-panel">
-            <IconifyIcon icon={icon} />
+            <Icon />
             <h3>{title}</h3>
             <p>{text}</p>
           </article>
@@ -514,17 +549,17 @@ function SharePage() {
 
       <section className="flow-band public-panel spacious-band">
         <div>
-          <IconifyIcon icon="mingcute:edit-2-fill" />
+          <IconEdit />
           <h3>Écrire</h3>
           <p>Créer une note riche dans Fiip avec tâches, tags et pièces jointes.</p>
         </div>
         <div>
-          <IconifyIcon icon="mingcute:link-fill" />
+          <IconLink />
           <h3>Partager</h3>
           <p>Publier seulement ce qui est public, avec un lien propre et lisible.</p>
         </div>
         <div>
-          <IconifyIcon icon="mingcute:file-export-fill" />
+          <IconFileExport />
           <h3>Exporter</h3>
           <p>Laisser le lecteur garder une copie portable.</p>
         </div>
@@ -612,15 +647,15 @@ function App() {
           </p>
           <div className="hero-actions">
             <a href="/pricing" className="download-link">
-              <IconifyIcon icon="mingcute:shopping-bag-3-fill" />
+              <IconShoppingBag />
               Voir les licences
             </a>
             <a href={FIIP_ACCOUNT_PORTAL_URL} className="download-link">
-              <IconifyIcon icon="mingcute:user-3-fill" />
+              <IconUser />
               Mon compte
             </a>
             <a href="/share" className="secondary-link">
-              <IconifyIcon icon="mingcute:link-fill" />
+              <IconLink />
               Partage public
             </a>
           </div>

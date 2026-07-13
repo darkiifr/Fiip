@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { sanitizeClipperPayload } from '../src/services/fiipV1.js';
-import { buildDeepLinkUrl, buildSupabaseNotePayload, saveClip, sendToSupabase } from './background-helpers.js';
+import { buildDeepLinkUrl, buildSupabaseNotePayload, saveClip, sendToDeepLink, sendToSupabase } from './background-helpers.js';
 
 const clip = {
   title: 'Article',
@@ -18,6 +18,17 @@ describe('Fiip extension background helpers', () => {
     expect(parsed.protocol).toBe('fiip:');
     expect(parsed.hostname).toBe('clip');
     expect(JSON.parse(decodeURIComponent(parsed.searchParams.get('payload')))).toEqual(clip);
+  });
+
+  it('opens the fiip protocol in an active tab so Chrome can hand off to the app', async () => {
+    const openTab = vi.fn().mockResolvedValue({});
+
+    await sendToDeepLink(clip, { openTab });
+
+    expect(openTab).toHaveBeenCalledWith({
+      url: buildDeepLinkUrl(clip),
+      active: true,
+    });
   });
 
   it('creates a deep link payload accepted by the Fiip app clipper importer', () => {
@@ -40,6 +51,18 @@ describe('Fiip extension background helpers', () => {
     });
     expect(imported.html).toContain('<article>');
     expect(imported.images).toEqual(['https://example.com/a.png', 'https://example.com/b.png']);
+  });
+
+  it('keeps percent signs in deep link payloads parseable by URLSearchParams', () => {
+    const url = buildDeepLinkUrl({
+      ...clip,
+      html: '<p>Offre 50% valide</p>',
+    });
+    const parsed = new URL(url);
+    const payload = JSON.parse(parsed.searchParams.get('payload'));
+
+    expect(payload.html).toBe('<p>Offre 50% valide</p>');
+    expect(sanitizeClipperPayload(payload).html).toContain('50% valide');
   });
 
   it('builds the Supabase insert payload with source link, tags and image attachments', () => {

@@ -29,6 +29,7 @@ import {
   getBiometricPlatformInfo,
   getBiometricUserMessage,
 } from './services/biometricLock';
+import { getAttachmentCacheSize } from './services/attachmentCache';
 import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } from "./services/fileManager";
 import { keyAuthService } from "./services/keyauth";
 import { queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
@@ -41,6 +42,16 @@ import { normalizeNoteTags } from './utils/noteTags';
 import "./App.css";
 
 const getCurrentTimestamp = () => new Date().getTime();
+
+function parseClipperPayloadParam(rawPayload) {
+    if (!rawPayload) return null;
+
+    try {
+        return JSON.parse(rawPayload);
+    } catch {
+        return JSON.parse(decodeURIComponent(rawPayload));
+    }
+}
 
 async function fitMainWindowToVisibleArea() {
   if (!window.__TAURI_INTERNALS__) return;
@@ -183,7 +194,8 @@ function App() {
   const waitingForNetworkRef = useRef(false);
 
   // --- Computed State ---
-  const planLevel = keyAuthService.hasProAccess() ? 10 : 0;
+  const isLocalFiipMode = localStorage.getItem('fiip-mode-local') === 'true';
+  const planLevel = keyAuthService.hasProAccess() || import.meta.env.DEV || isLocalFiipMode ? 10 : 0;
   const storageUsage = useMemo(() => {
     const limit = getStorageLimit(planLevel);
     const used = localStorageUsage;
@@ -202,7 +214,11 @@ function App() {
         const cloudUsage = await dataService.getUsage(currentUser.id);
         return cloudUsage;
       }
-      return calculateTotalUsage(notes);
+      const [noteUsage, attachmentCacheUsage] = await Promise.all([
+        calculateTotalUsage(notes),
+        getAttachmentCacheSize(),
+      ]);
+      return noteUsage + attachmentCacheUsage;
     };
 
     calculateUsage().then((used) => {
@@ -412,9 +428,12 @@ function App() {
         
         const setupDeepLink = async () => {
           try {
+            const handledStartupUrls = new Set();
             const handleUrls = async (urls) => {
               console.log('URLs deep link received:', urls);
               for (const url of urls) {
+                if (!url || handledStartupUrls.has(url)) continue;
+                handledStartupUrls.add(url);
                 try {
                     const parsedUrl = new URL(url);
                     if (parsedUrl.protocol === 'fiip:' && parsedUrl.host === 'login-callback' && (!parsedUrl.pathname || parsedUrl.pathname === '/')) {
@@ -448,7 +467,7 @@ function App() {
                     if (parsedUrl.host === 'clip' || parsedUrl.pathname.includes('/clip')) {
                         const rawPayload = parsedUrl.searchParams.get('payload');
                         if (rawPayload) {
-                            const payload = JSON.parse(decodeURIComponent(rawPayload));
+                            const payload = parseClipperPayloadParam(rawPayload);
                             const { data, error } = await dataService.createNoteFromClipper(payload);
                             if (error) {
                                 await message(`Capture impossible : ${error.message || error}`, { title: 'Fiip', kind: 'error' }).catch(console.error);
@@ -465,10 +484,13 @@ function App() {
               }
             };
             const unlistenOpen = await onOpenUrl(handleUrls);
-            const unlistenSecondInstance = await listen('fiip://oauth-callback', (event) => handleUrls([event.payload]));
+            const unlistenDeepLink = await listen('fiip://deep-link', (event) => handleUrls([event.payload]));
+            const unlistenOAuthFallback = await listen('fiip://oauth-callback', (event) => handleUrls([event.payload]));
             const startupUrls = await getCurrent();
             if (startupUrls?.length) await handleUrls(startupUrls);
-            return () => { unlistenOpen(); unlistenSecondInstance(); };
+            const launchDeepLink = await invoke('read_launch_deep_link').catch(() => null);
+            if (launchDeepLink) await handleUrls([launchDeepLink]);
+            return () => { unlistenOpen(); unlistenDeepLink(); unlistenOAuthFallback(); };
           } catch (e) {
             console.error("Deep link setup failed", e);
           }

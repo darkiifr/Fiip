@@ -295,7 +295,13 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             const { data, error } = await authService.signInWithOAuth('google');
             if (error) {throw error;}
             if (!data?.url) {throw new Error("Le compte Fiip n'a pas renvoyé d'URL de connexion Google.");}
-            await open(data.url);
+            try {
+                await open(data.url);
+            } catch (shellError) {
+                console.warn('Tauri shell open failed, falling back to browser navigation.', shellError);
+                window.location.assign(data.url);
+            }
+            setSuccess('Connexion Google ouverte. Terminez la validation dans votre navigateur puis acceptez le retour vers Fiip.');
         } catch (err) {
             console.error('Google OAuth error:', err);
             setError(getOAuthErrorMessage(err));
@@ -315,8 +321,13 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             const { data, error } = await authService.linkGoogleIdentity();
             if (error) {throw error;}
             if (!data?.url) {throw new Error("Le compte Fiip n'a pas renvoyé d'URL de liaison Google.");}
-            await open(data.url);
-            setSuccess('Connexion Google ouverte. Terminez la liaison dans votre navigateur.');
+            try {
+                await open(data.url);
+            } catch (shellError) {
+                console.warn('Tauri shell open failed, falling back to browser navigation.', shellError);
+                window.location.assign(data.url);
+            }
+            setSuccess('Connexion Google ouverte. Terminez la liaison dans votre navigateur puis acceptez le retour vers Fiip.');
         } catch (err) {
             console.error('Google identity link error:', err);
             setError(getOAuthErrorMessage(err));

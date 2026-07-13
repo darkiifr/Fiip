@@ -164,22 +164,42 @@ export default function DocumentScanner({ onSave, onClose }) {
     const [showSettings, setShowSettings] = useState(false);
     const [zoomRange, setZoomRange] = useState(null);
     const [zoom, setZoom] = useState(1);
+    const [isCameraReady, setIsCameraReady] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
 
         const start = async () => {
             try {
+                setError('');
+                setIsCameraReady(false);
                 streamRef.current?.getTracks().forEach((track) => track.stop());
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' }),
-                        width: { ideal: 1280 },
-                        height: { ideal: 960 },
-                        frameRate: { ideal: 24, max: 30 },
-                    },
-                    audio: false,
-                });
+                const videoConstraints = {
+                    ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' }),
+                    width: { ideal: 1280 },
+                    height: { ideal: 960 },
+                    frameRate: { ideal: 24, max: 30 },
+                };
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: videoConstraints,
+                        audio: false,
+                    });
+                } catch (primaryError) {
+                    if (deviceId) {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: { deviceId: { ideal: deviceId }, width: { ideal: 1280 }, height: { ideal: 960 } },
+                            audio: false,
+                        });
+                    } else {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: { width: { ideal: 1280 }, height: { ideal: 960 } },
+                            audio: false,
+                        });
+                    }
+                    console.warn('Camera preferred constraints failed, using fallback:', primaryError);
+                }
                 if (cancelled) {
                     stream.getTracks().forEach((track) => track.stop());
                     return;
@@ -197,15 +217,26 @@ export default function DocumentScanner({ onSave, onClose }) {
                 }
                 if (videoRef.current) {
                     videoRef.current.srcObject = stream;
+                    videoRef.current.onloadedmetadata = () => {
+                        if (!cancelled) {
+                            setIsCameraReady(true);
+                        }
+                    };
+                    videoRef.current.oncanplay = () => {
+                        if (!cancelled) {
+                            setIsCameraReady(true);
+                        }
+                    };
                     await videoRef.current.play();
                 }
                 const listedDevices = await navigator.mediaDevices.enumerateDevices();
                 if (!cancelled) {
                     const videoDevices = listedDevices.filter((device) => device.kind === 'videoinput');
                     setDevices(videoDevices);
-                    if (!deviceId && videoDevices[0]?.deviceId) setDeviceId(videoDevices[0].deviceId);
                 }
-            } catch {
+            } catch (cameraError) {
+                console.warn('Camera startup failed:', cameraError);
+                setIsCameraReady(false);
                 setError("Aucune webcam disponible ou permission refusée.");
             }
         };
@@ -245,7 +276,10 @@ export default function DocumentScanner({ onSave, onClose }) {
 
     const capture = async () => {
         const video = videoRef.current;
-        if (!video?.videoWidth || !video?.videoHeight) return;
+        if (!video?.videoWidth || !video?.videoHeight) {
+            setError("La webcam n'a pas encore fourni d'image. Réessayez dans une seconde.");
+            return;
+        }
 
         setIsCapturing(true);
         try {
@@ -462,7 +496,7 @@ export default function DocumentScanner({ onSave, onClose }) {
                                 />
                             )}
                             <div className="absolute left-4 top-4 rounded-full border border-white/12 bg-black/48 px-3 py-1.5 text-xs font-semibold text-white/78 backdrop-blur-xl">
-                                {hasDetection ? 'Document détecté' : 'En attente du document'}
+                                {isCameraReady ? (hasDetection ? 'Document détecté' : 'En attente du document') : 'Activation webcam...'}
                             </div>
                         </>
                     )}
@@ -476,7 +510,7 @@ export default function DocumentScanner({ onSave, onClose }) {
                             {capturedUrl ? <RotateCcw size={14} /> : null}
                             {capturedUrl ? 'Reprendre' : 'Annuler'}
                         </button>
-                        <button type="button" onClick={capturedUrl ? saveCrop : capture} disabled={Boolean(error) || isCapturing} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-xs font-semibold text-zinc-950 disabled:opacity-45">
+                        <button type="button" onClick={capturedUrl ? saveCrop : capture} disabled={Boolean(error) || isCapturing || (!capturedUrl && !isCameraReady)} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2 text-xs font-semibold text-zinc-950 disabled:opacity-45">
                             {isCapturing ? <RefreshCw size={14} className="animate-spin" /> : capturedUrl ? <Check size={14} /> : <Camera size={14} />}
                             {capturedUrl ? 'Valider le scan' : 'Prendre la photo'}
                         </button>

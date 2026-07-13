@@ -21,7 +21,7 @@ const OAUTH_BROWSER_CALLBACK_PATH = '/auth/callback';
 const FIIP_DEVICE_ID_KEY = 'fiip-device-id';
 const PLACEHOLDER_SUPABASE_URL = 'https://placeholder.supabase.co';
 const PLACEHOLDER_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx';
-const SUPABASE_CONFIG_ERROR = "Configuration Supabase manquante. Ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY avant d'utiliser la connexion Google.";
+const SUPABASE_CONFIG_ERROR = "Configuration Supabase manquante. Ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY avant d'utiliser la connexion au compte Fiip.";
 const oauthCallbacksInFlight = new Map();
 const successfulOAuthCallbacks = new Set();
 
@@ -100,6 +100,50 @@ function getCurrentDeviceName() {
   const platform = navigator.userAgentData?.platform || navigator.platform || 'Unknown OS';
   const appSurface = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ ? 'Fiip Desktop' : 'Fiip Web';
   return `${appSurface} - ${platform}`;
+}
+
+function getBrowserName(userAgent = navigator.userAgent || '') {
+  const value = String(userAgent || '');
+  if (/Edg\//.test(value)) {
+    return 'Microsoft Edge';
+  }
+  if (/OPR\//.test(value)) {
+    return 'Opera';
+  }
+  if (/Firefox\//.test(value)) {
+    return 'Firefox';
+  }
+  if (/Chrome\//.test(value)) {
+    return 'Chrome';
+  }
+  if (/Safari\//.test(value)) {
+    return 'Safari';
+  }
+  return 'Navigateur inconnu';
+}
+
+function serializeUserDevice(device) {
+  const currentDeviceId = getCurrentDeviceId();
+  const currentDeviceName = getCurrentDeviceName();
+  const currentPlatform = navigator.userAgentData?.platform || navigator.platform || '';
+  const currentUserAgent = navigator.userAgent || '';
+  const platform = device.platform || 'unknown';
+  const userAgent = device.user_agent || '';
+  const surface = /Fiip Desktop/i.test(device.name || '') ? 'Desktop' : 'Web';
+  const matchesCurrentSignature = (
+      device.name === currentDeviceName &&
+      platform === currentPlatform &&
+      userAgent === currentUserAgent
+  );
+
+  return {
+      ...device,
+      is_current: device.id === currentDeviceId || matchesCurrentSignature,
+      surface,
+      browser: getBrowserName(userAgent),
+      platform_label: platform,
+      last_seen_label: device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : '',
+  };
 }
 
 function readLocalSettings() {
@@ -1022,7 +1066,7 @@ export const dataService = {
           .is('revoked_at', null)
           .order('last_seen_at', { ascending: false });
 
-      return { data: data || [], error };
+      return { data: (data || []).map(serializeUserDevice), error };
   },
 
   async revokeDevice(deviceId) {

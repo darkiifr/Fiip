@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Icon as IconifyIcon } from '@iconify/react';
 
 import { BILLING_TIERS, getCheckoutUrl } from '../../config/billing';
 import { openCheckout } from '../../services/sellauth';
+import IconCheckCircle from '~icons/mingcute/check-circle-fill';
+import IconShoppingBag from '~icons/mingcute/shopping-bag-3-fill';
 
 export default function PricingCheckout({ user }) {
   const [interval, setInterval] = useState('monthly');
@@ -56,13 +57,13 @@ export default function PricingCheckout({ user }) {
             <ul className="pricing-features">
               {tier.features.map((feature) => (
                 <li key={feature}>
-                  <IconifyIcon icon="mingcute:check-circle-fill" />
+                  <IconCheckCircle />
                   {feature}
                 </li>
               ))}
             </ul>
             <button className="account-primary" onClick={() => handleCheckout(tier)}>
-              <IconifyIcon icon="mingcute:shopping-bag-3-fill" />
+              <IconShoppingBag />
               Acheter {tier.name}
             </button>
           </article>

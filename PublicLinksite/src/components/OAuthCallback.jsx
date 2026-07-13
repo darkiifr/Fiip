@@ -1,7 +1,7 @@
-import { Icon as IconifyIcon } from '@iconify/react';
 import { useEffect, useRef } from 'react';
 
 import { buildDesktopOAuthCallbackUrl, getOAuthCallbackError } from '../services/oauthCallback';
+import IconLoading from '~icons/mingcute/loading-fill';
 
 export default function OAuthCallback({
   location = window.location,
@@ -35,11 +35,12 @@ export default function OAuthCallback({
   return (
     <main className="public-shell public-center">
       <section className="public-panel auth-panel">
-        {!oauthError ? <IconifyIcon icon="mingcute:loading-fill" className="spin-icon" /> : null}
+        {!oauthError ? <IconLoading className="spin-icon" /> : null}
         <h1>Connexion à Fiip</h1>
         {oauthError
           ? <p className="account-error" role="alert">{oauthError}</p>
-          : <p>Redirection sécurisée vers l’application.</p>}
+          : <p>Votre compte Google est validé. Fiip va s’ouvrir pour terminer la connexion dans l’application.</p>}
+        {!oauthError ? <p className="account-message">Si rien ne se passe, utilisez le bouton ci-dessous et acceptez l’ouverture de Fiip dans le navigateur.</p> : null}
         <button className="download-link" type="button" onClick={handleManualFallback}>
           Ouvrir Fiip
         </button>

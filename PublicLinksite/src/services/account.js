@@ -210,7 +210,20 @@ export async function selectLicense(licenseId) {
 }
 
 export async function fetchSecurityEvents() {
-  return invokeAccountAction({ action: 'list_security_events' }, 'Impossible de charger la sécurité.');
+  try {
+    return await invokeAccountAction({ action: 'list_security_events' }, 'Impossible de charger la sécurité.');
+  } catch (functionError) {
+    if (!supabase?.from) throw functionError;
+
+    const { data, error } = await supabase
+      .from('account_security_events')
+      .select('id, device_id, event_type, metadata, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw functionError;
+    return { events: data || [] };
+  }
 }
 
 export async function revokeDevice(deviceId, reason = 'manual') {

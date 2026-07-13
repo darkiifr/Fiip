@@ -917,6 +917,20 @@ button {
   margin-top: auto;
   justify-content: center;
   min-height: 42px;
+  border-color: rgba(143, 215, 255, 0.38);
+  background: linear-gradient(180deg, #9fe8e1, #69d7cf);
+  color: #061211;
+  box-shadow: 0 12px 34px -22px rgba(105, 215, 207, 0.85);
+}
+
+.pricing-card .account-primary:hover {
+  border-color: rgba(159, 232, 225, 0.72);
+  background: linear-gradient(180deg, #b9fff7, #7de5dd);
+  color: #061211;
+}
+
+.pricing-card .account-primary svg {
+  color: currentColor;
 }
 
 .status-pill {
@@ -1041,9 +1055,36 @@ button {
 
 .captcha-box {
   display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   justify-content: center;
   min-height: 65px;
   padding: 4px 0;
+  overflow: visible;
+}
+
+.captcha-frame {
+  width: 300px;
+  max-width: 100%;
+  min-height: 65px;
+  display: flex;
+  justify-content: center;
+}
+
+.captcha-frame > iframe {
+  max-width: 100%;
+}
+
+.captcha-error {
+  max-width: 300px;
+  margin: 0;
+  color: #fecaca;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .family-section {
@@ -1406,6 +1447,12 @@ button {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.account-event-list em {
+  color: var(--account-muted);
+  font-size: 13px;
+  font-style: normal;
 }
 
 .account-row-actions {

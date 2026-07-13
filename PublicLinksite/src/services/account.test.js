@@ -14,6 +14,7 @@ vi.mock('./supabase.js', () => ({
     functions: {
       invoke: vi.fn(),
     },
+    from: vi.fn(),
   },
 }));
 
@@ -256,6 +257,25 @@ describe('account service device actions', () => {
   it('formats Supabase mail and captcha errors for users', () => {
     expect(getAuthErrorMessage(new Error('Error sending confirmation email'))).toContain('configuration SMTP Supabase/Resend');
     expect(getAuthErrorMessage(new Error('captcha verification failed'))).toContain('Validation anti-bot refusée');
+  });
+
+  it('falls back to direct RLS security event reads when the account function is unavailable', async () => {
+    const limit = vi.fn().mockResolvedValue({
+      data: [{ id: 'event-1', event_type: 'device_registered' }],
+      error: null,
+    });
+    const order = vi.fn(() => ({ limit }));
+    const select = vi.fn(() => ({ order }));
+    supabase.functions.invoke.mockResolvedValueOnce({ data: null, error: { message: 'Function not deployed' } });
+    supabase.from.mockReturnValueOnce({ select });
+
+    await expect(fetchSecurityEvents()).resolves.toEqual({
+      events: [{ id: 'event-1', event_type: 'device_registered' }],
+    });
+    expect(supabase.from).toHaveBeenCalledWith('account_security_events');
+    expect(select).toHaveBeenCalledWith('id, device_id, event_type, metadata, created_at');
+    expect(order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(limit).toHaveBeenCalledWith(50);
   });
 
   it('requires a CAPTCHA token when Turnstile is configured', () => {

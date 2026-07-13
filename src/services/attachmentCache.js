@@ -22,6 +22,176 @@ const PRESENTATION_EXTENSIONS = new Set(['ppt', 'pptx', 'key', 'odp']);
 const ARCHIVE_EXTENSIONS = new Set(['zip', 'rar', '7z', 'tar', 'gz', 'bz2']);
 
 export const ATTACHMENT_CACHE_DIR = 'attachments';
+const BROWSER_CACHE_DB = 'fiip-attachment-cache';
+const BROWSER_CACHE_STORE = 'attachments';
+const BROWSER_CACHE_PREFIX = 'indexeddb://attachments/';
+const MEMORY_CACHE_PREFIX = 'memory://attachments/';
+const memoryAttachmentCache = new Map();
+
+function isBrowserCachePath(path = '') {
+  return path.startsWith(BROWSER_CACHE_PREFIX) || path.startsWith(MEMORY_CACHE_PREFIX);
+}
+
+function isTauriRuntime() {
+  return typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
+}
+
+function canUseIndexedDb() {
+  return typeof indexedDB !== 'undefined';
+}
+
+function createCacheId() {
+  return globalThis.crypto?.randomUUID?.() || `attachment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function openBrowserCacheDb() {
+  if (!canUseIndexedDb()) {
+    return Promise.reject(new Error('IndexedDB indisponible pour le cache local.'));
+  }
+
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(BROWSER_CACHE_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(BROWSER_CACHE_STORE)) {
+        db.createObjectStore(BROWSER_CACHE_STORE, { keyPath: 'cachePath' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Ouverture du cache local impossible.'));
+  });
+}
+
+async function withBrowserCacheStore(mode, callback) {
+  const db = await openBrowserCacheDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = db.transaction(BROWSER_CACHE_STORE, mode);
+      const store = transaction.objectStore(BROWSER_CACHE_STORE);
+      let settled = false;
+
+      const finish = (value) => {
+        settled = true;
+        resolve(value);
+      };
+
+      Promise.resolve(callback(store, finish, reject)).catch(reject);
+      transaction.oncomplete = () => {
+        if (!settled) {
+          resolve(undefined);
+        }
+      };
+      transaction.onerror = () => reject(transaction.error || new Error('Cache local indisponible.'));
+      transaction.onabort = () => reject(transaction.error || new Error('Cache local interrompu.'));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function cacheAttachmentInBrowser(file, noteId) {
+  const safeName = normalizeAttachmentName(file.name);
+  const id = createCacheId();
+  const cachePath = `${BROWSER_CACHE_PREFIX}${noteId || 'general'}/${id}-${safeName}`;
+  const bytes = await file.arrayBuffer();
+  const meta = classifyAttachment({ name: safeName, mimeType: file.type });
+
+  await withBrowserCacheStore('readwrite', (store) => {
+    store.put({
+      cachePath,
+      id,
+      noteId: noteId || 'general',
+      name: safeName,
+      mimeType: file.type || '',
+      size: file.size || bytes.byteLength,
+      bytes,
+      createdAt: new Date().toISOString(),
+    });
+  });
+
+  return {
+    id,
+    name: safeName,
+    mimeType: file.type || '',
+    size: file.size || bytes.byteLength,
+    cachePath,
+    type: meta.kind,
+    previewable: meta.previewable,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function cacheAttachmentInMemory(file, noteId) {
+  const safeName = normalizeAttachmentName(file.name);
+  const id = createCacheId();
+  const cachePath = `${MEMORY_CACHE_PREFIX}${noteId || 'general'}/${id}-${safeName}`;
+  const bytes = await file.arrayBuffer();
+  const meta = classifyAttachment({ name: safeName, mimeType: file.type });
+
+  memoryAttachmentCache.set(cachePath, {
+    cachePath,
+    id,
+    noteId: noteId || 'general',
+    name: safeName,
+    mimeType: file.type || '',
+    size: file.size || bytes.byteLength,
+    bytes,
+    createdAt: new Date().toISOString(),
+  });
+
+  return {
+    id,
+    name: safeName,
+    mimeType: file.type || '',
+    size: file.size || bytes.byteLength,
+    cachePath,
+    type: meta.kind,
+    previewable: meta.previewable,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function readBrowserCachedAttachment(cachePath) {
+  if (cachePath?.startsWith(MEMORY_CACHE_PREFIX)) {
+    return memoryAttachmentCache.get(cachePath) || null;
+  }
+  if (!cachePath?.startsWith(BROWSER_CACHE_PREFIX)) {
+    return null;
+  }
+  return withBrowserCacheStore('readonly', (store, resolve, reject) => {
+    const request = store.get(cachePath);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error || new Error('Lecture du cache local impossible.'));
+  });
+}
+
+async function updateBrowserCachedAttachment(cachePath, updater) {
+  if (cachePath?.startsWith(MEMORY_CACHE_PREFIX)) {
+    const current = memoryAttachmentCache.get(cachePath);
+    if (!current) {
+      return false;
+    }
+    memoryAttachmentCache.set(cachePath, updater(current));
+    return true;
+  }
+  if (!cachePath?.startsWith(BROWSER_CACHE_PREFIX)) {
+    return false;
+  }
+
+  return withBrowserCacheStore('readwrite', (store, resolve, reject) => {
+    const request = store.get(cachePath);
+    request.onsuccess = () => {
+      const current = request.result;
+      if (!current) {
+        resolve(false);
+        return;
+      }
+      store.put(updater(current));
+      resolve(true);
+    };
+    request.onerror = () => reject(request.error || new Error('Mise à jour du cache local impossible.'));
+  });
+}
 
 export function normalizeAttachmentName(name = '') {
   const fallback = `fichier-${Date.now()}`;
@@ -78,31 +248,52 @@ async function ensureAttachmentDir(noteId) {
 }
 
 export async function cacheAttachment(file, noteId) {
-  const dir = await ensureAttachmentDir(noteId);
-  const safeName = normalizeAttachmentName(file.name);
-  const id = crypto.randomUUID();
-  const path = `${dir}/${id}-${safeName}`;
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  await writeFile(path, bytes, { baseDir: BaseDirectory.AppData });
+  if (!isTauriRuntime()) {
+    try {
+      return await cacheAttachmentInBrowser(file, noteId);
+    } catch (error) {
+      console.warn('IndexedDB attachment cache failed, falling back to memory cache:', error);
+      return cacheAttachmentInMemory(file, noteId);
+    }
+  }
 
-  const meta = classifyAttachment({ name: safeName, mimeType: file.type });
-  return {
-    id,
-    name: safeName,
-    mimeType: file.type || '',
-    size: file.size || bytes.byteLength,
-    cachePath: path,
-    type: meta.kind,
-    previewable: meta.previewable,
-    createdAt: new Date().toISOString(),
-  };
+  const safeName = normalizeAttachmentName(file.name);
+  try {
+    const dir = await ensureAttachmentDir(noteId);
+    const id = createCacheId();
+    const path = `${dir}/${id}-${safeName}`;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    await writeFile(path, bytes, { baseDir: BaseDirectory.AppData });
+    const meta = classifyAttachment({ name: safeName, mimeType: file.type });
+    return {
+      id,
+      name: safeName,
+      mimeType: file.type || '',
+      size: file.size || bytes.byteLength,
+      cachePath: path,
+      type: meta.kind,
+      previewable: meta.previewable,
+      createdAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.warn('Tauri attachment cache failed, falling back to browser cache:', error);
+    try {
+      return await cacheAttachmentInBrowser(file, noteId);
+    } catch (browserError) {
+      console.warn('IndexedDB attachment cache failed, falling back to memory cache:', browserError);
+      return cacheAttachmentInMemory(file, noteId);
+    }
+  }
 }
 
 export async function resolveAttachmentCachePath(attachment) {
   if (!attachment?.cachePath) {
     return getAttachmentLocalPath(attachment);
   }
-  if (typeof window === 'undefined' || !window.__TAURI_INTERNALS__) {
+  if (isBrowserCachePath(attachment.cachePath)) {
+    return attachment.cachePath;
+  }
+  if (!isTauriRuntime()) {
     return attachment.cachePath;
   }
 
@@ -116,8 +307,26 @@ export async function resolveAttachmentCachePath(attachment) {
 export async function getAttachmentPreviewUrl(attachment) {
   const localPath = getAttachmentLocalPath(attachment);
 
+  if (isBrowserCachePath(attachment?.cachePath || '')) {
+    try {
+      const cached = await readBrowserCachedAttachment(attachment.cachePath);
+      if (!cached?.bytes) {
+        return attachment.url || '';
+      }
+      updateBrowserCachedAttachment(attachment.cachePath, (current) => ({
+        ...current,
+        accessCount: Number(current.accessCount || 0) + 1,
+        lastAccessedAt: new Date().toISOString(),
+      })).catch(() => {});
+      const blob = new Blob([cached.bytes], { type: cached.mimeType || attachment.mimeType || 'application/octet-stream' });
+      return URL.createObjectURL(blob);
+    } catch {
+      return attachment.url || '';
+    }
+  }
+
   if (!attachment?.cachePath) {
-    if (localPath && typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
+    if (localPath && isTauriRuntime()) {
       try {
         const bytes = await readFile(localPath);
         const blob = new Blob([bytes], { type: attachment.mimeType || 'application/octet-stream' });
@@ -143,6 +352,19 @@ function getOcrCachePath(attachment) {
 }
 
 export async function readAttachmentOcrCache(attachment) {
+  if (isBrowserCachePath(attachment?.cachePath || '')) {
+    try {
+      const cached = await readBrowserCachedAttachment(attachment.cachePath);
+      const parsed = cached?.ocrCache;
+      if (parsed?.version !== 1 || parsed?.attachmentId !== attachment.id) {
+        return null;
+      }
+      return parsed.ocr || null;
+    } catch {
+      return null;
+    }
+  }
+
   const path = getOcrCachePath(attachment);
   if (!path) return null;
 
@@ -158,6 +380,29 @@ export async function readAttachmentOcrCache(attachment) {
 }
 
 export async function writeAttachmentOcrCache(attachment, ocr) {
+  if (isBrowserCachePath(attachment?.cachePath || '')) {
+    if (!ocr) {
+      return false;
+    }
+    try {
+      const payload = {
+        version: 1,
+        attachmentId: attachment.id,
+        sourceName: attachment.name,
+        sourceSize: attachment.size || 0,
+        cachedAt: new Date().toISOString(),
+        ocr,
+      };
+      return await updateBrowserCachedAttachment(attachment.cachePath, (current) => ({
+        ...current,
+        ocrCache: payload,
+        updatedAt: new Date().toISOString(),
+      }));
+    } catch {
+      return false;
+    }
+  }
+
   const path = getOcrCachePath(attachment);
   if (!path || !ocr) return false;
 
@@ -194,6 +439,22 @@ async function sumDir(path) {
 }
 
 export async function getAttachmentCacheSize() {
+  if (!isTauriRuntime()) {
+    try {
+      const indexedDbSize = await withBrowserCacheStore('readonly', (store, resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const total = (request.result || []).reduce((sum, item) => sum + Number(item.size || item.bytes?.byteLength || 0), 0);
+          resolve(total);
+        };
+        request.onerror = () => reject(request.error || new Error('Lecture du cache local impossible.'));
+      });
+      return indexedDbSize + Array.from(memoryAttachmentCache.values()).reduce((sum, item) => sum + Number(item.size || item.bytes?.byteLength || 0), 0);
+    } catch {
+      return Array.from(memoryAttachmentCache.values()).reduce((sum, item) => sum + Number(item.size || item.bytes?.byteLength || 0), 0);
+    }
+  }
+
   try {
     return await sumDir(ATTACHMENT_CACHE_DIR);
   } catch {
@@ -202,6 +463,19 @@ export async function getAttachmentCacheSize() {
 }
 
 export async function clearAttachmentCache() {
+  if (!isTauriRuntime()) {
+    try {
+      await withBrowserCacheStore('readwrite', (store) => {
+        store.clear();
+      });
+      memoryAttachmentCache.clear();
+      return { success: true };
+    } catch (error) {
+      memoryAttachmentCache.clear();
+      return { success: false, error: error.message };
+    }
+  }
+
   try {
     if (await exists(ATTACHMENT_CACHE_DIR, { baseDir: BaseDirectory.AppData })) {
       await remove(ATTACHMENT_CACHE_DIR, { baseDir: BaseDirectory.AppData, recursive: true });

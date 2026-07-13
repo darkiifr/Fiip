@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
-import { fetchAccountDevices, getSessionUser, registerCurrentDevice, signInWithGoogle } from './services/account';
+import { fetchAccountDevices, fetchSecurityEvents, getSessionUser, registerCurrentDevice, signInWithGoogle } from './services/account';
 
 vi.mock('./services/account', () => ({
   activateLicense: vi.fn(),
@@ -40,6 +40,7 @@ describe('AccountPortal navigation', () => {
     getSessionUser.mockResolvedValue({ id: 'user-1', email: 'vincent@fiip.app' });
     registerCurrentDevice.mockResolvedValue({ ok: true });
     fetchAccountDevices.mockResolvedValue({ devices: [], device_count: 0, device_limit: 1 });
+    fetchSecurityEvents.mockResolvedValue({ events: [] });
   });
 
   it('switches sections without a full reload and loads devices on demand', async () => {
@@ -52,6 +53,25 @@ describe('AccountPortal navigation', () => {
 
     await waitFor(() => expect(fetchAccountDevices).toHaveBeenCalledTimes(1));
     expect(window.location.pathname).toBe('/account/devices');
+  });
+
+  it('loads and renders the security history section on demand', async () => {
+    fetchSecurityEvents.mockResolvedValueOnce({
+      events: [{
+        id: 'event-1',
+        event_type: 'device_registered',
+        metadata: { device_name: 'Chrome Windows', platform: 'web', app_version: '9.0.6' },
+        created_at: '2026-07-13T14:30:00.000Z',
+      }],
+    });
+
+    render(<App />);
+
+    await screen.findAllByText('OCR limite');
+    fireEvent.click(screen.getByRole('link', { name: /Sécurité/i }));
+
+    await waitFor(() => expect(fetchSecurityEvents).toHaveBeenCalledTimes(1));
+    expect(window.location.pathname).toBe('/account/security');
   });
 });
 

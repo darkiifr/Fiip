@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -8,6 +8,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceDir = join(root, 'BrowserExtension');
 const outputDir = join(root, 'dist', 'extensions');
 const workDir = join(outputDir, 'work');
+const CHROME_EXTENSION_VERSION_PATTERN = /^\d+(\.\d+){0,3}$/;
 
 function resetDir(path) {
   rmSync(path, { recursive: true, force: true });
@@ -24,6 +25,34 @@ function copyPayload(targetDir) {
     recursive: true,
     filter: shouldIncludeBrowserExtensionFile,
   });
+}
+
+export function normalizeBrowserExtensionVersion(value) {
+  const raw = String(value || '').trim().replace(/^v\.?/, '');
+  if (!CHROME_EXTENSION_VERSION_PATTERN.test(raw)) {
+    throw new Error(`Browser extension version "${value}" must be 1 to 4 numeric dot-separated segments.`);
+  }
+  return raw;
+}
+
+function getRequestedVersion() {
+  const versionArgIndex = process.argv.findIndex((arg) => arg === '--version');
+  if (versionArgIndex >= 0) {
+    return process.argv[versionArgIndex + 1] || '';
+  }
+  const inlineArg = process.argv.find((arg) => arg.startsWith('--version='));
+  if (inlineArg) {
+    return inlineArg.slice('--version='.length);
+  }
+  return process.env.EXTENSION_VERSION || process.env.APP_VERSION || '';
+}
+
+function setManifestVersion(targetDir, version) {
+  if (!version) return;
+  const manifestPath = join(targetDir, 'manifest.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  manifest.version = normalizeBrowserExtensionVersion(version);
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 function zipDirectory(source, destination) {
@@ -58,6 +87,7 @@ export function packageBrowserExtensions() {
     const target = join(workDir, store.toLowerCase());
     resetDir(target);
     copyPayload(target);
+    setManifestVersion(target, getRequestedVersion());
     zipDirectory(target, join(outputDir, `Fiip-Web-Clipper-${store}.zip`));
   }
 

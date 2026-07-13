@@ -74,8 +74,8 @@ export default function TurnstileCaptcha({ siteKey = import.meta.env.VITE_TURNST
 
   return (
     <div className="fiip-turnstile-box">
-      <div ref={containerRef} />
-      {statusError && <p role="alert">{statusError}</p>}
+      <div className="fiip-turnstile-frame" ref={containerRef} />
+      {statusError && <p className="fiip-turnstile-error" role="alert">{statusError}</p>}
     </div>
   );
 }

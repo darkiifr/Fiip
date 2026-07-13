@@ -67,7 +67,7 @@ export function buildSupabaseNotePayload(
 }
 
 export async function sendToDeepLink(payload, { openTab }) {
-  await openTab({ url: buildDeepLinkUrl(payload), active: false });
+  await openTab({ url: buildDeepLinkUrl(payload), active: true });
   return { mode: 'deep-link' };
 }
 

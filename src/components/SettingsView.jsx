@@ -725,18 +725,32 @@ export default function SettingsView({
                                             <div className="space-y-2">
                                                 {devices.length > 0 ? devices.map((device) => (
                                                     <div key={device.id} className="flex items-center justify-between gap-3 rounded-xl border border-warm-border-light bg-white/60 p-3 dark:border-white/10 dark:bg-white/[0.045]">
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-xs font-bold">{device.name || device.platform || t('settings.unknown_device', 'Appareil inconnu')}</p>
-                                                            <p className="mt-1 truncate text-[10px] text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                                                {(device.ip_address || t('settings.unknown_ip', 'IP inconnue'))} - {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : t('settings.never', 'Never')}
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <p className="truncate text-xs font-bold">{device.name || device.platform_label || t('settings.unknown_device', 'Appareil inconnu')}</p>
+                                                                {device.is_current && (
+                                                                    <span className="rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-300">
+                                                                        {t('settings.current_device', 'Cet appareil')}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-semibold text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                                                <span className="rounded-lg border border-warm-border-light px-2 py-1 dark:border-white/10">{device.surface || 'Fiip'}</span>
+                                                                <span className="rounded-lg border border-warm-border-light px-2 py-1 dark:border-white/10">{device.browser || t('settings.unknown_browser', 'Navigateur inconnu')}</span>
+                                                                <span className="rounded-lg border border-warm-border-light px-2 py-1 dark:border-white/10">{device.platform_label || t('settings.unknown_platform', 'Plateforme inconnue')}</span>
+                                                                <span className="rounded-lg border border-warm-border-light px-2 py-1 dark:border-white/10">{device.ip_address || t('settings.unknown_ip', 'IP inconnue')}</span>
+                                                            </div>
+                                                            <p className="mt-2 truncate text-[10px] text-warm-text-muted-light dark:text-warm-text-muted-dark">
+                                                                {t('settings.last_activity', 'Derniere activite')} : {device.last_seen_label || (device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : t('settings.never', 'Never'))}
                                                             </p>
                                                         </div>
                                                         <button
                                                             type="button"
                                                             onClick={() => handleRevokeDevice(device.id)}
-                                                            className="shrink-0 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-500/15 dark:text-red-300"
+                                                            disabled={device.is_current}
+                                                            className="shrink-0 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-45 dark:text-red-300"
                                                         >
-                                                            {t('settings.disconnect', 'Deconnecter')}
+                                                            {device.is_current ? t('settings.active', 'Actif') : t('settings.disconnect', 'Deconnecter')}
                                                         </button>
                                                     </div>
                                                 )) : (

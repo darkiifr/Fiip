@@ -48,6 +48,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate CAPTCHA site key
+        run: |
+          if [ -z "$VITE_TURNSTILE_SITE_KEY" ]; then
+            echo "VITE_TURNSTILE_SITE_KEY GitHub secret is required for frontend builds." >&2
+            exit 1
+          fi
+
       - name: Audit npm dependencies
         run: npm audit --audit-level=moderate
 
@@ -83,6 +90,13 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate CAPTCHA site key
+        run: |
+          if [ -z "$VITE_TURNSTILE_SITE_KEY" ]; then
+            echo "VITE_TURNSTILE_SITE_KEY GitHub secret is required for public site builds." >&2
+            exit 1
+          fi
 
       - name: Audit public site dependencies
         run: npm audit --audit-level=moderate

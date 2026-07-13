@@ -156,6 +156,16 @@ jobs:
       - name: Install frontend dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Validate CAPTCHA site key
+        shell: bash
+        env:
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
+        run: |
+          if [ -z "$VITE_TURNSTILE_SITE_KEY" ]; then
+            echo "VITE_TURNSTILE_SITE_KEY GitHub secret is required for release builds." >&2
+            exit 1
+          fi
+
       - name: Read Changelog
         id: read_changelog
         shell: bash
@@ -264,11 +274,41 @@ jobs:
       - name: Install frontend dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Resolve browser extension version
+        id: extension_version
+        shell: bash
+        run: |
+          TAG_NAME="${{ needs.bump-version.outputs.new_tag || github.ref_name }}"
+          VERSION="${TAG_NAME#v}"
+          VERSION="${VERSION#.}"
+
+          if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
+            echo "Chrome extension version must be 1 to 4 numeric dot-separated segments: $VERSION" >&2
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Sync browser extension manifest version
+        env:
+          EXTENSION_VERSION: ${{ steps.extension_version.outputs.version }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+
+          const manifestPath = 'BrowserExtension/manifest.json';
+          const version = process.env.EXTENSION_VERSION;
+          const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+          manifest.version = version;
+          writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+          console.log(`BrowserExtension manifest version synced to ${version}`);
+          NODE
+
       - name: Test browser extensions
         run: npm run test:extensions
 
       - name: Package browser extensions
-        run: npm run package:extensions
+        run: npm run package:extensions -- --version "${{ steps.extension_version.outputs.version }}"
 
       - name: Upload Chrome Store and manual Edge extension packages
         uses: softprops/action-gh-release@v2
@@ -277,6 +317,38 @@ jobs:
           files: |
             dist/extensions/Fiip-Web-Clipper-Chrome.zip
             dist/extensions/Fiip-Web-Clipper-Edge.zip
+
+      - name: Validate Chrome Web Store credentials
+        shell: bash
+        env:
+          CHROME_WEBSTORE_EXTENSION_ID: ${{ secrets.CHROME_WEBSTORE_EXTENSION_ID }}
+          CHROME_WEBSTORE_PUBLISHER_ID: ${{ secrets.CHROME_WEBSTORE_PUBLISHER_ID }}
+          CHROME_WEBSTORE_CLIENT_ID: ${{ secrets.CHROME_WEBSTORE_CLIENT_ID }}
+          CHROME_WEBSTORE_CLIENT_SECRET: ${{ secrets.CHROME_WEBSTORE_CLIENT_SECRET }}
+          CHROME_WEBSTORE_REFRESH_TOKEN: ${{ secrets.CHROME_WEBSTORE_REFRESH_TOKEN }}
+        run: |
+          for name in \
+            CHROME_WEBSTORE_EXTENSION_ID \
+            CHROME_WEBSTORE_PUBLISHER_ID \
+            CHROME_WEBSTORE_CLIENT_ID \
+            CHROME_WEBSTORE_CLIENT_SECRET \
+            CHROME_WEBSTORE_REFRESH_TOKEN
+          do
+            if [ -z "${!name}" ]; then
+              echo "$name GitHub secret is required to publish the Chrome extension." >&2
+              exit 1
+            fi
+          done
+
+      - name: Publish Chrome Web Store extension
+        env:
+          CHROME_WEBSTORE_EXTENSION_ID: ${{ secrets.CHROME_WEBSTORE_EXTENSION_ID }}
+          CHROME_WEBSTORE_PUBLISHER_ID: ${{ secrets.CHROME_WEBSTORE_PUBLISHER_ID }}
+          CHROME_WEBSTORE_CLIENT_ID: ${{ secrets.CHROME_WEBSTORE_CLIENT_ID }}
+          CHROME_WEBSTORE_CLIENT_SECRET: ${{ secrets.CHROME_WEBSTORE_CLIENT_SECRET }}
+          CHROME_WEBSTORE_REFRESH_TOKEN: ${{ secrets.CHROME_WEBSTORE_REFRESH_TOKEN }}
+          CHROME_EXTENSION_ZIP: dist/extensions/Fiip-Web-Clipper-Chrome.zip
+        run: npm run publish:chrome-extension
 
 
   generate-updater-json:

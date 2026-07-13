@@ -38,12 +38,18 @@ Depuis la racine du repo:
 npm run package:extensions
 ```
 
+Pour forcer la version du manifeste depuis une release:
+
+```bash
+npm run package:extensions -- --version 9.0.6
+```
+
 Les artefacts sont générés dans `dist/extensions/`:
 
 - `Fiip-Web-Clipper-Chrome.zip`
 - `Fiip-Web-Clipper-Edge.zip` pour installation manuelle Edge.
 
-Le job GitHub Actions `browser-extensions` exécute `npm run test:extensions`, puis publie ces deux ZIP comme assets de release. Seul le ZIP Chrome est destiné au Chrome Web Store.
+Le job GitHub Actions `browser-extensions` exécute `npm run test:extensions`, synchronise `manifest.json` avec le tag de release, puis publie ces deux ZIP comme assets de release. Seul le ZIP Chrome est envoyé automatiquement au Chrome Web Store.
 
 ## Installation utilisateur
 
@@ -96,15 +102,27 @@ Les variables Expo/mobile ne sont pas nécessaires pour l'instant: l'application
 
 ## Publication Chrome Web Store
 
-Documentation officielle: https://developer.chrome.com/docs/webstore/publish
+Documentation officielle:
+
+- https://developer.chrome.com/docs/webstore/publish
+- https://developer.chrome.com/docs/webstore/using-api
+- https://developer.chrome.com/docs/webstore/api
+
+Le workflow de release publie automatiquement `dist/extensions/Fiip-Web-Clipper-Chrome.zip` via l'API Chrome Web Store. Pour un tag `v.9.0.6` ou `v9.0.6`, le manifeste empaqueté reçoit `version: "9.0.6"` sans modifier le fichier source `BrowserExtension/manifest.json`.
+
+Secrets GitHub requis:
+
+- `CHROME_WEBSTORE_EXTENSION_ID`
+- `CHROME_WEBSTORE_PUBLISHER_ID`
+- `CHROME_WEBSTORE_CLIENT_ID`
+- `CHROME_WEBSTORE_CLIENT_SECRET`
+- `CHROME_WEBSTORE_REFRESH_TOKEN`
+
+Préparation initiale de la fiche Store:
 
 1. Créer ou ouvrir le compte développeur Chrome Web Store.
-2. Lancer `npm run test:extensions`.
-3. Lancer `npm run package:extensions`.
-4. Aller sur https://chrome.google.com/webstore/devconsole/.
-5. Cliquer sur `Add new item`.
-6. Uploader `dist/extensions/Fiip-Web-Clipper-Chrome.zip`.
-7. Remplir la fiche:
+2. Créer l'item dans https://chrome.google.com/webstore/devconsole/.
+3. Remplir la fiche:
    - name: `Fiip Web Clipper`;
    - category: `Productivity`;
    - language principale: français ou anglais selon la fiche Store;
@@ -112,18 +130,17 @@ Documentation officielle: https://developer.chrome.com/docs/webstore/publish
    - description longue: préciser deep link local, fallback Supabase optionnel et permissions;
    - icône: `BrowserExtension/icons/icon128.png`;
    - captures d'écran: popup ouverte, capture page, note créée dans Fiip.
-8. Onglet privacy practices:
+4. Onglet privacy practices:
    - déclarer que le contenu de page peut être traité pour créer une note;
    - préciser que l'envoi cloud ne se fait que si le fallback Supabase est configuré;
    - fournir l'URL de politique de confidentialité Fiip.
    - utiliser les réponses prêtes à copier dans `docs/CHROME_WEB_STORE_FIIP_CLIPPER.md`.
-9. Justifier les permissions:
+5. Justifier les permissions:
    - `activeTab`: lire uniquement l'onglet actif au moment de la capture;
    - `scripting`: injecter à la demande les scripts de capture empaquetés;
    - `storage`: stocker la configuration fallback;
    - aucune permission hôte globale n'est demandée dans le manifeste.
-10. Soumettre en review.
-11. Après publication, copier l'URL publique dans `VITE_CHROME_EXTENSION_URL`.
+6. Après publication, copier l'URL publique dans `VITE_CHROME_EXTENSION_URL`.
 
 ## Installation manuelle sur Microsoft Edge
 

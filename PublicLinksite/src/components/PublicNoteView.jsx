@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import DOMPurify from 'dompurify';
-import { Icon as IconifyIcon } from '@iconify/react';
 import { marked } from 'marked';
 
 import { DEMO_PUBLIC_NOTE } from '../demoNote';
 import { dataService } from '../services/supabase';
+import IconAttachment from '~icons/mingcute/attachment-fill';
+import IconExternalLink from '~icons/mingcute/external-link-line';
+import IconLoading from '~icons/mingcute/loading-fill';
+import IconWarning from '~icons/mingcute/warning-fill';
 
 const renderMarkdown = (text) => {
   if (!text) {
@@ -110,7 +113,7 @@ export default function PublicNoteView() {
     return (
       <main className="note-shell public-center">
         <section className="note-loading public-panel">
-          <IconifyIcon icon="mingcute:loading-fill" className="spin-icon" />
+          <IconLoading className="spin-icon" />
           <h1>Chargement</h1>
           <p>Récupération de la note publique depuis Fiip.</p>
         </section>
@@ -122,7 +125,7 @@ export default function PublicNoteView() {
     return (
       <main className="note-shell public-center">
         <section className="note-error public-panel">
-          <IconifyIcon icon="mingcute:warning-fill" className="spin-icon" />
+          <IconWarning className="spin-icon" />
           <h1>Note indisponible</h1>
           <p>{error}</p>
           <a href="/" className="open-app-link">Retour à l’accueil</a>
@@ -142,7 +145,7 @@ export default function PublicNoteView() {
       <nav className="note-nav">
         <a href="/" className="brand-mark">Fiip</a>
         <a href={`fiip://note/${slug}`} className="open-app-link">
-          <IconifyIcon icon="mingcute:external-link-line" />
+          <IconExternalLink />
           Ouvrir dans l’app
         </a>
       </nav>
@@ -203,7 +206,7 @@ export default function PublicNoteView() {
                     download={attachment.name || 'Fichier'}
                     className="attachment-card"
                   >
-                    <IconifyIcon icon="mingcute:attachment-fill" />
+                    <IconAttachment />
                     <span>{attachment.name || 'Fichier joint'}</span>
                   </a>
                 );

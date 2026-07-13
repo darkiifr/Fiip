@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Icon as IconifyIcon } from '@iconify/react';
 
 import { acceptFamilyInvite, ensureFamilyGroup, inviteFamilyMember, removeFamilyMember } from '../../services/account';
+import IconGroup from '~icons/mingcute/group-3-fill';
+import IconMailSend from '~icons/mingcute/mail-send-fill';
 
 function formatStatus(member) {
   if (member.status === 'invited') return 'Invitation envoyée';
@@ -138,7 +139,7 @@ export default function AccountFamily({ account }) {
           <h3>Créer le foyer</h3>
           <p>Votre licence Family Pro est active. Créez le foyer pour commencer à inviter des membres.</p>
           <button className="account-primary" onClick={handleEnsureGroup} disabled={busy}>
-            <IconifyIcon icon="mingcute:group-3-fill" />
+            <IconGroup />
             Créer mon foyer
           </button>
         </div>
@@ -158,7 +159,7 @@ export default function AccountFamily({ account }) {
               required
             />
             <button className="account-primary" type="submit" disabled={busy || remainingSlots <= 0}>
-              <IconifyIcon icon="mingcute:mail-send-fill" />
+              <IconMailSend />
               Inviter
             </button>
           </div>

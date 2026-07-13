@@ -18,6 +18,7 @@
     "security-check": "npm audit --audit-level=moderate",
     "security-check:all": "npm audit --audit-level=moderate && npm --prefix PublicLinksite audit --audit-level=moderate && npm --prefix Mobile audit --audit-level=moderate",
     "package:extensions": "node scripts/package-browser-extensions.mjs",
+    "publish:chrome-extension": "node scripts/publish-chrome-extension.mjs",
     "security-fix": "npm audit fix",
     "security-fix:all": "npm audit fix && npm --prefix PublicLinksite audit fix && npm --prefix Mobile audit fix",
     "quality": "npm run lint && npm run test && npm run build && npm run security-check",

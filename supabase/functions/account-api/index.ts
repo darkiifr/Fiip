@@ -534,12 +534,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'list_security_events') {
-      const { data: events } = await supabaseAdmin
+      const { data: events, error } = await supabaseAdmin
         .from('account_security_events')
         .select('id, device_id, event_type, metadata, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50);
+      if (error) throw error;
       return jsonResponse({ events: events || [] });
     }
 

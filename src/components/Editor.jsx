@@ -636,38 +636,54 @@ export default function Editor({
         }
 
         const protectedNote = Boolean(note.is_locked || note.encrypted_content);
-        const preparedFiles = await Promise.all(incomingFiles.map(async (file) => {
-            const cached = await cacheAttachment(file, note.id);
-            const meta = classifyAttachment({ name: file.name, mimeType: file.type });
-            const canRunOcr = shouldRunAttachmentOcr({ name: cached.name, mimeType: cached.mimeType, attachmentSource, skipOcr }, { protectedNote });
-            const cachedOcr = canRunOcr ? await readAttachmentOcrCache(cached) : null;
-            const ocrFields = cachedOcr
-                ? buildOcrAttachmentFields(cachedOcr)
-                : canRunOcr
-                    ? {
-                        ocrText: '',
-                        ocrStatus: 'processing',
-                        ocrConfidence: 0,
-                        ocrKind: 'processing',
-                        ocrLabel: 'OCR en cours...',
-                        ocrWords: [],
-                    }
-                    : {};
+        const preparedFiles = (await Promise.all(incomingFiles.map(async (file) => {
+            try {
+                const cached = await cacheAttachment(file, note.id);
+                const meta = classifyAttachment({ name: file.name, mimeType: file.type });
+                const canRunOcr = shouldRunAttachmentOcr({ name: cached.name, mimeType: cached.mimeType, attachmentSource, skipOcr }, { protectedNote });
+                const cachedOcr = canRunOcr ? await readAttachmentOcrCache(cached) : null;
+                const ocrFields = cachedOcr
+                    ? buildOcrAttachmentFields(cachedOcr)
+                    : canRunOcr
+                        ? {
+                            ocrText: '',
+                            ocrStatus: 'processing',
+                            ocrConfidence: 0,
+                            ocrKind: 'processing',
+                            ocrLabel: 'OCR en cours...',
+                            ocrWords: [],
+                        }
+                        : {};
 
-            return {
-                file,
-                shouldRunOcr: canRunOcr && !cachedOcr,
-                attachment: {
-                ...cached,
-                type: meta.kind,
-                previewable: meta.previewable,
-                attachmentSource,
-                skipOcr,
-                ...ocrFields,
-                url: URL.createObjectURL(file),
-                },
-            };
-        }));
+                return {
+                    file,
+                    shouldRunOcr: canRunOcr && !cachedOcr,
+                    attachment: {
+                    ...cached,
+                    type: meta.kind,
+                    previewable: meta.previewable,
+                    attachmentSource,
+                    skipOcr,
+                    ...ocrFields,
+                    url: URL.createObjectURL(file),
+                    },
+                };
+            } catch (error) {
+                console.error('Attachment import failed:', error);
+                return null;
+            }
+        }))).filter(Boolean);
+
+        if (!preparedFiles.length) {
+            const title = 'Pièce jointe non ajoutée';
+            const body = "Fiip n'a pas pu préparer ce fichier. Vérifiez que le fichier est accessible puis réessayez.";
+            if (window.__TAURI_INTERNALS__) {
+                await message(body, { title, kind: 'error' }).catch(console.error);
+            } else {
+                window.alert(`${title}\n\n${body}`);
+            }
+            return;
+        }
 
         const newFiles = preparedFiles.map(({ attachment }) => attachment);
         const updatedAttachments = [...attachments, ...newFiles];

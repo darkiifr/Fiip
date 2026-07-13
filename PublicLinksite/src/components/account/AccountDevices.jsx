@@ -1,6 +1,8 @@
-import { Icon as IconifyIcon } from '@iconify/react';
 import { useState } from 'react';
 import { getDeviceLimitState } from '../../services/accountPresentation';
+import IconDelete from '~icons/mingcute/delete-2-fill';
+import IconDevices from '~icons/mingcute/device-fill';
+import IconRefresh from '~icons/mingcute/refresh-2-fill';
 
 function formatDate(value) {
   if (!value) return 'Jamais';
@@ -45,7 +47,7 @@ export default function AccountDevices({ account, section, onRefresh, onRevokeDe
           <h2>{deviceState.label}</h2>
         </div>
         <button className="account-icon-button" type="button" onClick={onRefresh} title="Rafraichir">
-          <IconifyIcon icon="mingcute:refresh-2-fill" />
+          <IconRefresh />
         </button>
       </div>
 
@@ -55,7 +57,7 @@ export default function AccountDevices({ account, section, onRefresh, onRevokeDe
 
       {state !== 'loading' && devices.length === 0 ? (
         <div className="account-empty">
-          <IconifyIcon icon="mingcute:devices-fill" />
+          <IconDevices />
           <p>Aucun appareil enregistre pour ce compte.</p>
         </div>
       ) : null}
@@ -93,7 +95,7 @@ export default function AccountDevices({ account, section, onRefresh, onRevokeDe
                       disabled={pendingDeviceId === device.id}
                       title="Revoquer"
                     >
-                      <IconifyIcon icon="mingcute:delete-2-fill" />
+                      <IconDelete />
                     </button>
                   ) : null}
                 </span>

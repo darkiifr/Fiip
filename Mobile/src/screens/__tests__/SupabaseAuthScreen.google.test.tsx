@@ -1,5 +1,6 @@
 import React from 'react';
-import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act } from 'react-test-renderer';
 import { SupabaseAuthScreen } from '../SupabaseAuthScreen';
 import { startGoogleOAuth } from '../../services/googleAuth';
 
@@ -14,6 +15,7 @@ jest.mock('../../hooks/useAppTheme', () => ({ useAppTheme: () => ({ colors: { pr
 jest.mock('../../components/ui/GlassModal', () => ({ GlassModal: ({ children }: any) => children }));
 jest.mock('../../components/ui/GlassInput', () => ({ GlassInput: () => null }));
 jest.mock('../../components/ui/Icon', () => ({ Icon: () => null }));
+jest.mock('../../utils/hapticEngine', () => ({ triggerHaptic: jest.fn() }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (value: string) => value }) }));
 
 it('starts Google login and closes after callback success', async () => {
@@ -22,6 +24,8 @@ it('starts Google login and closes after callback success', async () => {
   const view = render(<SupabaseAuthScreen onClose={onClose} />);
   fireEvent.press(view.getByLabelText('Continuer avec Google'));
   await waitFor(() => expect(startGoogleOAuth).toHaveBeenCalled());
-  act(() => callback.success());
+  await act(async () => {
+    callback.success();
+  });
   await waitFor(() => expect(onClose).toHaveBeenCalled());
 });
