@@ -1,6 +1,18 @@
 import { useState } from 'react';
 import PricingCheckout from './PricingCheckout';
 
+function isValidLicenseDate(value) {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getUTCFullYear() >= 2024;
+}
+
+function isLicenseActive(license) {
+  if (license?.status !== 'active') return false;
+  if (!isValidLicenseDate(license.expires_at)) return true;
+  return new Date(license.expires_at).getTime() > Date.now();
+}
+
 function formatLicenseName(license) {
   const tier = String(license?.tier || 'Licence').replace(/_/g, ' ');
   const interval = license?.billing_interval ? ` · ${license.billing_interval}` : '';
@@ -8,7 +20,7 @@ function formatLicenseName(license) {
 }
 
 function formatDate(value) {
-  return value ? new Date(value).toLocaleDateString('fr-FR') : 'Sans date';
+  return isValidLicenseDate(value) ? new Date(value).toLocaleDateString('fr-FR') : 'Sans expiration';
 }
 
 export default function AccountSubscription({ account, onActivateLicense, onSelectLicense }) {
@@ -74,7 +86,8 @@ export default function AccountSubscription({ account, onActivateLicense, onSele
         <p>La licence reçue après paiement peut être activée dans Fiip ou retrouvée depuis votre e-mail.</p>
         <div className="account-license-list" aria-label="Licences du compte">
           {licenses.length ? licenses.map((license) => {
-            const isActive = license.id === activeLicenseId;
+            const isActive = license.id === activeLicenseId && isLicenseActive(license);
+            const canSelect = !isActive && isLicenseActive(license);
             return (
               <article className="account-license-item" data-active={isActive ? 'true' : 'false'} key={license.id}>
                 <div>
@@ -87,10 +100,10 @@ export default function AccountSubscription({ account, onActivateLicense, onSele
                 <button
                   className={isActive ? 'account-secondary' : 'account-primary'}
                   type="button"
-                  disabled={isActive || selectingId === license.id}
+                  disabled={!canSelect || selectingId === license.id}
                   onClick={() => selectLicense(license.id)}
                 >
-                  {isActive ? 'Active' : selectingId === license.id ? 'Sélection...' : 'Utiliser'}
+                  {isActive ? 'Active' : selectingId === license.id ? 'Sélection...' : isLicenseActive(license) ? 'Utiliser' : 'Expirée'}
                 </button>
               </article>
             );

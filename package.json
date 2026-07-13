@@ -12,7 +12,7 @@
     "tauri": "tauri",
     "test": "vitest run --pool=forks --maxWorkers=1 --no-file-parallelism",
     "test:all": "npm run test && npm --prefix PublicLinksite test && npm --prefix Mobile test -- --runInBand",
-    "test:extensions": "vitest run BrowserExtension/content-helpers.test.js BrowserExtension/background-helpers.test.js BrowserExtension/popup-helpers.test.js BrowserExtension/manifest.test.js scripts/package-browser-extensions.test.js",
+    "test:extensions": "vitest run BrowserExtension/content-helpers.test.js BrowserExtension/background-helpers.test.js BrowserExtension/popup-helpers.test.js BrowserExtension/manifest.test.js scripts/package-browser-extensions.test.js scripts/publish-chrome-extension.test.js",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "security-check": "npm audit --audit-level=moderate",

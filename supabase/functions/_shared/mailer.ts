@@ -9,10 +9,20 @@ interface SendTemplateEmailInput {
   data?: Record<string, unknown>;
 }
 
+const LEGACY_MAIL_DOMAIN_RE = /@fiip\.app\b/i;
+
+export function resolveMailIdentity(value: string, fallback: string) {
+  const identity = String(value || '').trim();
+  if (!identity || LEGACY_MAIL_DOMAIN_RE.test(identity)) {
+    return fallback;
+  }
+  return identity;
+}
+
 export async function sendTemplateEmail({ supabaseAdmin, userId, to, template, data = {} }: SendTemplateEmailInput) {
   const apiKey = getEnv('RESEND_API_KEY');
-  const from = getEnv('MAIL_FROM');
-  const replyTo = getOptionalEnv('MAIL_REPLY_TO');
+  const from = resolveMailIdentity(getEnv('MAIL_FROM'), 'Fiip <licences@fiip.fr>');
+  const replyTo = resolveMailIdentity(getOptionalEnv('MAIL_REPLY_TO'), 'support@fiip.fr');
   const rendered = renderEmailTemplate(template, data);
 
   const { data: event } = await supabaseAdmin

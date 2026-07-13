@@ -1,11 +1,11 @@
-import { getDeviceLimitState, getLicenseState, getOcrState } from '../../services/accountPresentation';
+import { getDeviceLimitState, getDisplayLicense, getLicenseState, getOcrState } from '../../services/accountPresentation';
 import IconCalendar from '~icons/mingcute/calendar-2-fill';
 import IconCertificate from '~icons/mingcute/certificate-fill';
 import IconDevices from '~icons/mingcute/device-fill';
 import IconScan from '~icons/mingcute/scan-2-fill';
 
 export default function AccountOverview({ account }) {
-  const license = account?.license;
+  const license = getDisplayLicense(account);
   const licenseState = getLicenseState(account);
   const ocrState = getOcrState(account);
   const deviceState = getDeviceLimitState(account);

@@ -7,6 +7,7 @@ import { fetchAccountDevices, fetchSecurityEvents, getSessionUser, registerCurre
 
 vi.mock('./services/account', () => ({
   activateLicense: vi.fn(),
+  canUsePasskeys: vi.fn(() => true),
   fetchAccountDevices: vi.fn(),
   fetchAccountSummary: vi.fn().mockResolvedValue({
     user: { id: 'user-1', email: 'vincent@fiip.app' },
@@ -95,5 +96,25 @@ describe('AccountPortal Google sign-in', () => {
     rejectOAuth(new Error('Google indisponible'));
     expect(await screen.findByText('Google indisponible')).toHaveClass('account-error');
     expect(button).not.toBeDisabled();
+  });
+
+  it('keeps auth actions disabled until their required fields are present', async () => {
+    render(<App />);
+
+    expect(await screen.findByRole('button', { name: 'Se connecter' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Recevoir un magic link' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Mot de passe oublié' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Passkey déjà configurée' })).toBeEnabled();
+    expect(screen.getByText(/Les passkeys se créent après connexion/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('email@exemple.com'), { target: { value: 'vincent@fiip.fr' } });
+
+    expect(screen.getByRole('button', { name: 'Recevoir un magic link' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Mot de passe oublié' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Se connecter' })).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText('Mot de passe'), { target: { value: 'secret-password' } });
+
+    expect(screen.getByRole('button', { name: 'Se connecter' })).toBeEnabled();
   });
 });

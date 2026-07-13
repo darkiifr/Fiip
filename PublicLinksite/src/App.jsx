@@ -10,6 +10,7 @@ import { FIIP_ACCOUNT_PORTAL_URL, FIIP_DISCORD_SUPPORT_URL, FIIP_DOWNLOAD_URL, F
 import { LEGAL_NAV_ITEMS } from './config/legal';
 import {
   activateLicense,
+  canUsePasskeys,
   fetchAccountDevices,
   fetchAccountSummary,
   fetchSecurityEvents,
@@ -147,7 +148,7 @@ function AccountPortal({ path }) {
   const [loading, setLoading] = useState(true);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [authAction, setAuthAction] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -286,11 +287,13 @@ function AccountPortal({ path }) {
     event.preventDefault();
     setMessage('');
     setMessageTone('info');
+    setAuthAction('password');
     try {
       assertCaptchaToken(captchaToken, TURNSTILE_SITE_KEY);
     } catch (error) {
       setMessage(error.message);
       setMessageTone('error');
+      setAuthAction('');
       return;
     }
     try {
@@ -307,17 +310,20 @@ function AccountPortal({ path }) {
     } finally {
       setCaptchaToken('');
       setCaptchaResetKey((current) => current + 1);
+      setAuthAction('');
     }
   };
 
   const handleMagicLink = async () => {
     setMessage('');
     setMessageTone('info');
+    setAuthAction('magic');
     try {
       assertCaptchaToken(captchaToken, TURNSTILE_SITE_KEY);
     } catch (error) {
       setMessage(error.message);
       setMessageTone('error');
+      setAuthAction('');
       return;
     }
     try {
@@ -330,12 +336,14 @@ function AccountPortal({ path }) {
     } finally {
       setCaptchaToken('');
       setCaptchaResetKey((current) => current + 1);
+      setAuthAction('');
     }
   };
 
   const handleVerifyMagicCode = async () => {
     setMessage('');
     setMessageTone('info');
+    setAuthAction('otp');
     try {
       const { error } = await verifyMagicCode(email, otpCode);
       if (error) {
@@ -347,17 +355,21 @@ function AccountPortal({ path }) {
     } catch (error) {
       setMessage(getAuthErrorMessage(error));
       setMessageTone('error');
+    } finally {
+      setAuthAction('');
     }
   };
 
   const handleForgotPassword = async () => {
     setMessage('');
     setMessageTone('info');
+    setAuthAction('reset');
     try {
       assertCaptchaToken(captchaToken, TURNSTILE_SITE_KEY);
     } catch (error) {
       setMessage(error.message);
       setMessageTone('error');
+      setAuthAction('');
       return;
     }
     try {
@@ -370,12 +382,14 @@ function AccountPortal({ path }) {
     } finally {
       setCaptchaToken('');
       setCaptchaResetKey((current) => current + 1);
+      setAuthAction('');
     }
   };
 
   const handlePasskeyLogin = async () => {
     setMessage('');
     setMessageTone('info');
+    setAuthAction('passkey');
     try {
       const { error } = await signInWithPasskey();
       if (error) {
@@ -387,24 +401,26 @@ function AccountPortal({ path }) {
     } catch (error) {
       setMessage(getAuthErrorMessage(error));
       setMessageTone('error');
+    } finally {
+      setAuthAction('');
     }
   };
 
   const handleGoogleLogin = async () => {
     setMessage('');
     setMessageTone('info');
-    setGoogleLoading(true);
+    setAuthAction('google');
     try {
       const { error } = await signInWithGoogle();
       if (error) {
         setMessage(getAuthErrorMessage(error));
         setMessageTone('error');
-        setGoogleLoading(false);
+        setAuthAction('');
       }
     } catch (error) {
       setMessage(getAuthErrorMessage(error));
       setMessageTone('error');
-      setGoogleLoading(false);
+      setAuthAction('');
     }
   };
 
@@ -420,6 +436,8 @@ function AccountPortal({ path }) {
   }
 
   if (!user) {
+    const passkeysAvailable = canUsePasskeys();
+    const busy = Boolean(authAction);
     return (
       <main className="public-shell public-center">
         <form className="public-panel auth-panel" onSubmit={handlePasswordLogin}>
@@ -429,16 +447,33 @@ function AccountPortal({ path }) {
           <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" type="password" />
           <div className="otp-row">
             <input value={otpCode} onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="Code reçu par e-mail" inputMode="numeric" />
-            <button className="secondary-link" type="button" onClick={handleVerifyMagicCode}>Valider le code</button>
+            <button className="secondary-link" type="button" onClick={handleVerifyMagicCode} disabled={busy || !email || !otpCode}>
+              {authAction === 'otp' ? 'Validation...' : 'Valider le code'}
+            </button>
           </div>
           <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaResetKey} />
-          <button className="secondary-link" type="button" onClick={handleGoogleLogin} disabled={googleLoading}>
-            {googleLoading ? 'Connexion à Google...' : 'Continuer avec Google'}
+          <button className="secondary-link" type="button" onClick={handleGoogleLogin} disabled={busy}>
+            {authAction === 'google' ? 'Connexion à Google...' : 'Continuer avec Google'}
           </button>
-          <button className="download-link" type="submit">Se connecter</button>
-          <button className="secondary-link" type="button" onClick={handlePasskeyLogin}>Se connecter avec une passkey</button>
-          <button className="secondary-link" type="button" onClick={handleMagicLink}>Recevoir un magic link</button>
-          <button className="secondary-link" type="button" onClick={handleForgotPassword}>Mot de passe oublié</button>
+          <button className="download-link" type="submit" disabled={busy || !email || !password}>
+            {authAction === 'password' ? 'Connexion...' : 'Se connecter'}
+          </button>
+          <button className="secondary-link" type="button" onClick={handleMagicLink} disabled={busy || !email}>
+            {authAction === 'magic' ? 'Envoi...' : 'Recevoir un magic link'}
+          </button>
+          <button className="secondary-link" type="button" onClick={handleForgotPassword} disabled={busy || !email}>
+            {authAction === 'reset' ? 'Envoi...' : 'Mot de passe oublié'}
+          </button>
+          <button
+            className="secondary-link"
+            type="button"
+            onClick={handlePasskeyLogin}
+            disabled={busy || !passkeysAvailable}
+            title={passkeysAvailable ? 'Utilise une passkey déjà créée depuis Sécurité.' : 'Ce navigateur ne prend pas en charge les passkeys.'}
+          >
+            {authAction === 'passkey' ? 'Connexion passkey...' : 'Passkey déjà configurée'}
+          </button>
+          <p className="auth-hint">Les passkeys se créent après connexion dans Compte &gt; Sécurité.</p>
           {message ? <p className={messageTone === 'error' ? 'account-error' : 'account-message'}>{message}</p> : null}
         </form>
       </main>

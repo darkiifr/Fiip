@@ -45,10 +45,12 @@ function parseExpiry(value: unknown) {
   if (Number.isFinite(numeric) && numeric > 0) {
     const millis = numeric > 10_000_000_000 ? numeric : numeric * 1000;
     const date = new Date(millis);
-    if (!Number.isNaN(date.getTime())) return date.toISOString();
+    if (!Number.isNaN(date.getTime()) && date.getUTCFullYear() >= 2024) return date.toISOString();
+    return null;
   }
   const date = new Date(text);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  if (Number.isNaN(date.getTime()) || date.getUTCFullYear() < 2024) return null;
+  return date.toISOString();
 }
 
 export function parseKeyAuthLicenseInfo(payload: Record<string, unknown>): ParsedLicenseInfo {

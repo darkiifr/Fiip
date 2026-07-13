@@ -34,3 +34,15 @@ Deno.test('parseKeyAuthLicenseInfo keeps buyer note and expiry when available', 
   assertEquals(parsed.level, 2);
   assertEquals(typeof parsed.expiresAt, 'string');
 });
+
+Deno.test('parseKeyAuthLicenseInfo ignores invalid legacy epoch expiries', () => {
+  const parsed = parseKeyAuthLicenseInfo({
+    success: true,
+    status: 'Not Used',
+    level: '4',
+    duration: '315360000',
+  });
+
+  assertEquals(parsed.tier, 'family_pro');
+  assertEquals(parsed.expiresAt, null);
+});

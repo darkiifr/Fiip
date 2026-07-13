@@ -55,7 +55,9 @@ function createInviteToken() {
 
 function isLicenseActive(license: any) {
   if (!license || license.status !== 'active') return false;
-  return !license.expires_at || new Date(license.expires_at).getTime() > Date.now();
+  const expiry = license.expires_at ? new Date(license.expires_at) : null;
+  if (!expiry || Number.isNaN(expiry.getTime()) || expiry.getUTCFullYear() < 2024) return true;
+  return expiry.getTime() > Date.now();
 }
 
 function getDeviceLimit(activeLicense: any) {

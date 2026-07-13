@@ -1,8 +1,27 @@
+function isValidLicenseDate(value) {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getUTCFullYear() >= 2024;
+}
+
 function isActiveLicense(license) {
   if (!license) return false;
   if (license.status !== 'active') return false;
-  if (!license.expires_at) return true;
+  if (!isValidLicenseDate(license.expires_at)) return true;
   return new Date(license.expires_at).getTime() > Date.now();
+}
+
+export function getDisplayLicense(account) {
+  const primary = account?.license || null;
+  if (isActiveLicense(primary)) return primary;
+
+  const licenses = Array.isArray(account?.licenses) ? account.licenses : [];
+  const activeLicenseId = account?.active_license_id || account?.profile?.active_license_id || null;
+  return licenses.find((license) => license.id === activeLicenseId && isActiveLicense(license))
+    || licenses.find((license) => isActiveLicense(license))
+    || primary
+    || licenses[0]
+    || null;
 }
 
 function formatTier(tier) {
@@ -13,7 +32,7 @@ function formatTier(tier) {
 }
 
 export function getLicenseState(account) {
-  const license = account?.license || null;
+  const license = getDisplayLicense(account);
   const hasActiveLicense = isActiveLicense(license);
   return {
     hasActiveLicense,
@@ -23,7 +42,7 @@ export function getLicenseState(account) {
 }
 
 export function getOcrState(account) {
-  const license = account?.license || null;
+  const license = getDisplayLicense(account);
   if (!isActiveLicense(license)) {
     return {
       label: 'OCR limite',
@@ -49,7 +68,7 @@ export function getOcrState(account) {
 }
 
 export function getDeviceLimitState(account) {
-  const license = account?.license || null;
+  const license = getDisplayLicense(account);
   const used = Number(account?.device_count || account?.devices?.length || 0);
   const limit = isActiveLicense(license) && Number(license.device_limit || 0) > 0
     ? Number(license.device_limit)

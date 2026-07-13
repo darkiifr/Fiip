@@ -22,9 +22,42 @@ async function readJsonResponse(response) {
   }
 }
 
+function findGoogleErrorInfo(value) {
+  const details = Array.isArray(value?.error?.details) ? value.error.details : [];
+  return details.find((detail) => detail?.['@type'] === 'type.googleapis.com/google.rpc.ErrorInfo') || null;
+}
+
+export function getChromeWebStoreSetupHint(body) {
+  const errorInfo = findGoogleErrorInfo(body);
+  const reason = String(errorInfo?.reason || '').trim();
+  const activationUrl = String(errorInfo?.metadata?.activationUrl || '').trim();
+  const service = String(errorInfo?.metadata?.service || '').trim();
+
+  if (reason === 'SERVICE_DISABLED' && service === 'chromewebstore.googleapis.com') {
+    return [
+      'Chrome Web Store API is disabled for the configured Google Cloud project.',
+      activationUrl ? `Enable it here: ${activationUrl}` : 'Enable chromewebstore.googleapis.com in Google Cloud Console.',
+      'The extension ZIP was already attached to the GitHub release; rerun this job after enabling the API to submit it to Chrome Web Store.',
+    ].join(' ');
+  }
+
+  return '';
+}
+
+export function shouldTreatChromeWebStorePublishAsWarning(body) {
+  return Boolean(getChromeWebStoreSetupHint(body));
+}
+
 async function assertOk(response, action) {
   const body = await readJsonResponse(response);
   if (!response.ok) {
+    const setupHint = getChromeWebStoreSetupHint(body);
+    if (setupHint) {
+      const error = new Error(`${action} requires Chrome Web Store setup: ${setupHint}`);
+      error.chromeWebStoreSetupHint = setupHint;
+      error.chromeWebStoreStatus = response.status;
+      throw error;
+    }
     throw new Error(`${action} failed (${response.status}): ${JSON.stringify(body)}`);
   }
   return body;
@@ -91,6 +124,12 @@ async function main() {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
+    if (error?.chromeWebStoreSetupHint && process.env.CHROME_WEBSTORE_STRICT_PUBLISH !== 'true') {
+      const message = error.chromeWebStoreSetupHint;
+      console.warn(`::warning title=Chrome Web Store publication skipped::${message}`);
+      console.warn(message);
+      process.exit(0);
+    }
     console.error(error);
     process.exit(1);
   });

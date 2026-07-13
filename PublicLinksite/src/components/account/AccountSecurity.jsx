@@ -17,8 +17,9 @@ function formatDate(value) {
   });
 }
 
-export default function AccountSecurity({ account, section, onRefresh, onRevokeAll }) {
+export default function AccountSecurity({ account, section, onRefresh, onRevokeAll, onRegisterPasskey }) {
   const [busy, setBusy] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [message, setMessage] = useState('');
   const state = section?.status || 'loading';
   const events = section?.data?.events || [];
@@ -54,6 +55,20 @@ export default function AccountSecurity({ account, section, onRefresh, onRevokeA
     }
   };
 
+  const createPasskey = async () => {
+    if (!onRegisterPasskey) return;
+    setPasskeyBusy(true);
+    setMessage('');
+    try {
+      await onRegisterPasskey();
+      setMessage('Passkey créée. Vous pourrez l’utiliser au prochain écran de connexion.');
+    } catch (error) {
+      setMessage(error.message || 'Impossible de créer cette passkey.');
+    } finally {
+      setPasskeyBusy(false);
+    }
+  };
+
   return (
     <section className="account-section account-security-section">
       <div className="account-section-head">
@@ -63,6 +78,11 @@ export default function AccountSecurity({ account, section, onRefresh, onRevokeA
         </div>
         <div className="account-actions">
           <button className="account-secondary" type="button" onClick={onRefresh}>Rafraichir</button>
+          {onRegisterPasskey ? (
+            <button className="account-secondary" type="button" onClick={createPasskey} disabled={passkeyBusy}>
+              {passkeyBusy ? 'Création...' : 'Créer une passkey'}
+            </button>
+          ) : null}
           <button className="account-primary danger" type="button" onClick={revokeOthers} disabled={busy}>
             Revoquer les autres appareils
           </button>

@@ -61,4 +61,26 @@ describe('AccountSubscription', () => {
 
     await waitFor(() => expect(onSelectLicense).toHaveBeenCalledWith('license-2'));
   });
+
+  it('does not show broken 1980 dates for active licenses', () => {
+    const account = {
+      active_license_id: 'license-1',
+      license: { id: 'license-1', billing_interval: 'monthly' },
+      licenses: [
+        {
+          id: 'license-1',
+          tier: 'family_pro',
+          billing_interval: 'monthly',
+          keyauth_license_key: 'FAMILY-KEY',
+          status: 'active',
+          expires_at: '1980-01-01T00:00:00.000Z',
+        },
+      ],
+    };
+
+    render(<AccountSubscription account={account} onActivateLicense={vi.fn()} onSelectLicense={vi.fn()} />);
+
+    expect(screen.getByText(/expiration Sans expiration/i)).toBeInTheDocument();
+    expect(screen.queryByText(/01\/01\/1980/)).not.toBeInTheDocument();
+  });
 });

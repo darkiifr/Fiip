@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -40,5 +40,24 @@ describe('AccountSecurity', () => {
     );
 
     expect(screen.getByText('Table account_security_events introuvable.')).toHaveClass('account-error');
+  });
+
+  it('registers a passkey from the authenticated security section', async () => {
+    const onRegisterPasskey = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <AccountSecurity
+        account={{ user: { email: 'vincent@fiip.app' } }}
+        section={{ status: 'ready', data: { events: [] } }}
+        onRefresh={vi.fn()}
+        onRevokeAll={vi.fn()}
+        onRegisterPasskey={onRegisterPasskey}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer une passkey' }));
+
+    await waitFor(() => expect(onRegisterPasskey).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(/Passkey créée/i)).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getDeviceLimitState, getLicenseState, getOcrState } from './accountPresentation';
+import { getDeviceLimitState, getDisplayLicense, getLicenseState, getOcrState } from './accountPresentation';
 
 describe('account presentation helpers', () => {
   it('does not present OCR as unlimited without an active license', () => {
@@ -49,6 +49,44 @@ describe('account presentation helpers', () => {
       used: 0,
       limit: 1,
       label: '0/1 appareil',
+    });
+  });
+
+  it('uses an active license from the account list when the primary license is missing', () => {
+    const account = {
+      active_license_id: 'license-family',
+      license: null,
+      licenses: [{
+        id: 'license-family',
+        tier: 'family_pro',
+        status: 'active',
+        expires_at: null,
+        device_limit: 5,
+        ocr_limit: 0,
+      }],
+    };
+
+    expect(getDisplayLicense(account)?.id).toBe('license-family');
+    expect(getLicenseState(account)).toMatchObject({
+      hasActiveLicense: true,
+      planLabel: 'Family Pro',
+      statusLabel: 'Licence active',
+    });
+    expect(getDeviceLimitState(account)).toMatchObject({
+      limit: 5,
+    });
+  });
+
+  it('treats legacy pre-2024 expiry dates as missing for active licenses', () => {
+    expect(getLicenseState({
+      license: {
+        tier: 'family_pro',
+        status: 'active',
+        expires_at: '1980-01-01T00:00:00.000Z',
+      },
+    })).toMatchObject({
+      hasActiveLicense: true,
+      planLabel: 'Family Pro',
     });
   });
 });
