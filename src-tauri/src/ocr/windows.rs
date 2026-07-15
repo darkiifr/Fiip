@@ -48,7 +48,14 @@ foreach ($line in $result.Lines) {
 "#;
 
     let output = Command::new("powershell")
-        .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script, image_path])
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            script,
+            image_path,
+        ])
         .output()
         .map_err(|error| format!("Impossible de lancer l'OCR Windows: {error}"))?;
 

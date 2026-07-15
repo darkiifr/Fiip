@@ -8,8 +8,9 @@ extern "C" {
 }
 
 pub fn scan_image_to_text(image_path: &str) -> Result<OcrResult, String> {
-    let path = CString::new(image_path)
-        .map_err(|_| "Le chemin de l'image contient un caractere invalide pour macOS Vision.".to_string())?;
+    let path = CString::new(image_path).map_err(|_| {
+        "Le chemin de l'image contient un caractere invalide pour macOS Vision.".to_string()
+    })?;
 
     let raw = unsafe { fiip_vision_ocr_image(path.as_ptr()) };
     if raw.is_null() {
