@@ -11,9 +11,9 @@ fn main() {
         let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR missing"));
         let object_file = out_dir.join("macos_vision.o");
         let target_arch = env::var("CARGO_CFG_TARGET_ARCH").expect("CARGO_CFG_TARGET_ARCH missing");
-        let swift_arch = match target_arch.as_str() {
-            "aarch64" => "arm64",
-            "x86_64" => "x86_64",
+        let swift_target = match target_arch.as_str() {
+            "aarch64" => "arm64-apple-macosx11.0",
+            "x86_64" => "x86_64-apple-macosx10.15",
             other => panic!("unsupported macOS Swift OCR target arch: {other}"),
         };
 
@@ -22,8 +22,8 @@ fn main() {
                 "swiftc",
                 "-parse-as-library",
                 "-emit-object",
-                "-arch",
-                swift_arch,
+                "-target",
+                swift_target,
                 swift_source.to_str().expect("invalid Swift source path"),
                 "-o",
                 object_file.to_str().expect("invalid Swift object path"),
