@@ -1,3 +1,6 @@
+#[cfg(target_os = "macos")]
+mod build_support;
+
 fn main() {
     #[cfg(target_os = "macos")]
     {
@@ -16,6 +19,21 @@ fn main() {
             "x86_64" => "x86_64-apple-macosx10.15",
             other => panic!("unsupported macOS Swift OCR target arch: {other}"),
         };
+
+        let target_info = Command::new("xcrun")
+            .args(["swiftc", "-print-target-info", "-target", swift_target])
+            .output()
+            .expect("failed to query swiftc target info");
+        if !target_info.status.success() {
+            panic!(
+                "swiftc failed to report target info: {}",
+                String::from_utf8_lossy(&target_info.stderr)
+            );
+        }
+        let target_info =
+            String::from_utf8(target_info.stdout).expect("swiftc target info was not valid UTF-8");
+        let swift_runtime_paths = build_support::swift_runtime_library_paths(&target_info)
+            .unwrap_or_else(|error| panic!("failed to read swiftc target info: {error}"));
 
         let status = Command::new("xcrun")
             .args([
@@ -37,6 +55,9 @@ fn main() {
 
         println!("cargo:rerun-if-changed={}", swift_source.display());
         println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
+        for path in swift_runtime_paths {
+            println!("cargo:rustc-link-search=native={}", path.display());
+        }
         println!("cargo:rustc-link-arg={}", object_file.display());
         println!("cargo:rustc-link-lib=framework=Foundation");
         println!("cargo:rustc-link-lib=framework=ImageIO");
