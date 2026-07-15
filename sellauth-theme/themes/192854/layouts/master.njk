@@ -83,8 +83,6 @@
       <script type="module">
         import { Altcha } from 'https://cdn.jsdelivr.net/npm/altcha@1.2.0/+esm'
       </script>
-    {% elif shop.recaptcha_key %}
-      <script src="https://www.google.com/recaptcha/api.js?render={{ shop.recaptcha_key }}"></script>
     {% endif %}
 
     <script

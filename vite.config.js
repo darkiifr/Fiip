@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from 'node:url';
 import Icons from 'unplugin-icons/vite';
 import { defineConfig } from "vite";
 
@@ -13,6 +14,12 @@ export default defineConfig(async () => ({
       autoInstall: true
     })
   ],
+
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
 
   optimizeDeps: {
     include: [

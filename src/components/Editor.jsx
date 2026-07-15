@@ -835,30 +835,32 @@ export default function Editor({
                     {onCreateNote && (
                         <button 
                             onClick={onCreateNote}
-                            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-warm-sidebar-light hover:bg-warm-sidebar-item-active dark:bg-zinc-800 dark:hover:bg-zinc-700 border border-warm-border-light dark:border-warm-border-dark rounded-xl text-xs font-semibold transition-all mr-2"
+                            className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-warm-border-light bg-warm-sidebar-light text-warm-text-primary-light transition-all hover:bg-warm-sidebar-item-active dark:border-warm-border-dark dark:bg-zinc-800 dark:text-warm-text-primary-dark dark:hover:bg-zinc-700 md:flex"
+                            title="Nouvelle note"
+                            aria-label="Nouvelle note"
                         >
                             <Plus size={14} />
-                            <span>Nouvelle note</span>
                         </button>
                     )}
 
                     <button
                         type="button"
                         onClick={handleManualSave}
-                        className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-900 hover:bg-warm-sidebar-item-active dark:hover:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl text-xs font-semibold transition-all text-warm-text-primary-light dark:text-warm-text-primary-dark"
+                        className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-warm-border-light bg-white text-warm-text-primary-light transition-all hover:bg-warm-sidebar-item-active dark:border-warm-border-dark dark:bg-zinc-900 dark:text-warm-text-primary-dark dark:hover:bg-zinc-800 md:flex"
+                        title="Enregistrer"
+                        aria-label="Enregistrer"
                     >
                         <Save size={13} />
-                        <span>Enregistrer</span>
                     </button>
 
                     <button 
                         onClick={onOpenShare}
                         disabled={note.isProtected || note.is_locked}
-                        className="fiip-light-editor-share-button flex items-center gap-1.5 px-3 py-1.5 bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 border border-transparent rounded-xl text-xs font-semibold transition-all shadow-sm"
+                        className="fiip-light-editor-share-button flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-transparent bg-zinc-950 text-white shadow-sm transition-all hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                         title={note.isProtected || note.is_locked ? 'Les notes protegees ne peuvent pas etre partagees.' : 'Partager'}
+                        aria-label="Partager"
                     >
                         <Share2 size={13} />
-                        <span>Partager</span>
                     </button>
 
                     <button

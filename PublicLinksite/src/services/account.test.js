@@ -7,6 +7,7 @@ vi.mock('./supabase.js', () => ({
       signInWithOAuth: vi.fn(),
       signInWithPasskey: vi.fn(),
       signInWithPassword: vi.fn(),
+      signUp: vi.fn(),
       registerPasskey: vi.fn(),
       resetPasswordForEmail: vi.fn(),
       verifyOtp: vi.fn(),
@@ -30,13 +31,12 @@ import {
   selectLicense,
   revokeAllDevices,
   revokeDevice,
-  assertCaptchaToken,
   checkAccountEmailExists,
   signInWithPasskey,
-  requiresCaptcha,
   signInWithMagicLink,
   signInWithGoogle,
   signInWithPassword,
+  signUpWithPassword,
   verifyMagicCode,
 } from './account';
 import { supabase } from './supabase';
@@ -132,25 +132,23 @@ describe('account service device actions', () => {
     });
   });
 
-  it('passes CAPTCHA tokens to Supabase auth calls', async () => {
+  it('calls Supabase auth without bot-challenge options', async () => {
     supabase.functions.invoke.mockResolvedValue({ data: { exists: true }, error: null });
     supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
     supabase.auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: null });
 
-    await signInWithPassword('buyer@fiip.fr', 'password', 'turnstile-token');
-    await signInWithMagicLink('buyer@fiip.fr', 'magic-token');
+    await signInWithPassword('buyer@fiip.fr', 'password');
+    await signInWithMagicLink('buyer@fiip.fr');
 
     expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
       email: 'buyer@fiip.fr',
       password: 'password',
-      options: { captchaToken: 'turnstile-token' },
     });
     expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
       email: 'buyer@fiip.fr',
       options: {
         shouldCreateUser: false,
         emailRedirectTo: 'https://portail.fiip.fr/account',
-        captchaToken: 'magic-token',
       },
     });
   });
@@ -172,7 +170,7 @@ describe('account service device actions', () => {
     supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ data: {}, error: null });
 
     await verifyMagicCode(' BUYER@FIIP.FR ', '123456');
-    await sendPasswordReset('buyer@fiip.fr', 'reset-token');
+    await sendPasswordReset('buyer@fiip.fr');
 
     expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
       email: 'buyer@fiip.fr',
@@ -181,7 +179,6 @@ describe('account service device actions', () => {
     });
     expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('buyer@fiip.fr', {
       redirectTo: 'https://portail.fiip.fr/account',
-      captchaToken: 'reset-token',
     });
   });
 
@@ -212,6 +209,25 @@ describe('account service device actions', () => {
     expect(supabase.auth.registerPasskey).not.toHaveBeenCalled();
   });
 
+  it('creates account portal users with profile metadata', async () => {
+    supabase.auth.signUp.mockResolvedValueOnce({ data: { user: { id: 'u1' } }, error: null });
+
+    await signUpWithPassword(' NEW@FIIP.FR ', 'password123', 'New User');
+
+    expect(supabase.auth.signUp).toHaveBeenCalledWith({
+      email: 'new@fiip.fr',
+      password: 'password123',
+      options: {
+        emailRedirectTo: 'https://portail.fiip.fr/account',
+        data: {
+          username: 'New User',
+          nickname: 'New User',
+          subscription_level: 0,
+        },
+      },
+    });
+  });
+
   it('blocks passkey actions when the Supabase client does not expose WebAuthn helpers', async () => {
     Object.defineProperty(window, 'PublicKeyCredential', {
       configurable: true,
@@ -233,7 +249,7 @@ describe('account service device actions', () => {
     supabase.functions.invoke.mockResolvedValueOnce({ data: { exists: true }, error: null });
     supabase.auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: null });
 
-    await signInWithMagicLink(' BUYER@FIIP.FR ', 'magic-token');
+    await signInWithMagicLink(' BUYER@FIIP.FR ');
 
     expect(getAccountRedirectUrl()).toBe('https://portail.fiip.fr/account');
     expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
@@ -241,7 +257,6 @@ describe('account service device actions', () => {
       options: {
         shouldCreateUser: false,
         emailRedirectTo: 'https://portail.fiip.fr/account',
-        captchaToken: 'magic-token',
       },
     });
   });
@@ -252,28 +267,27 @@ describe('account service device actions', () => {
       .mockResolvedValueOnce({ data: { exists: false }, error: null });
 
     expect(await checkAccountEmailExists('missing@fiip.fr')).toBe(false);
-    const result = await signInWithMagicLink('missing@fiip.fr', 'magic-token');
+    const result = await signInWithMagicLink('missing@fiip.fr');
 
     expect(result.error.message).toContain('Aucun compte Fiip');
     expect(supabase.auth.signInWithOtp).not.toHaveBeenCalled();
   });
 
-  it('does not require a CAPTCHA token when no Turnstile key is configured', async () => {
+  it('does not send bot-challenge options with password auth', async () => {
     supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
 
-    const result = await signInWithPassword('buyer@fiip.fr', 'password', '');
+    const result = await signInWithPassword('buyer@fiip.fr', 'password');
 
     expect(result.error).toBeNull();
     expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
       email: 'buyer@fiip.fr',
       password: 'password',
-      options: undefined,
     });
   });
 
-  it('formats Supabase mail and captcha errors for users', () => {
+  it('formats Supabase mail and passkey errors for users', () => {
     expect(getAuthErrorMessage(new Error('Error sending confirmation email'))).toContain('configuration SMTP Supabase/Resend');
-    expect(getAuthErrorMessage(new Error('captcha verification failed'))).toContain('Validation anti-bot refusée');
+    expect(getAuthErrorMessage(new Error('le.auth.signInWithPasskey is not a function'))).toContain('passkeys ne sont pas disponibles');
   });
 
   it('falls back to direct RLS security event reads when the account function is unavailable', async () => {
@@ -295,20 +309,4 @@ describe('account service device actions', () => {
     expect(limit).toHaveBeenCalledWith(50);
   });
 
-  it('requires a CAPTCHA token when Turnstile is configured', () => {
-    expect(requiresCaptcha('')).toBe(false);
-    expect(requiresCaptcha('0xPUBLIC_SITE_KEY')).toBe(true);
-    expect(() => assertCaptchaToken('', '0xPUBLIC_SITE_KEY')).toThrow('Veuillez valider la protection anti-bot.');
-    expect(() => assertCaptchaToken('turnstile-token', '0xPUBLIC_SITE_KEY')).not.toThrow();
-  });
-
-  it('requires a CAPTCHA token on localhost when Turnstile is configured', () => {
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: new URL('http://localhost:5173/account'),
-    });
-
-    expect(requiresCaptcha('local-turnstile-key')).toBe(true);
-    expect(() => assertCaptchaToken('', 'local-turnstile-key')).toThrow('Veuillez valider la protection anti-bot.');
-  });
 });

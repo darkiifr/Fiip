@@ -14,6 +14,7 @@ import {
 import { serializeNoteTags } from '../utils/noteTags';
 import { FIIP_ACCOUNT_PORTAL_URL } from '../config/links';
 import { canAttachFile, canCreateNote, getStorageLimit, resolvePlanLevel } from './planLimits';
+import { normalizeError } from './errorMessages';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -184,57 +185,21 @@ async function getPublicIpAddress() {
 }
 
 // Auth Services
-function buildCaptchaOptions(captchaToken) {
-  return captchaToken ? { captchaToken } : undefined;
-}
-
-function validateCaptcha(captchaToken) {
-  try {
-    assertCaptchaToken(captchaToken);
-    return null;
-  } catch (error) {
-    return { data: null, error: { code: 'CAPTCHA_REQUIRED', message: error.message } };
-  }
-}
-
-export function getCaptchaSiteKey(siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
-  return String(siteKey || '').trim();
-}
-
-export function requiresCaptcha(siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
-  return Boolean(getCaptchaSiteKey(siteKey));
-}
-
-export function assertCaptchaToken(captchaToken, siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
-  if (requiresCaptcha(siteKey) && !String(captchaToken || '').trim()) {
-    throw new Error('Veuillez valider le captcha avant de continuer.');
-  }
-}
-
 function normalizeAuthError(error) {
-  const message = String(error?.message || error || '');
-  if (/captcha|challenge|captcha_token/i.test(message)) {
-    return {
-      ...error,
-      message: 'Validation anti-bot refusée. Revalidez le captcha puis réessayez.',
-    };
-  }
-  return error;
+  if (!error) return error;
+  return normalizeError(error, 'Connexion Fiip impossible pour le moment.');
 }
 
 export const authService = {
-  async signUp(email, password, username, captchaToken = '') {
+  async signUp(email, password, username) {
     if (!isSupabaseConfigured) {
       return { data: null, error: getSupabaseConfigError() };
     }
 
-    const captchaValidation = validateCaptcha(captchaToken);
-    if (captchaValidation) return captchaValidation;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        ...buildCaptchaOptions(captchaToken),
         data: {
           username,
           nickname: username,
@@ -254,13 +219,11 @@ export const authService = {
     return { data, error: normalizeAuthError(error) };
   },
 
-  async signIn(identifier, password, captchaToken = '') {
+  async signIn(identifier, password) {
     if (!isSupabaseConfigured) {
       return { data: null, error: getSupabaseConfigError() };
     }
 
-    const captchaValidation = validateCaptcha(captchaToken);
-    if (captchaValidation) return captchaValidation;
     let email = identifier;
     
     // S'il n'y a pas d'@, on considère que c'est un pseudo
@@ -275,21 +238,32 @@ export const authService = {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: buildCaptchaOptions(captchaToken),
     });
     return { data, error: normalizeAuthError(error) };
   },
 
-  async sendPasswordReset(email, captchaToken = '') {
+  async sendPasswordReset(email) {
     if (!isSupabaseConfigured) {
       return { data: null, error: getSupabaseConfigError() };
     }
 
-    const captchaValidation = validateCaptcha(captchaToken);
-    if (captchaValidation) return captchaValidation;
     const { data, error } = await supabase.auth.resetPasswordForEmail(String(email || '').trim(), {
       redirectTo: getOAuthRedirectUrl(),
-      ...buildCaptchaOptions(captchaToken),
+    });
+    return { data, error: normalizeAuthError(error) };
+  },
+
+  async sendEmailCode(email) {
+    if (!isSupabaseConfigured) {
+      return { data: null, error: getSupabaseConfigError() };
+    }
+
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email: String(email || '').trim(),
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: getOAuthRedirectUrl(),
+      },
     });
     return { data, error: normalizeAuthError(error) };
   },
@@ -299,11 +273,12 @@ export const authService = {
       return { data: null, error: getSupabaseConfigError() };
     }
 
-    return await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       email: String(email || '').trim(),
       token: String(token || '').trim(),
       type: 'email',
     });
+    return { data, error: normalizeAuthError(error) };
   },
 
   async signInWithOAuth(provider) {
@@ -416,13 +391,14 @@ export const authService = {
       return { data: null, error: getSupabaseConfigError() };
     }
     if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-      return { data: null, error: { message: 'Les passkeys ne sont pas disponibles sur cet appareil.' } };
+      return { data: null, error: normalizeAuthError({ code: 'PASSKEY_UNSUPPORTED', message: 'Les passkeys ne sont pas disponibles sur cet appareil.' }) };
     }
     if (typeof supabase.auth.signInWithPasskey !== 'function') {
-      return { data: null, error: { message: 'Les passkeys ne sont pas encore disponibles dans cette version Supabase.' } };
+      return { data: null, error: normalizeAuthError({ code: 'PASSKEY_API_MISSING', message: 'Les passkeys ne sont pas encore disponibles dans cette version Supabase.' }) };
     }
 
-    return await supabase.auth.signInWithPasskey();
+    const { data, error } = await supabase.auth.signInWithPasskey();
+    return { data, error: normalizeAuthError(error) };
   },
 
   async registerPasskey() {
@@ -430,13 +406,14 @@ export const authService = {
       return { data: null, error: getSupabaseConfigError() };
     }
     if (typeof window === 'undefined' || !window.PublicKeyCredential) {
-      return { data: null, error: { message: 'Les passkeys ne sont pas disponibles sur cet appareil.' } };
+      return { data: null, error: normalizeAuthError({ code: 'PASSKEY_UNSUPPORTED', message: 'Les passkeys ne sont pas disponibles sur cet appareil.' }) };
     }
     if (typeof supabase.auth.registerPasskey !== 'function') {
-      return { data: null, error: { message: 'Les passkeys ne sont pas encore disponibles dans cette version Supabase.' } };
+      return { data: null, error: normalizeAuthError({ code: 'PASSKEY_API_MISSING', message: 'Les passkeys ne sont pas encore disponibles dans cette version Supabase.' }) };
     }
 
-    return await supabase.auth.registerPasskey();
+    const { data, error } = await supabase.auth.registerPasskey();
+    return { data, error: normalizeAuthError(error) };
   },
 
   async signOut() {

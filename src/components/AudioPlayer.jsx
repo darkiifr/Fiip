@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { getFriendlyErrorMessage } from '../services/errorMessages';
 import IconCheck from '~icons/mingcute/check-fill';
 import IconClose from '~icons/mingcute/close-fill';
 import IconEdit from '~icons/mingcute/edit-2-fill';
@@ -30,6 +31,22 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
             inputRef.current.focus();
         }
     }, [isEditing]);
+
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio || typeof audio.setSinkId !== 'function') return;
+        try {
+            const settings = JSON.parse(localStorage.getItem('fiip-settings') || '{}') || {};
+            const outputId = settings.audioOutputId;
+            if (outputId) {
+                audio.setSinkId(outputId).catch((error) => {
+                    console.warn('Audio output selection failed:', error);
+                });
+            }
+        } catch {
+            // Local settings are best effort only.
+        }
+    }, [src]);
 
     useEffect(() => {
         const audio = audioRef.current;
@@ -85,14 +102,20 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
         };
     }, []);
 
-    const togglePlay = () => {
+    const togglePlay = async () => {
         if (audioRef.current) {
             if (isPlaying) {
                 audioRef.current.pause();
+                setIsPlaying(false);
             } else {
-                audioRef.current.play();
+                try {
+                    await audioRef.current.play();
+                    setIsPlaying(true);
+                } catch (error) {
+                    setIsPlaying(false);
+                    onError?.(new Error(getFriendlyErrorMessage(error, 'Lecture audio impossible. Vérifiez le fichier ou votre sortie audio.')));
+                }
             }
-            setIsPlaying(!isPlaying);
         }
     };
 
@@ -137,7 +160,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
                 onEnded={() => setIsPlaying(false)}
                 onError={(e) => {
                     console.error("Audio Load Error in Player:", e);
-                    if (onError) {onError(e);}
+                    if (onError) {onError(new Error(getFriendlyErrorMessage(e, 'Lecture audio impossible.')));}
                 }}
             >
                 <track kind="captions" />

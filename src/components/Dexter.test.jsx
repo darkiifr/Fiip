@@ -38,7 +38,7 @@ describe('Dexter Assistant', () => {
         );
         
         expect(screen.getByPlaceholderText('Posez une question ou demandez une correction...')).toBeInTheDocument();
-        expect(screen.getByText('Assistant Dexter IA')).toBeInTheDocument();
+        expect(screen.getByText('Dexter')).toBeInTheDocument();
     });
 
     it('calls onClose when close button is clicked', () => {
@@ -117,6 +117,62 @@ describe('Dexter Assistant', () => {
 
         expect(await screen.findByText('Réponse silencieuse')).toBeInTheDocument();
         expect(speak).not.toHaveBeenCalled();
+    });
+
+    it('runs a quick note action and applies the generated update', async () => {
+        mockGenerateText.mockResolvedValueOnce('{"action":"update","mode":"replace","title":"Note corrigee","content":"Texte corrige"}');
+        const handleUpdate = vi.fn();
+
+        render(
+            <Dexter
+                isOpen={true}
+                onClose={vi.fn()}
+                settings={{}}
+                onCreateNote={vi.fn()}
+                onUpdateNote={handleUpdate}
+                onDeleteNote={vi.fn()}
+                currentNote={{ id: 'note-1', title: 'Brouillon', content: '<p>Texte a corriger</p>' }}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /Corriger/i }));
+
+        expect(await screen.findByText('Modification de note')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Appliquer' }));
+
+        expect(handleUpdate).toHaveBeenCalledWith(expect.objectContaining({
+            id: 'note-1',
+            title: 'Note corrigee',
+            content: 'Texte corrige',
+        }));
+    });
+
+    it('runs an AI chat starter prompt with the active note context', async () => {
+        mockGenerateText.mockResolvedValueOnce('Voici une analyse claire.');
+
+        render(
+            <Dexter
+                isOpen={true}
+                onClose={vi.fn()}
+                settings={{}}
+                onCreateNote={vi.fn()}
+                onUpdateNote={vi.fn()}
+                onDeleteNote={vi.fn()}
+                currentNote={{ id: 'note-1', title: 'Sprint', content: '<p>Objectif flou</p>' }}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /Clarifier la note/i }));
+
+        expect(await screen.findByText('Voici une analyse claire.')).toBeInTheDocument();
+        expect(mockGenerateText).toHaveBeenCalledWith(expect.objectContaining({
+            messages: expect.arrayContaining([
+                expect.objectContaining({
+                    role: 'user',
+                    content: expect.stringContaining('Objectif flou'),
+                }),
+            ]),
+        }));
     });
 
     it('shows the assistant generation error message', async () => {

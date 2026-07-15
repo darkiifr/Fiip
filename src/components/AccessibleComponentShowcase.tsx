@@ -172,7 +172,7 @@ export default function AccessibleComponentShowcase() {
         {/* Action Example */}
         <div className="mt-6 pt-4 border-t border-white/10 flex flex-col gap-3">
           <GlassDialog 
-            title="Activation de l'IA"
+            title="Activation de Dexter"
             description="Êtes-vous sûr de vouloir activer les fonctionnalités avancées de macOS 26 ?"
             trigger={
               <GlassButton variant="primary" className="w-full">

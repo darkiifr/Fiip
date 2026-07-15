@@ -1,25 +1,21 @@
 import { useState } from 'react';
 import { authService } from '../../services/supabase';
 import { keyAuthService } from '../../services/keyauth';
-import TurnstileCaptcha from '../TurnstileCaptcha';
 
 export default function DesktopAuthFlow({ onAuthed }) {
   const [stage, setStage] = useState('entry');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState('');
-  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   async function handleLogin() {
     setLoading(true);
     setError('');
-    const { error: err } = await authService.signIn(email, password, captchaToken);
+    const { error: err } = await authService.signIn(email, password);
     setLoading(false);
-    setCaptchaToken('');
-    setCaptchaResetKey((current) => current + 1);
     if (err) return setError(err.message || 'Connexion impossible');
     onAuthed();
   }
@@ -44,10 +40,8 @@ export default function DesktopAuthFlow({ onAuthed }) {
   async function handleSignup() {
     setLoading(true);
     setError('');
-    const { error: err } = await authService.signUp(email, password, username || email.split('@')[0], captchaToken);
+    const { error: err } = await authService.signUp(email, password, username || email.split('@')[0]);
     setLoading(false);
-    setCaptchaToken('');
-    setCaptchaResetKey((current) => current + 1);
     if (err) return setError(err.message || 'Inscription impossible');
     setStage('login');
   }
@@ -55,12 +49,28 @@ export default function DesktopAuthFlow({ onAuthed }) {
   async function handleForgotPassword() {
     setLoading(true);
     setError('');
-    const { error: err } = await authService.sendPasswordReset(email, captchaToken);
+    const { error: err } = await authService.sendPasswordReset(email);
     setLoading(false);
-    setCaptchaToken('');
-    setCaptchaResetKey((current) => current + 1);
     if (err) return setError(err.message || 'Réinitialisation impossible');
     setError('Lien de réinitialisation envoyé.');
+  }
+
+  async function handleSendEmailCode() {
+    setLoading(true);
+    setError('');
+    const { error: err } = await authService.sendEmailCode(email);
+    setLoading(false);
+    if (err) return setError(err.message || 'Envoi du code impossible');
+    setError('Code e-mail envoyé. Collez le code reçu pour ouvrir la session.');
+  }
+
+  async function handleVerifyEmailCode() {
+    setLoading(true);
+    setError('');
+    const { error: err } = await authService.verifyEmailOtp(email, otpCode);
+    setLoading(false);
+    if (err) return setError(err.message || 'Code e-mail invalide');
+    onAuthed();
   }
 
   function handleTrial() {
@@ -96,8 +106,25 @@ export default function DesktopAuthFlow({ onAuthed }) {
               {stage === 'signup' && <input placeholder="Nom d'utilisateur" value={username} onChange={(e) => setUsername(e.target.value)} />}
               <input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               <input placeholder="Mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-              <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaResetKey} />
               <button type="button" disabled={loading} onClick={stage === 'login' ? handleLogin : handleSignup}>{loading ? '...' : stage === 'login' ? 'Se connecter' : "Créer un compte"}</button>
+              {stage === 'login' && (
+                <div className="fiip-auth-otp-row">
+                  <input
+                    placeholder="Code e-mail"
+                    inputMode="numeric"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                  />
+                  <button type="button" className="ghost" disabled={loading || !email || !otpCode} onClick={handleVerifyEmailCode}>
+                    Valider
+                  </button>
+                </div>
+              )}
+              {stage === 'login' && (
+                <button type="button" className="ghost" disabled={loading || !email} onClick={handleSendEmailCode}>
+                  Recevoir un code e-mail
+                </button>
+              )}
               {stage === 'login' && (
                 <button type="button" className="ghost" disabled={loading} onClick={handlePasskeyLogin}>
                   Se connecter avec une passkey

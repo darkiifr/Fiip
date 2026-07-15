@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import OnboardingView from "./components/OnboardingView";
 import SettingsView from "./components/SettingsView";
 import { CommandPalette } from "./components/ui/CommandPalette";
+import { AIFloatingAssistant } from "./components/ui/AIWorkspace";
 import AuthModal from "./components/AuthModal";
 import Dexter from "./components/Dexter";
 import Editor from "./components/Editor";
@@ -140,6 +141,7 @@ function App() {
   });
   
   const [isDexterOpen, setIsDexterOpen] = useState(false);
+  const [dexterInitialPrompt, setDexterInitialPrompt] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -1229,7 +1231,26 @@ function App() {
             onUpdateNote={handleUpdateNote}
             onDeleteNote={handleDeleteNote}
             settings={settings}
+            initialPrompt={dexterInitialPrompt}
+            onInitialPromptConsumed={() => setDexterInitialPrompt(null)}
         />
+
+        {settings.aiEnabled
+          && !isDexterOpen
+          && !isBiometricLocked
+          && !isShareModalOpen
+          && !isAuthModalOpen
+          && !isLicenseModalOpen
+          && !isUserProfileOpen
+          && !isCommandPaletteOpen && (
+          <AIFloatingAssistant
+            onOpen={() => setIsDexterOpen(true)}
+            onSubmit={(prompt) => {
+              setDexterInitialPrompt({ id: `${Date.now()}-${prompt.length}`, text: prompt });
+              setIsDexterOpen(true);
+            }}
+          />
+        )}
       </div>
       
       <LicenseModal 

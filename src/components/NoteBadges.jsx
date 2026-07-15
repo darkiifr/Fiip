@@ -296,7 +296,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
                                     <button 
                                         onClick={handleAddBadge}
                                         disabled={!newLabel.trim()}
-                                        className="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-lg shadow hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        className="rounded-lg bg-[color:var(--accent)] px-3 py-1 text-xs font-bold text-white shadow transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:bg-white/[0.09] disabled:text-[color:var(--text-secondary)] disabled:shadow-none"
                                     >
                                         Ajouter
                                     </button>

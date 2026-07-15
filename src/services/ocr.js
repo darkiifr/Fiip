@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 
+import { getFriendlyErrorMessage } from './errorMessages';
+
 const IMAGE_MIME_PATTERN = /^image\/(png|jpe?g|webp|bmp|tiff?|gif|avif|heic|heif)$/i;
 const IMAGE_OCR_EXTENSION_PATTERN = /\.(png|jpe?g|webp|bmp|tiff?|gif|avif|heic|heif)$/i;
 const OCR_LANGUAGES = 'fra+eng';
@@ -256,7 +258,7 @@ async function runTesseractOcr(file) {
   let best = candidates.sort((a, b) => b.score - a.score)[0] || { text: '', confidence: 0, words: [], variant: 'original:block', quality: assessOcrQuality() };
 
   if (best.quality.score < OCR_QUALITY_RETRY_THRESHOLD) {
-    const retryVariants = variants.filter((variant) => ['original', 'soft-contrast', 'light-text-mask', 'opencv-adaptive'].includes(variant.name));
+    const retryVariants = variants.filter((variant) => ['original', 'line-cleaned', 'soft-contrast', 'light-text-mask', 'opencv-adaptive'].includes(variant.name));
     const retryCandidates = await recognizeTesseractVariants(recognize, retryVariants.length ? retryVariants : variants, { pageSegMode: '11', passName: 'sparse' });
     candidates = [...candidates, ...retryCandidates];
     best = candidates.sort((a, b) => b.score - a.score)[0] || best;
@@ -416,6 +418,47 @@ export async function preprocessImageVariantsForOcr(file) {
   const softThreshold = Math.max(104, Math.min(190, average * 1.05));
   const hardThreshold = Math.max(118, Math.min(202, average * 1.18));
 
+  await makeVariant('line-cleaned', (data) => {
+    const darkRows = new Set();
+
+    for (let y = 0; y < height; y += 1) {
+      let darkCount = 0;
+      for (let x = 0; x < width; x += 1) {
+        const index = ((y * width) + x) * 4;
+        const luma = (data[index] * 0.299) + (data[index + 1] * 0.587) + (data[index + 2] * 0.114);
+        if (luma < average * 0.72) {
+          darkCount += 1;
+        }
+      }
+
+      if (darkCount / Math.max(1, width) > 0.34) {
+        darkRows.add(y);
+      }
+    }
+
+    for (const row of darkRows) {
+      for (let y = Math.max(0, row - 1); y <= Math.min(height - 1, row + 1); y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const index = ((y * width) + x) * 4;
+          const luma = (data[index] * 0.299) + (data[index + 1] * 0.587) + (data[index + 2] * 0.114);
+          if (luma < average * 0.82) {
+            data[index] = 242;
+            data[index + 1] = 242;
+            data[index + 2] = 242;
+          }
+        }
+      }
+    }
+
+    for (let i = 0; i < data.length; i += 4) {
+      const luma = (data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114);
+      const boosted = Math.max(0, Math.min(255, ((luma - average) * 1.78) + 184));
+      data[i] = boosted;
+      data[i + 1] = boosted;
+      data[i + 2] = boosted;
+    }
+  });
+
   await makeVariant('soft-contrast', (data) => {
     for (let i = 0; i < data.length; i += 4) {
       const luma = (data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114);
@@ -471,9 +514,12 @@ export async function extractImageOcr(file, { protectedNote = false, fallbackFil
     try {
       const result = await scanImageToText(imagePath);
       const text = normalizeOcrText(result?.text || result || '');
-      const confidence = Number(result?.confidence ?? 100);
+      const hasNativeConfidence = Number.isFinite(Number(result?.confidence));
+      const confidence = hasNativeConfidence ? Number(result.confidence) : 58;
       const words = normalizeOcrWords(result?.words, result?.source_width || result?.sourceWidth, result?.source_height || result?.sourceHeight);
       const quality = assessOcrQuality({ text, confidence, words });
+      const lineCount = text.split('\n').filter(Boolean).length;
+      const nativeLooksIncomplete = !hasNativeConfidence && (text.length < 120 || lineCount < 4 || words.length === 0);
       const nativeResult = {
         text,
         confidence,
@@ -485,10 +531,10 @@ export async function extractImageOcr(file, { protectedNote = false, fallbackFil
         status: text ? 'complete' : 'empty',
         classification: classifyOcrResult({ text, confidence }),
       };
-      if (fallbackFile && quality.score < OCR_QUALITY_RETRY_THRESHOLD && canRunImageOcr(fallbackFile)) {
+      if (fallbackFile && (quality.score < OCR_QUALITY_RETRY_THRESHOLD || nativeLooksIncomplete) && canRunImageOcr(fallbackFile)) {
         try {
           const fallbackResult = await runTesseractOcr(fallbackFile);
-          if (fallbackResult.qualityScore > quality.score) {
+          if (fallbackResult.qualityScore > quality.score || fallbackResult.text.length > text.length + 12) {
             return { ...fallbackResult, fallbackFrom: 'native-low-quality' };
           }
         } catch {
@@ -509,7 +555,7 @@ export async function extractImageOcr(file, { protectedNote = false, fallbackFil
             text: '',
             confidence: 0,
             status: 'failed',
-            error: fallbackError?.message || error?.message || String(fallbackError || error),
+            error: getFriendlyErrorMessage(fallbackError || error, "OCR indisponible pour cette image."),
             classification: classifyOcrResult(),
           };
         }
@@ -518,7 +564,7 @@ export async function extractImageOcr(file, { protectedNote = false, fallbackFil
         text: '',
         confidence: 0,
         status: 'failed',
-        error: error?.message || String(error),
+        error: getFriendlyErrorMessage(error, "OCR indisponible pour cette image."),
         classification: classifyOcrResult(),
       };
     }
@@ -531,7 +577,7 @@ export async function extractImageOcr(file, { protectedNote = false, fallbackFil
       text: '',
       confidence: 0,
       status: 'failed',
-      error: error?.message || String(error),
+      error: getFriendlyErrorMessage(error, "OCR indisponible pour cette image."),
       classification: classifyOcrResult(),
     };
   }

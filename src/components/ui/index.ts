@@ -9,6 +9,11 @@ export * from './Checkbox';
 export * from './Tabs';
 export * from './Accordion';
 export * from './Label';
+export * from './button';
+export * from './textarea';
+export * from './card';
+export * from './badge';
+export * from './scroll-area';
 
 // ─── Custom Components ────────────────────────────────────────────────────────
 export * from './CommandPalette';
@@ -18,6 +23,7 @@ export * from './TagInput';
 export * from './FloatingToolbar';
 export * from './AnimatedCounter';
 export * from './ShortcutBadge';
+export * from './MotionSurface';
 
 // ─── macOS 26 Liquid Glass Primitives ──────────────────────────────────────────
 export * from './LiquidGlassPrimitive';

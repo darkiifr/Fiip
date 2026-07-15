@@ -119,7 +119,7 @@
     "premium": "Premium"
   },
   "dexter": {
-    "welcome": "Bonjour. Je suis Dexter. Prêt à coder ou prendre des notes.",
+    "welcome": "Bonjour. Je suis Dexter. Ouvrez une note, choisissez une action ou demandez une correction.",
     "placeholder": "Demandez à Dexter...",
     "thinking": "Réflexion...",
     "dexter_name": "Dexter",

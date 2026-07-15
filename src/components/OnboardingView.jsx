@@ -3,14 +3,12 @@ import { useState } from 'react';
 
 import { authService } from '../services/supabase';
 import { keyAuthService } from '../services/keyauth';
-import TurnstileCaptcha from './TurnstileCaptcha';
 
 import IconGoogle from '~icons/logos/google-icon';
 import IconArrowRight from '~icons/mingcute/arrow-right-line';
 import IconCheck from '~icons/mingcute/check-fill';
 import IconLock from '~icons/mingcute/lock-fill';
 import IconMail from '~icons/mingcute/mail-send-fill';
-import IconSparkles from '~icons/mingcute/sparkles-2-fill';
 import IconUser from '~icons/mingcute/user-4-fill';
 
 const tabs = [
@@ -48,8 +46,6 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [captchaToken, setCaptchaToken] = useState('');
-  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   const switchTab = (tabId) => {
     setActiveTab(tabId);
@@ -97,8 +93,6 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
       console.error('Google OAuth error:', err);
       setError(getOAuthErrorMessage(err));
     } finally {
-      setCaptchaToken('');
-      setCaptchaResetKey((current) => current + 1);
       setLoading(false);
     }
   };
@@ -111,7 +105,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
 
     try {
       if (activeTab === 'login') {
-        const { error: loginError } = await authService.signIn(formData.email, formData.password, captchaToken);
+        const { error: loginError } = await authService.signIn(formData.email, formData.password);
         if (loginError) {
           throw loginError;
         }
@@ -130,7 +124,6 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
           formData.email,
           formData.password,
           formData.username,
-          captchaToken,
         );
         if (registerError) {
           throw registerError;
@@ -142,8 +135,6 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
     } catch (err) {
       setError(err.message || 'Une erreur est survenue.');
     } finally {
-      setCaptchaToken('');
-      setCaptchaResetKey((current) => current + 1);
       setLoading(false);
     }
   };
@@ -154,7 +145,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
     setLoading(true);
 
     try {
-      const { error: resetError } = await authService.sendPasswordReset(formData.email, captchaToken);
+      const { error: resetError } = await authService.sendPasswordReset(formData.email);
       if (resetError) {
         throw resetError;
       }
@@ -162,28 +153,25 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
     } catch (err) {
       setError(err.message || 'Impossible d’envoyer le lien de réinitialisation.');
     } finally {
-      setCaptchaToken('');
-      setCaptchaResetKey((current) => current + 1);
       setLoading(false);
     }
   };
 
   return (
-    <main className="dark min-h-screen w-screen overflow-hidden bg-[#111110] text-[#f2efe7] antialiased">
-      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(135deg,rgba(255,255,255,0.055),rgba(255,255,255,0)_42%),radial-gradient(circle_at_top_right,rgba(217,174,74,0.08),rgba(217,174,74,0)_32%)]" />
+    <main className="dark min-h-screen w-screen overflow-hidden bg-[color:var(--bg-content)] text-[color:var(--text-primary)] antialiased">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_80%_8%,rgba(10,132,255,0.16),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.055),transparent_44%)]" />
 
       <section className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-10 px-6 py-10 sm:px-10 lg:grid-cols-[0.95fr_1.05fr] lg:px-12">
         <div className="space-y-6">
           <div className="max-w-xl space-y-4">
-            <p className="inline-flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
-              <IconSparkles className="h-3.5 w-3.5" />
-              Écriture, synchronisation et IA dans un espace calme
+            <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--accent)]">
+              Fiip Desktop
             </p>
             <h1 className="text-balance text-4xl font-black leading-[0.98] tracking-tight sm:text-5xl lg:text-[3.55rem]">
-              Un départ clair, sans friction.
+              Écrire, classer, continuer.
             </h1>
             <p className="max-w-lg text-sm leading-6 text-[color:var(--text-secondary)] sm:text-[15px]">
-              Commencez en local ou connectez votre compte Fiip. La licence est retirée de cet écran : le compte se lie dès la création et la connexion.
+              Démarrez en local ou connectez votre compte. Les notes restent au centre, sans étape inutile.
             </p>
           </div>
 
@@ -191,7 +179,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
             {localBenefits.map((benefit) => (
               <div
                 key={benefit}
-                className="rounded-[1.15rem] border border-[color:var(--border-color)] bg-[color:var(--bg-card)]/72 p-3 text-xs font-semibold leading-5 shadow-[0_12px_30px_rgba(20,20,20,0.06)] backdrop-blur-xl transition duration-300 hover:-translate-y-0.5 hover:bg-[color:var(--bg-card)] dark:hover:bg-white/10 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                className="rounded-xl border border-[color:var(--border-color)] bg-[color:var(--bg-card)]/72 p-3 text-xs font-semibold leading-5 shadow-[0_12px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl transition duration-200 hover:-translate-y-0.5 hover:bg-[color:var(--bg-elevated)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
               >
                 <IconCheck className="mb-2 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-300" />
                 {benefit}
@@ -201,8 +189,8 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
         </div>
 
         <div className="mx-auto w-full max-w-[31rem]">
-          <div className="rounded-[2rem] border border-[color:var(--border-color)] bg-[color:var(--bg-card)]/76 p-4 shadow-[0_24px_80px_rgba(20,20,20,0.16)] backdrop-blur-3xl dark:shadow-[0_24px_90px_rgba(0,0,0,0.55)] sm:p-5">
-            <div className="mb-5 rounded-[1.55rem] border border-[color:var(--border-color)] bg-[color:var(--bg-sidebar)]/72 p-1" role="tablist" aria-label="Choix de démarrage">
+          <div className="rounded-[28px] border border-[color:var(--border-color)] bg-[color:var(--bg-card)]/78 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-3xl sm:p-5">
+            <div className="mb-5 rounded-[22px] border border-[color:var(--border-color)] bg-[color:var(--bg-sidebar)]/72 p-1" role="tablist" aria-label="Choix de démarrage">
               <div className="grid grid-cols-3 gap-1">
                 {tabs.map((tab) => (
                   <button
@@ -211,7 +199,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
                     role="tab"
                     aria-selected={activeTab === tab.id}
                     onClick={() => switchTab(tab.id)}
-                    className={`rounded-[1.1rem] px-3 py-3 text-sm font-bold transition duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 motion-reduce:transition-none ${
+                    className={`rounded-[18px] px-3 py-3 text-sm font-bold transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]/50 motion-reduce:transition-none ${
                       activeTab === tab.id
                         ? 'bg-[color:var(--bg-card)] text-[color:var(--text-primary)] shadow-[0_10px_26px_rgba(20,20,20,0.11)]'
                         : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-card)]/55 hover:text-[color:var(--text-primary)]'
@@ -223,7 +211,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
               </div>
             </div>
 
-            <div className="min-h-[24rem] rounded-[1.5rem] border border-[color:var(--border-color)] bg-[color:var(--bg-card)]/70 p-5 sm:p-6">
+            <div className="min-h-[24rem] rounded-[24px] border border-[color:var(--border-color)] bg-[color:var(--bg-card)]/70 p-5 sm:p-6">
               <div className="mb-6 space-y-2">
                 <h2 className="text-2xl font-black tracking-tight">
                   {activeTab === 'trial' && 'Bienvenue sur Fiip'}
@@ -233,7 +221,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
                 <p className="text-sm leading-6 text-[color:var(--text-secondary)]">
                   {activeTab === 'trial' && 'Démarrez immédiatement, puis ajoutez la synchronisation quand vous en avez besoin.'}
                   {activeTab === 'login' && 'Retrouvez vos notes, vos préférences et vos espaces synchronisés.'}
-                  {activeTab === 'register' && 'Le lien de compte est créé ici, sans étape licence séparée.'}
+                  {activeTab === 'register' && 'Créez votre espace et retrouvez-le sur vos appareils.'}
                 </p>
               </div>
 
@@ -250,8 +238,8 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
 
               {activeTab === 'trial' && (
                 <div className="animate-[fadeIn_220ms_ease-out] space-y-5 motion-reduce:animate-none">
-                  <div className="rounded-2xl border border-amber-400/35 bg-amber-400/10 px-4 py-3 text-sm font-semibold leading-6 text-amber-100 shadow-[0_0_0_4px_rgba(245,158,11,0.06)]">
-                    Essai local limité à 7 jours et une seule activation par installation. La synchronisation et les droits premium restent réservés aux licences.
+                  <div className="rounded-xl border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-4 py-3 text-sm font-semibold leading-6 text-[color:var(--text-primary)] shadow-[0_0_0_4px_rgba(110,116,255,0.06)]">
+                    L’essai local dure 7 jours sur cet appareil. Connectez-vous plus tard pour synchroniser.
                   </div>
                   <div className="space-y-3">
                     {localBenefits.map((benefit) => (
@@ -267,7 +255,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
                   <button
                     type="button"
                     onClick={handleFreeTrial}
-                    className="group flex w-full items-center justify-center gap-2 rounded-2xl bg-[#151515] px-5 py-4 text-base font-bold text-white shadow-[0_18px_40px_rgba(20,20,20,0.22)] transition duration-300 hover:-translate-y-0.5 hover:bg-black active:translate-y-0 dark:bg-white dark:text-black dark:hover:bg-[#f0ede6] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    className="group flex w-full items-center justify-center gap-2 rounded-[18px] bg-[color:var(--accent)] px-5 py-4 text-base font-bold text-white shadow-[0_18px_40px_rgba(0,0,0,0.22)] transition duration-200 hover:-translate-y-0.5 hover:bg-[color:var(--accent-light)] active:scale-[0.98] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                   >
                     Commencer en local
                     <IconArrowRight className="h-5 w-5 transition duration-300 group-hover:translate-x-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-x-0" />
@@ -314,12 +302,10 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
                     required
                   />
 
-                  <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaResetKey} />
-
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full rounded-2xl bg-[#151515] px-5 py-4 text-base font-bold text-white shadow-[0_18px_40px_rgba(20,20,20,0.20)] transition duration-300 hover:-translate-y-0.5 hover:bg-black disabled:cursor-not-allowed disabled:opacity-55 dark:bg-white dark:text-black dark:hover:bg-[#f0ede6] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                    className="w-full rounded-[18px] bg-[color:var(--accent)] px-5 py-4 text-base font-bold text-white shadow-[0_18px_40px_rgba(0,0,0,0.20)] transition duration-200 hover:-translate-y-0.5 hover:bg-[color:var(--accent-light)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                   >
                     {loading ? 'Chargement...' : activeTab === 'login' ? 'Se connecter' : "S'inscrire"}
                   </button>
@@ -330,7 +316,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
                         type="button"
                         onClick={handleForgotPassword}
                         disabled={loading}
-                        className="w-full rounded-2xl border border-black/10 bg-white/8 px-5 py-3 text-sm font-bold text-[color:var(--text-primary)] transition duration-300 hover:bg-white/12 disabled:opacity-55 dark:border-white/10"
+                        className="w-full rounded-[18px] border border-white/10 bg-white/8 px-5 py-3 text-sm font-bold text-[color:var(--text-primary)] transition duration-200 hover:bg-white/12 disabled:opacity-55"
                       >
                         Mot de passe oublié
                       </button>
@@ -345,7 +331,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
                         type="button"
                         onClick={handleGoogleLogin}
                         disabled={loading}
-                        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-black/10 bg-white px-5 py-4 text-base font-bold text-[#151515] shadow-[0_12px_28px_rgba(20,20,20,0.08)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-55 dark:border-white/10 dark:bg-white/92 dark:hover:bg-white motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                        className="flex w-full items-center justify-center gap-3 rounded-[18px] border border-white/10 bg-white/92 px-5 py-4 text-base font-bold text-[#151515] shadow-[0_12px_28px_rgba(0,0,0,0.18)] transition duration-200 hover:-translate-y-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
                       >
                         <IconGoogle className="h-5 w-5" />
                         Se connecter avec Google
@@ -365,8 +351,8 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
 function TextField({ icon, label, ...inputProps }) {
   return (
     <label className="block space-y-2">
-      <span className="text-sm font-bold text-[#504d47] dark:text-[#ded9cf]">{label}</span>
-      <span className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white/78 px-4 py-3.5 text-[#77736b] shadow-[0_8px_22px_rgba(20,20,20,0.05)] transition duration-300 focus-within:border-amber-500/50 focus-within:ring-4 focus-within:ring-amber-500/12 dark:border-white/10 dark:bg-white/8 dark:text-[#aaa59d] motion-reduce:transition-none">
+      <span className="text-sm font-bold text-[color:var(--text-primary)]">{label}</span>
+      <span className="flex items-center gap-3 rounded-[18px] border border-white/10 bg-white/8 px-4 py-3.5 text-[color:var(--text-muted)] shadow-[0_8px_22px_rgba(0,0,0,0.14)] transition duration-200 focus-within:border-[color:var(--accent)]/50 focus-within:ring-4 focus-within:ring-[color:var(--accent)]/12 motion-reduce:transition-none">
         {icon}
         <input
           {...inputProps}

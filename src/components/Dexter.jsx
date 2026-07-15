@@ -1,101 +1,214 @@
 import DOMPurify from 'dompurify';
+import { AnimatePresence, useReducedMotion } from 'framer-motion';
 import { marked } from 'marked';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import {
+    AIActionCard,
+    AIComposer,
+    AIFunctionsPanel,
+    AIConversationViewport,
+    AIMessageBubble,
+    AIMessageRow,
+    AIStarterPrompts,
+    AIThinkingIndicator,
+    AIWorkspaceFrame,
+    AIWorkspaceHeader,
+    AIWorkspaceSidebar,
+} from './ui/AIWorkspace';
 import { generateText } from '../services/ai';
 import { buildDexterNoteContext } from '../services/dexterContext';
 
-// Icons Import
-import IconCheck from '~icons/mingcute/check-fill';
-import IconClose from '~icons/mingcute/close-fill';
-import IconTrash from '~icons/mingcute/delete-2-fill';
-import IconPen from '~icons/mingcute/pen-fill';
-import IconSend from '~icons/mingcute/send-plane-fill';
-import IconSparkles from '~icons/mingcute/sparkles-fill';
-import IconStop from '~icons/mingcute/stop-fill';
-
 const getCurrentTimestamp = () => new Date().getTime();
 
-export default function Dexter({ 
-    isOpen, 
-    onClose, 
-    onCreateNote, 
-    onUpdateNote, 
-    onDeleteNote, 
-    currentNote 
+const SYSTEM_PROMPT = [
+    "Tu es Dexter, l'assistant de redaction de Fiip.",
+    "Tu aides uniquement a ecrire, corriger, resumer, structurer, titrer et transformer des notes Fiip.",
+    "Tu ne promets pas d'agir hors de l'application, tu ne lis pas de fichiers non fournis et tu n'inventes pas de faits.",
+    "Quand une modification de note est demandee, reponds avec un JSON allowliste: create, create_note, update ou delete.",
+    "Le JSON est toujours confirme par l'utilisateur avant application.",
+].join(' ');
+
+const QUICK_ACTIONS = [
+    {
+        id: 'correct',
+        label: 'Corriger',
+        description: 'Nettoie la note active.',
+        requiresNote: true,
+        fallbackAction: 'update',
+        prompt: "Corrige l'orthographe, la ponctuation et les tournures lourdes de la note active sans changer le sens. Reponds uniquement avec un JSON valide: {\"action\":\"update\",\"mode\":\"replace\",\"title\":\"titre\",\"content\":\"contenu corrige\"}.",
+    },
+    {
+        id: 'structure',
+        label: 'Structurer',
+        description: 'Transforme en plan lisible.',
+        requiresNote: true,
+        fallbackAction: 'update',
+        prompt: "Reorganise la note active avec des titres courts, des paragraphes clairs et des listes si utile. Reponds uniquement avec un JSON valide: {\"action\":\"update\",\"mode\":\"replace\",\"title\":\"titre\",\"content\":\"contenu structure\"}.",
+    },
+    {
+        id: 'summary',
+        label: 'Resumer',
+        description: "Fait ressortir l'essentiel.",
+        requiresNote: true,
+        prompt: "Resume la note active en 5 points utiles maximum. Termine par une ligne 'A retenir' si une conclusion ressort clairement.",
+    },
+    {
+        id: 'title',
+        label: 'Titre',
+        description: 'Propose un titre net.',
+        requiresNote: true,
+        fallbackAction: 'update',
+        prompt: "Propose un meilleur titre pour la note active. Garde le contenu intact. Reponds uniquement avec un JSON valide: {\"action\":\"update\",\"mode\":\"replace\",\"title\":\"nouveau titre\",\"content\":\"contenu original\"}.",
+    },
+    {
+        id: 'tasks',
+        label: 'Taches',
+        description: 'Extrait les prochaines actions.',
+        requiresNote: true,
+        prompt: "Extrait les taches concretes de la note active. Si aucune tache n'est evidente, dis-le clairement et propose deux prochaines actions raisonnables.",
+    },
+    {
+        id: 'new-note',
+        label: 'Nouvelle note',
+        description: 'Cree depuis la demande.',
+        fallbackAction: 'create_note',
+        prompt: "Cree une nouvelle note concise a partir de la prochaine demande utilisateur. Reponds avec un JSON valide: {\"action\":\"create_note\",\"title\":\"titre\",\"content\":\"contenu\"}.",
+    },
+];
+
+const STARTER_PROMPTS = [
+    {
+        id: 'clarify-note',
+        title: 'Clarifier la note',
+        description: 'Repere les passages flous et propose une version plus nette.',
+        requiresNote: true,
+        text: "Analyse la note active. Liste les passages ambigus, puis propose une version plus claire sans inventer d'informations.",
+    },
+    {
+        id: 'next-steps',
+        title: 'Prochaines actions',
+        description: "Transforme le contenu en suite d'actions concrete.",
+        requiresNote: true,
+        text: "A partir de la note active, propose les prochaines actions concretes, classees par priorite.",
+    },
+    {
+        id: 'draft-from-scratch',
+        title: 'Brouillon propre',
+        description: 'Demarre une note structuree depuis une demande libre.',
+        text: "Aide-moi a demarrer une nouvelle note. Demande-moi le sujet si la demande suivante n'est pas assez precise.",
+    },
+];
+
+function stripNoteText(value = '') {
+    const html = String(value || '');
+    if (typeof document !== 'undefined') {
+        const element = document.createElement('div');
+        element.innerHTML = html;
+        return (element.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function getWordCount(value = '') {
+    const text = stripNoteText(value);
+    return text ? text.split(/\s+/).length : 0;
+}
+
+function parseActionFromResponse(response, fallback) {
+    const raw = String(response || '').trim();
+    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const jsonCandidate = fenced?.[1] || raw.match(/\{[\s\S]*\}/)?.[0];
+
+    let parsed = null;
+    if (jsonCandidate) {
+        try {
+            parsed = JSON.parse(jsonCandidate);
+        } catch {
+            parsed = null;
+        }
+    }
+
+    if (parsed && ['create', 'create_note', 'update', 'delete'].includes(parsed.action)) {
+        return {
+            ...parsed,
+            mode: parsed.mode || (parsed.action === 'update' ? 'append' : undefined),
+        };
+    }
+
+    if (!fallback) return null;
+
+    return {
+        action: fallback.action,
+        mode: fallback.mode,
+        title: fallback.title,
+        content: raw,
+    };
+}
+
+function markdownToSafeHtml(content) {
+    return DOMPurify.sanitize(marked.parse(content || ''));
+}
+
+export default function Dexter({
+    isOpen,
+    onClose,
+    onCreateNote,
+    onUpdateNote,
+    onDeleteNote,
+    currentNote,
+    initialPrompt,
+    onInitialPromptConsumed,
 }) {
     const { t } = useTranslation();
-    const WIDGET_WIDTH = 420;
-    const MARGIN_RIGHT = 30;
-
-    // Initial position anchored to right
-    const [position, setPosition] = useState({
-        x: typeof window !== 'undefined' ? window.innerWidth - WIDGET_WIDTH - MARGIN_RIGHT : 800,
-        y: 60
-    });
-
-    const [isDragging, setIsDragging] = useState(false);
-    const dragOffset = useRef({ x: 0, y: 0 });
-    const dexterRef = useRef(null);
+    const shouldReduceMotion = useReducedMotion();
+    const inputRef = useRef(null);
+    const messagesEndRef = useRef(null);
     const abortController = useRef(null);
+    const consumedInitialPromptRef = useRef(null);
 
     const [messages, setMessages] = useState([
-        { role: 'assistant', content: t('dexter.welcome', "Bonjour. Je suis Dexter, l'assistant de rédaction de Fiip. Je peux clarifier une note, corriger un passage, résumer ou proposer une structure.") }
+        {
+            role: 'assistant',
+            content: t('dexter.welcome', "Bonjour. Ouvrez une note, choisissez une action ou demandez une modification precise.")
+        }
     ]);
     const [input, setInput] = useState('');
     const [isThinking, setIsThinking] = useState(false);
-    const [, setRecentPrompts] = useState([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [activeAction, setActiveAction] = useState(null);
+
+    const notePlainText = useMemo(() => stripNoteText(currentNote?.content || ''), [currentNote?.content]);
+    const noteWordCount = useMemo(() => getWordCount(currentNote?.content || ''), [currentNote?.content]);
+    const noteContext = useMemo(() => buildDexterNoteContext(currentNote), [currentNote]);
 
     useEffect(() => {
-        const handleResize = () => {
-            if (typeof window !== 'undefined') {
-                setPosition(prev => ({
-                    ...prev,
-                    x: window.innerWidth - WIDGET_WIDTH - MARGIN_RIGHT
-                }));
-            }
+        if (!isOpen) return;
+        const id = window.setTimeout(() => inputRef.current?.focus(), 80);
+        return () => window.clearTimeout(id);
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') onClose?.();
         };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
 
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    const handlePointerDown = (e) => {
-        const target = e.target;
-        if (target.closest('button') || target.closest('input') || target.closest('textarea')) {
-            return;
+    useEffect(() => {
+        if (typeof messagesEndRef.current?.scrollIntoView === 'function') {
+            messagesEndRef.current.scrollIntoView({ block: 'end' });
         }
-        setIsDragging(true);
-        dragOffset.current = {
-            x: e.clientX - position.x,
-            y: e.clientY - position.y
-        };
-        e.currentTarget.setPointerCapture(e.pointerId);
-    };
+    }, [messages, isThinking]);
 
-    const handlePointerMove = (e) => {
-        if (isDragging) {
-            let newX = e.clientX - dragOffset.current.x;
-            let newY = e.clientY - dragOffset.current.y;
-
-            if (dexterRef.current) {
-                const { width, height } = dexterRef.current.getBoundingClientRect();
-                const maxX = window.innerWidth - width;
-                const maxY = window.innerHeight - height;
-
-                newX = Math.max(0, Math.min(newX, maxX));
-                newY = Math.max(0, Math.min(newY, maxY));
-            }
-
-            setPosition({ x: newX, y: newY });
-        }
-    };
-
-    const handlePointerUp = (e) => {
-        setIsDragging(false);
-        e.currentTarget.releasePointerCapture(e.pointerId);
+    const updatePendingData = (index, patch) => {
+        setMessages(prev => prev.map((msg, i) =>
+            i === index && msg.type === 'action_pending'
+                ? { ...msg, data: { ...msg.data, ...patch } }
+                : msg
+        ));
     };
 
     const handleAccept = useCallback((index, msg) => {
@@ -103,318 +216,231 @@ export default function Dexter({
         if (!data) return;
 
         if (data.action === 'create' || data.action === 'create_note') {
-            onCreateNote({ title: data.title, content: data.content });
+            onCreateNote?.({ title: data.title || 'Nouvelle note', content: data.content || '' });
             setMessages(prev => prev.map((m, i) =>
                 i === index ? { ...m, type: 'action_create', data: { ...data } } : m
             ));
-        } else if (data.action === 'update') {
-            if (currentNote) {
-                onUpdateNote({ ...currentNote, content: currentNote.content + '\n' + data.content, updatedAt: getCurrentTimestamp() });
+            return;
+        }
+
+        if (data.action === 'update') {
+            if (currentNote && onUpdateNote) {
+                const currentContent = currentNote.content || '';
+                const nextContent = data.mode === 'replace'
+                    ? (data.content || '')
+                    : `${currentContent}${currentContent ? '\n\n' : ''}${data.content || ''}`;
+
+                onUpdateNote({
+                    ...currentNote,
+                    title: data.title || currentNote.title,
+                    content: nextContent,
+                    updatedAt: getCurrentTimestamp()
+                });
             }
             setMessages(prev => prev.map((m, i) =>
                 i === index ? { ...m, type: 'action_update', data: { ...data } } : m
             ));
-        } else if (data.action === 'delete') {
-            onDeleteNote();
+            return;
+        }
+
+        if (data.action === 'delete') {
+            onDeleteNote?.(currentNote?.id);
             setMessages(prev => prev.map((m, i) =>
-                i === index ? { ...m, type: 'action_delete_done', data: { title: data.title } } : m
+                i === index ? { ...m, type: 'action_delete_done', data: { title: data.title || currentNote?.title } } : m
             ));
         }
     }, [currentNote, onCreateNote, onUpdateNote, onDeleteNote]);
 
-    useEffect(() => {
-        const handleGlobalKeyDown = (e) => {
-            if (e.key === 'Tab' && !e.shiftKey) {
-                const lastMsgIndex = messages.length - 1;
-                const lastMsg = messages[lastMsgIndex];
-                if (lastMsg && lastMsg.type === 'action_pending' && !showSuggestions) {
-                    e.preventDefault();
-                    handleAccept(lastMsgIndex, lastMsg);
-                }
-            }
-        };
-
-        window.addEventListener('keydown', handleGlobalKeyDown);
-        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-    }, [messages, showSuggestions, handleAccept]);
-
     const handleDeny = (index) => {
         setMessages(prev => prev.map((m, i) =>
-            i === index ? { ...m, type: 'action_denied', content: t('dexter.status.action_cancelled', 'Action annulée') } : m
-        ));
-    };
-
-    const handleUpdatePendingContent = (index, newContent) => {
-        setMessages(prev => prev.map((msg, i) => 
-            i === index && msg.type === 'action_pending'
-                ? { ...msg, data: { ...msg.data, content: newContent } }
-                : msg
+            i === index ? { ...m, type: 'action_denied', content: 'Action ignoree.' } : m
         ));
     };
 
     const handleStop = () => {
-        if (abortController.current) {
-            abortController.current.abort();
-            abortController.current = null;
-        }
+        abortController.current?.abort();
+        abortController.current = null;
         setIsThinking(false);
+        setActiveAction(null);
     };
 
-    const handleSend = async () => {
-        const text = input.trim();
-        if (!text) return;
+    const runDexterRequest = useCallback(async ({ text, visibleText = text, fallbackAction = null, actionId = null }) => {
+        const prompt = String(text || '').trim();
+        if (!prompt || isThinking) return;
 
         setInput('');
-        setShowSuggestions(false);
-        setRecentPrompts(prev => [text, ...prev.filter(p => p !== text)].slice(0, 5));
-
-        const userMsg = { role: 'user', content: text };
-        setMessages(prev => [...prev, userMsg]);
+        setActiveAction(actionId);
+        setMessages(prev => [...prev, { role: 'user', content: visibleText }]);
         setIsThinking(true);
 
-        abortController.current = new AbortController();
+        const controller = new AbortController();
+        abortController.current = controller;
 
         try {
-            const noteContext = buildDexterNoteContext(currentNote);
-
             const response = await generateText({
-                signal: abortController.current.signal,
+                signal: controller.signal,
                 messages: [
-                    {
-                        role: 'system',
-                        content: "Tu es Dexter, assistant Fiip de creation et d'edition de notes. Ton role est d'aider a rediger, corriger, resumer, structurer, classer et transformer le contenu de notes Fiip, en utilisant uniquement les actions Fiip/MCP explicitement disponibles dans l'application. Tu ne dois pas executer de code, produire de malware, donner des instructions d'exploitation, contourner des protections, promettre de lire des fichiers non fournis, ni agir hors du contexte des notes. Si la demande sort de ce role, refuse brievement et propose une aide de redaction de note. Reponds en francais clair par defaut, sois concis, n'invente pas de faits. Les actions structurees doivent etre uniquement du JSON allowliste avec action create/create_note/update/delete, et elles seront confirmees par l'utilisateur.",
-                    },
+                    { role: 'system', content: SYSTEM_PROMPT },
                     {
                         role: 'user',
-                        content: `${noteContext}\n\nDemande utilisateur:\n${text}`,
+                        content: `${noteContext}\n\nDemande utilisateur:\n${prompt}`,
                     },
                 ],
             });
-            
-            // Check for JSON structural block for notes creation/updates
-            let parsedAction = null;
-            let displayContent = response;
 
-            try {
-                const jsonMatch = response.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    const parsed = JSON.parse(jsonMatch[0]);
-                    if (parsed.action && ['create', 'create_note', 'update', 'delete'].includes(parsed.action)) {
-                        parsedAction = parsed;
-                        displayContent = response.replace(jsonMatch[0], '').trim();
-                    }
-                }
-            } catch {
-                // Not a structural command
-            }
+            const action = parseActionFromResponse(response, fallbackAction);
+            const displayContent = action
+                ? String(response).replace(/```(?:json)?\s*[\s\S]*?```/i, '').replace(/\{[\s\S]*\}/, '').trim()
+                : response;
 
-            const assistantMsg = {
+            setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: response,
                 displayContent,
-                type: parsedAction ? 'action_pending' : undefined,
-                data: parsedAction
-            };
-
-            setMessages(prev => [...prev, assistantMsg]);
+                type: action ? 'action_pending' : undefined,
+                data: action,
+            }]);
         } catch (err) {
-            if (err.name !== 'AbortError') {
-                setMessages(prev => [...prev, { role: 'assistant', content: err?.message || "Erreur lors de la génération. Veuillez réessayer." }]);
+            if (err?.name !== 'AbortError') {
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: err?.message || 'Generation impossible pour le moment.'
+                }]);
             }
         } finally {
             setIsThinking(false);
+            setActiveAction(null);
             abortController.current = null;
         }
+    }, [isThinking, noteContext]);
+
+    const handleQuickAction = (action) => {
+        if (action.requiresNote && !currentNote) {
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: 'Ouvrez une note pour utiliser cette action.'
+            }]);
+            return;
+        }
+
+        const fallback = action.fallbackAction ? {
+            action: action.fallbackAction,
+            mode: action.fallbackAction === 'update' ? 'replace' : undefined,
+            title: currentNote?.title || 'Nouvelle note',
+            content: action.id === 'title' ? currentNote?.content || '' : undefined,
+        } : null;
+
+        runDexterRequest({
+            text: action.prompt,
+            visibleText: action.label,
+            fallbackAction: fallback,
+            actionId: action.id,
+        });
     };
 
-    if (!isOpen) return null;
+    const handleStarterPrompt = (prompt) => {
+        if (prompt.requiresNote && !currentNote) {
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: 'Ouvrez une note pour utiliser cette suggestion.'
+            }]);
+            return;
+        }
+
+        runDexterRequest({
+            text: prompt.text,
+            visibleText: prompt.title,
+            actionId: prompt.id,
+        });
+    };
+
+    const handleSend = () => {
+        const text = input.trim();
+        if (!text) return;
+        runDexterRequest({ text });
+    };
+
+    useEffect(() => {
+        if (!isOpen || !initialPrompt?.text || consumedInitialPromptRef.current === initialPrompt.id) return;
+
+        consumedInitialPromptRef.current = initialPrompt.id;
+        runDexterRequest({ text: initialPrompt.text });
+        onInitialPromptConsumed?.();
+    }, [initialPrompt, isOpen, onInitialPromptConsumed, runDexterRequest]);
 
     return (
-        <div 
-            ref={dexterRef}
-            style={{ left: `${position.x}px`, top: `${position.y}px` }}
-            className="fixed z-50 w-[420px] h-[550px] flex flex-col rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-white/70 dark:bg-[#1E1E1ECC] backdrop-blur-2xl shadow-2xl overflow-hidden font-sans select-none animate-in fade-in zoom-in-95 duration-200"
-        >
-            {/* Header Draggable */}
-            <div 
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                className="px-4 py-3 border-b border-warm-border-light dark:border-warm-border-dark bg-warm-sidebar-light/50 dark:bg-zinc-800/30 flex items-center justify-between cursor-move titlebar-drag-region"
-            >
-                <div className="flex items-center gap-2">
-                    <IconSparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                    <span className="text-xs font-black uppercase tracking-wider">Assistant Dexter IA</span>
-                </div>
-                <button 
-                    onClick={onClose}
-                    aria-label="Fermer Dexter"
-                    title="Fermer Dexter"
-                    className="p-1.5 rounded-lg hover:bg-warm-sidebar-item-active transition-all text-warm-text-muted-light"
-                >
-                    <IconClose className="w-4 h-4" />
-                </button>
-            </div>
+        <AnimatePresence>
+            {isOpen && (
+                <AIWorkspaceFrame shouldReduceMotion={shouldReduceMotion} onClose={onClose}>
+                    <AIWorkspaceSidebar
+                        title="Dexter"
+                        noteTitle={currentNote?.title}
+                        noteWordCount={noteWordCount}
+                        attachmentsCount={currentNote?.attachments?.length || 0}
+                        notePreview={notePlainText}
+                        actions={QUICK_ACTIONS}
+                        activeAction={activeAction}
+                        isThinking={isThinking}
+                        onAction={handleQuickAction}
+                        onClose={onClose}
+                    />
 
-            {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 custom-scrollbar">
-                {messages.map((msg, i) => (
-                    <div key={i} className={`flex flex-col gap-1.5 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                        {/* Bubble */}
-                        {msg.type === 'action_pending' ? (
-                            // Draggable Action Card
-                            <div className="w-full max-w-[95%] border border-amber-500/20 bg-amber-500/5 rounded-2xl overflow-hidden shadow-sm flex flex-col">
-                                <div className="px-4 py-2 border-b border-amber-500/20 bg-amber-500/10 flex items-center justify-between text-xs font-bold text-amber-700 dark:text-amber-400">
-                                    <div className="flex items-center gap-2">
-                                        {msg.data.action === 'delete' ? <IconTrash className="w-4 h-4" /> : <IconPen className="w-4 h-4" />}
-                                        <span>
-                                            {msg.data.action === 'create' || msg.data.action === 'create_note' ? 'Création de note suggérée' : 
-                                             msg.data.action === 'update' ? 'Modification de note suggérée' : 'Suppression suggérée'}
-                                        </span>
-                                    </div>
-                                    <span className="text-[9px] font-black uppercase tracking-widest bg-amber-500/20 px-2 py-0.5 rounded-full">Appliquer (Tab)</span>
-                                </div>
-                                <div className="p-4 space-y-3">
-                                    {(msg.data.action === 'create' || msg.data.action === 'create_note') && (
-                                        <div className="space-y-1">
-                                            <span className="text-[9px] uppercase tracking-wider text-warm-text-muted-light font-bold">Titre de la note</span>
-                                            <input 
-                                                type="text"
-                                                value={msg.data.title || ''}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    setMessages(prev => prev.map((m, idx) => idx === i && m.type === 'action_pending' ? { ...m, data: { ...m.data, title: val } } : m));
-                                                }}
-                                                className="w-full bg-white dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl px-3 py-2 text-xs focus:outline-none"
-                                            />
-                                        </div>
-                                    )}
+                    <div className="flex min-w-0 flex-1 flex-col">
+                        <AIWorkspaceHeader isThinking={isThinking} onStop={handleStop} onClose={onClose} />
 
-                                    {msg.data.action === 'delete' ? (
-                                        <div className="text-xs text-warm-text-secondary-light leading-relaxed">
-                                            Souhaitez-vous vraiment supprimer <span className="font-bold">"{msg.data.title}"</span> ?
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-1">
-                                            <span className="text-[9px] uppercase tracking-wider text-warm-text-muted-light font-bold">Contenu</span>
-                                            <textarea
-                                                value={msg.data.content || ''}
-                                                onChange={(e) => handleUpdatePendingContent(i, e.target.value)}
-                                                className="w-full bg-white dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark text-xs p-3 rounded-xl min-h-[100px] resize-none focus:outline-none font-mono"
+                        <div className="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px]">
+                            <main className="flex min-h-0 flex-col">
+                                <AIConversationViewport>
+                                        {messages.length === 1 && (
+                                            <AIStarterPrompts
+                                                prompts={STARTER_PROMPTS}
+                                                onPrompt={handleStarterPrompt}
                                             />
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex border-t border-warm-border-light dark:border-warm-border-dark divide-x divide-warm-border-light dark:divide-warm-border-dark">
-                                    <button 
-                                        onClick={() => handleDeny(i)}
-                                        className="flex-1 py-2.5 hover:bg-red-500/5 text-warm-text-muted-light hover:text-red-500 text-[10px] font-bold uppercase tracking-wider transition-colors"
-                                    >
-                                        Ignorer
-                                    </button>
-                                    <button 
-                                        onClick={() => handleAccept(i, msg)}
-                                        className="flex-1 py-2.5 hover:bg-green-500/5 text-amber-600 dark:text-amber-400 text-[10px] font-bold uppercase tracking-wider transition-colors"
-                                    >
-                                        Appliquer
-                                    </button>
-                                </div>
-                            </div>
-                        ) : msg.type === 'action_create' ? (
-                            <div className="w-full max-w-[95%] border border-green-500/20 bg-green-500/5 rounded-2xl p-3 flex items-center justify-between text-xs text-green-700 dark:text-green-400">
-                                <div className="flex items-center gap-2">
-                                    <IconCheck className="w-4 h-4" />
-                                    <span>Note "{msg.data.title}" créée !</span>
-                                </div>
-                            </div>
-                        ) : msg.type === 'action_update' ? (
-                            <div className="w-full max-w-[95%] border border-green-500/20 bg-green-500/5 rounded-2xl p-3 flex items-center justify-between text-xs text-green-700 dark:text-green-400">
-                                <div className="flex items-center gap-2">
-                                    <IconCheck className="w-4 h-4" />
-                                    <span>Note mise à jour avec succès !</span>
-                                </div>
-                            </div>
-                        ) : msg.type === 'action_delete_done' ? (
-                            <div className="w-full max-w-[95%] border border-red-500/20 bg-red-500/5 rounded-2xl p-3 flex items-center justify-between text-xs text-red-700 dark:text-red-400">
-                                <div className="flex items-center gap-2">
-                                    <IconClose className="w-4 h-4" />
-                                    <span>Note supprimée !</span>
-                                </div>
-                            </div>
-                        ) : msg.type === 'action_denied' ? (
-                            <div className="w-full max-w-[95%] border border-warm-border-light dark:border-warm-border-dark bg-warm-sidebar-light/50 p-3 rounded-2xl text-xs text-warm-text-muted-light">
-                                <span>Action ignorée.</span>
-                            </div>
-                        ) : (
-                            <div className={`p-3 rounded-2xl text-[11px] leading-relaxed max-w-[85%] border shadow-sm ${
-                                msg.role === 'user' 
-                                    ? 'bg-[#1C1C1E] text-white dark:bg-white dark:text-zinc-950 border-transparent rounded-tr-none' 
-                                    : 'bg-white text-warm-text-primary-light dark:bg-zinc-800 dark:text-warm-text-primary-dark border-warm-border-light dark:border-warm-border-dark rounded-tl-none'
-                            }`}>
-                                <div 
-                                    className="dexter-markdown space-y-1.5"
-                                    dangerouslySetInnerHTML={{ 
-                                        __html: DOMPurify.sanitize(marked.parse(msg.displayContent || msg.content || '')) 
-                                    }}
+                                        )}
+
+                                        {messages.map((msg, i) => (
+                                            <AIMessageRow
+                                                key={`${msg.role}-${i}`}
+                                                itemKey={`${msg.role}-${i}`}
+                                                role={msg.role}
+                                                shouldReduceMotion={shouldReduceMotion}
+                                            >
+                                                {msg.type === 'action_pending' ? (
+                                                    <AIActionCard
+                                                        message={msg}
+                                                        index={i}
+                                                        onAccept={handleAccept}
+                                                        onDeny={handleDeny}
+                                                        onChange={updatePendingData}
+                                                    />
+                                                ) : (
+                                                    <AIMessageBubble
+                                                        message={msg}
+                                                        html={markdownToSafeHtml(msg.displayContent || msg.content || '')}
+                                                    />
+                                                )}
+                                            </AIMessageRow>
+                                        ))}
+
+                                        {isThinking && <AIThinkingIndicator />}
+                                        <div ref={messagesEndRef} />
+                                </AIConversationViewport>
+
+                                <AIComposer
+                                    inputRef={inputRef}
+                                    value={input}
+                                    isThinking={isThinking}
+                                    onChange={setInput}
+                                    onSend={handleSend}
+                                    onStop={handleStop}
                                 />
-                            </div>
-                        )}
-                    </div>
-                ))}
+                            </main>
 
-                {isThinking && (
-                    <div className="flex items-center gap-2 px-1 py-2">
-                        <div className="flex gap-1">
-                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce delay-75" />
-                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce delay-150" />
-                            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce delay-300" />
+                            <AIFunctionsPanel />
                         </div>
                     </div>
-                )}
-            </div>
-
-            {/* Input Footer */}
-            <div className="p-3 border-t border-warm-border-light dark:border-warm-border-dark bg-warm-sidebar-light/50 dark:bg-zinc-900/30 flex flex-col gap-2 relative">
-                <div className="flex items-center gap-2">
-                    <div className="flex-1 relative">
-                        <input
-                            type="text"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleSend();
-                                }
-                            }}
-                            placeholder="Posez une question ou demandez une correction..."
-                            aria-label="Message pour Dexter"
-                            className="w-full bg-white dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl px-3 py-2 text-xs focus:outline-none"
-                        />
-                    </div>
-
-                    {isThinking ? (
-                        <button 
-                            onClick={handleStop}
-                            className="p-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all shrink-0 animate-pulse"
-                            title="Arrêter"
-                        >
-                            <IconStop className="w-4 h-4 fill-current" />
-                        </button>
-                    ) : (
-                        <button 
-                            onClick={handleSend}
-                            disabled={!input.trim()}
-                            aria-label="Envoyer à Dexter"
-                            className="p-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl disabled:opacity-50 transition-all shrink-0"
-                        >
-                            <IconSend className="w-4 h-4" />
-                        </button>
-                    )}
-                </div>
-
-                <div className="h-1" aria-hidden="true" />
-            </div>
-        </div>
+                </AIWorkspaceFrame>
+            )}
+        </AnimatePresence>
     );
 }

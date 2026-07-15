@@ -1,4 +1,4 @@
-import { getEnv } from './env.ts';
+import { getEnv, getFirstEnv } from './env.ts';
 import { SUPPORTED_MODELS } from './tiers.ts';
 
 export const DEEPSEEK_MODEL = 'deepseek/deepseek-v3.2';
@@ -126,7 +126,7 @@ export function supportedModelsForTier(tier = 'basic') {
 }
 
 export async function callOpenRouter({ messages, model, jsonMode = false, maxTokens = DEFAULT_MAX_OUTPUT_TOKENS }: { messages: unknown[]; model: string; jsonMode?: boolean; maxTokens?: number }) {
-  const apiKey = getEnv('OPENROUTER_API_KEY');
+  const apiKey = getFirstEnv(['OPENROUTER_API_KEY', 'VITE_OPENROUTER_KEY']);
   const body: Record<string, unknown> = {
     model: `${model}:floor`,
     models: [`${model}:floor`, `${MIMO_FALLBACK_MODEL}:floor`],
@@ -168,7 +168,7 @@ export async function callOpenRouter({ messages, model, jsonMode = false, maxTok
 export async function fetchGenerationStats(generationId?: string) {
   if (!generationId) return null;
   const response = await fetch(`https://openrouter.ai/api/v1/generation?id=${encodeURIComponent(generationId)}`, {
-    headers: { Authorization: `Bearer ${getEnv('OPENROUTER_API_KEY')}` },
+    headers: { Authorization: `Bearer ${getFirstEnv(['OPENROUTER_API_KEY', 'VITE_OPENROUTER_KEY'])}` },
   });
   if (!response.ok) return null;
   return response.json().catch(() => null);

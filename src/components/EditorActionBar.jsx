@@ -146,7 +146,7 @@ function TagPicker({ tags, suggestions, onChange }) {
                                 type="button"
                                 onClick={() => label.trim() && commitTag()}
                                 disabled={!label.trim()}
-                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-zinc-950 px-3 py-2 text-xs font-black text-white disabled:opacity-40 dark:bg-white dark:text-zinc-950"
+                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[color:var(--accent)] px-3 py-2 text-xs font-black text-white transition-colors disabled:cursor-not-allowed disabled:bg-white/[0.09] disabled:text-[color:var(--text-secondary)] dark:bg-[color:var(--accent)] dark:text-white"
                             >
                                 <Plus size={13} />
                                 Ajouter

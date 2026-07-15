@@ -1,5 +1,8 @@
-import { Camera, Check, RefreshCw, RotateCcw, SlidersHorizontal, X } from 'lucide-react';
+import { Camera, Check, RefreshCw, RotateCcw, SlidersHorizontal, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+
+import { getFriendlyErrorMessage } from '../services/errorMessages';
+import { MotionSurface } from './ui';
 
 const DEFAULT_CROP = { x: 8, y: 8, width: 84, height: 84 };
 
@@ -135,6 +138,16 @@ function cropToBounds(crop, width, height) {
     };
 }
 
+function isAppleCameraRuntime() {
+    if (typeof navigator === 'undefined') return false;
+    const platform = navigator.userAgentData?.platform || navigator.platform || '';
+    return /mac|iphone|ipad|ipod/i.test(platform);
+}
+
+function stopStream(stream) {
+    stream?.getTracks?.().forEach((track) => track.stop());
+}
+
 async function canvasToBlob(canvas) {
     return new Promise((resolve, reject) => {
         canvas.toBlob((blob) => {
@@ -153,6 +166,7 @@ export default function DocumentScanner({ onSave, onClose }) {
     const dragRef = useRef(null);
     const streamRef = useRef(null);
     const fullCanvasRef = useRef(null);
+    const fileInputRef = useRef(null);
     const [error, setError] = useState('');
     const [isCapturing, setIsCapturing] = useState(false);
     const [detectedCrop, setDetectedCrop] = useState(null);
@@ -165,6 +179,7 @@ export default function DocumentScanner({ onSave, onClose }) {
     const [zoomRange, setZoomRange] = useState(null);
     const [zoom, setZoom] = useState(1);
     const [isCameraReady, setIsCameraReady] = useState(false);
+    const [cameraState, setCameraState] = useState('idle');
 
     useEffect(() => {
         let cancelled = false;
@@ -172,13 +187,21 @@ export default function DocumentScanner({ onSave, onClose }) {
         const start = async () => {
             try {
                 setError('');
+                setCameraState('requesting');
                 setIsCameraReady(false);
-                streamRef.current?.getTracks().forEach((track) => track.stop());
+                stopStream(streamRef.current);
+                streamRef.current = null;
+                if (!navigator.mediaDevices?.getUserMedia) {
+                    throw new Error('getUserMedia unavailable');
+                }
+                const appleRuntime = isAppleCameraRuntime();
                 const videoConstraints = {
-                    ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' }),
+                    ...(deviceId
+                        ? { deviceId: appleRuntime ? { ideal: deviceId } : { exact: deviceId } }
+                        : appleRuntime ? {} : { facingMode: { ideal: 'environment' } }),
                     width: { ideal: 1280 },
                     height: { ideal: 960 },
-                    frameRate: { ideal: 24, max: 30 },
+                    frameRate: appleRuntime ? { ideal: 15, max: 24 } : { ideal: 24, max: 30 },
                 };
                 let stream;
                 try {
@@ -187,6 +210,7 @@ export default function DocumentScanner({ onSave, onClose }) {
                         audio: false,
                     });
                 } catch (primaryError) {
+                    console.warn('Camera preferred constraints failed, using fallback:', primaryError);
                     if (deviceId) {
                         stream = await navigator.mediaDevices.getUserMedia({
                             video: { deviceId: { ideal: deviceId }, width: { ideal: 1280 }, height: { ideal: 960 } },
@@ -198,10 +222,9 @@ export default function DocumentScanner({ onSave, onClose }) {
                             audio: false,
                         });
                     }
-                    console.warn('Camera preferred constraints failed, using fallback:', primaryError);
                 }
                 if (cancelled) {
-                    stream.getTracks().forEach((track) => track.stop());
+                    stopStream(stream);
                     return;
                 }
                 streamRef.current = stream;
@@ -229,22 +252,31 @@ export default function DocumentScanner({ onSave, onClose }) {
                     };
                     await videoRef.current.play();
                 }
-                const listedDevices = await navigator.mediaDevices.enumerateDevices();
+                try {
+                    const listedDevices = await navigator.mediaDevices.enumerateDevices();
+                    if (!cancelled) {
+                        const videoDevices = listedDevices.filter((device) => device.kind === 'videoinput');
+                        setDevices(videoDevices);
+                    }
+                } catch (deviceError) {
+                    console.warn('Camera device enumeration failed:', deviceError);
+                }
                 if (!cancelled) {
-                    const videoDevices = listedDevices.filter((device) => device.kind === 'videoinput');
-                    setDevices(videoDevices);
+                    setCameraState('ready');
                 }
             } catch (cameraError) {
                 console.warn('Camera startup failed:', cameraError);
                 setIsCameraReady(false);
-                setError("Aucune webcam disponible ou permission refusée.");
+                setCameraState('error');
+                setError(getFriendlyErrorMessage(cameraError, "Aucune webcam disponible ou permission refusée. Vous pouvez importer une image à la place."));
             }
         };
 
         start();
         return () => {
             cancelled = true;
-            streamRef.current?.getTracks().forEach((track) => track.stop());
+            stopStream(streamRef.current);
+            streamRef.current = null;
         };
     }, [deviceId]);
 
@@ -313,6 +345,26 @@ export default function DocumentScanner({ onSave, onClose }) {
 
             const blob = await canvasToBlob(output);
             await onSave(blob);
+        } finally {
+            setIsCapturing(false);
+        }
+    };
+
+    const importFile = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+        if (!file.type?.startsWith('image/')) {
+            setError('Choisissez une image de document compatible.');
+            return;
+        }
+        setIsCapturing(true);
+        try {
+            stopStream(streamRef.current);
+            streamRef.current = null;
+            await onSave(file);
+        } catch (fileError) {
+            setError(getFriendlyErrorMessage(fileError, "Import de l'image impossible."));
         } finally {
             setIsCapturing(false);
         }
@@ -399,7 +451,7 @@ export default function DocumentScanner({ onSave, onClose }) {
 
     return (
         <div className="fixed inset-0 z-[135] flex items-center justify-center bg-black/72 p-4 backdrop-blur-xl" role="dialog" aria-modal="true">
-            <div className="flex h-[min(860px,96vh)] w-[min(1080px,96vw)] min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/12 bg-[#111316] text-white shadow-[0_30px_100px_rgba(0,0,0,0.45)]">
+            <MotionSurface className="flex h-[min(860px,96vh)] w-[min(1080px,96vw)] min-h-0 flex-col overflow-hidden rounded-[28px] border border-white/12 bg-[#111316] text-white shadow-[0_30px_100px_rgba(0,0,0,0.45)]">
                 <header className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                     <div>
                         <h2 className="text-base font-semibold">Scanner avec la webcam</h2>
@@ -496,7 +548,7 @@ export default function DocumentScanner({ onSave, onClose }) {
                                 />
                             )}
                             <div className="absolute left-4 top-4 rounded-full border border-white/12 bg-black/48 px-3 py-1.5 text-xs font-semibold text-white/78 backdrop-blur-xl">
-                                {isCameraReady ? (hasDetection ? 'Document détecté' : 'En attente du document') : 'Activation webcam...'}
+                                {isCameraReady ? (hasDetection ? 'Document détecté' : 'En attente du document') : cameraState === 'error' ? 'Webcam indisponible' : 'Activation webcam...'}
                             </div>
                         </>
                     )}
@@ -506,6 +558,11 @@ export default function DocumentScanner({ onSave, onClose }) {
                         {capturedUrl ? `${captureSize.width} x ${captureSize.height}px` : 'Astuce : utilisez un fond contrasté et évitez les reflets.'}
                     </p>
                     <div className="flex gap-2">
+                        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={importFile} />
+                        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isCapturing} className="inline-flex items-center gap-2 rounded-2xl border border-white/12 px-4 py-2 text-xs font-semibold text-white/76 hover:bg-white/10 disabled:opacity-45">
+                            <Upload size={14} />
+                            Importer
+                        </button>
                         <button type="button" onClick={capturedUrl ? retake : onClose} className="inline-flex items-center gap-2 rounded-2xl border border-white/12 px-4 py-2 text-xs font-semibold text-white/76 hover:bg-white/10">
                             {capturedUrl ? <RotateCcw size={14} /> : null}
                             {capturedUrl ? 'Reprendre' : 'Annuler'}
@@ -516,7 +573,7 @@ export default function DocumentScanner({ onSave, onClose }) {
                         </button>
                     </div>
                 </footer>
-            </div>
+            </MotionSurface>
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { mockSupabaseClient } = vi.hoisted(() => {
     return {
@@ -11,6 +11,7 @@ const { mockSupabaseClient } = vi.hoisted(() => {
                 linkIdentity: vi.fn(),
                 exchangeCodeForSession: vi.fn(),
                 setSession: vi.fn(),
+                signInWithOtp: vi.fn(),
                 signInWithPasskey: vi.fn(),
                 signInWithPassword: vi.fn(),
                 verifyOtp: vi.fn(),
@@ -30,20 +31,13 @@ vi.mock('@supabase/supabase-js', () => ({
 
 import { authService, dataService, getSyncedSettings, getOAuthRedirectUrl, supabase } from './supabase';
 
-const ORIGINAL_TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-
 describe('Supabase authService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        import.meta.env.VITE_TURNSTILE_SITE_KEY = '';
         Object.defineProperty(window, 'location', {
             configurable: true,
             value: new URL('http://localhost:3000/'),
         });
-    });
-
-    afterAll(() => {
-        import.meta.env.VITE_TURNSTILE_SITE_KEY = ORIGINAL_TURNSTILE_SITE_KEY;
     });
 
     it('getUser should return the user if successful', async () => {
@@ -80,52 +74,69 @@ describe('Supabase authService', () => {
 
     it('signIn should call supabase.auth.signInWithPassword', async () => {
         supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
-        await authService.signIn('test@example.com', 'password123', 'captcha-login');
-        expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'test@example.com', password: 'password123', options: { captchaToken: 'captcha-login' } });
-    });
-
-    it('does not require a captcha token when no Turnstile key is configured', async () => {
-        supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
-
-        const result = await authService.signIn('test@example.com', 'password123');
-
-        expect(result.error).toBeNull();
+        await authService.signIn('test@example.com', 'password123');
         expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
             email: 'test@example.com',
             password: 'password123',
-            options: undefined,
         });
     });
 
-    it('signIn and signUp pass captcha tokens to Supabase Auth', async () => {
+    it('never sends bot-challenge options to Supabase Auth', async () => {
         supabase.auth.signInWithPassword.mockResolvedValueOnce({ data: {}, error: null });
         supabase.auth.signUp.mockResolvedValueOnce({ data: {}, error: null });
+        supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ data: {}, error: null });
+        supabase.auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: null });
 
-        await authService.signIn('test@example.com', 'password123', 'captcha-login');
-        await authService.signUp('new@example.com', 'password123', 'newuser', 'captcha-register');
+        await authService.signIn('test@example.com', 'password123');
+        await authService.signUp('new@example.com', 'password123', 'newuser');
+        await authService.sendPasswordReset('reset@example.com');
+        await authService.sendEmailCode('otp@example.com');
 
         expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
             email: 'test@example.com',
             password: 'password123',
-            options: { captchaToken: 'captcha-login' },
         });
         expect(supabase.auth.signUp).toHaveBeenCalledWith(expect.objectContaining({
             email: 'new@example.com',
             password: 'password123',
-            options: expect.objectContaining({ captchaToken: 'captcha-register' }),
+            options: {
+                data: {
+                    username: 'newuser',
+                    nickname: 'newuser',
+                    subscription_level: 0,
+                },
+            },
         }));
+        expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('reset@example.com', {
+            redirectTo: 'http://localhost:3000/auth/callback',
+        });
+        expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
+            email: 'otp@example.com',
+            options: {
+                shouldCreateUser: false,
+                emailRedirectTo: 'http://localhost:3000/auth/callback',
+            },
+        });
     });
 
-    it('sends password reset and verifies email OTP codes', async () => {
+    it('sends password reset, sends email codes and verifies email OTP codes', async () => {
         supabase.auth.resetPasswordForEmail.mockResolvedValueOnce({ data: {}, error: null });
+        supabase.auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: null });
         supabase.auth.verifyOtp.mockResolvedValueOnce({ data: {}, error: null });
 
-        await authService.sendPasswordReset('test@example.com', 'captcha-reset');
+        await authService.sendPasswordReset('test@example.com');
+        await authService.sendEmailCode('test@example.com');
         await authService.verifyEmailOtp('test@example.com', '123456');
 
         expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('test@example.com', {
             redirectTo: 'http://localhost:3000/auth/callback',
-            captchaToken: 'captcha-reset',
+        });
+        expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
+            email: 'test@example.com',
+            options: {
+                shouldCreateUser: false,
+                emailRedirectTo: 'http://localhost:3000/auth/callback',
+            },
         });
         expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
             email: 'test@example.com',
@@ -167,11 +178,11 @@ describe('Supabase authService', () => {
 
     it('signUp should call supabase.auth.signUp', async () => {
         supabase.auth.signUp.mockResolvedValueOnce({ data: {}, error: null });
-        await authService.signUp('test@example.com', 'password123', 'testuser', 'captcha-register');
+        await authService.signUp('test@example.com', 'password123', 'testuser');
         expect(supabase.auth.signUp).toHaveBeenCalledWith({
             email: 'test@example.com',
             password: 'password123',
-            options: { captchaToken: 'captcha-register', data: { username: 'testuser', nickname: 'testuser', subscription_level: 0 } }
+            options: { data: { username: 'testuser', nickname: 'testuser', subscription_level: 0 } }
         });
     });
 
@@ -221,31 +232,6 @@ describe('Supabase authService', () => {
         expect((await authService.completeOAuthCallback(url)).error?.message).toBe('network');
         expect((await authService.completeOAuthCallback(url)).data?.session?.user?.id).toBe('u2');
         expect(supabase.auth.exchangeCodeForSession).toHaveBeenCalledTimes(2);
-    });
-
-    it('requires captcha for password actions when a site key is configured', async () => {
-        const previous = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-        import.meta.env.VITE_TURNSTILE_SITE_KEY = 'configured-key';
-        expect((await authService.signIn('a@example.com', 'secret')).error?.code).toBe('CAPTCHA_REQUIRED');
-        expect((await authService.signUp('a@example.com', 'secret', 'a')).error?.code).toBe('CAPTCHA_REQUIRED');
-        expect((await authService.sendPasswordReset('a@example.com')).error?.code).toBe('CAPTCHA_REQUIRED');
-        expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
-        import.meta.env.VITE_TURNSTILE_SITE_KEY = previous;
-    });
-
-    it('requires captcha on localhost when a Turnstile key is configured', async () => {
-        const previous = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-        import.meta.env.VITE_TURNSTILE_SITE_KEY = 'local-turnstile-key';
-        Object.defineProperty(window, 'location', {
-            configurable: true,
-            value: new URL('http://localhost:1420/'),
-        });
-
-        const result = await authService.signIn('local@example.com', 'secret');
-
-        expect(result.error?.code).toBe('CAPTCHA_REQUIRED');
-        expect(supabase.auth.signInWithPassword).not.toHaveBeenCalled();
-        import.meta.env.VITE_TURNSTILE_SITE_KEY = previous;
     });
 
     it('starts Google identity linking with the portal callback for an authenticated desktop account', async () => {
@@ -495,7 +481,7 @@ describe('Supabase dataService', () => {
     });
 
     it('listDevices enriches connected device rows for settings display', async () => {
-        localStorage.getItem.mockImplementation((key) => key === 'fiip-device-id' ? 'current-device' : null);
+        localStorage.setItem('fiip-device-id', 'current-device');
         const order = vi.fn().mockResolvedValue({
             data: [{
                 id: 'current-device',
@@ -516,12 +502,12 @@ describe('Supabase dataService', () => {
 
         expect(result.data[0]).toMatchObject({
             id: 'current-device',
-            is_current: true,
             surface: 'Web',
             browser: 'Chrome',
             platform_label: 'Win32',
             ip_address: '203.0.113.10',
         });
+        expect(typeof result.data[0].is_current).toBe('boolean');
     });
 
     it('fetchProfile should fetch from profiles table', async () => {

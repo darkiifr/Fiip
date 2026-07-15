@@ -368,7 +368,7 @@ export default function SettingsView({
                         { id: 'appearance', label: t('settings.appearance', 'Apparence'), icon: IconPalette },
                         { id: 'editor', label: t('settings.editor', 'Éditeur'), icon: IconDocument },
                         { id: 'sync', label: t('settings.sync', 'Synchronisation'), icon: IconUser },
-                        { id: 'ai', label: t('settings.ai', 'Intelligence Artificielle'), icon: IconBot },
+                        { id: 'ai', label: t('settings.ai', 'Dexter'), icon: IconBot },
                         { id: 'premium', label: t('settings.premium', 'Fiip Premium'), icon: IconKey },
                         { id: 'cache', label: t('settings.cache_local', 'Local cache'), icon: IconDownload },
                         { id: 'about', label: t('settings.about', 'À propos'), icon: IconInfo }
@@ -775,8 +775,8 @@ export default function SettingsView({
                     {activeTab === 'ai' && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                             <div>
-                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.ai_title', 'Intelligence Artificielle')}</h3>
-                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.ai_desc', 'Configure Dexter, the assistant that helps write, summarize, and clarify your notes.')}</p>
+                                <h3 className="fiip-light-settings-heading text-lg font-semibold tracking-tight mb-1">{t('settings.ai_title', 'Dexter')}</h3>
+                                <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark">{t('settings.ai_desc', 'Réglez l’aide d’écriture disponible dans l’éditeur.')}</p>
                             </div>
 
                             <div className="overflow-hidden rounded-3xl border border-warm-border-light bg-warm-card-light dark:border-white/10 dark:bg-warm-card-dark">
@@ -784,10 +784,10 @@ export default function SettingsView({
                                     <div className="space-y-0.5">
                                         <span className="flex items-center gap-2 text-sm font-semibold">
                                             <IconBot className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-                                            {t('settings.ai_toggle', "Activer l'assistant intelligent")}
+                                            {t('settings.ai_toggle', "Activer Dexter")}
                                         </span>
                                         <p className="max-w-xl text-sm leading-6 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
-                                            {t('settings.ai_enabled_desc', 'When Dexter is active, you can open the assistant panel, rephrase a note, summarize a passage, or request a text structure.')}
+                                            {t('settings.ai_enabled_desc', 'Dexter reste dans le panneau de l’éditeur et n’agit que sur demande.')}
                                         </p>
                                     </div>
                                     <GlassSwitch
@@ -798,10 +798,10 @@ export default function SettingsView({
 
                                 <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
                                     <div className="rounded-2xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
-                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.ai_capabilities_title', 'What Dexter can do')}</p>
-                                        <p className="mt-2 text-sm font-semibold">{t('settings.ai_capabilities_subtitle', 'Write faster without leaving the note')}</p>
+                                        <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.ai_capabilities_title', 'Écriture')}</p>
+                                        <p className="mt-2 text-sm font-semibold">{t('settings.ai_capabilities_subtitle', 'Corriger, résumer, structurer')}</p>
                                         <p className="mt-1 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                            {t('settings.ai_capabilities_desc', 'Summaries, correction, outlines, rephrasing, and draft help are available from the editor.')}
+                                            {t('settings.ai_capabilities_desc', 'Les actions restent dans la note ouverte.')}
                                         </p>
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
@@ -813,19 +813,19 @@ export default function SettingsView({
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
                                         <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.privacy_title', 'Privacy')}</p>
-                                        <p className="mt-2 text-sm font-semibold">{t('settings.ai_privacy_subtitle', 'You choose when to use it')}</p>
+                                        <p className="mt-2 text-sm font-semibold">{t('settings.ai_privacy_subtitle', 'À votre demande')}</p>
                                         <p className="mt-1 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                            {t('settings.ai_privacy_desc', 'Dexter does not activate by itself. Send only the text you select or the request you write.')}
+                                            {t('settings.ai_privacy_desc', 'Rien ne part sans action explicite.')}
                                         </p>
                                     </div>
                                     <div className="rounded-2xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
                                         <p className="text-xs font-bold uppercase text-warm-text-muted-light dark:text-warm-text-muted-dark">{t('settings.last_response', 'Last response')}</p>
                                         <p className="mt-2 flex items-center gap-2 text-sm font-semibold">
                                             <IconCpu className="h-4 w-4 text-amber-500" />
-                                            {aiUsage?.model ? t('settings.ai_response_ready', 'Réponse générée') : `${aiUsage?.usage?.total_tokens ?? aiUsage?.usage?.tokens ?? 0} tokens`}
+                                            {aiUsage?.model ? t('settings.ai_response_ready', 'Dernière réponse prête') : `${aiUsage?.usage?.total_tokens ?? aiUsage?.usage?.tokens ?? 0} tokens`}
                                         </p>
                                         <p className="mt-1 text-xs leading-5 text-warm-text-muted-light dark:text-warm-text-muted-dark">
-                                            {aiUsage?.budget ? `${Number(aiUsage.budget.used_eur || 0).toFixed(2)}€ utilisés / ${Number(aiUsage.budget.limit_eur || 0).toFixed(2)}€` : aiUsage?.createdAt ? t('settings.last_activity', 'Last activity: {{date}}', { date: new Date(aiUsage.createdAt).toLocaleString() }) : t('settings.ai_stats_waiting', 'Statistics appear after a Dexter response.')}
+                                            {aiUsage?.budget ? `${Number(aiUsage.budget.used_eur || 0).toFixed(2)}€ utilisés / ${Number(aiUsage.budget.limit_eur || 0).toFixed(2)}€` : aiUsage?.createdAt ? t('settings.last_activity', 'Last activity: {{date}}', { date: new Date(aiUsage.createdAt).toLocaleString() }) : t('settings.ai_stats_waiting', 'Les statistiques apparaissent après usage.')}
                                         </p>
                                     </div>
                                 </div>

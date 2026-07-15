@@ -4,6 +4,8 @@
 <dict>
     <key>NSMicrophoneUsageDescription</key>
     <string>Fiip a besoin de l'accès au microphone pour vous permettre de dicter vos notes et de créer des mémos vocaux.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Fiip a besoin de l'accès à la caméra pour scanner vos documents depuis la webcam.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>Fiip a besoin de la reconnaissance vocale pour la dictée de vos notes.</string>
 </dict>

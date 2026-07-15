@@ -121,6 +121,37 @@ describe('ocr service', () => {
     expect(result.text).toContain('Facture client');
   });
 
+  it('retries short native OCR without confidence when the fallback extracts more lines', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      text: 'résultat expérience 049\nle médecin prends du temps...',
+      engine: 'windows-media-ocr',
+      words: [],
+    });
+    recognize.mockResolvedValueOnce({
+      data: {
+        text: 'résultat expérience 049\nle médecin prends du temps...\naucun sujet ne c’est transformé !\nc’est à la fois une réussite et un échec.',
+        confidence: 83,
+        image: { width: 360, height: 220 },
+        words: [
+          { text: 'résultat', confidence: 84, bbox: { x0: 10, y0: 10, x1: 86, y1: 28 } },
+          { text: 'médecin', confidence: 82, bbox: { x0: 10, y0: 60, x1: 78, y1: 78 } },
+        ],
+      },
+    });
+    const file = new File(['fake'], 'lined-note.png', { type: 'image/png' });
+
+    const result = await extractImageOcr(
+      { path: 'C:/tmp/lined-note.png', type: 'image/png', name: 'lined-note.png' },
+      { fallbackFile: file },
+    );
+
+    expect(recognize).toHaveBeenCalled();
+    expect(result.engine).toBe('tesseract.js');
+    expect(result.fallbackFrom).toBe('native-low-quality');
+    expect(result.text).toContain('aucun sujet');
+    expect(result.text).toContain('réussite');
+  });
+
   it('falls back to tesseract.js when native OCR cannot be used', async () => {
     recognize.mockResolvedValueOnce({
       data: {

@@ -51,6 +51,11 @@ Desktop.ini
 
 # Agent
 codex.md
+.codex/
+.mcp.json
+.mcp.*.json
+marketplaces/
+marketplace-add-*/
 *.codex-bak-*
 *.codex-tmp
 *.path-doctor.log

@@ -37,7 +37,7 @@ describe('HomeDashboard search', () => {
     expect(onSelectNote).toHaveBeenCalledWith('2');
   });
 
-  it('shows an AI-generated comment when Dexter is enabled', async () => {
+  it('shows a Dexter note when Dexter is enabled', async () => {
     mockGenerateText.mockResolvedValueOnce('Votre note Sécurité mérite une synthèse claire avant publication.');
 
     render(
@@ -56,7 +56,7 @@ describe('HomeDashboard search', () => {
     }));
   });
 
-  it('hides the AI comment widget when Dexter is disabled', () => {
+  it('hides the Dexter widget when Dexter is disabled', () => {
     render(
       <HomeDashboard
         featuredNote={{ id: '1', title: 'Sécurité', content: '<p>Audit Supabase</p>', updatedAt: Date.now() }}
@@ -67,7 +67,7 @@ describe('HomeDashboard search', () => {
       />
     );
 
-    expect(screen.queryByText('IA utile')).not.toBeInTheDocument();
+    expect(screen.queryByText('Dexter')).not.toBeInTheDocument();
     expect(mockGenerateText).not.toHaveBeenCalled();
   });
 });
