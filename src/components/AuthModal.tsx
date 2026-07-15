@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { keyAuthService } from '../services/keyauth';
 import { authService, supabase, dataService } from '../services/supabase';
+import { getFriendlyErrorMessage } from '../services/errorMessages';
 import { GlassDialog, GlassButton, GlassInput } from './ui';
 
 // Icons Import (Pim's Edition)
@@ -22,12 +23,12 @@ import IconUserAdd from '~icons/mingcute/user-add-fill';
 
 function getOAuthErrorMessage(error?: any) {
     if (error?.code === 'SUPABASE_CONFIG_MISSING') {
-        return error.message;
+        return getFriendlyErrorMessage(error, 'Connexion Google impossible pour le moment.');
     }
 
     const message = String(error?.message || '').trim();
     if (message) {
-        return `Connexion Google impossible : ${message}`;
+        return getFriendlyErrorMessage(error, 'Connexion Google impossible pour le moment.');
     }
 
     return "Connexion Google impossible. Vérifiez que Safari a ouvert Fiip, puis réessayez.";
@@ -158,7 +159,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                     const { data, error: updateError } = await authService.updateSubscription(res.level, keyToVerify);
                     
                     if (updateError) {
-                        setError(t('license.error_save', "Licence valide mais erreur de sauvegarde: ") + updateError.message);
+                        setError(getFriendlyErrorMessage(updateError, t('license.error_save', "Licence valide, mais Fiip n’a pas pu l’associer au compte.")));
                     } else {
                         setSuccess(t('auth.success_upgrade', "Licence activée et associée au compte avec succès !"));
                         setUpgradeKey('');
@@ -207,7 +208,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             if (mode === 'login') {
                 const { error } = await authService.signIn(formData.email, formData.password);
                 if (error) {
-                    setError(error.message);
+                    setError(getFriendlyErrorMessage(error, t('auth.error_generic', "Connexion impossible pour le moment.")));
                 } else {
                     setSuccess(t('auth.success_login', "Connexion réussie !"));
                     setTimeout(() => {
@@ -218,14 +219,14 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             } else {
                 const { error } = await authService.signUp(formData.email, formData.password, formData.username);
                 if (error) {
-                    setError(error.message);
+                    setError(getFriendlyErrorMessage(error, t('auth.error_generic', "Inscription impossible pour le moment.")));
                 } else {
                     setSuccess(t('auth.success_register', "Inscription réussie ! Vérifiez votre email."));
                     setTimeout(() => setMode('login'), 3000);
                 }
             }
         } catch (e) {
-            setError(e.message || t('auth.error_generic', "Une erreur est survenue."));
+            setError(getFriendlyErrorMessage(e, t('auth.error_generic', "Une erreur est survenue.")));
         } finally {
             setLoading(false);
         }
@@ -245,12 +246,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         try {
             const { error } = await authService.sendPasswordReset(email);
             if (error) {
-                setError(error.message || 'Impossible d’envoyer le lien de réinitialisation.');
+                setError(getFriendlyErrorMessage(error, 'Impossible d’envoyer le lien de réinitialisation.'));
                 return;
             }
             setSuccess('Lien de réinitialisation envoyé. Vérifiez votre boîte mail.');
         } catch (e) {
-            setError(e.message || 'Impossible d’envoyer le lien de réinitialisation.');
+            setError(getFriendlyErrorMessage(e, 'Impossible d’envoyer le lien de réinitialisation.'));
         } finally {
             setLoading(false);
         }
@@ -264,7 +265,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         try {
             const { data, error } = await authService.signInWithPasskey();
             if (error) {
-                setError(error.message || 'Connexion passkey impossible.');
+                setError(getFriendlyErrorMessage(error, 'Connexion passkey impossible.'));
                 return;
             }
 
@@ -274,7 +275,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                 await checkUser();
             }
         } catch (e) {
-            setError(e.message || 'Connexion passkey impossible.');
+            setError(getFriendlyErrorMessage(e, 'Connexion passkey impossible.'));
         } finally {
             setLoading(false);
         }
@@ -294,12 +295,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         try {
             const { error } = await authService.sendEmailCode(email);
             if (error) {
-                setError(error.message || 'Impossible d’envoyer le code e-mail.');
+                setError(getFriendlyErrorMessage(error, 'Impossible d’envoyer le code e-mail.'));
                 return;
             }
             setSuccess('Code e-mail envoyé. Collez le code reçu pour ouvrir la session.');
         } catch (e) {
-            setError(e.message || 'Impossible d’envoyer le code e-mail.');
+            setError(getFriendlyErrorMessage(e, 'Impossible d’envoyer le code e-mail.'));
         } finally {
             setLoading(false);
         }
@@ -320,7 +321,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         try {
             const { data, error } = await authService.verifyEmailOtp(email, code);
             if (error) {
-                setError(error.message || 'Code e-mail invalide ou expiré.');
+                setError(getFriendlyErrorMessage(error, 'Code e-mail invalide ou expiré.'));
                 return;
             }
             setSuccess('Code validé. Connexion réussie.');
@@ -391,12 +392,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         try {
             const { error } = await authService.registerPasskey();
             if (error) {
-                setError(error.message || 'Ajout de passkey impossible.');
+                setError(getFriendlyErrorMessage(error, 'Ajout de passkey impossible.'));
                 return;
             }
             setSuccess('Passkey ajoutée à ce compte.');
         } catch (e) {
-            setError(e.message || 'Ajout de passkey impossible.');
+            setError(getFriendlyErrorMessage(e, 'Ajout de passkey impossible.'));
         } finally {
             setLoading(false);
         }
@@ -433,7 +434,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             try {
                 const { url, error } = await dataService.uploadAvatar(file);
                 if (error) {
-                    alert("Erreur lors de l'upload de l'avatar: " + error.message);
+                    alert(getFriendlyErrorMessage(error, "Impossible d’envoyer l’avatar pour le moment."));
                     return;
                 }
                 if (url) {

@@ -86,6 +86,39 @@ describe('account presentation helpers', () => {
     });
   });
 
+  it('presents active family memberships as effective Family Pro access', () => {
+    const account = {
+      license: null,
+      licenses: [],
+      family_group: { id: 'family-1', owner_user_id: 'owner-1' },
+      family_membership: { id: 'member-1', status: 'active', role: 'member' },
+      family_license: {
+        id: 'license-family',
+        renews_at: '2026-08-15T00:00:00.000Z',
+        expires_at: '2026-08-15T00:00:00.000Z',
+        family_slots: 6,
+      },
+      device_count: 3,
+    };
+
+    expect(getDisplayLicense(account)).toMatchObject({
+      id: 'family-membership:member-1',
+      tier: 'family_pro',
+      status: 'active',
+      is_family_member_license: true,
+      expires_at: '2026-08-15T00:00:00.000Z',
+      renews_at: '2026-08-15T00:00:00.000Z',
+    });
+    expect(getLicenseState(account)).toMatchObject({
+      hasActiveLicense: true,
+      planLabel: 'Family Pro',
+      statusLabel: 'Membre Family Pro',
+      isFamilyMember: true,
+    });
+    expect(getDeviceLimitState(account).label).toBe('3 appareils / illimité');
+    expect(getOcrState(account).label).toBe('OCR illimite');
+  });
+
   it('treats legacy pre-2024 expiry dates as missing for active licenses', () => {
     expect(getLicenseState({
       license: {
@@ -132,6 +165,6 @@ describe('account presentation helpers', () => {
   });
 
   it('hides invalid legacy KeyAuth expiry dates', () => {
-    expect(formatAccountDate('1980-01-01T00:00:00.000Z')).toBe('Sans expiration');
+    expect(formatAccountDate('1980-01-01T00:00:00.000Z')).toBe('Expiration inconnue');
   });
 });

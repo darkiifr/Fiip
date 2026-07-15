@@ -70,7 +70,11 @@ async function formatFunctionError(error, fallback) {
       // Keep the SDK error as a fallback when the response is not JSON.
     }
   }
-  return error.message || error.error_description || error.error || fallback;
+  const message = error.message || error.error_description || error.error || '';
+  if (/edge function returned|non-2xx|failed to fetch|functionsfetcherror/i.test(message)) {
+    return fallback;
+  }
+  return message || fallback;
 }
 
 export async function listOpenRouterModels({ freeOnly = true } = {}) {

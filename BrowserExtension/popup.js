@@ -67,6 +67,18 @@ signOutButton.addEventListener('click', async () => {
   }
 });
 
+openFiipLink.addEventListener('click', async (event) => {
+  event.preventDefault();
+  const url = openFiipLink.href;
+  if (!url || url === '#') return;
+  try {
+    await chrome.tabs.create({ url, active: true });
+    status.textContent = 'Ouverture de Fiip...';
+  } catch {
+    status.textContent = 'Impossible d’ouvrir Fiip depuis Chrome.';
+  }
+});
+
 button.addEventListener('click', async () => {
   await captureActiveTab({
     tabs: chrome.tabs,

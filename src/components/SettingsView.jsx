@@ -183,7 +183,12 @@ export default function SettingsView({
     const storagePercent = Number.isFinite(storageUsage?.percent) ? storageUsage.percent : 0;
     const storageLimit = Number(storageUsage?.limit || 0);
     const totalCacheSize = cacheStats.attachments;
-    const currentLicenseName = keyAuthService.isAuthenticated ? keyAuthService.getCurrentSubscriptionName() : t('settings.no_active_license', 'No active license');
+    const activeAccountLicense = accountLicenses.find((license) => license.id === activeAccountLicenseId) || null;
+    const currentLicenseName = activeAccountLicense?.is_family_member_license
+        ? t('settings.family_member_license', 'Membre Family Pro')
+        : keyAuthService.isAuthenticated
+            ? keyAuthService.getCurrentSubscriptionName()
+            : t('settings.no_active_license', 'No active license');
     const windowEffectOptions = getWindowEffectOptions(osType);
     const biometricInfo = getBiometricPlatformInfo(osType);
 
@@ -318,6 +323,10 @@ export default function SettingsView({
             const result = await listAccountLicenses();
             setAccountLicenses(result.licenses);
             setActiveAccountLicenseId(result.activeLicenseId);
+            const activeLicense = result.licenses.find((license) => license.id === result.activeLicenseId);
+            if (activeLicense?.is_family_member_license) {
+                keyAuthService.setLocalLevel(4, currentUser?.email, null);
+            }
         } catch (error) {
             setAccountLicenseStatus(error?.message || t('settings.licenses_load_failed', 'Impossible de charger les licences du compte.'));
         } finally {
@@ -918,8 +927,14 @@ export default function SettingsView({
                                         ) : accountLicenses.map((license) => {
                                             const active = license.id === activeAccountLicenseId;
                                             const key = license.keyauth_license_key || '';
-                                            const maskedKey = key ? `${key.slice(0, 8)}...${key.slice(-6)}` : t('settings.no_license_key', 'Clé non disponible');
-                                            const expiresAt = license.expires_at ? new Date(license.expires_at).toLocaleDateString() : t('settings.no_expiry', 'Sans expiration');
+                                            const maskedKey = license.is_family_member_license
+                                                ? t('settings.family_member_access', 'Accès partagé Family Pro')
+                                                : key ? `${key.slice(0, 8)}...${key.slice(-6)}` : t('settings.no_license_key', 'Clé non disponible');
+                                            const expiryValue = license.renews_at || license.expires_at;
+                                            const expiresAt = expiryValue ? new Date(expiryValue).toLocaleDateString('fr-FR') : t('settings.expiry_unknown', 'Expiration inconnue');
+                                            const licenseName = license.is_family_member_license
+                                                ? t('settings.family_member_license', 'Membre Family Pro')
+                                                : String(license.tier || 'basic').replace('_', ' ');
 
                                             return (
                                                 <div
@@ -928,14 +943,14 @@ export default function SettingsView({
                                                 >
                                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                                         <div>
-                                                            <p className="text-sm font-bold capitalize">{String(license.tier || 'basic').replace('_', ' ')}</p>
+                                                            <p className="text-sm font-bold capitalize">{licenseName}</p>
                                                             <p className="mt-1 text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
                                                                 {maskedKey} · {license.status} · {expiresAt}
                                                             </p>
                                                         </div>
                                                         <button
                                                             type="button"
-                                                            disabled={active || license.status !== 'active'}
+                                                            disabled={active || license.status !== 'active' || license.is_family_member_license}
                                                             onClick={() => handleSelectAccountLicense(license)}
                                                             className="rounded-xl bg-zinc-950 px-3 py-2 text-xs font-bold text-white transition hover:-translate-y-0.5 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0 dark:bg-white dark:text-zinc-950"
                                                         >

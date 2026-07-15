@@ -286,7 +286,7 @@ describe('account service device actions', () => {
   });
 
   it('formats Supabase mail and passkey errors for users', () => {
-    expect(getAuthErrorMessage(new Error('Error sending confirmation email'))).toContain('configuration SMTP Supabase/Resend');
+    expect(getAuthErrorMessage(new Error('Error sending confirmation email'))).toBe('Email non envoyé pour le moment. Réessayez dans quelques minutes ou contactez le support Fiip.');
     expect(getAuthErrorMessage(new Error('le.auth.signInWithPasskey is not a function'))).toContain('passkeys ne sont pas disponibles');
   });
 

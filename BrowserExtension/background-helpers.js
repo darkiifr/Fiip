@@ -310,6 +310,10 @@ export async function saveClip(
     if (['AUTH_REQUIRED', 'SUPABASE_CONFIG_MISSING'].includes(error?.code)) {
       return { mode: 'deep-link', openUrl: buildDeepLinkUrl(payload) };
     }
-    throw error;
+    return {
+      mode: 'deep-link',
+      openUrl: buildDeepLinkUrl(payload),
+      warning: 'La synchronisation cloud est indisponible. Ouvrez Fiip pour importer cette capture.',
+    };
   }
 }

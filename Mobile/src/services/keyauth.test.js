@@ -34,6 +34,15 @@ describe('mobile KeyAuth service state helpers', () => {
     expect(keyAuthService.hasAIAccess()).toBe(false);
   });
 
+  it('labels level 4 access as Family Pro', () => {
+    const { keyAuthService } = require('./keyauth');
+
+    keyAuthService.setLocalLevel(4, 'family@fiip.app');
+
+    expect(keyAuthService.isAuthenticated).toBe(true);
+    expect(keyAuthService.getCurrentSubscriptionName()).toBe('Family Pro');
+  });
+
   it('logout clears stored license and trial state', async () => {
     const { keyAuthService } = require('./keyauth');
 

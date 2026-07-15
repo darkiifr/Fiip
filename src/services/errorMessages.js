@@ -46,7 +46,7 @@ export function getFriendlyErrorMessage(error, fallback = TECHNICAL_FALLBACK) {
   }
 
   if (/openrouter|ai-proxy|OPENROUTER|model|generation/i.test(value)) {
-    return 'L’assistant IA est indisponible. Verifiez la configuration OpenRouter cote serveur, puis reessayez.';
+    return 'L’assistant IA est indisponible pour le moment. Reessayez dans quelques instants.';
   }
 
   if (/supabase|configuration|env|missing/i.test(value)) {

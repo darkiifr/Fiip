@@ -119,7 +119,15 @@ function AccountPortal({ path }) {
   const [messageTone, setMessageTone] = useState('info');
   const [loading, setLoading] = useState(true);
   const [authAction, setAuthAction] = useState('');
-  const inviteToken = new URLSearchParams(window.location.search).get('invite') || '';
+  const authParams = new URLSearchParams(window.location.search);
+  const inviteToken = authParams.get('invite') || '';
+  const inviteEmail = authParams.get('email') || '';
+
+  useEffect(() => {
+    if (!inviteToken || !inviteEmail) return;
+    setEmail((current) => current || inviteEmail.trim().toLowerCase());
+    setAuthMode('signup');
+  }, [inviteToken, inviteEmail]);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,7 +136,7 @@ function AccountPortal({ path }) {
       if (cancelled) return;
       setUser(currentUser);
       if (currentUser) {
-        const summary = await fetchAccountSummary().catch((error) => ({ error: error.message }));
+        const summary = await fetchAccountSummary().catch((error) => ({ error: getAuthErrorMessage(error) }));
         if (!cancelled) setAccount(summary);
         registerCurrentDevice().catch(() => null);
       }
@@ -171,7 +179,7 @@ function AccountPortal({ path }) {
         }
       })
       .catch((error) => {
-        if (!cancelled) setSections((current) => ({ ...current, [active]: { status: 'error', error: error.message } }));
+        if (!cancelled) setSections((current) => ({ ...current, [active]: { status: 'error', error: getAuthErrorMessage(error) } }));
       });
     return () => {
       cancelled = true;
@@ -203,7 +211,7 @@ function AccountPortal({ path }) {
       setSections((current) => ({ ...current, security: { status: 'ready', data } }));
       return data;
     } catch (error) {
-      setSections((current) => ({ ...current, security: { status: 'error', error: error.message } }));
+      setSections((current) => ({ ...current, security: { status: 'error', error: getAuthErrorMessage(error) } }));
       throw error;
     }
   };
@@ -441,10 +449,6 @@ function AccountPortal({ path }) {
           >
             {authAction === 'passkey' ? 'Validation passkey...' : 'Se connecter avec une passkey'}
           </button> : null}
-          {authMode === 'login' ? <p className="auth-hint">
-            Choisissez ce mode si vous avez déjà ajouté une passkey dans Compte &gt; Sécurité. Le navigateur demandera
-            Windows Hello, Touch ID, Face ID ou votre clé de sécurité avant d’ouvrir la session.
-          </p> : null}
           <button className="secondary-link" type="button" onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setMessage(''); }} disabled={busy}>
             {authMode === 'signup' ? 'J’ai déjà un compte' : inviteToken ? 'Créer un compte pour cette invitation' : 'Créer un compte'}
           </button>

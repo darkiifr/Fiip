@@ -87,15 +87,15 @@ class KeyAuthService {
                     hash: "null"
                 });
 
-                if (data.success) {
-                    this.sessionid = data.sessionid;
-                    this.initialized = true;
-                    return { success: true, message: data.message };
-                } else {
-                    return { success: false, message: data.message };
-                }
-            } catch (error) {
-                return { success: false, message: error.message };
+            if (data.success) {
+                this.sessionid = data.sessionid;
+                this.initialized = true;
+                return { success: true, message: data.message };
+            } else {
+                return { success: false, message: "Service de licence indisponible pour le moment." };
+            }
+        } catch (error) {
+                return { success: false, message: "Service de licence indisponible pour le moment." };
             } finally {
                 this.initPromise = null;
             }
@@ -127,7 +127,7 @@ class KeyAuthService {
             return await response.json();
         } catch (error) {
             console.error("KeyAuth Request Error:", error);
-            return { success: false, message: "Connection error: " + error.message };
+            return { success: false, message: "Connexion au service de licence impossible pour le moment." };
         }
     }
 
@@ -162,7 +162,7 @@ class KeyAuthService {
                 return { success: false, message: data.message };
             }
         } catch (error) {
-            return { success: false, message: "Erreur serveur: " + error.message };
+            return { success: false, message: "Validation de licence impossible pour le moment." };
         }
     }
 
@@ -265,7 +265,7 @@ class KeyAuthService {
     }
 
     getCurrentSubscriptionName() {
-        if (this.isAuthenticated && this.currentLevel >= 4) return "Developer";
+        if (this.isAuthenticated && this.currentLevel >= 4) return "Family Pro";
         if (this.isAuthenticated && this.currentLevel >= 2) return "Pro";
         if (this.isAuthenticated && this.currentLevel >= 1.5) return "AI Plus";
         if (this.isAuthenticated && this.currentLevel >= 1) return "Basic";

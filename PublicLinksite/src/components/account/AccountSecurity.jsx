@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getAuthErrorMessage } from '../../services/account';
 import IconShield from '~icons/mingcute/shield-fill';
 
 const EVENT_LABELS = {
@@ -49,7 +50,7 @@ export default function AccountSecurity({ account, section, onRefresh, onRevokeA
       await onRevokeAll({ keepCurrent: true });
       setMessage('Les autres appareils ont ete revoques.');
     } catch (error) {
-      setMessage(error.message);
+      setMessage(getAuthErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -63,7 +64,7 @@ export default function AccountSecurity({ account, section, onRefresh, onRevokeA
       await onRegisterPasskey();
       setMessage('Passkey créée. Vous pourrez l’utiliser au prochain écran de connexion.');
     } catch (error) {
-      setMessage(error.message || 'Impossible de créer cette passkey.');
+      setMessage(getAuthErrorMessage(error) || 'Impossible de créer cette passkey.');
     } finally {
       setPasskeyBusy(false);
     }

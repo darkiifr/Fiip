@@ -17,8 +17,8 @@ describe('Fiip extension popup helpers', () => {
       status,
     });
 
-    expect(result.error).toMatch(/Could not establish connection/);
-    expect(status.textContent).toMatch(/Could not establish connection/);
+    expect(result.error).toBe('Capture impossible sur cette page.');
+    expect(status.textContent).toBe('Capture impossible sur cette page.');
   });
 
   it('injects the content script and retries once when the tab has no receiver yet', async () => {
@@ -69,6 +69,30 @@ describe('Fiip extension popup helpers', () => {
 
     expect(openFiipLink).toMatchObject({ hidden: false, href: 'fiip://clip?noteId=note-1' });
     expect(status.textContent).toMatch(/cloud/);
+  });
+
+  it('shows fallback warnings without leaking technical backend errors', async () => {
+    const status = { textContent: '' };
+    const openFiipLink = { hidden: true, href: '' };
+    await captureActiveTab({
+      tabs: {
+        query: vi.fn().mockResolvedValue([{ id: 42, url: 'https://example.com/read' }]),
+        sendMessage: vi.fn().mockResolvedValue({ title: 'Clip', html: '<p>Clip</p>' }),
+      },
+      runtime: {
+        sendMessage: vi.fn().mockResolvedValue({
+          mode: 'deep-link',
+          openUrl: 'fiip://clip?payload=encoded',
+          warning: 'La synchronisation cloud est indisponible. Ouvrez Fiip pour importer cette capture.',
+        }),
+      },
+      status,
+      openFiipLink,
+    });
+
+    expect(openFiipLink).toMatchObject({ hidden: false, href: 'fiip://clip?payload=encoded' });
+    expect(status.textContent).toBe('La synchronisation cloud est indisponible. Ouvrez Fiip pour importer cette capture.');
+    expect(status.textContent).not.toMatch(/Supabase|Edge Function|non-2xx|failed/i);
   });
 
   it('submits extension credentials to the background auth flow', async () => {

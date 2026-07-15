@@ -13,9 +13,36 @@ function isActiveLicense(license) {
   return new Date(license.expires_at).getTime() > Date.now();
 }
 
+function getFamilyMemberEffectiveLicense(account) {
+  const membership = account?.family_membership;
+  const familyGroup = account?.family_group;
+  if (!membership || membership.status !== 'active' || !familyGroup?.id) return null;
+
+  const ownerLicense = account?.family_license || {};
+  const renewalDate = ownerLicense.renews_at || ownerLicense.expires_at || null;
+
+  return {
+    id: `family-membership:${membership.id || familyGroup.id}`,
+    tier: 'family_pro',
+    status: 'active',
+    device_limit: ownerLicense.device_limit ?? null,
+    ocr_limit: ownerLicense.ocr_limit ?? null,
+    ai_enabled: ownerLicense.ai_enabled ?? true,
+    sharing_enabled: ownerLicense.sharing_enabled ?? true,
+    family_slots: Number(ownerLicense.family_slots || 5),
+    expires_at: renewalDate,
+    renews_at: ownerLicense.renews_at || renewalDate,
+    is_family_member_license: true,
+    family_group_id: familyGroup.id,
+  };
+}
+
 export function getDisplayLicense(account) {
   const primary = account?.license || null;
   if (isActiveLicense(primary)) return primary;
+
+  const familyMemberLicense = getFamilyMemberEffectiveLicense(account);
+  if (familyMemberLicense) return familyMemberLicense;
 
   const licenses = Array.isArray(account?.licenses) ? account.licenses : [];
   const activeLicenseId = account?.active_license_id || account?.profile?.active_license_id || null;
@@ -72,17 +99,19 @@ export function getLicenseCapabilities(license) {
   };
 }
 
-export function formatAccountDate(value, fallback = 'Sans expiration') {
+export function formatAccountDate(value, fallback = 'Expiration inconnue') {
   return isValidLicenseDate(value) ? new Date(value).toLocaleDateString('fr-FR') : fallback;
 }
 
 export function getLicenseState(account) {
   const license = getDisplayLicense(account);
   const hasActiveLicense = isActiveLicense(license);
+  const isFamilyMember = Boolean(license?.is_family_member_license);
   return {
     hasActiveLicense,
     planLabel: hasActiveLicense ? formatTier(license.tier) : 'Free',
-    statusLabel: hasActiveLicense ? 'Licence active' : 'Aucune licence active',
+    statusLabel: hasActiveLicense ? (isFamilyMember ? 'Membre Family Pro' : 'Licence active') : 'Aucune licence active',
+    isFamilyMember,
   };
 }
 

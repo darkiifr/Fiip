@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { acceptFamilyInvite, ensureFamilyGroup, inviteFamilyMember, removeFamilyMember } from '../../services/account';
+import { acceptFamilyInvite, ensureFamilyGroup, getAuthErrorMessage, inviteFamilyMember, removeFamilyMember } from '../../services/account';
 import IconGroup from '~icons/mingcute/group-3-fill';
 import IconMailSend from '~icons/mingcute/mail-send-fill';
 
@@ -58,7 +58,7 @@ export default function AccountFamily({ account }) {
         setMessage('Invitation acceptée. Family Pro est actif sur ce compte.');
         window.history.replaceState({}, '', '/account/family');
       } catch (error) {
-        if (!cancelled) setMessage(error.message || 'Impossible d’accepter cette invitation.');
+        if (!cancelled) setMessage(getAuthErrorMessage(error) || 'Impossible d’accepter cette invitation.');
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -77,7 +77,7 @@ export default function AccountFamily({ account }) {
       applyFamilyResponse(result);
       setMessage('Foyer Family Pro créé.');
     } catch (error) {
-      setMessage(error.message || 'Impossible de créer le foyer.');
+      setMessage(getAuthErrorMessage(error) || 'Impossible de créer le foyer.');
     } finally {
       setBusy(false);
     }
@@ -93,7 +93,7 @@ export default function AccountFamily({ account }) {
       setEmail('');
       setMessage('Invitation envoyée.');
     } catch (error) {
-      setMessage(error.message || 'Impossible d’envoyer l’invitation.');
+      setMessage(getAuthErrorMessage(error) || 'Impossible d’envoyer l’invitation.');
     } finally {
       setBusy(false);
     }
@@ -107,7 +107,7 @@ export default function AccountFamily({ account }) {
       applyFamilyResponse(result);
       setMessage('Membre retiré.');
     } catch (error) {
-      setMessage(error.message || 'Impossible de retirer ce membre.');
+      setMessage(getAuthErrorMessage(error) || 'Impossible de retirer ce membre.');
     } finally {
       setBusy(false);
     }

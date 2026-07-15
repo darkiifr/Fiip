@@ -298,4 +298,31 @@ describe('Fiip extension background helpers', () => {
     expect(result).toEqual({ mode: 'deep-link', openUrl: buildDeepLinkUrl(clip) });
     expect(openTab).not.toHaveBeenCalled();
   });
+
+  it('falls back to a Fiip link when cloud sync fails without exposing backend details', async () => {
+    const result = await saveClip(clip, {
+      config: { supabaseUrl: 'https://project.supabase.co', supabaseAnonKey: 'anon' },
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: vi.fn().mockResolvedValue({ message: 'Edge Function returned a non-2xx status code' }),
+      }),
+      storageGet: vi.fn().mockResolvedValue({
+        fiipSupabaseSession: {
+          accessToken: 'token',
+          refreshToken: 'refresh-token',
+          expiresAt: 9_999_999_999_999,
+          user: { id: 'user-1', email: 'user@example.com' },
+        },
+      }),
+      storageSet: vi.fn(),
+    });
+
+    expect(result).toMatchObject({
+      mode: 'deep-link',
+      openUrl: buildDeepLinkUrl(clip),
+      warning: 'La synchronisation cloud est indisponible. Ouvrez Fiip pour importer cette capture.',
+    });
+    expect(result.warning).not.toMatch(/Edge Function|non-2xx|Supabase fallback/i);
+  });
 });

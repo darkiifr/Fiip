@@ -36,6 +36,7 @@ import { keyAuthService } from "./services/keyauth";
 import { queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
 import { soundManager } from "./services/soundManager";
 import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook, parseClipperNoteId, removeTaskById } from './services/fiipV1';
+import { getFriendlyErrorMessage } from './services/errorMessages';
 import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
 import { applyTheme } from './services/theme';
 import { normalizeNoteTags } from './utils/noteTags';
@@ -441,7 +442,7 @@ function App() {
                     if (parsedUrl.protocol === 'fiip:' && parsedUrl.host === 'login-callback' && (!parsedUrl.pathname || parsedUrl.pathname === '/')) {
                         const { data, error, handled } = await authService.completeOAuthCallback(url);
                         if (error) {
-                            await message(`Connexion Google impossible : ${error.message}`, { title: 'Fiip', kind: 'error' }).catch(console.error);
+                            await message(getFriendlyErrorMessage(error, 'Connexion Google impossible pour le moment.'), { title: 'Fiip', kind: 'error' }).catch(console.error);
                         } else if (data?.session?.user && handled) {
                             setUser(data.session.user);
                             dataService.registerCurrentDevice().catch(console.warn);
@@ -486,7 +487,7 @@ function App() {
                             const payload = parseClipperPayloadParam(rawPayload);
                             const { data, error } = await dataService.createNoteFromClipper(payload);
                             if (error) {
-                                await message(`Capture impossible : ${error.message || error}`, { title: 'Fiip', kind: 'error' }).catch(console.error);
+                                await message(getFriendlyErrorMessage(error, 'Capture impossible pour le moment.'), { title: 'Fiip', kind: 'error' }).catch(console.error);
                             } else if (data) {
                                 await loadDataFromSupabase();
                                 setSelectedNoteId(data.id);

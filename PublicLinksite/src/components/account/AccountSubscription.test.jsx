@@ -80,7 +80,7 @@ describe('AccountSubscription', () => {
 
     render(<AccountSubscription account={account} onActivateLicense={vi.fn()} onSelectLicense={vi.fn()} />);
 
-    expect(screen.getByText(/expiration Sans expiration/i)).toBeInTheDocument();
+    expect(screen.getByText(/expiration Expiration inconnue/i)).toBeInTheDocument();
     expect(screen.queryByText(/01\/01\/1980/)).not.toBeInTheDocument();
   });
 });

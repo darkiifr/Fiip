@@ -32,7 +32,11 @@ export function getAuthErrorMessage(error) {
   }
 
   if (/confirmation email|email rate limit|smtp|mail/i.test(message)) {
-    return 'Email non envoyé. Vérifiez la configuration SMTP Supabase/Resend et les limites d’envoi, puis réessayez.';
+    return 'Email non envoyé pour le moment. Réessayez dans quelques minutes ou contactez le support Fiip.';
+  }
+
+  if (/edge function returned|non-2xx|failed to fetch|functionsfetcherror|supabase|network/i.test(message)) {
+    return 'Action impossible pour le moment. Réessayez dans quelques instants.';
   }
 
   if (/registerPasskey is not a function|signInWithPasskey is not a function|le\.auth|passkey/i.test(message)) {
@@ -49,7 +53,7 @@ export function getAuthErrorMessage(error) {
 async function invokePublicAccountAction(body, fallbackMessage = 'Action compte impossible.') {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
   const { data, error } = await supabase.functions.invoke('account-api', { body });
-  if (error) throw new Error(error.message || fallbackMessage);
+  if (error) throw new Error(fallbackMessage);
   if (data?.error) throw new Error(data.error);
   return data;
 }
@@ -176,7 +180,7 @@ export async function resetDeviceHwid() {
 async function invokeAccountAction(body, fallbackMessage = 'Action compte impossible.') {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
   const { data, error } = await supabase.functions.invoke('account-api', { body });
-  if (error) throw new Error(error.message || fallbackMessage);
+  if (error) throw new Error(fallbackMessage);
   if (data?.error) throw new Error(data.error);
   return data;
 }

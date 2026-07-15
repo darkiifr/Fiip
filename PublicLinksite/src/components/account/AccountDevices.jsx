@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getAuthErrorMessage } from '../../services/account';
 import { getDeviceLimitState } from '../../services/accountPresentation';
 import IconDelete from '~icons/mingcute/delete-2-fill';
 import IconDevices from '~icons/mingcute/device-fill';
@@ -33,7 +34,7 @@ export default function AccountDevices({ account, section, onRefresh, onRevokeDe
       await onRevokeDevice(deviceId);
       setMessage('Appareil revoque.');
     } catch (error) {
-      setMessage(error.message);
+      setMessage(getAuthErrorMessage(error));
     } finally {
       setPendingDeviceId(null);
     }

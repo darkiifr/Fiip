@@ -3,7 +3,7 @@ import { createAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts'
 import { getKeyAuthLicenseInfo, resetKeyAuthHwid } from '../_shared/keyauth.ts';
 import { sendTemplateEmail } from '../_shared/mailer.ts';
 import { getTierCapabilities } from '../_shared/tiers.ts';
-import { resolveAiUsageScope } from './account-summary.ts';
+import { buildFamilyMemberLicense, resolveAiUsageScope } from './account-summary.ts';
 import { resolveAccountDeviceLimit, sanitizeDeviceInput, sanitizeSecurityMetadata, validateUuid } from './device-security.ts';
 import {
   assertLicenseCanAttach,
@@ -138,6 +138,7 @@ async function loadFamilyState(supabaseAdmin: any, user: any, selectedLicense: a
   }
 
   let familyMembers: any[] = [];
+  let familyLicense = null;
   if (familyGroup?.id) {
     const { data } = await supabaseAdmin
       .from('family_members')
@@ -146,6 +147,16 @@ async function loadFamilyState(supabaseAdmin: any, user: any, selectedLicense: a
       .neq('status', 'removed')
       .order('created_at', { ascending: true });
     familyMembers = data || [];
+
+    const { data: ownerLicense } = await supabaseAdmin
+      .from('licenses')
+      .select('id, tier, status, keyauth_level, device_limit, sharing_enabled, ai_enabled, ocr_limit, family_slots, family_group_id, billing_interval, expires_at, renews_at, updated_at')
+      .eq('family_group_id', familyGroup.id)
+      .eq('status', 'active')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    familyLicense = ownerLicense || null;
   }
 
   const { data: pendingInvites } = await supabaseAdmin
@@ -159,6 +170,7 @@ async function loadFamilyState(supabaseAdmin: any, user: any, selectedLicense: a
     family_group: familyGroup,
     family_members: familyMembers,
     family_membership: membership,
+    family_license: familyLicense,
     pending_family_invites: pendingInvites || [],
     is_family_admin: Boolean(familyGroup?.owner_user_id === user.id),
   };
@@ -245,6 +257,8 @@ async function buildAccountSummary(supabaseAdmin: any, user: any, body: any = {}
     supabaseAdmin.from('account_devices').select('*').eq('user_id', user.id).order('last_seen_at', { ascending: false }).limit(6),
   ]);
   const family = await loadFamilyState(supabaseAdmin, user, selectedLicense);
+  const familyMemberLicense = buildFamilyMemberLicense(family);
+  const effectiveLicense = selectedActiveLicense || familyMemberLicense || selectedLicense;
   const usageScope = resolveAiUsageScope(family, user.id);
   const { data: aiUsage } = await supabaseAdmin
     .from('ai_usage')
@@ -258,11 +272,11 @@ async function buildAccountSummary(supabaseAdmin: any, user: any, body: any = {}
   return {
     user: { id: user.id, email: user.email },
     profile,
-    license: selectedLicense,
-    licenses: licenses || [],
-    active_license_id: selectedLicense?.id || null,
+    license: effectiveLicense,
+    licenses: familyMemberLicense ? [familyMemberLicense, ...(licenses || [])] : licenses || [],
+    active_license_id: effectiveLicense?.id || null,
     device_count: activeDeviceCount,
-    device_limit: getDeviceLimit(selectedActiveLicense),
+    device_limit: getDeviceLimit(selectedActiveLicense || familyMemberLicense),
     devices: (accountDevices || []).map((device: any) => serializeDevice(device, body.installation_id || null)),
     ai_usage: aiUsage,
     ...family,
@@ -322,9 +336,13 @@ Deno.serve(async (req) => {
       || null;
 
     if (action === 'list_licenses') {
+      const family = await loadFamilyState(supabaseAdmin, user, selectedLicense);
+      const familyMemberLicense = buildFamilyMemberLicense(family);
+      const effectiveLicense = selectedActiveLicense || familyMemberLicense || selectedLicense;
       return jsonResponse({
-        licenses: licenses || [],
-        active_license_id: selectedLicense?.id || null,
+        licenses: familyMemberLicense ? [familyMemberLicense, ...(licenses || [])] : licenses || [],
+        active_license_id: effectiveLicense?.id || null,
+        ...family,
       });
     }
 
@@ -683,7 +701,7 @@ Deno.serve(async (req) => {
         }, { onConflict: 'id' });
       } else {
         const origin = String(body.origin || req.headers.get('origin') || 'https://portail.fiip.fr');
-        const inviteUrl = `${origin.replace(/\/$/, '')}/account/family?invite=${token}`;
+        const inviteUrl = `${origin.replace(/\/$/, '')}/account/family?invite=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
         await sendTemplateEmail({
           supabaseAdmin,
           userId: user.id,
@@ -739,6 +757,7 @@ Deno.serve(async (req) => {
           user_id: user.id,
           status: 'active',
           invite_token: null,
+          expires_at: null,
           accepted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

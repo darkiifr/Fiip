@@ -68,10 +68,10 @@ export async function captureActiveTab({ tabs, runtime, scripting, status, captu
       openFiipLink.href = result.openUrl;
       openFiipLink.hidden = false;
     }
-    status.textContent = result?.mode === 'supabase' ? 'Capture envoyée au cloud.' : 'Capture prête à ouvrir dans Fiip.';
+    status.textContent = result?.warning || (result?.mode === 'supabase' ? 'Capture envoyée au cloud.' : 'Capture prête à ouvrir dans Fiip.');
     return result;
   } catch (error) {
-    status.textContent = error?.message || 'Capture impossible sur cette page.';
+    status.textContent = 'Capture impossible sur cette page.';
     return { error: status.textContent };
   }
 }

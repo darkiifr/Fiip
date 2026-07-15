@@ -1,10 +1,14 @@
 import { supabase } from './supabase';
 
-function formatFunctionError(error, fallback) {
+export function formatAccountFunctionError(error, fallback) {
   if (!error) {
     return fallback;
   }
-  return error.message || error.error_description || error.error || fallback;
+  const message = String(error.message || error.error_description || error.error || '').trim();
+  if (/edge function returned|non-2xx|failed to fetch|functionsfetcherror|supabase/i.test(message)) {
+    return fallback;
+  }
+  return message || fallback;
 }
 
 export async function listAccountLicenses() {
@@ -13,7 +17,7 @@ export async function listAccountLicenses() {
   });
 
   if (error) {
-    throw new Error(formatFunctionError(error, 'Impossible de charger les licences.'));
+    throw new Error(formatAccountFunctionError(error, 'Impossible de charger les licences.'));
   }
 
   return {
@@ -28,7 +32,7 @@ export async function selectAccountLicense(licenseId) {
   });
 
   if (error) {
-    throw new Error(formatFunctionError(error, 'Impossible de sélectionner cette licence.'));
+    throw new Error(formatAccountFunctionError(error, 'Impossible de sélectionner cette licence.'));
   }
 
   return data;
@@ -40,7 +44,7 @@ export async function getAccountSummary() {
   });
 
   if (error) {
-    throw new Error(formatFunctionError(error, 'Impossible de charger le compte.'));
+    throw new Error(formatAccountFunctionError(error, 'Impossible de charger le compte.'));
   }
 
   return data || {};

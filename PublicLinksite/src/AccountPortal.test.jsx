@@ -28,6 +28,7 @@ vi.mock('./services/account', () => ({
   signInWithMagicLink: vi.fn(),
   signInWithGoogle: vi.fn(),
   signInWithPassword: vi.fn(),
+  signUpWithPassword: vi.fn(),
   signOut: vi.fn(),
   verifyMagicCode: vi.fn(),
 }));
@@ -103,7 +104,7 @@ describe('AccountPortal Google sign-in', () => {
     expect(screen.getByRole('button', { name: 'Recevoir un magic link' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Mot de passe oublié' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Se connecter avec une passkey' })).toBeEnabled();
-    expect(screen.getByText(/Windows Hello, Touch ID, Face ID/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Windows Hello, Touch ID, Face ID/i)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText('email@exemple.com'), { target: { value: 'vincent@fiip.fr' } });
 
@@ -114,5 +115,15 @@ describe('AccountPortal Google sign-in', () => {
     fireEvent.change(screen.getByPlaceholderText('Mot de passe'), { target: { value: 'secret-password' } });
 
     expect(screen.getByRole('button', { name: 'Se connecter' })).toBeEnabled();
+  });
+
+  it('prefills invited family signup emails from invite links', async () => {
+    window.history.pushState({}, '', '/account/family?invite=invite-token&email=ami%40fiip.app');
+
+    render(<App />);
+
+    const emailInput = await screen.findByPlaceholderText('email@exemple.com');
+    expect(emailInput).toHaveValue('ami@fiip.app');
+    expect(screen.getByRole('button', { name: 'Créer le compte' })).toBeInTheDocument();
   });
 });
