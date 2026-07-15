@@ -1,5 +1,6 @@
 body {
   min-width: 336px;
+  max-width: 360px;
   margin: 0;
   font-family: Inter, Geist, system-ui, sans-serif;
   color: #171717;
@@ -24,15 +25,62 @@ header {
 }
 
 .panel,
-.details {
+.account {
   margin-bottom: 12px;
   border: 1px solid rgba(23, 23, 23, 0.1);
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.58);
 }
 
-.panel {
+.panel,
+.account {
   padding: 12px;
+}
+
+.account h2 {
+  margin: 1px 0 10px;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+form {
+  display: grid;
+  gap: 7px;
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(23, 23, 23, 0.14);
+  border-radius: 7px;
+  padding: 9px 10px;
+  color: #171717;
+  background: rgba(255, 255, 255, 0.86);
+  font: inherit;
+  font-size: 13px;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid rgba(23, 23, 23, 0.42);
+  outline-offset: 1px;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.account-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 label,
@@ -54,26 +102,6 @@ select {
   font: inherit;
   font-size: 13px;
   font-weight: 650;
-}
-
-.details {
-  overflow: hidden;
-}
-
-.details div {
-  padding: 10px 12px;
-}
-
-.details div + div {
-  border-top: 1px solid rgba(23, 23, 23, 0.08);
-}
-
-.details span {
-  display: block;
-  margin-top: 3px;
-  font-size: 11px;
-  line-height: 1.35;
-  color: rgba(23, 23, 23, 0.66);
 }
 
 img {
@@ -98,26 +126,63 @@ h1 {
   letter-spacing: 0;
 }
 
-button {
+button,
+.primary-link {
   width: 100%;
+  box-sizing: border-box;
   border: 0;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 12px 14px;
+  font: inherit;
   font-weight: 700;
   color: #fff;
   background: #171717;
   cursor: pointer;
+  text-align: center;
+  text-decoration: none;
   box-shadow: 0 12px 28px rgba(23, 23, 23, 0.24);
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
-button:hover {
+button:hover,
+.primary-link:hover {
   transform: translateY(-1px);
   box-shadow: 0 16px 32px rgba(23, 23, 23, 0.28);
 }
 
-button:active {
+button:active,
+.primary-link:active {
   transform: translateY(0);
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+#sign-in {
+  margin-top: 3px;
+}
+
+.icon-command {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  padding: 0;
+  box-shadow: none;
+}
+
+.primary-link {
+  display: block;
+  margin-top: 8px;
+  background: #fff;
+  color: #171717;
+  border: 1px solid rgba(23, 23, 23, 0.16);
+  box-shadow: none;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 p {

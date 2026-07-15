@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import * as fiipV1 from './fiipV1';
 import {
   buildSearchIndexEntry,
   canUseNoteContent,
@@ -144,6 +145,13 @@ describe('Fiip V1 domain helpers', () => {
     expect(clipped.html).not.toContain('script');
     expect(clipped.html).not.toContain('onclick');
     expect(clipped.images).toEqual(['https://example.com/a.png']);
+  });
+
+  it('accepts only UUID note identifiers from clipper deep links', () => {
+    expect(typeof fiipV1.parseClipperNoteId).toBe('function');
+    expect(fiipV1.parseClipperNoteId('3d6f0a13-344a-4e72-8d73-225acbe4f24c')).toBe('3d6f0a13-344a-4e72-8d73-225acbe4f24c');
+    expect(fiipV1.parseClipperNoteId('../other-user-note')).toBeNull();
+    expect(fiipV1.parseClipperNoteId('')).toBeNull();
   });
 
   it('provides stable defaults for notebooks and home widgets', () => {

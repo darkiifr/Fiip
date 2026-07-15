@@ -46,7 +46,7 @@ Fiip utilise Deno comme interface principale du desktop/web, npm pour les sous-p
 - Backend: Supabase (Auth, DB, Storage). Les flux doivent respecter RLS.
 - Mobile: React Native avec Supabase, Zustand, React Navigation et primitives Liquid Glass.
 - Site public: Vite/React, rendu public des notes via Supabase, Markdown sanitise avec DOMPurify.
-- IA: OpenRouter uniquement via `VITE_OPENROUTER_KEY`; aucune saisie de cle utilisateur.
+- IA: OpenRouter uniquement via `ai-proxy`; la Management Key reste dans les secrets Supabase et les cles enfant sont chiffrees par utilisateur ou famille.
 
 ## URLs Produit
 
@@ -69,7 +69,7 @@ Fiip utilise Deno comme interface principale du desktop/web, npm pour les sous-p
 
 Secrets attendus:
 
-- `VITE_OPENROUTER_KEY`
+- `OPENROUTER_MANAGEMENT_KEY` (secret Supabase Edge uniquement)
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_KEYAUTH_OWNERID`

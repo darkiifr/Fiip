@@ -37,6 +37,20 @@ describe('HomeDashboard search', () => {
     expect(onSelectNote).toHaveBeenCalledWith('2');
   });
 
+  it('lets the search input use the full available width', () => {
+    render(
+      <HomeDashboard
+        featuredNote={null}
+        recentNotes={[]}
+        onSelectNote={vi.fn()}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Rechercher dans vos notes...');
+    expect(input).toHaveClass('min-w-0', 'flex-1');
+    expect(input.parentElement).toHaveClass('min-w-0', 'flex-1');
+  });
+
   it('shows a Dexter note when Dexter is enabled', async () => {
     mockGenerateText.mockResolvedValueOnce('Votre note Sécurité mérite une synthèse claire avant publication.');
 

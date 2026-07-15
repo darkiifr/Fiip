@@ -114,7 +114,7 @@ export default function HomeDashboard({
             
             <div className="max-w-2xl mx-auto w-full relative">
                 <div className="w-full min-h-12 px-5 bg-[color:var(--bg-elevated)] border border-warm-border-light dark:border-warm-border-dark rounded-xl flex items-center justify-between shadow-sm transition-all duration-200 focus-within:border-[color:var(--accent)]/45 focus-within:ring-4 focus-within:ring-[color:var(--accent)]/10">
-                    <div className="flex items-center gap-3 text-warm-text-muted-light">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 text-warm-text-muted-light">
                         <IconSearch className="w-4 h-4" />
                         <input
                             type="search"
@@ -126,7 +126,7 @@ export default function HomeDashboard({
                                 }
                             }}
                             placeholder={t('home.search_placeholder', 'Rechercher dans vos notes...')}
-                            className="h-11 w-full bg-transparent text-xs font-semibold text-warm-text-primary-light outline-none placeholder:text-warm-text-muted-light dark:text-warm-text-primary-dark"
+                            className="h-11 min-w-0 flex-1 bg-transparent text-xs font-semibold text-warm-text-primary-light outline-none placeholder:text-warm-text-muted-light dark:text-warm-text-primary-dark"
                         />
                     </div>
                     {searchQuery && (

@@ -68,6 +68,23 @@ describe('Supabase AI proxy service', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  it('reads the Edge Function response body instead of showing the generic HTTP error', async () => {
+    invokeMock.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: 'Edge Function returned a non-2xx status code',
+        context: new Response(JSON.stringify({ error: 'Budget IA mensuel dépassé.' }), {
+          status: 402,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      },
+    });
+
+    const { generateText } = await import('./ai');
+
+    await expect(generateText('Résumé rapide')).rejects.toThrow('Budget IA mensuel dépassé.');
+  });
+
   it('lists models through the Supabase cacheable models endpoint', async () => {
     invokeMock.mockResolvedValueOnce({
       data: {

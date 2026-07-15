@@ -62,6 +62,6 @@ The project primarily uses **Deno** as a task runner (though `npm` scripts are a
 
 Ensure a `.env` file exists in the root with the following (referenced in `src/services/keyauth.js` and others):
 - `VITE_KEYAUTH_NAME`, `VITE_KEYAUTH_OWNERID`, `VITE_KEYAUTH_SECRET`, `VITE_KEYAUTH_APIURL`
-- `VITE_OPENROUTER_KEY`
+- `OPENROUTER_MANAGEMENT_KEY` (secret Supabase Edge uniquement, jamais dans le client)
 - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 - `VITE_HOCUSPOCUS_URL`

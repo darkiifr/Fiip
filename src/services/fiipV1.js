@@ -288,6 +288,13 @@ function sanitizeUrl(value) {
   }
 }
 
+export function parseClipperNoteId(value) {
+  const noteId = String(value || '').trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(noteId)
+    ? noteId
+    : null;
+}
+
 export function sanitizeClipperPayload(payload = {}) {
   const url = sanitizeUrl(payload.url || '');
   if (!url) {

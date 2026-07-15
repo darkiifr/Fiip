@@ -1,7 +1,3 @@
-jest.mock('@env', () => ({
-  VITE_OPENROUTER_KEY: 'test-openrouter-key',
-}), { virtual: true });
-
 jest.mock('./keyauth', () => ({
   keyAuthService: {
     hasAIAccess: () => true,

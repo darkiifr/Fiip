@@ -1,4 +1,3 @@
-import { getEnv, getFirstEnv } from './env.ts';
 import { SUPPORTED_MODELS } from './tiers.ts';
 
 export const DEEPSEEK_MODEL = 'deepseek/deepseek-v3.2';
@@ -125,8 +124,8 @@ export function supportedModelsForTier(tier = 'basic') {
   });
 }
 
-export async function callOpenRouter({ messages, model, jsonMode = false, maxTokens = DEFAULT_MAX_OUTPUT_TOKENS }: { messages: unknown[]; model: string; jsonMode?: boolean; maxTokens?: number }) {
-  const apiKey = getFirstEnv(['OPENROUTER_API_KEY', 'VITE_OPENROUTER_KEY']);
+export async function callOpenRouter({ apiKey, messages, model, jsonMode = false, maxTokens = DEFAULT_MAX_OUTPUT_TOKENS }: { apiKey: string; messages: unknown[]; model: string; jsonMode?: boolean; maxTokens?: number }) {
+  if (!apiKey) throw new Error('Managed OpenRouter API key is required');
   const body: Record<string, unknown> = {
     model: `${model}:floor`,
     models: [`${model}:floor`, `${MIMO_FALLBACK_MODEL}:floor`],
@@ -165,10 +164,11 @@ export async function callOpenRouter({ messages, model, jsonMode = false, maxTok
   return payload;
 }
 
-export async function fetchGenerationStats(generationId?: string) {
+export async function fetchGenerationStats(generationId: string | undefined, apiKey: string) {
   if (!generationId) return null;
+  if (!apiKey) throw new Error('Managed OpenRouter API key is required');
   const response = await fetch(`https://openrouter.ai/api/v1/generation?id=${encodeURIComponent(generationId)}`, {
-    headers: { Authorization: `Bearer ${getFirstEnv(['OPENROUTER_API_KEY', 'VITE_OPENROUTER_KEY'])}` },
+    headers: { Authorization: `Bearer ${apiKey}` },
   });
   if (!response.ok) return null;
   return response.json().catch(() => null);

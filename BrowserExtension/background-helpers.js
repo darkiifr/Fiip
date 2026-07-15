@@ -1,4 +1,159 @@
 const FIIP_CLIP_DEEP_LINK = 'fiip://clip';
+const SESSION_KEY = 'fiipSupabaseSession';
+const SESSION_EXPIRY_MARGIN_MS = 60_000;
+
+function createExtensionError(message, code) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+function getConfig(config = {}) {
+  const supabaseUrl = String(config.supabaseUrl || '').trim().replace(/\/$/, '');
+  const supabaseAnonKey = String(config.supabaseAnonKey || '').trim();
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(supabaseUrl);
+  } catch {
+    throw createExtensionError('Fiip Cloud is not configured.', 'SUPABASE_CONFIG_MISSING');
+  }
+  if (parsedUrl.protocol !== 'https:' || parsedUrl.pathname !== '/' || !supabaseAnonKey) {
+    throw createExtensionError('Fiip Cloud is not configured.', 'SUPABASE_CONFIG_MISSING');
+  }
+  return { supabaseUrl, supabaseAnonKey };
+}
+
+function nowMs(now = Date.now) {
+  const value = now();
+  return value instanceof Date ? value.getTime() : Number(value);
+}
+
+async function readResponseJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSession(data, now = Date.now) {
+  if (!data?.access_token || !data?.refresh_token || !data?.user?.id) {
+    throw createExtensionError('Supabase returned an incomplete session.', 'AUTH_SESSION_INVALID');
+  }
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresAt: nowMs(now) + Math.max(1, Number(data.expires_in) || 3600) * 1000,
+    user: {
+      id: data.user.id,
+      email: String(data.user.email || ''),
+    },
+  };
+}
+
+async function requestAuthSession(grantType, body, {
+  config,
+  fetchImpl = fetch,
+  storageSet,
+  now = Date.now,
+}) {
+  const { supabaseUrl, supabaseAnonKey } = getConfig(config);
+  const response = await fetchImpl(`${supabaseUrl}/auth/v1/token?grant_type=${grantType}`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseAnonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await readResponseJson(response);
+  if (!response.ok) {
+    throw createExtensionError(
+      data?.error_description || data?.msg || data?.message || 'Connexion Fiip impossible.',
+      'AUTH_FAILED',
+    );
+  }
+  const session = normalizeSession(data, now);
+  await storageSet({ [SESSION_KEY]: session });
+  return session;
+}
+
+export async function signInWithPassword({ email, password }, dependencies) {
+  const normalizedEmail = String(email || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || !String(password || '')) {
+    throw createExtensionError('Adresse e-mail ou mot de passe invalide.', 'AUTH_INPUT_INVALID');
+  }
+  const session = await requestAuthSession('password', {
+    email: normalizedEmail,
+    password: String(password),
+  }, dependencies);
+  return { user: session.user };
+}
+
+async function refreshSession(session, dependencies) {
+  if (!session?.refreshToken) {
+    throw createExtensionError('Connectez-vous à Fiip Cloud.', 'AUTH_REQUIRED');
+  }
+  return requestAuthSession('refresh_token', {
+    refresh_token: session.refreshToken,
+  }, dependencies);
+}
+
+async function getValidSession({
+  config,
+  fetchImpl = fetch,
+  storageGet,
+  storageSet,
+  now = Date.now,
+}) {
+  getConfig(config);
+  const stored = await storageGet([SESSION_KEY]);
+  const session = stored?.[SESSION_KEY];
+  if (!session?.accessToken || !session?.user?.id) {
+    throw createExtensionError('Connectez-vous à Fiip Cloud.', 'AUTH_REQUIRED');
+  }
+  if (Number(session.expiresAt) > nowMs(now) + SESSION_EXPIRY_MARGIN_MS) {
+    return session;
+  }
+  return refreshSession(session, { config, fetchImpl, storageSet, now });
+}
+
+export async function getAuthState(dependencies) {
+  try {
+    const session = await getValidSession(dependencies);
+    return { authenticated: true, user: session.user };
+  } catch (error) {
+    if (['AUTH_REQUIRED', 'AUTH_FAILED', 'SUPABASE_CONFIG_MISSING'].includes(error?.code)) {
+      return { authenticated: false, error: error.message };
+    }
+    throw error;
+  }
+}
+
+export async function signOut({
+  config,
+  fetchImpl = fetch,
+  storageGet,
+  storageRemove,
+}) {
+  const stored = await storageGet([SESSION_KEY]);
+  const session = stored?.[SESSION_KEY];
+  try {
+    if (session?.accessToken) {
+      const { supabaseUrl, supabaseAnonKey } = getConfig(config);
+      await fetchImpl(`${supabaseUrl}/auth/v1/logout`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+    }
+  } finally {
+    await storageRemove([SESSION_KEY]);
+  }
+  return { authenticated: false };
+}
 
 function sanitizeHtml(value = '') {
   if (typeof document === 'undefined') {
@@ -45,13 +200,20 @@ export function buildDeepLinkUrl(payload) {
 export function buildSupabaseNotePayload(
   payload,
   {
+    userId,
     randomUUID = () => crypto.randomUUID(),
     now = () => new Date(),
   } = {},
 ) {
   const sourceUrl = assertHttpUrl(payload.url);
+  if (!userId) {
+    throw createExtensionError('Connectez-vous à Fiip Cloud.', 'AUTH_REQUIRED');
+  }
+  const timestamp = now().toISOString();
 
   return {
+    id: randomUUID(),
+    user_id: userId,
     title: payload.title,
     content: `${sanitizeHtml(payload.html)}<p><a href="${sourceUrl}" rel="noreferrer">Source: ${escapeHtml(sourceUrl)}</a></p>`,
     tags: [{ id: 'tag-web-clip', label: 'Web clip', icon: 'Tag', color: 4 }],
@@ -62,7 +224,8 @@ export function buildSupabaseNotePayload(
       url,
       previewable: true,
     })),
-    updated_at: now().toISOString(),
+    created_at: timestamp,
+    updated_at: timestamp,
   };
 }
 
@@ -74,58 +237,79 @@ export async function sendToDeepLink(payload, { openTab }) {
 export async function sendToSupabase(
   payload,
   {
+    config,
     fetchImpl = fetch,
     storageGet,
+    storageSet,
     randomUUID,
     now,
   },
 ) {
-  const { supabaseUrl, supabaseAnonKey, accessToken } = await storageGet([
-    'supabaseUrl',
-    'supabaseAnonKey',
-    'accessToken',
-  ]);
-
-  if (!supabaseUrl || !supabaseAnonKey || !accessToken) {
-    throw new Error('Supabase fallback is not configured.');
-  }
-
-  const response = await fetchImpl(`${supabaseUrl.replace(/\/$/, '')}/rest/v1/notes`, {
+  const normalizedConfig = getConfig(config);
+  let session = await getValidSession({ config, fetchImpl, storageGet, storageSet, now });
+  const notePayload = buildSupabaseNotePayload(payload, {
+    userId: session.user.id,
+    randomUUID,
+    now,
+  });
+  const postNote = () => fetchImpl(`${normalizedConfig.supabaseUrl}/rest/v1/notes`, {
     method: 'POST',
     headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${accessToken}`,
+      apikey: normalizedConfig.supabaseAnonKey,
+      Authorization: `Bearer ${session.accessToken}`,
       'Content-Type': 'application/json',
       Prefer: 'return=representation',
     },
-    body: JSON.stringify(buildSupabaseNotePayload(payload, { randomUUID, now })),
+    body: JSON.stringify(notePayload),
   });
+
+  let response = await postNote();
+  if (response.status === 401 && session.refreshToken) {
+    session = await refreshSession(session, { config, fetchImpl, storageSet, now });
+    response = await postNote();
+  }
 
   if (!response.ok) {
     throw new Error(`Supabase fallback failed (${response.status}).`);
   }
 
-  return { mode: 'supabase', data: await response.json() };
+  const data = await response.json();
+  const noteId = Array.isArray(data) ? data[0]?.id : data?.id;
+  if (!noteId) {
+    throw new Error('Supabase did not return the created note.');
+  }
+  return {
+    mode: 'supabase',
+    data,
+    noteId,
+    openUrl: `${FIIP_CLIP_DEEP_LINK}?noteId=${encodeURIComponent(noteId)}`,
+  };
 }
 
 export async function saveClip(
   payload,
   {
-    openTab,
+    config,
     fetchImpl,
     storageGet,
+    storageSet,
     randomUUID,
     now,
   },
 ) {
   try {
-    return await sendToDeepLink(payload, { openTab });
-  } catch {
-    return sendToSupabase(payload, {
+    return await sendToSupabase(payload, {
+      config,
       fetchImpl,
       storageGet,
+      storageSet,
       randomUUID,
       now,
     });
+  } catch (error) {
+    if (['AUTH_REQUIRED', 'SUPABASE_CONFIG_MISSING'].includes(error?.code)) {
+      return { mode: 'deep-link', openUrl: buildDeepLinkUrl(payload) };
+    }
+    throw error;
   }
 }

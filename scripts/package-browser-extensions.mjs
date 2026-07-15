@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -9,6 +11,7 @@ const sourceDir = join(root, 'BrowserExtension');
 const outputDir = join(root, 'dist', 'extensions');
 const workDir = join(outputDir, 'work');
 const CHROME_EXTENSION_VERSION_PATTERN = /^\d+(\.\d+){0,3}$/;
+const FIIP_SUPABASE_HOST = 'fqouvzkovppyqocfxanl.supabase.co';
 
 function resetDir(path) {
   rmSync(path, { recursive: true, force: true });
@@ -25,6 +28,46 @@ function copyPayload(targetDir) {
     recursive: true,
     filter: shouldIncludeBrowserExtensionFile,
   });
+}
+
+function quoteJavaScriptString(value) {
+  return `'${String(value).replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('\r', '\\r').replaceAll('\n', '\\n')}'`;
+}
+
+export function buildBrowserExtensionConfigSource({ supabaseUrl, supabaseAnonKey }) {
+  const normalizedUrl = String(supabaseUrl || '').trim().replace(/\/$/, '');
+  const normalizedKey = String(supabaseAnonKey || '').trim();
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(normalizedUrl);
+  } catch {
+    throw new Error('A valid Supabase URL is required to package the browser extension.');
+  }
+  if (
+    parsedUrl.protocol !== 'https:'
+    || parsedUrl.hostname !== FIIP_SUPABASE_HOST
+    || parsedUrl.pathname !== '/'
+    || !normalizedKey
+    || normalizedKey.includes('__FIIP_')
+  ) {
+    throw new Error('Valid Fiip Supabase public configuration is required to package the browser extension.');
+  }
+
+  return [
+    'export const FIIP_EXTENSION_CONFIG = Object.freeze({',
+    `  supabaseUrl: ${quoteJavaScriptString(normalizedUrl)},`,
+    `  supabaseAnonKey: ${quoteJavaScriptString(normalizedKey)},`,
+    '});',
+    '',
+  ].join('\n');
+}
+
+function writeRuntimeConfig(targetDir) {
+  const source = buildBrowserExtensionConfigSource({
+    supabaseUrl: process.env.VITE_SUPABASE_URL || `https://${FIIP_SUPABASE_HOST}`,
+    supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY,
+  });
+  writeFileSync(join(targetDir, 'extension-config.js'), source);
 }
 
 export function normalizeBrowserExtensionVersion(value) {
@@ -87,6 +130,7 @@ export function packageBrowserExtensions() {
     const target = join(workDir, store.toLowerCase());
     resetDir(target);
     copyPayload(target);
+    writeRuntimeConfig(target);
     setManifestVersion(target, getRequestedVersion());
     zipDirectory(target, join(outputDir, `Fiip-Web-Clipper-${store}.zip`));
   }

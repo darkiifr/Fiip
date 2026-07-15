@@ -32,6 +32,7 @@ export function AIFloatingAssistant({
   onOpen,
   onSubmit,
   disabled = false,
+  avoidBottomToolbar = false,
   shouldReduceMotion = false,
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -51,7 +52,7 @@ export function AIFloatingAssistant({
 
   return (
     <motion.div
-      className="fixed bottom-5 right-5 z-40"
+      className={`fixed right-4 z-40 max-w-[calc(100vw-2rem)] sm:right-5 ${avoidBottomToolbar ? 'bottom-24' : 'bottom-5'}`}
       initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.98 }}
       animate={{ opacity: disabled ? 0.62 : 1, y: 0, scale: 1 }}
       transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
@@ -61,7 +62,7 @@ export function AIFloatingAssistant({
         className="overflow-hidden rounded-[28px] border border-white/14 bg-[#10131a]/88 text-[color:var(--text-primary)] shadow-[0_22px_70px_rgba(0,0,0,.38)] backdrop-blur-3xl"
         initial={false}
         animate={{
-          width: expanded ? 380 : 184,
+          width: expanded ? 'min(380px, calc(100vw - 2rem))' : 'min(184px, calc(100vw - 2rem))',
           height: expanded ? 196 : 56,
         }}
         transition={shouldReduceMotion ? { duration: 0.12 } : { type: 'spring', stiffness: 430, damping: 38, mass: 0.8 }}

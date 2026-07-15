@@ -35,7 +35,7 @@ import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } fro
 import { keyAuthService } from "./services/keyauth";
 import { queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
 import { soundManager } from "./services/soundManager";
-import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook, removeTaskById } from './services/fiipV1';
+import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook, parseClipperNoteId, removeTaskById } from './services/fiipV1';
 import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
 import { applyTheme } from './services/theme';
 import { normalizeNoteTags } from './utils/noteTags';
@@ -467,8 +467,22 @@ function App() {
                         }
                     }
                     if (parsedUrl.host === 'clip' || parsedUrl.pathname.includes('/clip')) {
+                        const noteId = parseClipperNoteId(parsedUrl.searchParams.get('noteId'));
                         const rawPayload = parsedUrl.searchParams.get('payload');
-                        if (rawPayload) {
+                        if (noteId) {
+                            const currentUser = await authService.getUser();
+                            if (!currentUser) {
+                                await message("Connectez-vous dans Fiip avec le même compte que l'extension pour ouvrir cette capture.", { title: 'Fiip', kind: 'warning' }).catch(console.error);
+                            } else {
+                                await loadDataFromSupabase();
+                                if (notesRef.current.some((note) => note.id === noteId)) {
+                                    setSelectedNoteId(noteId);
+                                    setActiveNav('home');
+                                } else {
+                                    await message("Cette capture est introuvable. Vérifiez que Fiip et l'extension utilisent le même compte et que la synchronisation cloud est activée.", { title: 'Fiip', kind: 'warning' }).catch(console.error);
+                                }
+                            }
+                        } else if (rawPayload) {
                             const payload = parseClipperPayloadParam(rawPayload);
                             const { data, error } = await dataService.createNoteFromClipper(payload);
                             if (error) {
@@ -1242,8 +1256,10 @@ function App() {
           && !isAuthModalOpen
           && !isLicenseModalOpen
           && !isUserProfileOpen
-          && !isCommandPaletteOpen && (
+          && !isCommandPaletteOpen
+          && activeNav !== 'settings' && (
           <AIFloatingAssistant
+            avoidBottomToolbar={Boolean(activeNote)}
             onOpen={() => setIsDexterOpen(true)}
             onSubmit={(prompt) => {
               setDexterInitialPrompt({ id: `${Date.now()}-${prompt.length}`, text: prompt });

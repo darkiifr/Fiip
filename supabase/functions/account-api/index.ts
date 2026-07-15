@@ -3,6 +3,7 @@ import { createAdminClient, getAuthenticatedUser } from '../_shared/supabase.ts'
 import { getKeyAuthLicenseInfo, resetKeyAuthHwid } from '../_shared/keyauth.ts';
 import { sendTemplateEmail } from '../_shared/mailer.ts';
 import { getTierCapabilities } from '../_shared/tiers.ts';
+import { resolveAiUsageScope } from './account-summary.ts';
 import { resolveAccountDeviceLimit, sanitizeDeviceInput, sanitizeSecurityMetadata, validateUuid } from './device-security.ts';
 import {
   assertLicenseCanAttach,
@@ -239,12 +240,19 @@ async function buildAccountSummary(supabaseAdmin: any, user: any, body: any = {}
     || (licenses || [])[0]
     || null;
 
-  const [{ data: aiUsage }, { data: emailEvents }, { data: accountDevices }] = await Promise.all([
-    supabaseAdmin.from('ai_usage').select('*').eq('user_id', user.id).order('period_start', { ascending: false }).limit(1).maybeSingle(),
+  const [{ data: emailEvents }, { data: accountDevices }] = await Promise.all([
     supabaseAdmin.from('email_events').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20),
     supabaseAdmin.from('account_devices').select('*').eq('user_id', user.id).order('last_seen_at', { ascending: false }).limit(6),
   ]);
   const family = await loadFamilyState(supabaseAdmin, user, selectedLicense);
+  const usageScope = resolveAiUsageScope(family, user.id);
+  const { data: aiUsage } = await supabaseAdmin
+    .from('ai_usage')
+    .select('*')
+    .eq(usageScope.column, usageScope.value)
+    .order('period_start', { ascending: false })
+    .limit(1)
+    .maybeSingle();
   const activeDeviceCount = (accountDevices || []).filter((device: any) => !device.revoked_at).length;
 
   return {

@@ -270,6 +270,8 @@ pub fn run() {
                     let _ = window.emit("fiip://oauth-callback", url);
                 }
             }
+            let _ = window.show();
+            let _ = window.unminimize();
             let _ = window.set_focus();
         }))
         .plugin(tauri_plugin_opener::init())

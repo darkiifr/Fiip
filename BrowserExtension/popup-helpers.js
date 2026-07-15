@@ -33,8 +33,15 @@ async function collectClipPayload({ tabs, scripting, tabId, captureMode }) {
   }
 }
 
-export async function captureActiveTab({ tabs, runtime, scripting, status, captureModeInput }) {
+export async function captureActiveTab({ tabs, runtime, scripting, status, captureModeInput, openFiipLink }) {
   status.textContent = 'Capture en cours...';
+  if (openFiipLink) {
+    openFiipLink.hidden = true;
+    openFiipLink.removeAttribute?.('href');
+    if (!openFiipLink.removeAttribute) {
+      openFiipLink.href = '';
+    }
+  }
   try {
     const [tab] = await tabs.query({ active: true, currentWindow: true });
 
@@ -57,10 +64,30 @@ export async function captureActiveTab({ tabs, runtime, scripting, status, captu
       return result;
     }
 
-    status.textContent = result?.mode === 'supabase' ? 'Capture envoyée au cloud.' : 'Capture envoyée à Fiip.';
+    if (result?.openUrl && openFiipLink) {
+      openFiipLink.href = result.openUrl;
+      openFiipLink.hidden = false;
+    }
+    status.textContent = result?.mode === 'supabase' ? 'Capture envoyée au cloud.' : 'Capture prête à ouvrir dans Fiip.';
     return result;
   } catch (error) {
     status.textContent = error?.message || 'Capture impossible sur cette page.';
     return { error: status.textContent };
   }
+}
+
+export async function getAuthStateFromPopup({ runtime }) {
+  return runtime.sendMessage({ type: 'FIIP_AUTH_STATE' });
+}
+
+export async function signInFromPopup({ runtime, email, password }) {
+  return runtime.sendMessage({
+    type: 'FIIP_AUTH_SIGN_IN',
+    email: String(email || '').trim(),
+    password: String(password || ''),
+  });
+}
+
+export async function signOutFromPopup({ runtime }) {
+  return runtime.sendMessage({ type: 'FIIP_AUTH_SIGN_OUT' });
 }

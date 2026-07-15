@@ -1,7 +1,7 @@
 export default function AccountAiUsage({ account }) {
   const usage = account?.ai_usage;
   const used = Number(usage?.budget_used_eur || 0);
-  const limit = Number(usage?.budget_limit_eur || 0);
+  const limit = Number(usage?.budget_limit_eur ?? account?.family_group?.ai_budget_limit_eur ?? 0);
   const percent = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
   return (
     <section className="account-section">

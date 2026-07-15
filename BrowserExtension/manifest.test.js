@@ -11,7 +11,7 @@ describe('Fiip extension manifest', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.name).toBe('Fiip Web Clipper');
     expect(manifest.permissions).toEqual(expect.arrayContaining(['activeTab', 'scripting', 'storage']));
-    expect(manifest.host_permissions).toBeUndefined();
+    expect(manifest.host_permissions).toEqual(['https://fqouvzkovppyqocfxanl.supabase.co/*']);
     expect(manifest.background).toEqual({ service_worker: 'background.js', type: 'module' });
     expect(manifest.action.default_popup).toBe('popup.html');
     expect(manifest.content_scripts).toBeUndefined();
@@ -20,7 +20,7 @@ describe('Fiip extension manifest', () => {
 
   it('does not request broad host access or remote executable code', () => {
     expect(JSON.stringify(manifest)).not.toContain('<all_urls>');
-    expect(manifest.host_permissions).toBeUndefined();
+    expect(manifest.host_permissions).toEqual(['https://fqouvzkovppyqocfxanl.supabase.co/*']);
     expect(popupHtml).not.toMatch(/<script[^>]+src=["']https?:\/\//i);
   });
 
@@ -38,6 +38,9 @@ describe('Fiip extension manifest', () => {
     expect(popupHtml).toContain('Mode de capture');
     expect(popupHtml).toContain('Page lisible');
     expect(popupHtml).toContain('Sélection');
-    expect(popupHtml).toContain('Source et images');
+    expect(popupHtml).toContain('Fiip Cloud');
+    expect(popupHtml).toContain('id="auth-form"');
+    expect(popupHtml).toContain('id="open-fiip"');
+    expect(popupHtml).toContain('id="sign-out"');
   });
 });

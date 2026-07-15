@@ -15,7 +15,7 @@ Voir `AGENTS.md` pour le guide complet.
 ## Contraintes Produit
 
 - Tiptap est en v3. Utiliser `@tiptap/extension-collaboration-caret`.
-- L'IA passe uniquement par OpenRouter avec `VITE_OPENROUTER_KEY`.
+- L'IA passe uniquement par `ai-proxy`. La Management Key OpenRouter reste dans les secrets Supabase et provisionne des cles enfant chiffrees par utilisateur ou famille.
 - Le routeur de modele doit rester `openrouter/free`.
 - Ne pas remettre de saisie de cle API utilisateur ni de modele payant/personnalise.
 - Supabase reste le backend commun desktop/mobile/public.

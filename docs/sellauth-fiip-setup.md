@@ -93,13 +93,13 @@ VITE_KEYAUTH_APIURL=https://keyauth.win/api/1.2/
 
 ```powershell
 supabase secrets set RESEND_API_KEY="..."
-supabase secrets set OPENROUTER_API_KEY="..."
+supabase secrets set OPENROUTER_MANAGEMENT_KEY="..."
 supabase secrets set KEYAUTH_WEBHOOK_SECRET="..."
 ```
 
 `RESEND_API_KEY` sert aux e-mails transactionnels. Sans domaine valide, utilise seulement une adresse autorisee par Resend en test.
 
-`OPENROUTER_API_KEY` sert au proxy IA. Tant qu’il n’est pas pret, garde l’IA limitee/desactivee en production.
+`OPENROUTER_MANAGEMENT_KEY` sert uniquement aux Edge Functions pour creer des cles enfant chiffrees dans Supabase Vault. Chaque utilisateur IA a sa propre cle et les membres d'une famille partagent une cle, avec un plafond mensuel aligne sur leur abonnement. Cette cle de gestion ne doit jamais etre exposee dans une application cliente.
 
 `KEYAUTH_WEBHOOK_SECRET` sert uniquement si tu appelles la fonction `keyauth-webhook`.
 

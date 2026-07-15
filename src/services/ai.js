@@ -53,8 +53,23 @@ export function getLastAIUsageStats() {
   return lastUsageStats;
 }
 
-function formatFunctionError(error, fallback) {
-  if (!error) return fallback;
+async function formatFunctionError(error, fallback) {
+  if (!error) {
+    return fallback;
+  }
+  const context = error.context;
+  if (context && typeof context.json === 'function') {
+    try {
+      const response = typeof context.clone === 'function' ? context.clone() : context;
+      const payload = await response.json();
+      const responseMessage = payload?.error || payload?.message || payload?.error_description;
+      if (responseMessage) {
+        return responseMessage;
+      }
+    } catch {
+      // Keep the SDK error as a fallback when the response is not JSON.
+    }
+  }
   return error.message || error.error_description || error.error || fallback;
 }
 
@@ -66,7 +81,7 @@ export async function listOpenRouterModels({ freeOnly = true } = {}) {
   });
 
   if (error) {
-    throw new Error(formatFunctionError(error, 'Impossible de charger les modèles IA.'));
+    throw new Error(await formatFunctionError(error, 'Impossible de charger les modèles IA.'));
   }
 
   return Array.isArray(data?.data) ? data.data : [];
@@ -93,7 +108,7 @@ export const generateText = async (input, model, signal) => {
   });
 
   if (error) {
-    throw new Error(formatFunctionError(error, "L'assistant n'a pas pu répondre."));
+    throw new Error(await formatFunctionError(error, "L'assistant n'a pas pu répondre."));
   }
 
   notifyUsage({

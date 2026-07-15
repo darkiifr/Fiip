@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 
-import { CLAUDE_HAIKU_MODEL, DEEPSEEK_MODEL, estimateOpenRouterReservationEur, normalizeChatMessages, selectModel } from './openrouter.ts';
+import { callOpenRouter, CLAUDE_HAIKU_MODEL, DEEPSEEK_MODEL, estimateOpenRouterReservationEur, normalizeChatMessages, selectModel } from './openrouter.ts';
 
 Deno.test('selectModel uses deterministic automatic routing and downgrades expensive AI-tier calls when budget is low', () => {
   assertEquals(selectModel({ taskType: 'ocr_cleanup', userChoice: 'auto', tier: 'ai', remainingBudgetEur: 1 }).model, DEEPSEEK_MODEL);
@@ -40,4 +40,28 @@ Deno.test('estimateOpenRouterReservationEur reserves a bounded worst-case amount
   assertEquals(short > 0, true);
   assertEquals(long > short, true);
   assertEquals(long <= 0.05, true);
+});
+
+Deno.test('callOpenRouter uses only the explicitly managed child key', async () => {
+  const originalFetch = globalThis.fetch;
+  let authorization = '';
+  globalThis.fetch = (_input, init) => {
+    authorization = new Headers(init?.headers).get('Authorization') || '';
+    return Promise.resolve(new Response(JSON.stringify({ id: 'generation-1', choices: [] }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+  };
+
+  try {
+    await callOpenRouter({
+      apiKey: 'sk-managed-child',
+      messages: [{ role: 'user', content: 'Bonjour' }],
+      model: DEEPSEEK_MODEL,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assertEquals(authorization, 'Bearer sk-managed-child');
 });

@@ -1,5 +1,4 @@
 declare module '@env' {
-  export const VITE_OPENROUTER_KEY: string;
   export const VITE_SUPABASE_URL: string;
   export const VITE_SUPABASE_ANON_KEY: string;
   export const VITE_KEYAUTH_NAME: string;

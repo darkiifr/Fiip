@@ -308,6 +308,9 @@ jobs:
         run: npm run test:extensions
 
       - name: Package browser extensions
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run package:extensions -- --version "${{ steps.extension_version.outputs.version }}"
 
       - name: Upload Chrome Store and manual Edge extension packages

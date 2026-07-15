@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import * as popupHelpers from './popup-helpers.js';
 import { captureActiveTab } from './popup-helpers.js';
 
 describe('Fiip extension popup helpers', () => {
@@ -22,6 +23,7 @@ describe('Fiip extension popup helpers', () => {
 
   it('injects the content script and retries once when the tab has no receiver yet', async () => {
     const status = { textContent: '' };
+    const openFiipLink = { hidden: true, href: '' };
     const sendMessage = vi.fn()
       .mockRejectedValueOnce(new Error('Could not establish connection. Receiving end does not exist.'))
       .mockResolvedValueOnce({ title: 'Clip', html: '<p>Clip</p>' });
@@ -36,6 +38,7 @@ describe('Fiip extension popup helpers', () => {
       },
       scripting: { executeScript },
       status,
+      openFiipLink,
     });
 
     expect(executeScript).toHaveBeenCalledWith({
@@ -44,6 +47,48 @@ describe('Fiip extension popup helpers', () => {
     });
     expect(sendMessage).toHaveBeenCalledTimes(2);
     expect(result).toEqual({ mode: 'deep-link' });
+  });
+
+  it('reveals the explicit Fiip link returned after capture', async () => {
+    const status = { textContent: '' };
+    const openFiipLink = { hidden: true, href: '' };
+    await captureActiveTab({
+      tabs: {
+        query: vi.fn().mockResolvedValue([{ id: 42, url: 'https://example.com/read' }]),
+        sendMessage: vi.fn().mockResolvedValue({ title: 'Clip', html: '<p>Clip</p>' }),
+      },
+      runtime: {
+        sendMessage: vi.fn().mockResolvedValue({
+          mode: 'supabase',
+          openUrl: 'fiip://clip?noteId=note-1',
+        }),
+      },
+      status,
+      openFiipLink,
+    });
+
+    expect(openFiipLink).toMatchObject({ hidden: false, href: 'fiip://clip?noteId=note-1' });
+    expect(status.textContent).toMatch(/cloud/);
+  });
+
+  it('submits extension credentials to the background auth flow', async () => {
+    expect(typeof popupHelpers.signInFromPopup).toBe('function');
+    const runtime = {
+      sendMessage: vi.fn().mockResolvedValue({ user: { email: 'user@example.com' } }),
+    };
+
+    const result = await popupHelpers.signInFromPopup({
+      runtime,
+      email: ' user@example.com ',
+      password: 'correct horse battery staple',
+    });
+
+    expect(result).toEqual({ user: { email: 'user@example.com' } });
+    expect(runtime.sendMessage).toHaveBeenCalledWith({
+      type: 'FIIP_AUTH_SIGN_IN',
+      email: 'user@example.com',
+      password: 'correct horse battery staple',
+    });
   });
 
   it('explains unsupported browser pages instead of trying to inject into them', async () => {

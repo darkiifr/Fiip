@@ -16,6 +16,23 @@
         </div>
       </header>
 
+      <section class="account" aria-labelledby="account-title">
+        <p class="kicker">Fiip Cloud</p>
+        <h2 id="account-title">Compte</h2>
+        <form id="auth-form">
+          <label for="auth-email">Adresse e-mail</label>
+          <input id="auth-email" name="email" type="email" autocomplete="email" required />
+          <label for="auth-password">Mot de passe</label>
+          <input id="auth-password" name="password" type="password" autocomplete="current-password" required />
+          <button id="sign-in" type="submit">Se connecter</button>
+        </form>
+        <div id="account-panel" class="account-row" hidden>
+          <span id="account-email"></span>
+          <button id="sign-out" class="icon-command" type="button" title="Se déconnecter" aria-label="Se déconnecter">↪</button>
+        </div>
+        <p id="auth-status">Chargement du compte...</p>
+      </section>
+
       <section class="panel" aria-labelledby="capture-mode-label">
         <label id="capture-mode-label" for="capture-mode">Mode de capture</label>
         <select id="capture-mode">
@@ -25,24 +42,10 @@
         <p>Choisissez la page nettoyée ou uniquement le texte sélectionné.</p>
       </section>
 
-      <section class="details" aria-label="Utilité de Fiip Clipper">
-        <div>
-          <strong>Source et images</strong>
-          <span>Ajoute le lien d'origine et jusqu'à 12 images web.</span>
-        </div>
-        <div>
-          <strong>Ouverture Fiip</strong>
-          <span>Envoie d'abord la capture vers l'application locale.</span>
-        </div>
-        <div>
-          <strong>Fallback cloud</strong>
-          <span>Utilise Supabase seulement si vous l'avez configuré.</span>
-        </div>
-      </section>
-
       <button id="clip-selection" type="button">
         <span>Capturer maintenant</span>
       </button>
+      <a id="open-fiip" class="primary-link" href="#" hidden>Ouvrir Fiip</a>
       <p id="status">Prêt.</p>
     </main>
     <script src="popup.js" type="module"></script>
