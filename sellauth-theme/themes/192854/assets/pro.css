@@ -2239,10 +2239,6 @@ table td .btn.btn-link {
   display: none;
 }
 
-.grecaptcha-badge { 
-  visibility: hidden;
-}
-
 .whitespace-pre-line {
   white-space: pre-line;
 }

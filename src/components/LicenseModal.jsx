@@ -191,7 +191,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAccount }) {
                   <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">{t('license.features_title', 'Fonctionnalités Incluses')}</h4>
                   <div className="flex flex-col gap-2.5">
                       <FeatureItem label={t('license.feature_notes', 'Fiip - Prise de notes & Organisation')} active={true} icon={IconStar} />
-                      <FeatureItem label={t('license.feature_ai', 'Intelligence Artificielle Premium')} active={Boolean(authData.hasAI)} icon={IconSparkles} />
+                      <FeatureItem label={t('license.feature_ai', 'Dexter Premium')} active={Boolean(authData.hasAI)} icon={IconSparkles} />
                       <FeatureItem label={t('license.feature_expert', 'Mode Expert & Outils Avancés')} active={Boolean(authData.hasPro)} icon={IconZap} />
                   </div>
               </div>
@@ -234,7 +234,7 @@ export default function LicenseModal({ isOpen, onClose, onOpenAccount }) {
                   <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">{t('license.features_title', 'Fonctionnalités Incluses')}</h4>
                   <div className="flex flex-col gap-2.5">
                       <FeatureItem label={t('license.feature_notes', 'Fiip - Prise de notes & Organisation')} active={true} icon={IconStar} />
-                      <FeatureItem label={t('license.feature_ai', 'Intelligence Artificielle Premium')} active={false} icon={IconSparkles} />
+                      <FeatureItem label={t('license.feature_ai', 'Dexter Premium')} active={false} icon={IconSparkles} />
                       <FeatureItem label={t('license.feature_expert', 'Mode Expert & Outils Avancés')} active={false} icon={IconZap} />
                   </div>
               </div>

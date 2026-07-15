@@ -7,7 +7,6 @@ import { authService } from '../services/supabase';
 import OnboardingView from './OnboardingView';
 
 vi.mock('../services/supabase', () => ({
-  getCaptchaSiteKey: vi.fn(() => ''),
   authService: {
     signInWithOAuth: vi.fn(),
     signIn: vi.fn(),
@@ -33,6 +32,8 @@ describe('OnboardingView', () => {
     expect(screen.queryByAltText(/stone sprout/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /licence/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/clé de licence/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/bot-challenge|verification externe/i)).not.toBeInTheDocument();
+    expect(document.querySelector('script[src*="cloudflare"]')).not.toBeInTheDocument();
   });
 
   it('ouvre le flux OAuth Google retourné par Supabase', async () => {

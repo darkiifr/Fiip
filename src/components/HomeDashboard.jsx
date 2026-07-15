@@ -5,7 +5,7 @@ import IconSearch from '~icons/mingcute/search-line';
 import IconTime from '~icons/mingcute/time-line';
 import IconBook from '~icons/mingcute/book-line';
 import IconCheck from '~icons/mingcute/check-circle-line';
-import IconSparkles from '~icons/mingcute/sparkles-line';
+import IconBot from '~icons/mingcute/robot-line';
 import { generateText } from '../services/ai';
 import { getDueTasks } from '../services/fiipV1';
 import { getNoteStats, pickFeaturedNote, stripNoteText } from '../utils/notePresentation';
@@ -113,7 +113,7 @@ export default function HomeDashboard({
         <div className="flex-1 h-full overflow-y-auto bg-warm-bg-light dark:bg-warm-bg-dark text-warm-text-primary-light dark:text-warm-text-primary-dark px-10 py-12 space-y-10 select-none scrollbar-hide">
             
             <div className="max-w-2xl mx-auto w-full relative">
-                <div className="w-full min-h-12 px-5 bg-warm-card-light dark:bg-[#262625] border border-warm-border-light dark:border-warm-border-dark rounded-2xl flex items-center justify-between shadow-sm transition-all duration-300 focus-within:border-amber-500/40 focus-within:ring-4 focus-within:ring-amber-500/10">
+                <div className="w-full min-h-12 px-5 bg-[color:var(--bg-elevated)] border border-warm-border-light dark:border-warm-border-dark rounded-xl flex items-center justify-between shadow-sm transition-all duration-200 focus-within:border-[color:var(--accent)]/45 focus-within:ring-4 focus-within:ring-[color:var(--accent)]/10">
                     <div className="flex items-center gap-3 text-warm-text-muted-light">
                         <IconSearch className="w-4 h-4" />
                         <input
@@ -133,7 +133,7 @@ export default function HomeDashboard({
                         <button
                             type="button"
                             onClick={runAdvancedSearch}
-                            className="shrink-0 rounded-lg border border-warm-border-light bg-warm-sidebar-item-active px-2 py-0.5 text-[9px] font-bold text-warm-text-muted-light transition-all hover:text-amber-600 dark:border-warm-border-dark dark:bg-zinc-800"
+                            className="shrink-0 rounded-md border border-warm-border-light bg-warm-sidebar-item-active px-2 py-0.5 text-[9px] font-bold text-warm-text-muted-light transition-all hover:text-[color:var(--accent)] dark:border-warm-border-dark dark:bg-zinc-800"
                         >
                             {searchResults.length} résultat{searchResults.length > 1 ? 's' : ''}
                         </button>
@@ -160,7 +160,7 @@ export default function HomeDashboard({
 
             <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-4 md:grid-cols-3">
                 {enabledWidgets.has('due-tasks') && (
-                    <section className="rounded-2xl border border-warm-border-light bg-warm-card-light p-4 dark:border-warm-border-dark dark:bg-warm-card-dark">
+                    <section className="rounded-[22px] border border-warm-border-light bg-warm-card-light p-4 dark:border-warm-border-dark dark:bg-warm-card-dark">
                         <div className="mb-3 flex items-center justify-between">
                             <h3 className="text-[10px] font-black uppercase tracking-widest text-warm-text-muted-light">Taches</h3>
                             <IconCheck className="h-4 w-4 text-emerald-500" />
@@ -182,10 +182,10 @@ export default function HomeDashboard({
                 )}
 
                 {enabledWidgets.has('notebooks') && (
-                    <section className="rounded-2xl border border-warm-border-light bg-warm-card-light p-4 dark:border-warm-border-dark dark:bg-warm-card-dark">
+                    <section className="rounded-[22px] border border-warm-border-light bg-warm-card-light p-4 dark:border-warm-border-dark dark:bg-warm-card-dark">
                         <div className="mb-3 flex items-center justify-between">
                             <h3 className="text-[10px] font-black uppercase tracking-widest text-warm-text-muted-light">Carnets</h3>
-                            <IconBook className="h-4 w-4 text-amber-500" />
+                            <IconBook className="h-4 w-4 text-[color:var(--accent)]" />
                         </div>
                         <div className="space-y-1">
                             {notebooks.slice(0, 5).map((notebook) => (
@@ -203,15 +203,15 @@ export default function HomeDashboard({
                 )}
 
                 {enabledWidgets.has('ai-suggestions') && dexterEnabled && (
-                    <section className="rounded-2xl border border-warm-border-light bg-warm-card-light p-4 dark:border-warm-border-dark dark:bg-warm-card-dark">
+                    <section className="rounded-[22px] border border-warm-border-light bg-warm-card-light p-4 dark:border-warm-border-dark dark:bg-warm-card-dark">
                         <div className="mb-3 flex items-center justify-between">
-                            <h3 className="text-[10px] font-black uppercase tracking-widest text-warm-text-muted-light">IA utile</h3>
-                            <IconSparkles className="h-4 w-4 text-blue-500" />
+                            <h3 className="text-[10px] font-black uppercase tracking-widest text-warm-text-muted-light">Dexter</h3>
+                            <IconBot className="h-4 w-4 text-blue-500" />
                         </div>
                         <p className="text-xs leading-5 text-warm-text-secondary-light dark:text-warm-text-secondary-dark">
                             {aiCommentStatus === 'loading'
-                                ? 'Dexter analyse vos notes...'
-                                : aiComment || 'Dexter est actif, mais aucun commentaire n’a pu être généré pour le moment.'}
+                                ? 'Préparation...'
+                                : aiComment || 'Aucune suggestion pour le moment.'}
                         </p>
                     </section>
                 )}
@@ -222,23 +222,12 @@ export default function HomeDashboard({
                 <button 
                     type="button"
                     onClick={handleFeaturedClick}
-                    className="max-w-4xl mx-auto w-full group cursor-pointer outline-none rounded-[28px] overflow-hidden border border-warm-border-light dark:border-warm-border-dark bg-gradient-to-br from-[#FCFBF9] to-[#FAF8F5] dark:from-[#262625] dark:to-[#1E1E1E] shadow-sm hover:shadow-md transition-all duration-300 relative min-h-[300px] flex flex-col justify-between text-left"
+                    className="max-w-4xl mx-auto w-full group cursor-pointer outline-none rounded-[28px] overflow-hidden border border-warm-border-light dark:border-warm-border-dark bg-[color:var(--bg-card)] shadow-sm hover:border-[color:var(--accent)]/35 transition-all duration-200 relative min-h-[260px] flex flex-col justify-between text-left"
                 >
-                    {/* Organic stone-sprout illustration overlay */}
-                    <div className="absolute top-0 right-0 w-[45%] h-full pointer-events-none z-0 overflow-hidden select-none opacity-90 dark:opacity-40">
-                        <img 
-                            src="/assets/stone_sprout.png" 
-                            alt="Stone Sprout Illustration" 
-                            className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-700"
-                        />
-                        <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#FAF8F5] via-transparent to-transparent dark:from-[#1E1E1E]" />
-                    </div>
-
                     <div className="relative z-10 p-8 flex flex-col justify-between h-full flex-1">
                         <div>
-                            {/* Date & Tag row */}
                             <div className="flex items-center gap-3 mb-6">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-[color:var(--accent)] bg-[color:var(--accent)]/10 px-2.5 py-1 rounded-full">
                                     Mise en vedette
                                 </span>
                                 <span className="text-[9px] font-black uppercase tracking-widest text-warm-text-muted-light">
@@ -246,18 +235,15 @@ export default function HomeDashboard({
                                 </span>
                             </div>
 
-                            {/* Note Title */}
-                            <h2 className="fiip-light-home-note-title text-3xl font-extrabold tracking-tight text-warm-text-primary-light dark:text-warm-text-primary-dark mb-4 leading-tight max-w-lg group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                            <h2 className="fiip-light-home-note-title text-3xl font-black tracking-tight text-warm-text-primary-light dark:text-warm-text-primary-dark mb-4 leading-tight max-w-2xl group-hover:text-[color:var(--accent)] transition-colors">
                                 {spotlightNote.title || t('common.untitled', 'Sans titre')}
                             </h2>
                             
-                            {/* Note Content preview */}
-                            <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark line-clamp-3 leading-relaxed max-w-md">
+                            <p className="text-sm text-warm-text-secondary-light dark:text-warm-text-secondary-dark line-clamp-3 leading-relaxed max-w-2xl">
                                 {stripNoteText(spotlightNote.content) || t('common.no_content', 'Pas de contenu')}
                             </p>
                         </div>
 
-                        {/* Stats Row */}
                         <div className="mt-8 pt-6 border-t border-warm-border-light dark:border-warm-border-dark flex items-center gap-6 text-[10px] font-bold text-warm-text-muted-light">
                             <div className="flex items-center gap-1.5">
                                 <IconCalendar className="w-3.5 h-3.5" />
@@ -298,10 +284,10 @@ export default function HomeDashboard({
                                 type="button"
                                 key={note.id}
                                 onClick={() => onSelectNote(note.id)}
-                                className="group cursor-pointer p-5 rounded-2xl border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark hover:bg-warm-sidebar-item-active/50 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between min-h-[160px] text-left"
+                                className="group cursor-pointer p-5 rounded-[22px] border border-warm-border-light dark:border-warm-border-dark bg-warm-card-light dark:bg-warm-card-dark hover:bg-warm-sidebar-item-active/50 hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between min-h-[160px] text-left"
                             >
                                 <div className="space-y-2">
-                                    <h4 className="fiip-light-home-note-title text-xs font-bold text-warm-text-primary-light dark:text-warm-text-primary-dark truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                                    <h4 className="fiip-light-home-note-title text-xs font-bold text-warm-text-primary-light dark:text-warm-text-primary-dark truncate group-hover:text-[color:var(--accent)] transition-colors">
                                         {note.title || t('common.untitled', 'Sans titre')}
                                     </h4>
                                     <p className="text-[11px] text-warm-text-secondary-light/80 dark:text-warm-text-secondary-dark/80 line-clamp-3 leading-relaxed">

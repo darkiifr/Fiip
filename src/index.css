@@ -1,112 +1,79 @@
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Geist:wght@400;500;600;700;800&family=Host+Grotesk:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap');
 
 @theme {
-  --font-sans: "Geist", "Inter", system-ui, -apple-system, sans-serif;
-  --font-serif: "Figtree", "Inter", system-ui, -apple-system, sans-serif;
-  --font-display: "Host Grotesk", "Geist", "Inter", system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Geist", system-ui, sans-serif;
+  --font-serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Geist", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Geist", system-ui, sans-serif;
+  --font-mono: "SF Mono", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  --color-warm-sidebar-light: #07090D;
-  --color-warm-sidebar-dark: #07090D;
+  --color-warm-sidebar-light: #0B0D12;
+  --color-warm-sidebar-dark: #0B0D12;
   --color-warm-bg-light: #080A0F;
   --color-warm-bg-dark: #080A0F;
   --color-warm-card-light: #11141A;
   --color-warm-card-dark: #11141A;
-  --color-warm-text-primary-light: #F4F7FB;
-  --color-warm-text-primary-dark: #F4F7FB;
-  --color-warm-text-secondary-light: #CDD5E1;
-  --color-warm-text-secondary-dark: #CDD5E1;
-  --color-warm-text-muted-light: #95A0AF;
-  --color-warm-text-muted-dark: #95A0AF;
-  --color-warm-border-light: rgba(219, 229, 242, 0.13);
-  --color-warm-border-dark: rgba(219, 229, 242, 0.13);
+  --color-warm-text-primary-light: #F5F7FA;
+  --color-warm-text-primary-dark: #F5F7FA;
+  --color-warm-text-secondary-light: #A8B0BE;
+  --color-warm-text-secondary-dark: #A8B0BE;
+  --color-warm-text-muted-light: #7D8796;
+  --color-warm-text-muted-dark: #7D8796;
+  --color-warm-border-light: rgba(219, 229, 242, 0.12);
+  --color-warm-border-dark: rgba(219, 229, 242, 0.12);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
-/*  Design System - Warm Editorial Tokens & CSS variables                       */
+/*  Design System - Codex/Apple Dark Tokens                                     */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* System Accent */
-  --accent: #B88A2D; /* Polished gold */
-  --accent-light: #D9AE4A;
+  --accent: #0A84FF;
+  --accent-light: #5AC8FA;
   --accent-foreground: #FFFFFF;
-  --destructive: #D15A4F;
-  --success: #5F8F6A;
-  --warning: #DF9A57;
+  --destructive: #FF5A52;
+  --success: #47B881;
+  --warning: #F2B84B;
   
-  --bg-sidebar: #07090D;
-  --bg-sidebar-glass: rgba(7, 9, 13, 0.82);
-  --bg-sidebar-item-active: #171C24;
-  --bg-content: #080A0F;
-  --bg-content-glass: rgba(8, 10, 15, 0.88);
-  --bg-card: #11141A;
+  --bg-sidebar: #0A0B10;
+  --bg-sidebar-glass: rgba(18, 20, 27, 0.78);
+  --bg-sidebar-item-active: #1C202B;
+  --bg-content: #07080D;
+  --bg-content-glass: rgba(7, 8, 13, 0.86);
+  --bg-card: #141821;
+  --bg-elevated: #1C2230;
 
-  --text-primary: #F4F7FB;
-  --text-secondary: #CDD5E1;
-  --text-muted: #95A0AF;
-  --border-color: rgba(219, 229, 242, 0.13);
+  --text-primary: #F5F7FA;
+  --text-secondary: #A8B0BE;
+  --text-muted: #7D8796;
+  --border-color: rgba(219, 229, 242, 0.12);
 
-  --glass-bg: rgba(8, 10, 15, 0.86);
-  --glass-border: rgba(219, 229, 242, 0.13);
-  --glass-highlight: rgba(255, 255, 255, 0.10);
-  --glass-shadow: rgba(0, 0, 0, 0.68);
-  --glass-tint: rgba(212, 175, 55, 0.06);
-  --glass-blur: 40px;
+  --glass-bg: rgba(22, 26, 36, 0.74);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.16);
+  --glass-shadow: rgba(0, 0, 0, 0.36);
+  --glass-tint: rgba(10, 132, 255, 0.09);
+  --glass-blur: 34px;
 
-  --font-ui: "Geist", "Inter", system-ui, -apple-system, sans-serif;
-  --font-body: "Figtree", "Inter", system-ui, -apple-system, sans-serif;
-  --font-heading: "Host Grotesk", "Geist", "Inter", system-ui, sans-serif;
-  --motion-smooth: cubic-bezier(0.16, 1, 0.3, 1);
-  --motion-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --duration-fast: 160ms;
-  --duration-base: 260ms;
-  --duration-slow: 420ms;
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Geist", system-ui, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Geist", system-ui, sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Geist", system-ui, sans-serif;
+  --font-data: "SF Mono", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --motion-smooth: var(--ease-out);
+  --motion-spring: var(--ease-out);
+  --duration-press: 120ms;
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 280ms;
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent);
   
-  --radius-xl: 24px;
-  --radius-lg: 16px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
-}
-
-.fiip-turnstile-box {
-  display: flex;
-  width: 100%;
-  min-height: 68px;
-  align-items: center;
-  flex-direction: column;
-  gap: 8px;
-  justify-content: center;
-  overflow: visible;
-}
-
-.fiip-turnstile-box:empty {
-  display: none;
-}
-
-.fiip-turnstile-frame {
-  width: 300px;
-  max-width: 100%;
-  min-height: 65px;
-  display: flex;
-  justify-content: center;
-}
-
-.fiip-turnstile-frame > iframe {
-  max-width: 100%;
-}
-
-.fiip-turnstile-error {
-  max-width: 300px;
-  margin: 0;
-  color: #fca5a5;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  line-height: 1.45;
-  text-align: center;
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -388,7 +355,7 @@ html[data-window-effect="blur"] body::before {
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* macOS Sidebar Traffic Lights & Drag Region */
+/* Desktop drag regions */
 .titlebar-drag-region {
   -webkit-app-region: drag;
 }
@@ -625,7 +592,7 @@ body.theme-liquid-glass-original .dark .glass {
 button:active,
 [role="button"]:active {
   transform: scale(0.97) !important;
-  transition: transform 0.1s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  transition: transform var(--duration-press) var(--ease-out) !important;
 }
 
 /* Segmented picker selection slide effect */
@@ -654,6 +621,180 @@ button:active,
   background-color: var(--success);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/*  Fiip Desktop 2026 Surface Polish                                           */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+html,
+body,
+#root {
+  background: var(--bg-content);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  letter-spacing: 0;
+}
+
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-ui);
+  letter-spacing: 0;
+  font-weight: 560;
+}
+
+kbd,
+code,
+pre,
+.font-mono {
+  font-family: var(--font-data);
+}
+
+.fiip-dark-sidebar,
+.fiip-light-settings-view,
+.fiip-light-editor-view {
+  background: var(--bg-content) !important;
+  color: var(--text-primary) !important;
+}
+
+.fiip-dark-sidebar {
+  background: color-mix(in srgb, var(--bg-sidebar) 82%, transparent) !important;
+  border-color: var(--border-color) !important;
+  backdrop-filter: blur(34px) saturate(170%);
+  -webkit-backdrop-filter: blur(34px) saturate(170%);
+}
+
+.fiip-dark-sidebar .fiip-dark-nav-item,
+.fiip-dark-sidebar button,
+.fiip-light-settings-tab,
+.fiip-light-editor-action,
+.fiip-light-share-action {
+  border-radius: 14px !important;
+  transition-duration: var(--duration-fast) !important;
+  transition-timing-function: var(--ease-out) !important;
+}
+
+.fiip-dark-nav-item-active,
+.fiip-light-settings-tab-active {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-elevated)) !important;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.fiip-dark-sidebar .text-amber-600,
+.fiip-dark-sidebar .dark\:text-amber-400,
+.fiip-light-settings-view .text-amber-600,
+.fiip-light-settings-view .text-amber-700,
+.fiip-light-settings-view .dark\:text-amber-300,
+.fiip-light-settings-view .dark\:text-amber-400,
+.fiip-light-editor-view .text-amber-600,
+.fiip-light-editor-view .text-amber-700,
+.fiip-light-editor-view .dark\:text-amber-300,
+.fiip-light-editor-view .dark\:text-amber-400,
+.fiip-light-share-modal .text-amber-600,
+.fiip-light-share-modal .dark\:text-amber-300 {
+  color: var(--accent) !important;
+}
+
+.fiip-light-settings-view .bg-amber-500,
+.fiip-light-editor-view .bg-amber-500,
+.fiip-light-share-modal .bg-amber-500 {
+  background-color: var(--accent) !important;
+}
+
+.fiip-light-settings-view .bg-amber-500\/10,
+.fiip-light-editor-view .bg-amber-500\/10,
+.fiip-light-editor-view .bg-amber-500\/12,
+.fiip-light-share-modal .bg-amber-500\/10 {
+  background-color: color-mix(in srgb, var(--accent) 12%, transparent) !important;
+}
+
+.fiip-light-settings-view .border-amber-500\/20,
+.fiip-light-settings-view .border-amber-500\/25,
+.fiip-light-editor-view .border-amber-500\/20,
+.fiip-light-editor-view .border-amber-500\/25,
+.fiip-light-share-modal .border-amber-500\/20,
+.fiip-light-share-modal .border-amber-500\/25 {
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent) !important;
+}
+
+.fiip-light-settings-view .rounded-3xl,
+.fiip-light-editor-view .rounded-3xl,
+.fiip-light-share-modal.rounded-\[30px\],
+.fiip-light-share-modal .rounded-3xl,
+.glass.rounded-3xl {
+  border-radius: 28px !important;
+}
+
+.fiip-light-settings-view .rounded-2xl,
+.fiip-light-editor-view .rounded-2xl,
+.fiip-light-share-modal .rounded-2xl {
+  border-radius: 22px !important;
+}
+
+.fiip-light-settings-view [class*="shadow"],
+.fiip-light-editor-view [class*="shadow"],
+.fiip-light-share-modal {
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24) !important;
+}
+
+.fiip-light-share-modal,
+.fiip-light-share-modal input,
+.fiip-light-share-modal button,
+.fiip-light-share-modal [role="combobox"] {
+  color-scheme: dark;
+}
+
+.fiip-light-settings-view section,
+.fiip-light-settings-view article,
+.fiip-light-editor-view [class*="bg-warm-card"],
+.fiip-light-share-modal [class*="bg-warm-card"],
+.fiip-light-share-modal [class*="bg-white"] {
+  background-color: color-mix(in srgb, var(--bg-card) 92%, transparent) !important;
+  border-color: var(--border-color) !important;
+}
+
+.fiip-light-share-modal .fiip-light-share-action:not(:disabled) {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+.fiip-light-home-note-title,
+.fiip-light-editor-title,
+.fiip-light-settings-heading,
+.fiip-light-share-heading,
+.fiip-dark-note-title,
+.fiip-dark-user-name {
+  font-family: var(--font-heading);
+  letter-spacing: 0;
+  font-weight: 760;
+}
+
+.fiip-dark-sidebar h1,
+.fiip-dark-sidebar h2,
+.fiip-dark-sidebar h3,
+.fiip-light-settings-view h1,
+.fiip-light-settings-view h2,
+.fiip-light-settings-view h3,
+.fiip-light-editor-view h1,
+.fiip-light-editor-view h2,
+.fiip-light-editor-view h3 {
+  font-weight: 760;
+}
+
+.fiip-dark-sidebar p,
+.fiip-light-settings-view p,
+.fiip-light-editor-view p {
+  font-weight: 540;
+}
+
+.animate-in,
+.animate-scale-in,
+[data-state="open"] {
+  animation-duration: var(--duration-base) !important;
+  animation-timing-function: var(--ease-out) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -667,5 +808,45 @@ button:active,
   button:active,
   [role="button"]:active {
     transform: none !important;
+  }
+}
+
+.fiip-auth-otp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.rounded-lg {
+  border-radius: 14px !important;
+}
+
+.rounded-xl {
+  border-radius: 18px !important;
+}
+
+.rounded-2xl {
+  border-radius: 24px !important;
+}
+
+.rounded-3xl {
+  border-radius: 30px !important;
+}
+
+.font-medium,
+.font-semibold {
+  font-weight: 650 !important;
+}
+
+.font-bold,
+.font-extrabold,
+.font-black {
+  font-weight: 780 !important;
+}
+
+@media (max-width: 520px) {
+  .fiip-auth-otp-row {
+    grid-template-columns: 1fr;
   }
 }

@@ -207,17 +207,17 @@ export default function Sidebar({
                 <div className="space-y-1 pt-2">
                     {!isCollapsed && (
                         <div className="h-6 px-3 py-1 text-[10px] font-bold text-white/30 uppercase tracking-[0.15em] flex items-center select-none whitespace-nowrap">
-                            Intelligence
+                            Outils
                         </div>
                     )}
                     
                     <button
                         onClick={onToggleDexter}
-                        title={isCollapsed ? "Dexter AI" : ''}
+                        title={isCollapsed ? "Dexter" : ''}
                         className={`w-full flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-1.5 rounded-xl text-[13px] font-semibold text-white/60 hover:bg-white/5 hover:text-white transition-all duration-250 ease-out h-9 group`}
                     >
                         <IconBot className="w-4 h-4 opacity-80 shrink-0 group-hover:scale-110 transition-transform" />
-                        {!isCollapsed && <span className="truncate">Dexter AI</span>}
+                        {!isCollapsed && <span className="truncate">Dexter</span>}
                         {!isCollapsed && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_#3b82f6]"></div>}
                     </button>
                 </div>

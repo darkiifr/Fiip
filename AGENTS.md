@@ -72,7 +72,6 @@ Secrets attendus:
 - `VITE_OPENROUTER_KEY`
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_TURNSTILE_SITE_KEY`
 - `VITE_KEYAUTH_OWNERID`
 - `VITE_KEYAUTH_SECRET`
 - `VITE_HOCUSPOCUS_URL`
@@ -99,7 +98,7 @@ Le projet suit une direction Liquid Glass moderne.
 - Mobile iOS: utiliser `@callstack/liquid-glass` via les composants comme `Mobile/src/components/ui/GlassCard.tsx`.
 - Tokens globaux desktop: `src/index.css`.
 - Theme mobile: `Mobile/src/theme/fiipDesign.ts`.
-- Typographies cibles: Geist pour l'interface, Inter/Figtree pour le texte courant, Host Grotesk pour les titres/editorial.
+- Typographies cibles: Geist pour l'interface, le texte courant et les titres; Geist Mono pour raccourcis, donnees et code.
 - Respecter `prefers-reduced-motion` pour les animations web.
 
 ## Qualite et Securite

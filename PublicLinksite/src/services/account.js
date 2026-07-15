@@ -4,31 +4,16 @@ import { FIIP_ACCOUNT_PORTAL_URL } from '../config/links';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function getCaptchaSiteKey(siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
-  return String(siteKey || '').trim();
-}
-
-export function requiresCaptcha(siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
-  return Boolean(getCaptchaSiteKey(siteKey));
-}
-
-export function assertCaptchaToken(captchaToken, siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || '') {
-  if (requiresCaptcha(siteKey) && !String(captchaToken || '').trim()) {
-    throw new Error('Veuillez valider la protection anti-bot.');
-  }
-}
-
 export async function getSessionUser() {
   if (!supabase) return null;
   const { data } = await supabase.auth.getUser();
   return data?.user || null;
 }
 
-function buildCaptchaOptions(captchaToken) {
-  return captchaToken ? { captchaToken } : undefined;
-}
-
 export function getAccountRedirectUrl() {
+  if (typeof window !== 'undefined' && window.location?.origin && window.location.pathname.startsWith('/account')) {
+    return new URL(`${window.location.pathname}${window.location.search}`, window.location.origin).toString();
+  }
   return new URL('/account', FIIP_ACCOUNT_PORTAL_URL).toString();
 }
 
@@ -50,8 +35,8 @@ export function getAuthErrorMessage(error) {
     return 'Email non envoyé. Vérifiez la configuration SMTP Supabase/Resend et les limites d’envoi, puis réessayez.';
   }
 
-  if (/captcha|challenge/i.test(message)) {
-    return 'Validation anti-bot refusée. Revalidez le captcha puis réessayez.';
+  if (/registerPasskey is not a function|signInWithPasskey is not a function|le\.auth|passkey/i.test(message)) {
+    return 'Les passkeys ne sont pas disponibles dans cette session. Mettez le portail à jour ou utilisez un navigateur compatible.';
   }
 
   if (/user not found|account not found|not exist|introuvable|no user/i.test(message)) {
@@ -78,7 +63,7 @@ export async function checkAccountEmailExists(email) {
   return Boolean(data?.exists);
 }
 
-export async function signInWithMagicLink(email, captchaToken) {
+export async function signInWithMagicLink(email) {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
   const exists = await checkAccountEmailExists(email);
   if (!exists) {
@@ -90,7 +75,6 @@ export async function signInWithMagicLink(email, captchaToken) {
     options: {
       shouldCreateUser: false,
       emailRedirectTo: getAccountRedirectUrl(),
-      ...buildCaptchaOptions(captchaToken),
     },
   });
 }
@@ -104,7 +88,7 @@ export async function verifyMagicCode(email, token) {
   });
 }
 
-export async function sendPasswordReset(email, captchaToken) {
+export async function sendPasswordReset(email) {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
   const exists = await checkAccountEmailExists(email);
   if (!exists) {
@@ -113,16 +97,14 @@ export async function sendPasswordReset(email, captchaToken) {
 
   return supabase.auth.resetPasswordForEmail(normalizeAccountEmail(email), {
     redirectTo: getAccountRedirectUrl(),
-    ...buildCaptchaOptions(captchaToken),
   });
 }
 
-export async function signInWithPassword(email, password, captchaToken) {
+export async function signInWithPassword(email, password) {
   if (!supabase) throw new Error('Compte Fiip non configuré.');
   return supabase.auth.signInWithPassword({
     email: normalizeAccountEmail(email),
     password,
-    options: buildCaptchaOptions(captchaToken),
   });
 }
 
@@ -139,6 +121,22 @@ export function canUsePasskeys() {
     && typeof window.PublicKeyCredential !== 'undefined'
     && typeof supabase?.auth?.signInWithPasskey === 'function'
     && typeof supabase?.auth?.registerPasskey === 'function';
+}
+
+export async function signUpWithPassword(email, password, username) {
+  if (!supabase) throw new Error('Compte Fiip non configuré.');
+  return supabase.auth.signUp({
+    email: normalizeAccountEmail(email),
+    password,
+    options: {
+      emailRedirectTo: getAccountRedirectUrl(),
+      data: {
+        username: String(username || '').trim() || normalizeAccountEmail(email).split('@')[0],
+        nickname: String(username || '').trim() || normalizeAccountEmail(email).split('@')[0],
+        subscription_level: 0,
+      },
+    },
+  });
 }
 
 export async function signInWithPasskey() {

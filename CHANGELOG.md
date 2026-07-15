@@ -3,7 +3,7 @@
 ## Authentification
 
 - Fiabilise les flux d'authentification Supabase sur desktop, portail et mobile.
-- Conserve le CAPTCHA Turnstile visible et obligatoire sur les flux email, avec remise a zero et erreurs distinctes.
+- Supprime le challenge anti-bot client des flux email/password afin de s'aligner sur la configuration Auth sans verification externe.
 - Ajoute Google OAuth sur les trois surfaces avec callbacks valides, rejet des schemas inattendus et protection contre les doubles traitements.
 - Conserve le relais desktop `https://portail.fiip.fr/auth/callback` vers `fiip://login-callback`.
 - Ajoute la gestion mobile du callback `fiip://login-callback` pour les liens entrants a froid et a chaud.
@@ -11,7 +11,7 @@
 ## Portail et configuration
 
 - Securise la page relais du portail en conservant query/hash et en proposant un bouton manuel si l'ouverture automatique echoue.
-- Documente `VITE_TURNSTILE_SITE_KEY` dans `.env.example` sans versionner de secret.
+- Nettoie la configuration publique pour ne garder que les variables reellement consommees par les clients.
 
 ## Validation
 

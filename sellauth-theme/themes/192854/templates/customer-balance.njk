@@ -166,22 +166,6 @@
         });
       },
 
-      generateRecaptchaToken: async function () {
-        return new Promise((resolve) => {
-          grecaptcha.ready(
-            () =>
-              void (async () => {
-                const token = await grecaptcha.execute(
-                  '{{ shop.recaptcha_key }}',
-                  { action: 'buynow_s{{ shop.id }}' },
-                );
-
-                resolve(token);
-              })(),
-          );
-        });
-      },
-      
       buy: async function () {
         if (this.amount === null) {
           return;
@@ -204,12 +188,6 @@
         {% if altcha %}
           if (this.altchaPayload) {
             formData.altcha = this.altchaPayload;
-          }
-        {% elif shop.recaptcha_key %}
-          try {
-            formData.recaptchaToken = await this.generateRecaptchaToken();
-          } catch (error) {
-            console.error(error);
           }
         {% endif %}
 

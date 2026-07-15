@@ -1,4 +1,4 @@
-import { Sparkles, X, ThumbsDown, ThumbsUp, Clipboard, ArrowRightCircle } from 'lucide-react';
+import { PenLine, X, ThumbsDown, ThumbsUp, Clipboard, ArrowRightCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { generateText, getLastAIUsageStats } from '../../services/ai';
 
@@ -32,7 +32,7 @@ export default function DesktopAssistantPanel({ note, onApplyText, onClose }) {
       setAnswer(res || 'Aucune réponse.');
       setModelUsed(getLastAIUsageStats()?.model || 'auto');
     } catch (e) {
-      setAnswer(e.message || 'Erreur IA.');
+      setAnswer(e.message || 'Action impossible.');
     } finally {
       setLoading(false);
     }
@@ -41,7 +41,7 @@ export default function DesktopAssistantPanel({ note, onApplyText, onClose }) {
   return (
     <aside className="fiip-assistant-panel">
       <header>
-        <div><Sparkles size={16} /> Assistant Fiip</div>
+        <div><PenLine size={16} /> Dexter</div>
         <button type="button" onClick={onClose}><X size={18} /></button>
       </header>
 
@@ -55,9 +55,9 @@ export default function DesktopAssistantPanel({ note, onApplyText, onClose }) {
       </section>
 
       <section className="fiip-assistant-response">
-        <h4>RÉPONSE DE FIIP</h4>
-        <span className="status-pill">{modelUsed ? 'Réponse générée' : 'Assistant prêt'}</span>
-        <p>Voici une reformulation plus claire et percutante de la phrase sélectionnée :</p>
+        <h4>PROPOSITION</h4>
+        <span className="status-pill">{modelUsed ? 'Prêt' : 'En attente'}</span>
+        <p>Texte proposé :</p>
         <blockquote>{answer || selectedText || 'Choisissez une suggestion pour commencer.'}</blockquote>
         <div className="fiip-assistant-actions">
           <button type="button" onClick={() => onApplyText(answer || selectedText)}><ArrowRightCircle size={14} /> Remplacer</button>
@@ -71,7 +71,7 @@ export default function DesktopAssistantPanel({ note, onApplyText, onClose }) {
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Demandez à Fiip d'écrire, de reformuler, de résumer..."
+          placeholder="Corriger, résumer, structurer..."
         />
         <button type="button" disabled={loading || !input.trim()} onClick={() => runPrompt(input)}>{loading ? '...' : '↗'}</button>
       </footer>

@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 
 import { keyAuthService } from '../services/keyauth';
 import { authService, supabase, dataService } from '../services/supabase';
-import TurnstileCaptcha from './TurnstileCaptcha';
 import { GlassDialog, GlassButton, GlassInput } from './ui';
 
 // Icons Import (Pim's Edition)
@@ -53,8 +52,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
-    const [captchaToken, setCaptchaToken] = useState('');
-    const [captchaResetKey, setCaptchaResetKey] = useState(0);
+    const [otpCode, setOtpCode] = useState('');
     const [user, setUser] = useState<any>(null);
     const [isChecking, setIsChecking] = useState(false);
     const [isEditingPseudo, setIsEditingPseudo] = useState(false);
@@ -207,7 +205,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
 
         try {
             if (mode === 'login') {
-                const { error } = await authService.signIn(formData.email, formData.password, captchaToken);
+                const { error } = await authService.signIn(formData.email, formData.password);
                 if (error) {
                     setError(error.message);
                 } else {
@@ -218,7 +216,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                     }, 1000);
                 }
             } else {
-                const { error } = await authService.signUp(formData.email, formData.password, formData.username, captchaToken);
+                const { error } = await authService.signUp(formData.email, formData.password, formData.username);
                 if (error) {
                     setError(error.message);
                 } else {
@@ -229,8 +227,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         } catch (e) {
             setError(e.message || t('auth.error_generic', "Une erreur est survenue."));
         } finally {
-            setCaptchaToken('');
-            setCaptchaResetKey((current) => current + 1);
             setLoading(false);
         }
     };
@@ -247,7 +243,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         setLoading(true);
 
         try {
-            const { error } = await authService.sendPasswordReset(email, captchaToken);
+            const { error } = await authService.sendPasswordReset(email);
             if (error) {
                 setError(error.message || 'Impossible d’envoyer le lien de réinitialisation.');
                 return;
@@ -256,8 +252,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         } catch (e) {
             setError(e.message || 'Impossible d’envoyer le lien de réinitialisation.');
         } finally {
-            setCaptchaToken('');
-            setCaptchaResetKey((current) => current + 1);
             setLoading(false);
         }
     };
@@ -286,6 +280,61 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
         }
     };
 
+    const handleSendEmailCode = async () => {
+        const email = formData.email.trim();
+        if (!email) {
+            setError('Entrez votre adresse e-mail avant de demander un code.');
+            return;
+        }
+
+        setError(null);
+        setSuccess(null);
+        setLoading(true);
+
+        try {
+            const { error } = await authService.sendEmailCode(email);
+            if (error) {
+                setError(error.message || 'Impossible d’envoyer le code e-mail.');
+                return;
+            }
+            setSuccess('Code e-mail envoyé. Collez le code reçu pour ouvrir la session.');
+        } catch (e) {
+            setError(e.message || 'Impossible d’envoyer le code e-mail.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyEmailCode = async () => {
+        const email = formData.email.trim();
+        const code = otpCode.trim();
+        if (!email || !code) {
+            setError('Entrez votre e-mail et le code reçu.');
+            return;
+        }
+
+        setError(null);
+        setSuccess(null);
+        setLoading(true);
+
+        try {
+            const { data, error } = await authService.verifyEmailOtp(email, code);
+            if (error) {
+                setError(error.message || 'Code e-mail invalide ou expiré.');
+                return;
+            }
+            setSuccess('Code validé. Connexion réussie.');
+            if (data?.session?.user || data?.user) {
+                if (onLoginSuccess) {onLoginSuccess();}
+                await checkUser();
+            }
+        } catch (e) {
+            setError(e.message || 'Code e-mail invalide ou expiré.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleGoogleLogin = async () => {
         setError(null);
         setSuccess(null);
@@ -306,8 +355,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
             console.error('Google OAuth error:', err);
             setError(getOAuthErrorMessage(err));
         } finally {
-            setCaptchaToken('');
-            setCaptchaResetKey((current) => current + 1);
             setLoading(false);
         }
     };
@@ -668,8 +715,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                             />
                         </div>
 
-                        <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaResetKey} />
-
                         {error && (
                             <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-in fade-in slide-in-from-top-2">
                                 {error}
@@ -707,12 +752,48 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModal
                         )}
 
                         {mode === 'login' && (
+                            <div className="grid grid-cols-[1fr_auto] gap-2">
+                                <GlassInput
+                                    label="Code e-mail"
+                                    type="text"
+                                    name="otpCode"
+                                    value={otpCode}
+                                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                                    icon={<IconMail className="w-4 h-4" />}
+                                    placeholder="123456"
+                                    inputMode="numeric"
+                                />
+                                <div className="flex flex-col justify-end gap-2">
+                                    <GlassButton
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={handleVerifyEmailCode}
+                                        isLoading={loading}
+                                        className="h-11 px-3 text-xs"
+                                    >
+                                        Valider
+                                    </GlassButton>
+                                </div>
+                            </div>
+                        )}
+
+                        {mode === 'login' && (
                             <button
                                 type="button"
                                 onClick={handleForgotPassword}
                                 className="w-full text-center text-xs font-bold text-blue-400 transition-colors hover:text-blue-300"
                             >
                                 Mot de passe oublié
+                            </button>
+                        )}
+
+                        {mode === 'login' && (
+                            <button
+                                type="button"
+                                onClick={handleSendEmailCode}
+                                className="w-full text-center text-xs font-bold text-blue-400 transition-colors hover:text-blue-300"
+                            >
+                                Recevoir un code e-mail
                             </button>
                         )}
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 
 import AccountLayout from './components/account/AccountLayout';
 import AccountOverview from './components/account/AccountOverview';
@@ -14,18 +14,17 @@ import {
   fetchAccountDevices,
   fetchAccountSummary,
   fetchSecurityEvents,
-  getCaptchaSiteKey,
   getAuthErrorMessage,
   getSessionUser,
   registerPasskey,
   registerCurrentDevice,
   revokeAllDevices,
   revokeDevice,
-  assertCaptchaToken,
   signInWithMagicLink,
   signInWithGoogle,
   signInWithPasskey,
   signInWithPassword,
+  signUpWithPassword,
   sendPasswordReset,
   selectLicense,
   signOut,
@@ -39,14 +38,63 @@ import IconLink from '~icons/mingcute/link-fill';
 import IconShield from '~icons/mingcute/shield-fill';
 import IconShoppingBag from '~icons/mingcute/shopping-bag-3-fill';
 import IconUser from '~icons/mingcute/user-3-fill';
-
-const TURNSTILE_SITE_KEY = getCaptchaSiteKey();
+import IconClose from '~icons/mingcute/close-fill';
 
 const AccountAiUsage = lazy(() => import('./components/account/AccountAiUsage'));
 const AccountDevices = lazy(() => import('./components/account/AccountDevices'));
 const AccountFamily = lazy(() => import('./components/account/AccountFamily'));
 const AccountSecurity = lazy(() => import('./components/account/AccountSecurity'));
 const AccountSubscription = lazy(() => import('./components/account/AccountSubscription'));
+
+function ShowcaseImage({ src, alt, className = '', onOpen }) {
+  return (
+    <figure className={`showcase-media ${className}`.trim()}>
+      <button
+        type="button"
+        className="showcase-zoom-trigger"
+        onClick={() => onOpen({ src, alt })}
+        aria-label={`Agrandir l’image : ${alt}`}
+      >
+        <img src={src} alt={alt} loading="lazy" />
+        <span className="showcase-zoom-hint">Agrandir</span>
+      </button>
+    </figure>
+  );
+}
+
+function ShowcaseLightbox({ image, onClose }) {
+  useEffect(() => {
+    if (!image) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [image, onClose]);
+
+  if (!image) return null;
+
+  return (
+    <div className="showcase-lightbox" role="dialog" aria-modal="true" aria-label="Aperçu agrandi" onClick={onClose}>
+      <div className="showcase-lightbox-card" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="showcase-lightbox-close" onClick={onClose} aria-label="Fermer l’aperçu">
+          <IconClose />
+        </button>
+        <img src={image.src} alt={image.alt} />
+      </div>
+    </div>
+  );
+}
 
 function getAccountSection(path) {
   if (path.includes('/subscription')) return 'subscription';
@@ -57,84 +105,6 @@ function getAccountSection(path) {
   return 'account';
 }
 
-function TurnstileCaptcha({ onVerify, resetKey }) {
-  const containerRef = useRef(null);
-  const [statusError, setStatusError] = useState('');
-
-  useEffect(() => {
-    if (!TURNSTILE_SITE_KEY) {
-      onVerify('');
-      return undefined;
-    }
-
-    let widgetId = null;
-    let cancelled = false;
-    const scriptId = 'fiip-turnstile-script';
-
-    const renderWidget = () => {
-      if (cancelled || !containerRef.current || !window.turnstile) return;
-      containerRef.current.innerHTML = '';
-      setStatusError('');
-      widgetId = window.turnstile.render(containerRef.current, {
-        sitekey: TURNSTILE_SITE_KEY,
-        theme: 'dark',
-        callback: (token) => {
-          setStatusError('');
-          onVerify(token, null);
-        },
-        'expired-callback': () => {
-          setStatusError('Le défi anti-bot a expiré. Revalidez-le avant de continuer.');
-          onVerify('', 'expired');
-        },
-        'error-callback': () => {
-          setStatusError('Le défi anti-bot a rencontré une erreur. Réessayez ou vérifiez que ce domaine est autorisé dans Cloudflare Turnstile.');
-          onVerify('', 'error');
-        },
-      });
-    };
-
-    const handleScriptError = () => {
-      if (cancelled) return;
-      setStatusError("Le chargement de la protection anti-bot a échoué. Réessayez dans quelques instants.");
-      onVerify('', 'load');
-    };
-
-    const existing = document.getElementById(scriptId);
-    if (existing) {
-      if (window.turnstile) renderWidget();
-      else existing.addEventListener('load', renderWidget, { once: true });
-      existing.addEventListener('error', handleScriptError, { once: true });
-    } else {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-      script.async = true;
-      script.defer = true;
-      script.addEventListener('load', renderWidget, { once: true });
-      script.addEventListener('error', handleScriptError, { once: true });
-      document.head.appendChild(script);
-    }
-
-    return () => {
-      cancelled = true;
-      if (widgetId && window.turnstile) {
-        window.turnstile.remove(widgetId);
-      }
-    };
-  }, [containerRef, onVerify, resetKey]);
-
-  if (!TURNSTILE_SITE_KEY) {
-    return null;
-  }
-
-  return (
-    <div className="captcha-box">
-      <div className="captcha-frame" ref={(node) => { containerRef.current = node; }} />
-      {statusError ? <p className="captcha-error" role="alert">{statusError}</p> : null}
-    </div>
-  );
-}
-
 function AccountPortal({ path }) {
   const [user, setUser] = useState(null);
   const [account, setAccount] = useState(null);
@@ -142,13 +112,14 @@ function AccountPortal({ path }) {
   const [sections, setSections] = useState({});
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [authMode, setAuthMode] = useState('login');
   const [message, setMessage] = useState('');
   const [messageTone, setMessageTone] = useState('info');
   const [loading, setLoading] = useState(true);
-  const [captchaToken, setCaptchaToken] = useState('');
-  const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const [authAction, setAuthAction] = useState('');
+  const inviteToken = new URLSearchParams(window.location.search).get('invite') || '';
 
   useEffect(() => {
     let cancelled = false;
@@ -289,15 +260,7 @@ function AccountPortal({ path }) {
     setMessageTone('info');
     setAuthAction('password');
     try {
-      assertCaptchaToken(captchaToken, TURNSTILE_SITE_KEY);
-    } catch (error) {
-      setMessage(error.message);
-      setMessageTone('error');
-      setAuthAction('');
-      return;
-    }
-    try {
-      const { error } = await signInWithPassword(email, password, captchaToken);
+      const { error } = await signInWithPassword(email, password);
       if (error) {
         setMessage(getAuthErrorMessage(error));
         setMessageTone('error');
@@ -308,8 +271,31 @@ function AccountPortal({ path }) {
       setMessage(getAuthErrorMessage(error));
       setMessageTone('error');
     } finally {
-      setCaptchaToken('');
-      setCaptchaResetKey((current) => current + 1);
+      setAuthAction('');
+    }
+  };
+
+  const handleSignup = async (event) => {
+    event.preventDefault();
+    setMessage('');
+    setMessageTone('info');
+    setAuthAction('signup');
+    try {
+      const { error } = await signUpWithPassword(email, password, username);
+      if (error) {
+        setMessage(getAuthErrorMessage(error));
+        setMessageTone('error');
+        return;
+      }
+      setMessage(inviteToken
+        ? 'Compte créé. Vérifiez votre e-mail, reconnectez-vous, puis l’invitation Family Pro sera validée.'
+        : 'Compte créé. Vérifiez votre e-mail pour activer la connexion.');
+      setMessageTone('success');
+      setAuthMode('login');
+    } catch (error) {
+      setMessage(getAuthErrorMessage(error));
+      setMessageTone('error');
+    } finally {
       setAuthAction('');
     }
   };
@@ -319,23 +305,13 @@ function AccountPortal({ path }) {
     setMessageTone('info');
     setAuthAction('magic');
     try {
-      assertCaptchaToken(captchaToken, TURNSTILE_SITE_KEY);
-    } catch (error) {
-      setMessage(error.message);
-      setMessageTone('error');
-      setAuthAction('');
-      return;
-    }
-    try {
-      const { error } = await signInWithMagicLink(email, captchaToken);
+      const { error } = await signInWithMagicLink(email);
       setMessage(error ? getAuthErrorMessage(error) : 'Lien de connexion envoyé. Vérifiez votre boîte mail.');
       setMessageTone(error ? 'error' : 'success');
     } catch (error) {
       setMessage(getAuthErrorMessage(error));
       setMessageTone('error');
     } finally {
-      setCaptchaToken('');
-      setCaptchaResetKey((current) => current + 1);
       setAuthAction('');
     }
   };
@@ -365,23 +341,13 @@ function AccountPortal({ path }) {
     setMessageTone('info');
     setAuthAction('reset');
     try {
-      assertCaptchaToken(captchaToken, TURNSTILE_SITE_KEY);
-    } catch (error) {
-      setMessage(error.message);
-      setMessageTone('error');
-      setAuthAction('');
-      return;
-    }
-    try {
-      const { error } = await sendPasswordReset(email, captchaToken);
+      const { error } = await sendPasswordReset(email);
       setMessage(error ? getAuthErrorMessage(error) : 'Lien de réinitialisation envoyé. Vérifiez votre boîte mail.');
       setMessageTone(error ? 'error' : 'success');
     } catch (error) {
       setMessage(getAuthErrorMessage(error));
       setMessageTone('error');
     } finally {
-      setCaptchaToken('');
-      setCaptchaResetKey((current) => current + 1);
       setAuthAction('');
     }
   };
@@ -440,31 +406,33 @@ function AccountPortal({ path }) {
     const busy = Boolean(authAction);
     return (
       <main className="public-shell public-center">
-        <form className="public-panel auth-panel" onSubmit={handlePasswordLogin}>
+        <form className="public-panel auth-panel" onSubmit={authMode === 'signup' ? handleSignup : handlePasswordLogin}>
           <h1>Compte Fiip</h1>
-          <p>Connectez-vous pour gérer votre licence, vos appareils et vos options.</p>
+          <p>{inviteToken ? 'Connectez-vous ou créez un compte avec l’adresse invitée pour rejoindre l’abonnement Family Pro.' : 'Connectez-vous pour gérer votre licence, vos appareils et vos options.'}</p>
           <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="email@exemple.com" type="email" />
+          {authMode === 'signup' ? (
+            <input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Nom d’utilisateur" type="text" />
+          ) : null}
           <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" type="password" />
-          <div className="otp-row">
+          {authMode === 'login' ? <div className="otp-row">
             <input value={otpCode} onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="Code reçu par e-mail" inputMode="numeric" />
             <button className="secondary-link" type="button" onClick={handleVerifyMagicCode} disabled={busy || !email || !otpCode}>
               {authAction === 'otp' ? 'Validation...' : 'Valider le code'}
             </button>
-          </div>
-          <TurnstileCaptcha onVerify={setCaptchaToken} resetKey={captchaResetKey} />
-          <button className="secondary-link" type="button" onClick={handleGoogleLogin} disabled={busy}>
+          </div> : null}
+          {authMode === 'login' ? <button className="secondary-link" type="button" onClick={handleGoogleLogin} disabled={busy}>
             {authAction === 'google' ? 'Connexion à Google...' : 'Continuer avec Google'}
-          </button>
+          </button> : null}
           <button className="download-link" type="submit" disabled={busy || !email || !password}>
-            {authAction === 'password' ? 'Connexion...' : 'Se connecter'}
+            {authAction === 'signup' ? 'Création...' : authAction === 'password' ? 'Connexion...' : authMode === 'signup' ? 'Créer le compte' : 'Se connecter'}
           </button>
-          <button className="secondary-link" type="button" onClick={handleMagicLink} disabled={busy || !email}>
+          {authMode === 'login' ? <button className="secondary-link" type="button" onClick={handleMagicLink} disabled={busy || !email}>
             {authAction === 'magic' ? 'Envoi...' : 'Recevoir un magic link'}
-          </button>
-          <button className="secondary-link" type="button" onClick={handleForgotPassword} disabled={busy || !email}>
+          </button> : null}
+          {authMode === 'login' ? <button className="secondary-link" type="button" onClick={handleForgotPassword} disabled={busy || !email}>
             {authAction === 'reset' ? 'Envoi...' : 'Mot de passe oublié'}
-          </button>
-          <button
+          </button> : null}
+          {authMode === 'login' ? <button
             className="secondary-link"
             type="button"
             onClick={handlePasskeyLogin}
@@ -472,11 +440,14 @@ function AccountPortal({ path }) {
             title={passkeysAvailable ? 'Le navigateur vous demandera de valider la passkey liée à ce compte.' : 'Les passkeys ne sont pas disponibles dans ce navigateur.'}
           >
             {authAction === 'passkey' ? 'Validation passkey...' : 'Se connecter avec une passkey'}
-          </button>
-          <p className="auth-hint">
+          </button> : null}
+          {authMode === 'login' ? <p className="auth-hint">
             Choisissez ce mode si vous avez déjà ajouté une passkey dans Compte &gt; Sécurité. Le navigateur demandera
             Windows Hello, Touch ID, Face ID ou votre clé de sécurité avant d’ouvrir la session.
-          </p>
+          </p> : null}
+          <button className="secondary-link" type="button" onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setMessage(''); }} disabled={busy}>
+            {authMode === 'signup' ? 'J’ai déjà un compte' : inviteToken ? 'Créer un compte pour cette invitation' : 'Créer un compte'}
+          </button>
           {message ? <p className={messageTone === 'error' ? 'account-error' : 'account-message'}>{message}</p> : null}
         </form>
       </main>
@@ -550,6 +521,7 @@ function PricingPage() {
 }
 
 function SharePage() {
+  const [previewImage, setPreviewImage] = useState(null);
   const featureItems = [
     { Icon: IconShield, title: 'Lecture contrôlée', text: 'Seules les notes que vous choisissez de publier deviennent visibles.' },
     { Icon: IconFileExport, title: 'Exports utiles', text: 'Le lecteur peut garder une copie dans les formats courants.' },
@@ -585,6 +557,21 @@ function SharePage() {
         ))}
       </section>
 
+      <section className="product-showcase public-panel">
+        <div className="showcase-copy">
+          <span className="eyebrow">Interface de partage</span>
+          <h2>Une publication claire avant d’envoyer le lien.</h2>
+          <p>
+            Sélection de note, statut public, collaborateurs privés et actions sociales restent dans une surface unique.
+          </p>
+        </div>
+        <ShowcaseImage
+          src="/assets/fiip-share-modal.png"
+          alt="Fenêtre de partage Fiip avec lien public et collaborateurs"
+          onOpen={setPreviewImage}
+        />
+      </section>
+
       <section className="flow-band public-panel spacious-band">
         <div>
           <IconEdit />
@@ -602,7 +589,47 @@ function SharePage() {
           <p>Laisser le lecteur garder une copie portable.</p>
         </div>
       </section>
+
+      <ShowcaseLightbox image={previewImage} onClose={() => setPreviewImage(null)} />
     </main>
+  );
+}
+
+function HomeProductShowcase() {
+  const [previewImage, setPreviewImage] = useState(null);
+
+  return (
+    <>
+      <section className="product-showcase home-product-showcase public-panel">
+        <div className="showcase-copy">
+          <span className="eyebrow">Desktop</span>
+          <h2>Un espace sombre, calme et pensé pour écrire.</h2>
+          <p>
+            Fiip rassemble tableau de bord, éditeur, partage et assistant Dexter dans une interface cohérente.
+          </p>
+        </div>
+        <div className="showcase-grid">
+          <ShowcaseImage
+            className="wide"
+            src="/assets/fiip-desktop-dashboard.png"
+            alt="Tableau de bord desktop Fiip en thème sombre"
+            onOpen={setPreviewImage}
+          />
+          <ShowcaseImage
+            src="/assets/fiip-editor-focus.png"
+            alt="Éditeur Fiip avec barre d’actions et assistant Dexter"
+            onOpen={setPreviewImage}
+          />
+          <ShowcaseImage
+            src="/assets/fiip-share-modal.png"
+            alt="Fenêtre de partage Fiip avec lien public et collaborateurs"
+            onOpen={setPreviewImage}
+          />
+        </div>
+      </section>
+
+      <ShowcaseLightbox image={previewImage} onClose={() => setPreviewImage(null)} />
+    </>
   );
 }
 
@@ -715,6 +742,8 @@ function App() {
           </p>
         </article>
       </section>
+
+      <HomeProductShowcase />
 
       <section className="home-link-grid">
         <a href="/pricing" className="home-link-card public-panel">

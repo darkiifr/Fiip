@@ -375,22 +375,6 @@
         });
       },
 
-      generateRecaptchaToken: async function () {
-        return new Promise((resolve) => {
-          grecaptcha.ready(
-            () =>
-              void (async () => {
-                const token = await grecaptcha.execute(
-                  '{{ shop.recaptcha_key }}',
-                  { action: 'checkout_s{{ shop.id }}' },
-                );
-
-                resolve(token);
-              })(),
-          );
-        });
-      },
-
       checkout: async function () {
         if (this.isSubmitting) {
           return;
@@ -409,14 +393,6 @@
         {% if altcha %}
           if (this.altchaPayload) {
             formData.altcha = this.altchaPayload;
-          }
-        {% elif shop.recaptcha_key %}
-          try {
-            formData.recaptchaToken = await this.generateRecaptchaToken();
-          } catch (error) {
-            this.submitError = 'reCAPTCHA cannot be loaded. Please refresh the page and turn off any ad blockers.';
-            this.isSubmitting = false;
-            return;
           }
         {% endif %}
 
@@ -440,10 +416,6 @@
           } else {
             this.isSubmitting = false;
             this.submitError = responseData?.message || 'Error in the AJAX request.';
-
-            if (responseData?.error == 'captcha_verification_failed') {
-              setTimeout(() => window.location.reload(), 1000);
-            }
           }
         } catch (error) {
           console.error(error);

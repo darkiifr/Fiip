@@ -223,9 +223,9 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-xl animate-fade-in font-sans select-none">
             <div className="fiip-light-share-modal flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[30px] border border-[color:var(--border-color)] bg-[color:var(--bg-card)] text-[color:var(--text-primary)] shadow-[0_32px_110px_rgba(0,0,0,0.34)] animate-scale-in">
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-warm-border-light dark:border-white/10 flex items-start justify-between bg-white/45 dark:bg-white/[0.035]">
+                <div className="px-6 py-5 border-b border-white/10 flex items-start justify-between bg-white/[0.035]">
                     <div className="flex items-center gap-2.5">
-                        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-2 text-amber-600 dark:text-amber-300">
+                        <div className="rounded-2xl border border-[color:var(--accent)]/25 bg-[color:var(--accent)]/12 p-2 text-[color:var(--accent)]">
                             <IconGlobe className="w-4 h-4" />
                         </div>
                         <div>
@@ -246,17 +246,17 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                 <div className="flex flex-col gap-5 overflow-y-auto p-6">
                     
                     {/* Note Selection */}
-                    <div className="rounded-3xl border border-warm-border-light bg-white/70 p-4 dark:border-white/10 dark:bg-white/[0.05] space-y-3">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-warm-text-muted-light">
+                    <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-4 space-y-3">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--text-secondary)]">
                             Sélectionner une note
                         </label>
                         <Select
                             value={selectedNote?.id}
                             onValueChange={(id) => setSelectedNote(notes.find(n => n.id === id))}
                         >
-                            <SelectTrigger className="w-full rounded-2xl border border-warm-border-light bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-[#111316]">
+                            <SelectTrigger className="w-full rounded-2xl border border-white/10 bg-[#111316] px-3 py-2 text-sm text-[color:var(--text-primary)]">
                                 <div className="flex min-w-0 items-center gap-2">
-                                    <IconFileText className="w-4 h-4 shrink-0 text-warm-text-muted-light" />
+                                    <IconFileText className="w-4 h-4 shrink-0 text-[color:var(--text-secondary)]" />
                                     <SelectValue placeholder="Choisir une note..." />
                                 </div>
                             </SelectTrigger>
@@ -271,7 +271,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                             </SelectContent>
                         </Select>
                         {selectedNote && isProtectedNote && (
-                            <div className="flex items-center gap-1.5 px-1 mt-1 text-[9px] font-semibold text-warm-text-muted-light">
+                            <div className="flex items-center gap-1.5 px-1 mt-1 text-[9px] font-semibold text-[color:var(--text-secondary)]">
                                 <IconLock className="w-3 h-3" />
                                 <span>Note chiffrée de bout en bout</span>
                             </div>
@@ -297,15 +297,15 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                     {isOwner && isUserLoaded && (
                         <>
                             {/* Public Link */}
-                            <div className="bg-white/70 dark:bg-white/[0.05] rounded-3xl p-4 border border-warm-border-light dark:border-white/10 space-y-4">
+                            <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-4 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-xl border ${isPublic ? 'bg-green-500/15 border-green-500/10 text-green-600 dark:text-green-400' : 'bg-warm-sidebar-light dark:bg-zinc-800 border-warm-border-light dark:border-warm-border-dark text-warm-text-muted-light dark:text-warm-text-muted-dark'}`}>
+                                    <div className={`p-2 rounded-xl border ${isPublic ? 'bg-green-500/15 border-green-500/20 text-green-300' : 'bg-white/[0.06] border-white/10 text-[color:var(--text-secondary)]'}`}>
                                             <IconGlobe className="w-4 h-4" />
                                         </div>
                                         <div>
                                             <h3 className="text-xs font-bold">Lien Public</h3>
-                                            <p className="text-[10px] text-warm-text-muted-light font-medium">
+                                            <p className="text-[10px] text-[color:var(--text-secondary)] font-medium">
                                                 {isPublic ? "Accessible en ligne" : "La note est actuellement privée"}
                                             </p>
                                         </div>
@@ -316,7 +316,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                         className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all border ${
                                             isPublic 
                                                 ? 'bg-red-500/10 border-red-500/25 text-red-600 dark:text-red-400 hover:bg-red-500/20' 
-                                                : 'fiip-light-share-action bg-[#1C1C1E] dark:bg-white text-white dark:text-black hover:opacity-90 border-transparent'
+                                                : 'fiip-light-share-action bg-[color:var(--accent)] text-white hover:brightness-110 border-transparent'
                                         }`}
                                     >
                                         {isSharing ? (
@@ -328,20 +328,20 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                 </div>
 
                                 {isPublic && (
-                                    <div className="flex items-center gap-2 bg-[#fbfaf6] dark:bg-[#111316] p-2 rounded-2xl border border-warm-border-light dark:border-white/10">
-                                        <span className="flex-1 text-[10px] text-warm-text-primary-light dark:text-warm-text-primary-dark font-mono truncate px-1 select-all">
+                                    <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-[#111316] p-2">
+                                        <span className="flex-1 text-[10px] text-[color:var(--text-primary)] font-mono truncate px-1 select-all">
                                             {publicUrl}
                                         </span>
                                         <button 
                                             onClick={copyLink}
-                                            className="p-1.5 hover:bg-warm-sidebar-item-active rounded-lg text-warm-text-muted-light transition-colors"
+                                            className="p-1.5 hover:bg-white/10 rounded-lg text-[color:var(--text-secondary)] transition-colors"
                                             title="Copier le lien"
                                         >
                                             <IconCopy className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                             onClick={() => open(publicUrl)}
-                                            className="p-1.5 hover:bg-warm-sidebar-item-active rounded-lg text-warm-text-muted-light transition-colors"
+                                            className="p-1.5 hover:bg-white/10 rounded-lg text-[color:var(--text-secondary)] transition-colors"
                                             title="Ouvrir dans le navigateur"
                                         >
                                             <IconGlobe className="w-3.5 h-3.5" />
@@ -351,14 +351,14 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                             </div>
 
                             {/* Collaborators */}
-                            <div className="bg-white/70 dark:bg-white/[0.05] rounded-3xl p-4 border border-warm-border-light dark:border-white/10 space-y-3">
+                            <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-4 space-y-3">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25">
+                                    <div className="p-2 rounded-xl bg-[color:var(--accent)]/12 text-[color:var(--accent)] border border-[color:var(--accent)]/25">
                                         <IconLock className="w-4 h-4" />
                                     </div>
                                     <div>
                                         <h3 className="text-xs font-bold">Collaborateurs</h3>
-                                        <p className="text-[10px] text-warm-text-muted-light font-medium">
+                                        <p className="text-[10px] text-[color:var(--text-secondary)] font-medium">
                                             Partager en privé avec d'autres utilisateurs
                                         </p>
                                     </div>
@@ -368,9 +368,9 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                 {collaborators.length > 0 && (
                                     <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
                                         {collaborators.map(collab => (
-                                            <div key={collab.user_id} className="flex items-center justify-between bg-white dark:bg-zinc-800 p-2 rounded-xl border border-warm-border-light dark:border-warm-border-dark">
+                                            <div key={collab.user_id} className="flex items-center justify-between bg-white/[0.06] p-2 rounded-xl border border-white/10">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-[10px] font-bold text-amber-600">
+                                                    <div className="w-5 h-5 rounded-full bg-[color:var(--accent)]/20 flex items-center justify-center text-[10px] font-bold text-[color:var(--accent)]">
                                                         {collab.profiles?.username?.[0]?.toUpperCase() || '?'}
                                                     </div>
                                                     <span className="text-xs font-semibold">{collab.profiles?.username}</span>
@@ -394,13 +394,13 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                         placeholder="Nom d'utilisateur"
                                         value={newCollabUsername}
                                         onChange={(e) => setNewCollabUsername(e.target.value)}
-                                        className="flex-1 bg-white dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl px-3 py-1.5 text-xs text-warm-text-primary-light dark:text-warm-text-primary-dark focus:outline-none"
+                                        className="flex-1 rounded-xl border border-white/10 bg-[#111316] px-3 py-1.5 text-xs text-[color:var(--text-primary)] placeholder:text-[color:var(--text-muted)] focus:outline-none focus:border-[color:var(--accent)]/50"
                                         disabled={isLoadingCollab}
                                     />
                                     <button
                                         type="submit"
                                         disabled={!newCollabUsername.trim() || isLoadingCollab}
-                                        className="fiip-light-share-action px-3.5 py-1.5 bg-[#1C1C1E] dark:bg-white text-white dark:text-black hover:opacity-90 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                                        className="fiip-light-share-action rounded-xl bg-[color:var(--accent)] px-3.5 py-1.5 text-xs font-bold text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:bg-white/[0.09] disabled:text-[color:var(--text-secondary)]"
                                     >
                                         {isLoadingCollab ? <IconLoading className="w-3.5 h-3.5 animate-spin" /> : 'Ajouter'}
                                     </button>
@@ -408,9 +408,9 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
 
                                 {/* Your Username */}
                                 {currentUser && currentUser.user_metadata?.username && (
-                                    <div className="mt-2 p-2.5 bg-white dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl flex items-center justify-between">
+                                    <div className="mt-2 p-2.5 bg-white/[0.06] border border-white/10 rounded-xl flex items-center justify-between">
                                         <div className="flex flex-col">
-                                            <span className="text-[8px] text-warm-text-muted-light font-bold uppercase tracking-wider">Votre pseudo pour collaborer</span>
+                                            <span className="text-[8px] text-[color:var(--text-secondary)] font-bold uppercase tracking-wider">Votre pseudo pour collaborer</span>
                                             <span className="text-xs font-bold mt-0.5">@{currentUser.user_metadata.username}</span>
                                         </div>
                                         <button
@@ -419,7 +419,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                                 setStatus({ type: 'success', message: 'Pseudo copié !' });
                                                 setTimeout(() => setStatus({ type: '', message: '' }), 2000);
                                             }}
-                                            className="px-2.5 py-1 bg-warm-sidebar-light hover:bg-warm-sidebar-item-active dark:bg-zinc-900 border border-warm-border-light dark:border-warm-border-dark rounded-lg transition-colors flex items-center gap-1.5 text-[9px] font-bold"
+                                            className="px-2.5 py-1 bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-lg transition-colors flex items-center gap-1.5 text-[9px] font-bold"
                                         >
                                             <IconCopy className="w-3 h-3" />
                                             <span>Copier</span>
@@ -444,8 +444,8 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                     )}
 
                     {/* Social Share */}
-                    <div className="flex flex-col items-center gap-2.5 pt-4 border-t border-warm-border-light dark:border-warm-border-dark mt-2 select-none">
-                        <span className="text-[9px] font-bold text-warm-text-muted-light uppercase tracking-widest">Partager sur les réseaux</span>
+                    <div className="flex flex-col items-center gap-2.5 pt-4 border-t border-white/10 mt-2 select-none">
+                        <span className="text-[9px] font-bold text-[color:var(--text-secondary)] uppercase tracking-widest">Partager sur les réseaux</span>
                         <div className="flex justify-center gap-3">
                             {['twitter', 'reddit', 'discord', 'linkedin'].map(platform => {
                                 const SocialIcon = {
@@ -459,10 +459,10 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
                                         key={platform}
                                         type="button" 
                                         onClick={() => handleSocialShare(platform)} 
-                                        className="p-2.5 bg-warm-sidebar-light hover:bg-warm-sidebar-item-active dark:bg-zinc-800 border border-warm-border-light dark:border-warm-border-dark rounded-xl transition-all duration-200 hover:scale-105"
+                                        className="p-2.5 bg-white/[0.06] hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-200 hover:scale-105"
                                         title={`Partager sur ${platform}`}
                                     >
-                                        <SocialIcon size={15} className="text-warm-text-primary-light dark:text-warm-text-primary-dark" />
+                                        <SocialIcon size={15} className="text-[color:var(--text-primary)]" />
                                     </button>
                                 );
                             })}

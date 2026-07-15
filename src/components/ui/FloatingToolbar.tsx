@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useButton, useFocusRing } from 'react-aria';
-import { Bold, Italic, Underline, Strikethrough, Link, AlignLeft, AlignCenter, AlignRight, Sparkles } from 'lucide-react';
+import { Bold, Italic, Underline, Strikethrough, Link, AlignLeft, AlignCenter, AlignRight, PenLine } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ export const defaultFloatingActions: FloatingToolbarAction[] = [
   { id: 'left', icon: <AlignLeft size={13} />, label: 'Aligner à gauche', separator: true, onPress: () => document.execCommand('justifyLeft') },
   { id: 'center', icon: <AlignCenter size={13} />, label: 'Centrer', onPress: () => document.execCommand('justifyCenter') },
   { id: 'right', icon: <AlignRight size={13} />, label: 'Aligner à droite', onPress: () => document.execCommand('justifyRight') },
-  { id: 'ai', icon: <Sparkles size={13} />, label: 'Action IA', separator: true, onPress: () => {} },
+  { id: 'assist', icon: <PenLine size={13} />, label: 'Aide rédaction', separator: true, onPress: () => {} },
 ];
 
 // ─── FloatingToolbar ──────────────────────────────────────────────────────────

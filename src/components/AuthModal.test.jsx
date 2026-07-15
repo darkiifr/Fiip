@@ -9,7 +9,6 @@ const mockGetPlanLevel = vi.fn();
 const mockOnAuthStateChange = vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
 
 vi.mock('../services/supabase', () => ({
-  getCaptchaSiteKey: () => '',
   authService: {
     getUser: () => mockGetCurrentUser(),
     getPlanLevel: (...args) => mockGetPlanLevel(...args),
@@ -46,6 +45,8 @@ describe('AuthModal Component', () => {
         // "Connexion" heading should be visible when not logged in
         expect(screen.getByText('Connexion')).toBeInTheDocument();
         expect(screen.getByRole('dialog')).toHaveClass('bg-[color:var(--bg-card)]');
+        expect(screen.queryByText(/bot-challenge|verification externe/i)).not.toBeInTheDocument();
+        expect(document.querySelector('script[src*="cloudflare"]')).not.toBeInTheDocument();
     });
 
     it('bypasses loading and shows profile when session is verified', async () => {
