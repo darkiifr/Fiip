@@ -78,8 +78,8 @@ export const SUPPORTED_MODELS = [
     estimated_price_eur_per_million: 0.675,
   },
   {
-    id: 'xiaomi/mimo-v2-flash',
-    name: 'MiMo V2 Flash',
+    id: 'xiaomi/mimo-v2.5',
+    name: 'MiMo V2.5',
     description: 'Fallback rapide en cas d’indisponibilité fournisseur.',
     provider: 'xiaomi',
     tier: 'ai',

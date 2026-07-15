@@ -1,7 +1,7 @@
 import { SUPPORTED_MODELS } from './tiers.ts';
 
 export const DEEPSEEK_MODEL = 'deepseek/deepseek-v3.2';
-export const MIMO_FALLBACK_MODEL = 'xiaomi/mimo-v2-flash';
+export const MIMO_FALLBACK_MODEL = 'xiaomi/mimo-v2.5';
 export const CLAUDE_HAIKU_MODEL = 'anthropic/claude-haiku-4.5';
 
 interface SelectModelInput {
