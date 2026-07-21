@@ -1,0 +1,178 @@
+name: Restore Postgres backup from B2
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_id:
+        description: Completed backup_runs UUID
+        required: true
+        type: string
+      admin_id:
+        description: Audited administrator identifier
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fiip-postgres-restore
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production-restore
+    env:
+      RCLONE_CONFIG_FIIP_B2_TYPE: b2
+      RCLONE_CONFIG_FIIP_B2_ACCOUNT: ${{ secrets.B2_ACCOUNT_ID }}
+      RCLONE_CONFIG_FIIP_B2_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+      B2_BACKUP_BUCKET: ${{ secrets.B2_BACKUP_BUCKET }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+      BACKUP_AGE_IDENTITY: ${{ secrets.BACKUP_AGE_IDENTITY }}
+    steps:
+      - name: Validate restore request and secrets
+        env:
+          BACKUP_ID: ${{ inputs.backup_id }}
+          ADMIN_ID: ${{ inputs.admin_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BACKUP_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ ]]
+          [[ "$ADMIN_ID" =~ ^[A-Za-z0-9@._:-]{1,128}$ ]]
+          for name in \
+            RCLONE_CONFIG_FIIP_B2_ACCOUNT \
+            RCLONE_CONFIG_FIIP_B2_KEY \
+            B2_BACKUP_BUCKET \
+            SUPABASE_DB_URL \
+            SUPABASE_URL \
+            SUPABASE_SERVICE_ROLE_KEY \
+            BACKUP_AGE_RECIPIENT \
+            BACKUP_AGE_IDENTITY
+          do
+            if [ -z "${!name}" ]; then
+              echo "$name is required for restore operations." >&2
+              exit 1
+            fi
+          done
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client age rclone jq
+
+      - name: Resolve and mark backup
+        id: backup
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_ID: ${{ inputs.backup_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          row="$(curl --fail-with-body --silent --show-error \
+            "${SUPABASE_URL}/rest/v1/backup_runs?id=eq.${BACKUP_ID}&status=eq.complete&select=id,backup_key,checksum" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")"
+          test "$(jq 'length' <<<"$row")" = "1"
+          echo "key=$(jq -r '.[0].backup_key' <<<"$row")" >> "$GITHUB_OUTPUT"
+          echo "checksum=$(jq -r '.[0].checksum' <<<"$row")" >> "$GITHUB_OUTPUT"
+          curl --fail-with-body --silent --show-error -X PATCH \
+            "${SUPABASE_URL}/rest/v1/backup_runs?id=eq.${BACKUP_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            --data '{"status":"restoring","error":null}'
+
+      - name: Create automatic pre-restore backup
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+          B2_BACKUP_BUCKET: ${{ secrets.B2_BACKUP_BUCKET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges --file=pre-restore.dump
+          age -r "$BACKUP_AGE_RECIPIENT" -o "pre-restore-${stamp}.dump.age" pre-restore.dump
+          sha256sum "pre-restore-${stamp}.dump.age" > "pre-restore-${stamp}.dump.age.sha256"
+          rclone copy "pre-restore-${stamp}.dump.age" "fiip-b2:${B2_BACKUP_BUCKET}/pre-restore/" --retries 5 --low-level-retries 10
+          rclone copy "pre-restore-${stamp}.dump.age.sha256" "fiip-b2:${B2_BACKUP_BUCKET}/pre-restore/" --retries 5 --low-level-retries 10
+          expected="$(sha256sum "pre-restore-${stamp}.dump.age" | cut -d' ' -f1)"
+          actual="$(rclone cat "fiip-b2:${B2_BACKUP_BUCKET}/pre-restore/pre-restore-${stamp}.dump.age" --retries 5 --low-level-retries 10 | sha256sum | cut -d' ' -f1)"
+          test "$actual" = "$expected"
+
+      - name: Download, verify, decrypt and restore
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_AGE_IDENTITY: ${{ secrets.BACKUP_AGE_IDENTITY }}
+          B2_BACKUP_BUCKET: ${{ secrets.B2_BACKUP_BUCKET }}
+          BACKUP_KEY: ${{ steps.backup.outputs.key }}
+          EXPECTED_CHECKSUM: ${{ steps.backup.outputs.checksum }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          encrypted="$(basename "$BACKUP_KEY")"
+          umask 077
+          rclone copyto "fiip-b2:${B2_BACKUP_BUCKET}/${BACKUP_KEY}" "$encrypted" --retries 5 --low-level-retries 10
+          test "$(sha256sum "$encrypted" | cut -d' ' -f1)" = "$EXPECTED_CHECKSUM"
+          printf '%s' "$BACKUP_AGE_IDENTITY" > age-identity.txt
+          chmod 600 age-identity.txt
+          age --decrypt -i age-identity.txt -o restore.dump "$encrypted"
+          pg_restore --clean --if-exists --exit-on-error --single-transaction --no-owner --no-privileges --dbname="$SUPABASE_DB_URL" restore.dump
+
+      - name: Mark restored and audit
+        if: success()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_ID: ${{ inputs.backup_id }}
+          ADMIN_ID: ${{ inputs.admin_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          now="$(date -u +%FT%TZ)"
+          jq -nc --arg now "$now" --arg admin "$ADMIN_ID" '{status:"restored",restored_at:$now,restored_by:$admin,error:null}' |
+            curl --fail-with-body --silent --show-error -X PATCH \
+            "${SUPABASE_URL}/rest/v1/backup_runs?id=eq.${BACKUP_ID}" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            --data-binary @-
+          jq -nc --arg admin "$ADMIN_ID" --arg backup "$BACKUP_ID" '{admin_id:$admin,action:"backup.restore.completed",target_table:"backup_runs",target_id:$backup}' |
+            curl --fail-with-body --silent --show-error \
+            "${SUPABASE_URL}/rest/v1/audit_log" \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Content-Type: application/json" \
+            --data-binary @-
+
+      - name: Mark restore failure
+        if: failure()
+        env:
+          BACKUP_ID: ${{ inputs.backup_id }}
+          ADMIN_ID: ${{ inputs.admin_id }}
+        shell: bash
+        run: |
+          set +e
+          [[ "$BACKUP_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ ]] || exit 0
+          [[ "$ADMIN_ID" =~ ^[A-Za-z0-9@._:-]{1,128}$ ]] || exit 0
+          command -v jq >/dev/null 2>&1 || exit 0
+          jq -nc '{status:"complete",error:"Restore workflow failed; source backup remains available."}' |
+            curl --fail-with-body --silent --show-error -X PATCH \
+              "${SUPABASE_URL}/rest/v1/backup_runs?id=eq.${BACKUP_ID}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H 'Content-Type: application/json' \
+              --data-binary @-
+          jq -nc --arg admin "$ADMIN_ID" --arg backup "$BACKUP_ID" '{admin_id:$admin,action:"backup.restore.failed",target_table:"backup_runs",target_id:$backup}' |
+            curl --fail-with-body --silent --show-error \
+              "${SUPABASE_URL}/rest/v1/audit_log" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H 'Content-Type: application/json' \
+              --data-binary @-

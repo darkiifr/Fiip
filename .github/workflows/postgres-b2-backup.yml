@@ -1,0 +1,140 @@
+name: Postgres encrypted backup to B2
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fiip-postgres-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RCLONE_CONFIG_FIIP_B2_TYPE: b2
+      RCLONE_CONFIG_FIIP_B2_ACCOUNT: ${{ secrets.B2_ACCOUNT_ID }}
+      RCLONE_CONFIG_FIIP_B2_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+      B2_BACKUP_BUCKET: ${{ secrets.B2_BACKUP_BUCKET }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+    steps:
+      - name: Validate backup secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            RCLONE_CONFIG_FIIP_B2_ACCOUNT \
+            RCLONE_CONFIG_FIIP_B2_KEY \
+            B2_BACKUP_BUCKET \
+            SUPABASE_DB_URL \
+            SUPABASE_URL \
+            SUPABASE_SERVICE_ROLE_KEY \
+            BACKUP_AGE_RECIPIENT
+          do
+            if [ -z "${!name}" ]; then
+              echo "$name is required for encrypted backups." >&2
+              exit 1
+            fi
+          done
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client age rclone jq
+
+      - name: Dump, encrypt, upload and register
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          dump="fiip-postgres-${stamp}.dump"
+          encrypted="${dump}.age"
+          checksum="${encrypted}.sha256"
+          daily_key="daily/${encrypted}"
+          run_id=""
+
+          mark_failed() {
+            exit_code=$?
+            if [ -n "$run_id" ]; then
+              jq -nc --arg error "Backup workflow failed with exit code ${exit_code}" '{status:"failed",error:$error}' |
+                curl --fail-with-body --silent --show-error -X PATCH \
+                  "${SUPABASE_URL}/rest/v1/backup_runs?id=eq.${run_id}" \
+                  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+                  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                  -H 'Content-Type: application/json' \
+                  --data-binary @- || true
+            fi
+            exit "$exit_code"
+          }
+          trap mark_failed ERR
+
+          pending="$(jq -nc --arg key "$daily_key" '{backup_key:$key,size_bytes:0,checksum:"pending",status:"pending"}' |
+            curl --fail-with-body --silent --show-error \
+              "${SUPABASE_URL}/rest/v1/backup_runs" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H 'Content-Type: application/json' \
+              -H 'Prefer: return=representation' \
+              --data-binary @-)"
+          run_id="$(jq -er '.[0].id' <<<"$pending")"
+
+          pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges --file="$dump"
+          age -r "$BACKUP_AGE_RECIPIENT" -o "$encrypted" "$dump"
+          sha256sum "$encrypted" > "$checksum"
+
+          rclone copyto "$encrypted" "fiip-b2:${B2_BACKUP_BUCKET}/${daily_key}" --retries 5 --low-level-retries 10
+          rclone copyto "$checksum" "fiip-b2:${B2_BACKUP_BUCKET}/${daily_key}.sha256" --retries 5 --low-level-retries 10
+
+          digest="$(cut -d' ' -f1 "$checksum")"
+          remote_digest="$(rclone cat "fiip-b2:${B2_BACKUP_BUCKET}/${daily_key}" --retries 5 --low-level-retries 10 | sha256sum | cut -d' ' -f1)"
+          test "$remote_digest" = "$digest"
+
+          if [ "$(date -u +%u)" = "7" ]; then
+            rclone copyto "$encrypted" "fiip-b2:${B2_BACKUP_BUCKET}/weekly/${encrypted}" --retries 5 --low-level-retries 10
+            rclone copyto "$checksum" "fiip-b2:${B2_BACKUP_BUCKET}/weekly/${encrypted}.sha256" --retries 5 --low-level-retries 10
+          fi
+          if [ "$(date -u +%d)" = "01" ]; then
+            rclone copyto "$encrypted" "fiip-b2:${B2_BACKUP_BUCKET}/monthly/${encrypted}" --retries 5 --low-level-retries 10
+            rclone copyto "$checksum" "fiip-b2:${B2_BACKUP_BUCKET}/monthly/${encrypted}.sha256" --retries 5 --low-level-retries 10
+          fi
+
+          size="$(stat -c%s "$encrypted")"
+          jq -nc \
+            --arg checksum "$digest" \
+            --arg completed_at "$(date -u +%FT%TZ)" \
+            --argjson size_bytes "$size" \
+            '{size_bytes:$size_bytes,checksum:$checksum,status:"complete",completed_at:$completed_at,error:null}' |
+            curl --fail-with-body --silent --show-error -X PATCH \
+              "${SUPABASE_URL}/rest/v1/backup_runs?id=eq.${run_id}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H 'Content-Type: application/json' \
+              --data-binary @-
+
+          rm -f "$dump" "$encrypted" "$checksum"
+
+      - name: Apply 3 daily, 1 weekly and 1 monthly retention
+        shell: bash
+        run: |
+          set -euo pipefail
+          prune() {
+            folder="$1"
+            keep="$2"
+            mapfile -t files < <(rclone lsf "fiip-b2:${B2_BACKUP_BUCKET}/${folder}/" --files-only --include '*.age' | sort -r)
+            for file in "${files[@]:$keep}"; do
+              rclone deletefile "fiip-b2:${B2_BACKUP_BUCKET}/${folder}/${file}"
+              rclone deletefile "fiip-b2:${B2_BACKUP_BUCKET}/${folder}/${file}.sha256" || true
+            done
+          }
+          prune daily 3
+          prune weekly 1
+          prune monthly 1
