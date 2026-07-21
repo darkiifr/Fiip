@@ -64,7 +64,7 @@ export default function AccountSecurity({ account, section, onRefresh, onRevokeA
       await onRegisterPasskey();
       setMessage('Passkey créée. Vous pourrez l’utiliser au prochain écran de connexion.');
     } catch (error) {
-      setMessage(getAuthErrorMessage(error) || 'Impossible de créer cette passkey.');
+      setMessage(getAuthErrorMessage(error));
     } finally {
       setPasskeyBusy(false);
     }

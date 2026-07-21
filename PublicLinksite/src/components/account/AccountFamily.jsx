@@ -58,7 +58,7 @@ export default function AccountFamily({ account }) {
         setMessage('Invitation acceptée. Family Pro est actif sur ce compte.');
         window.history.replaceState({}, '', '/account/family');
       } catch (error) {
-        if (!cancelled) setMessage(getAuthErrorMessage(error) || 'Impossible d’accepter cette invitation.');
+        if (!cancelled) setMessage(getAuthErrorMessage(error));
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -77,7 +77,7 @@ export default function AccountFamily({ account }) {
       applyFamilyResponse(result);
       setMessage('Foyer Family Pro créé.');
     } catch (error) {
-      setMessage(getAuthErrorMessage(error) || 'Impossible de créer le foyer.');
+      setMessage(getAuthErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -93,7 +93,7 @@ export default function AccountFamily({ account }) {
       setEmail('');
       setMessage('Invitation envoyée.');
     } catch (error) {
-      setMessage(getAuthErrorMessage(error) || 'Impossible d’envoyer l’invitation.');
+      setMessage(getAuthErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -107,7 +107,7 @@ export default function AccountFamily({ account }) {
       applyFamilyResponse(result);
       setMessage('Membre retiré.');
     } catch (error) {
-      setMessage(getAuthErrorMessage(error) || 'Impossible de retirer ce membre.');
+      setMessage(getAuthErrorMessage(error));
     } finally {
       setBusy(false);
     }
