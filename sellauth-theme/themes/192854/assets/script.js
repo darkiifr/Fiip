@@ -206,7 +206,7 @@ document.addEventListener('alpine:init', () => {
           } else {
             this.modalEmailError = data?.message || 'Failed to send OTP. Please try again.';
           }
-        } catch (error) {
+        } catch {
           this.modalEmailError = 'Network error. Please try again.';
         } finally {
           this.modalLoading = false;
@@ -596,7 +596,7 @@ document.addEventListener('alpine:init', () => {
             this.modalError = data?.message || 'Failed to login. Please try again.';
             this.modalLoading = false;
           }
-        } catch (error) {
+        } catch {
           this.modalError = 'Network error. Please try again.';
           this.modalLoading = false;
         }
@@ -614,7 +614,7 @@ document.addEventListener('alpine:init', () => {
   }));
 });
 
-function snow(config = {}) {
+window.snow = function snow(config = {}) {
   const settings = {
     count: config.count || 200,
     minSize: config.minSize || 0.5,
@@ -657,4 +657,4 @@ function snow(config = {}) {
   const style = document.createElement('style');
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
-}
+};

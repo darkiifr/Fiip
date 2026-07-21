@@ -41,9 +41,27 @@
             L'OCR est realise localement sur l'appareil lorsque la plateforme le permet. Les fonctions IA sont optionnelles et peuvent transmettre le texte fourni par l'utilisateur au service IA utilise par Fiip.
           </p>
 
-          <h2>7. Disponibilite</h2>
+          <h2>7. Chiffrement et contenu public</h2>
           <p>
-            Fiip depend de services tiers pour le paiement, le compte, la synchronisation, l'hebergement et les fonctions IA. Des interruptions peuvent survenir. L'utilisateur doit conserver ses propres sauvegardes des notes importantes.
+            Les notes privees, pieces jointes, resultats OCR synchronises et parametres synchronises sont chiffres cote client avant synchronisation. Fiip ne peut pas recuperer le contenu prive si l'utilisateur perd sa passphrase Fiip.
+          </p>
+          <p>
+            Lorsqu'un utilisateur publie une note par lien public, il autorise la creation d'un snapshot public separe, dechiffrable par le serveur pour l'affichage, l'export et la moderation.
+          </p>
+
+          <h2>8. Stockage et sauvegardes</h2>
+          <p>
+            Cloudflare R2 est utilise pour les pieces jointes utilisateur chiffrees. Backblaze B2 est reserve aux backups froids et chiffres de la base Postgres. Ces backups ne remplacent pas les exports personnels de l'utilisateur.
+          </p>
+
+          <h2>9. Administration et moderation</h2>
+          <p>
+            Le dashboard admin peut gerer les licences, feature flags, backups et notes publiques. Il ne permet pas de dechiffrer le contenu prive zero-knowledge. Les actions sensibles sont journalisees.
+          </p>
+
+          <h2>10. Disponibilite</h2>
+          <p>
+            Fiip depend de services tiers pour le paiement, le compte, la synchronisation, l'hebergement et les fonctions IA. Des interruptions peuvent survenir. Un kill switch peut desactiver ou degrader temporairement une fonctionnalite pour proteger le service. L'utilisateur doit conserver ses propres sauvegardes des notes importantes.
           </p>
         </div>
       </div>

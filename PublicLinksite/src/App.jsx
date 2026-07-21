@@ -30,6 +30,7 @@ import {
   signOut,
   verifyMagicCode,
 } from './services/account';
+import { fetchFeatureFlags, readCachedFeatureFlags } from './services/featureFlags';
 
 import IconAttachment from '~icons/mingcute/attachment-fill';
 import IconEdit from '~icons/mingcute/edit-2-fill';
@@ -656,7 +657,58 @@ function OAuthConsentPage() {
   );
 }
 
-function App() {
+function FeatureFlagGate({ children }) {
+  const [flags, setFlags] = useState(() => readCachedFeatureFlags());
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const nextFlags = await fetchFeatureFlags('site');
+        if (!cancelled) setFlags(nextFlags);
+      } catch (error) {
+        console.warn('Feature flags unavailable:', error);
+      }
+    };
+    refresh();
+    const interval = setInterval(refresh, 10 * 60 * 1000);
+    window.addEventListener('online', refresh);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('online', refresh);
+    };
+  }, []);
+
+  const maintenance = flags.site_maintenance || flags.global_maintenance;
+  if (maintenance?.status === 'disabled') {
+    return (
+      <main className="public-shell public-center">
+        <section className="public-panel auth-panel">
+          <h1>Maintenance Fiip</h1>
+          <p>{maintenance.message || 'Le site Fiip est temporairement indisponible.'}</p>
+          {maintenance.reason ? <p>{maintenance.reason}</p> : null}
+          {maintenance.expected_reactivation_at ? <p>Retour prévu : {new Date(maintenance.expected_reactivation_at).toLocaleString()}</p> : null}
+        </section>
+      </main>
+    );
+  }
+
+  const degraded = Object.values(flags).find((flag) => flag.status === 'degraded');
+  return (
+    <>
+      {degraded ? (
+        <div className="maintenance-banner">
+          <strong>{degraded.message || 'Service Fiip dégradé.'}</strong>
+          {degraded.reason ? <span>{degraded.reason}</span> : null}
+        </div>
+      ) : null}
+      {children}
+    </>
+  );
+}
+
+function RoutedApp() {
   const path = window.location.pathname;
   const hostname = window.location.hostname.toLowerCase();
   const isPortalHost = hostname === 'portail.fiip.fr';
@@ -777,6 +829,14 @@ function App() {
         </nav>
       </footer>
     </main>
+  );
+}
+
+function App() {
+  return (
+    <FeatureFlagGate>
+      <RoutedApp />
+    </FeatureFlagGate>
   );
 }
 

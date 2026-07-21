@@ -22,7 +22,7 @@ export const BILLING_TIERS = [
       ocrLimit: 5,
       familySlots: 1,
     },
-    features: ['2 appareils synchronisés', 'Mobile en lecture', '5 scans OCR par mois', 'Clé de licence automatique'],
+    features: ['100 notes / 100 Mo', '2 Go de pièces jointes', '250 Mo par fichier', '2 appareils synchronisés', '5 scans OCR par mois', 'Clé de licence automatique'],
   },
   {
     id: 'pro',
@@ -45,7 +45,7 @@ export const BILLING_TIERS = [
       ocrLimit: null,
       familySlots: 1,
     },
-    features: ['Appareils illimités', 'Partage public de notes', 'Extension navigateur', 'OCR illimité', 'Exports PDF et Markdown'],
+    features: ['1 000 notes / 1 Go', '25 Go de pièces jointes', '2 Go par fichier', 'Partage public de notes', 'Extension navigateur', 'OCR illimité'],
   },
   {
     id: 'ai',
@@ -68,7 +68,7 @@ export const BILLING_TIERS = [
       ocrLimit: null,
       familySlots: 1,
     },
-    features: ['Tout Pro', 'Budget IA mensuel', 'Mode automatique intelligent', 'DeepSeek + Mimo', 'Support prioritaire'],
+    features: ['Quotas notes et fichiers du plan Pro', 'Budget IA mensuel', 'Mode automatique intelligent', 'OCR illimité', 'Support prioritaire'],
   },
   {
     id: 'family_pro',
@@ -91,7 +91,7 @@ export const BILLING_TIERS = [
       ocrLimit: null,
       familySlots: 5,
     },
-    features: ['Tout AI', 'Comptes famille', 'Budget IA partagé', 'Admin du foyer', 'Invitations et retraits'],
+    features: ['Notes illimitées / 5 Go', '100 Go de pièces jointes', '5 Go par fichier', 'Comptes famille', 'Budget IA partagé'],
   },
 ];
 
