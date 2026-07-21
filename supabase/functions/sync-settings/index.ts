@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       .single();
     if (error) throw error;
     return jsonResponse({ settings: data.settings, updatedAt: data.updated_at, deviceId: data.device_id });
-  } catch (error) {
-    return jsonResponse({ error: error instanceof Error ? error.message : 'Settings sync failed' }, { status: 401 });
+  } catch {
+    return jsonResponse({ error: 'Authentification requise pour synchroniser les paramètres.' }, { status: 401 });
   }
 });

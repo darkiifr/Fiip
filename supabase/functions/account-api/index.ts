@@ -387,8 +387,8 @@ Deno.serve(async (req) => {
       }
       try {
         assertLicenseCanAttach(licenseInfo, user.email);
-      } catch (validationError) {
-        return jsonResponse({ error: validationError instanceof Error ? validationError.message : 'Licence invalide.' }, { status: 400 });
+      } catch {
+        return jsonResponse({ error: 'Licence invalide.' }, { status: 400 });
       }
 
       const caps = getTierCapabilities(licenseInfo.tier);

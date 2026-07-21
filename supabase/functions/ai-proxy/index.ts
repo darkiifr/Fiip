@@ -14,8 +14,8 @@ Deno.serve(async (req) => {
     let messages;
     try {
       messages = normalizeChatMessages(body.messages);
-    } catch (error) {
-      return jsonResponse({ error: error instanceof Error ? error.message : 'Invalid messages' }, { status: 400 });
+    } catch {
+      return jsonResponse({ error: 'Messages invalides.' }, { status: 400 });
     }
 
     const supabaseAdmin = createAdminClient();

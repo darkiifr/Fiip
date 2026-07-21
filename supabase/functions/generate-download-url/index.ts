@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       Key: file.file_key,
     }), { expiresIn: MAX_DOWNLOAD_URL_SECONDS });
     return jsonResponse({ downloadUrl, expiresIn: MAX_DOWNLOAD_URL_SECONDS, file });
-  } catch (error) {
-    return jsonResponse({ error: error instanceof Error ? error.message : 'Download URL failed' }, { status: 401 });
+  } catch {
+    return jsonResponse({ error: 'Authentification requise pour télécharger ce fichier.' }, { status: 401 });
   }
 });

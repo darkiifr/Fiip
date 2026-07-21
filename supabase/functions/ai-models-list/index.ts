@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
     const { tier } = await getActiveLicenseAndUsage(supabaseAdmin, user.id);
     const models = supportedModelsForTier(tier);
     return jsonResponse({ data: models, cached_for_seconds: 3600 });
-  } catch (error) {
-    return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, { status: 401 });
+  } catch {
+    return jsonResponse({ error: 'Authentification requise pour consulter les modèles.' }, { status: 401 });
   }
 });

@@ -31,8 +31,8 @@ Deno.serve(async (req) => {
   let body;
   try {
     body = sanitizeKeyAuthWebhookBody(await req.json());
-  } catch (error) {
-    return jsonResponse({ error: error instanceof Error ? error.message : 'Invalid request body' }, { status: 400 });
+  } catch {
+    return jsonResponse({ error: 'Invalid request body' }, { status: 400 });
   }
   const action = body.action;
   const sourceEventId = String(body.source_event_id || req.headers.get('x-idempotency-key') || crypto.randomUUID());
