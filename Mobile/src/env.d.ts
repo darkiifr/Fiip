@@ -1,6 +1,8 @@
 declare module '@env' {
   export const VITE_SUPABASE_URL: string;
   export const VITE_SUPABASE_ANON_KEY: string;
+  export const VITE_CLERK_PUBLISHABLE_KEY: string;
+  export const VITE_CLERK_SYNC_HOST: string;
   export const VITE_KEYAUTH_NAME: string;
   export const VITE_KEYAUTH_OWNERID: string;
   export const VITE_KEYAUTH_SECRET: string;

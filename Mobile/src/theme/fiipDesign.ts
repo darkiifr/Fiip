@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 
 type FiipPlatform = 'ios' | 'android' | 'web' | 'windows' | 'macos';
+type PlatformDesignLanguage = 'liquid-glass' | 'material' | 'fiip';
 
 export const fiipPalette = {
   ink: '#141312',
@@ -108,6 +109,82 @@ export const fiipType = {
   display: 'System',
   body: 'System',
 };
+
+export function getPlatformDesignSpec(os: FiipPlatform = Platform.OS, isDark = true) {
+  if (os === 'ios') {
+    return {
+      platform: 'ios',
+      language: 'liquid-glass' as PlatformDesignLanguage,
+      motion: {
+        response: 0.34,
+        dampingRatio: 1,
+      },
+      surface: {
+        background: isDark ? applePalette.dark.background : applePalette.light.background,
+        material: 'regular',
+        prominentMaterial: 'prominent',
+        overlay: isDark ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.2)',
+        stroke: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.68)',
+        radius: fiipRadius.xl,
+        shadowOpacity: isDark ? 0.28 : 0.08,
+      },
+      controls: {
+        radius: 22,
+        minimumHeight: 44,
+        stateLayer: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+      },
+    };
+  }
+
+  if (os === 'android') {
+    const palette = isDark ? material3Palette.dark : material3Palette.light;
+    return {
+      platform: 'android',
+      language: 'material' as PlatformDesignLanguage,
+      motion: {
+        emphasizedDecelerateMs: 400,
+        emphasizedAccelerateMs: 200,
+      },
+      surface: {
+        background: palette.background,
+        base: palette.surface,
+        container: palette.surfaceContainer,
+        containerHigh: palette.surfaceContainerHigh,
+        containerHighest: palette.surfaceContainerHighest,
+        stroke: palette.outlineVariant,
+        radius: 28,
+        elevation: 1,
+      },
+      controls: {
+        radius: 16,
+        minimumHeight: 48,
+        stateLayer: isDark ? 'rgba(208,188,255,0.12)' : 'rgba(103,80,164,0.12)',
+      },
+    };
+  }
+
+  return {
+    platform: os,
+    language: 'fiip' as PlatformDesignLanguage,
+    motion: {
+      response: 0.34,
+      dampingRatio: 1,
+    },
+    surface: {
+      background: isDark ? '#080808' : fiipPalette.paper,
+      base: isDark ? '#111113' : '#FFFDF9',
+      container: isDark ? fiipPalette.glassDark : fiipPalette.glassLight,
+      stroke: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(75,64,54,0.1)',
+      radius: fiipRadius.lg,
+      elevation: 0,
+    },
+    controls: {
+      radius: fiipRadius.md,
+      minimumHeight: 44,
+      stateLayer: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(20,19,18,0.06)',
+    },
+  };
+}
 
 export function getFiipTheme(isDark: boolean, os: FiipPlatform = Platform.OS) {
   if (os === 'android') {

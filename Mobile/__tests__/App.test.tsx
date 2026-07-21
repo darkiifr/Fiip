@@ -64,10 +64,12 @@ import App from '../App';
 import { installGoogleAuthLifecycle } from '../src/services/googleAuth';
 
 test('renders correctly', async () => {
+  let renderer!: ReactTestRenderer.ReactTestRenderer;
   await ReactTestRenderer.act(async () => {
-    ReactTestRenderer.create(<App />);
+    renderer = ReactTestRenderer.create(<App />);
   });
   expect(installGoogleAuthLifecycle).toHaveBeenCalledTimes(1);
+  await ReactTestRenderer.act(async () => { renderer.unmount(); });
 });
 
 test('cleans up the root OAuth callback lifecycle on unmount', async () => {

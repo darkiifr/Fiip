@@ -18,7 +18,7 @@ export const PdfViewerScreen: React.FC<PdfViewerScreenProps> = ({ route, navigat
   const isIOS = Platform.OS === 'ios';
   const { colors } = useAppTheme();
 
-  const handlePageChanged = (page: number, numberOfPages: number) => {
+  const handlePageChanged = (_page: number, _numberOfPages: number) => {
     // Subtile haptic feedback when turning pages
     triggerHaptic('selection');
   };
@@ -29,7 +29,7 @@ export const PdfViewerScreen: React.FC<PdfViewerScreenProps> = ({ route, navigat
         {pdfUri ? (
           <Pdf
             source={{ uri: pdfUri, cache: true }}
-            onLoadComplete={(numberOfPages, filePath) => {
+            onLoadComplete={(_numberOfPages, _filePath) => {
               triggerHaptic('notificationSuccess');
             }}
             onPageChanged={handlePageChanged}
@@ -57,25 +57,25 @@ const styles = StyleSheet.create({
     height: Dimensions.get('window').height * 0.65,
     width: '100%',
   },
-  pdf: {
-    flex: 1,
-    width: '100%',
-    backgroundColor: 'transparent',
-  },
   emptyState: {
+    alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyTextIOS: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#8E8E93',
-    fontFamily: 'System',
   },
   emptyTextAndroid: {
-    marginTop: 16,
-    fontSize: 14,
     color: '#8E8E93',
+    fontSize: 14,
+    marginTop: 16,
+  },
+  emptyTextIOS: {
+    color: '#8E8E93',
+    fontFamily: 'System',
+    fontSize: 16,
+    marginTop: 16,
+  },
+  pdf: {
+    backgroundColor: 'transparent',
+    flex: 1,
+    width: '100%',
   }
 });

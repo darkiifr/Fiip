@@ -114,66 +114,66 @@ export const AuthScreen: React.FC<AuthScreenProps> = (props) => {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingTop: 10,
-  },
-  descIOS: {
-    fontFamily: 'System',
-    fontSize: 15,
-    color: '#4B5563',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  descAndroid: {
-    fontSize: 14,
-    color: '#49454F',
-    marginBottom: 20,
-  },
   actions: {
-    marginTop: 20,
     gap: 12,
+    marginTop: 20,
   },
   btnPrimary: {
-    paddingVertical: 14,
-    borderRadius: 20,
     alignItems: 'center',
+    borderRadius: 20,
     justifyContent: 'center',
-  },
-  btnPrimaryIOS: {
-    backgroundColor: '#007AFF',
+    paddingVertical: 14,
   },
   btnPrimaryAndroid: {
     backgroundColor: '#6750A4',
     borderRadius: 100, // pill shape
   },
-  btnTextIOS: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
+  btnPrimaryIOS: {
+    backgroundColor: '#007AFF',
+  },
+  btnSecTextAndroid: {
+    color: '#6750A4',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  btnSecTextIOS: {
+    color: '#007AFF',
     fontFamily: 'System',
+    fontSize: 17,
+  },
+  btnSecondary: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  btnSecondaryIOS: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 20,
   },
   btnTextAndroid: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
   },
-  btnSecondary: {
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnSecondaryIOS: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 20,
-  },
-  btnSecTextIOS: {
-    color: '#007AFF',
-    fontSize: 17,
+  btnTextIOS: {
+    color: '#fff',
     fontFamily: 'System',
+    fontSize: 17,
+    fontWeight: '600',
   },
-  btnSecTextAndroid: {
-    color: '#6750A4',
-    fontSize: 16,
-    fontWeight: '500',
+  container: {
+    paddingTop: 10,
+  },
+  descAndroid: {
+    color: '#49454F',
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  descIOS: {
+    color: '#4B5563',
+    fontFamily: 'System',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 20,
   }
 });

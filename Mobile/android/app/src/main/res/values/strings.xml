@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Fiip</string>
+    <string name="fiip_widget_description">Derniere note, statistiques et raccourci de creation Fiip.</string>
+    <string name="fiip_quick_widget_description">Raccourci Material pour creer une note Fiip.</string>
 </resources>

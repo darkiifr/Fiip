@@ -1,7 +1,7 @@
 import React from 'react';
 import { Platform, View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { fiipRadius } from '../../theme/fiipDesign';
+import { fiipRadius, getPlatformDesignSpec } from '../../theme/fiipDesign';
 
 interface GlassCardProps {
   children?: React.ReactNode;
@@ -21,6 +21,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   tint,
 }) => {
   const { colors, isDark } = useAppTheme();
+  const design = getPlatformDesignSpec(Platform.OS, isDark);
 
   const normalizedIntensity = Math.max(0, Math.min(80, intensity));
   const glassBg = isDark
@@ -55,12 +56,15 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     // Dynamic require keeps Android and Jest from loading the iOS-only native view.
     const { LiquidGlassView, isLiquidGlassSupported } = require('@callstack/liquid-glass');
     const supportsLiquidGlass = typeof isLiquidGlassSupported === 'function' ? isLiquidGlassSupported() : true;
+    const liquidGlassEffect = design.language === 'liquid-glass' && normalizedIntensity > 18
+      ? design.surface.material
+      : 'clear';
     return (
       <View testID="glass-card" style={[cardStyle, style]}>
         {supportsLiquidGlass ? (
           <LiquidGlassView
             style={StyleSheet.absoluteFill}
-            effect={normalizedIntensity > 18 ? 'regular' : 'clear'}
+            effect={liquidGlassEffect}
             tintColor={tint || (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.18)')}
             colorScheme={isDark ? 'dark' : 'light'}
             interactive={interactive}
@@ -85,16 +89,17 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     const androidStyle: ViewStyle = {
       borderRadius: cornerRadius,
       backgroundColor: interactive ? colors.surfaceContainerHigh : colors.surfaceContainer,
-      borderColor: colors.outlineVariant,
+      borderColor: design.surface.stroke,
       borderWidth: StyleSheet.hairlineWidth,
+      minHeight: design.controls.minimumHeight,
       overflow: 'hidden',
-      elevation: interactive ? 3 : 1,
+      elevation: interactive ? 3 : design.surface.elevation,
     };
 
     return (
       <View testID="glass-card" style={[androidStyle, style]}>
         <View style={[StyleSheet.absoluteFill, {
-          backgroundColor: interactive ? colors.stateLayer : 'transparent',
+          backgroundColor: interactive ? design.controls.stateLayer : 'transparent',
           opacity: interactive ? 0.42 : 0,
         }]} pointerEvents="none" />
         {children}
@@ -122,18 +127,18 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  androidSpecular: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '42%',
-    opacity: 0.75,
-  },
   androidDepthLine: {
-    bottom: 0,
     borderWidth: 1,
+    bottom: 0,
     left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  androidSpecular: {
+    height: '42%',
+    left: 0,
+    opacity: 0.75,
     position: 'absolute',
     right: 0,
     top: 0,

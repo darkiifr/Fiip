@@ -1,4 +1,20 @@
 {
-  "name": "FiipMobile",
-  "displayName": "Fiip"
+  "expo": {
+    "name": "Fiip",
+    "slug": "fiip-mobile",
+    "scheme": "fiip",
+    "ios": {
+      "bundleIdentifier": "com.fiipmobile",
+      "associatedDomains": [
+        "webcredentials:clerk.fiip.fr"
+      ]
+    },
+    "android": {
+      "package": "com.fiipmobile"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "@clerk/expo"
+    ]
+  }
 }

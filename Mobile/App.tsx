@@ -7,6 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LiquidGlassView } from '@callstack/liquid-glass';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { I18nextProvider } from 'react-i18next';
+import { MD3DarkTheme, MD3LightTheme, PaperProvider } from 'react-native-paper';
 
 import i18n from './src/i18n';
 import HomeScreen from './src/screens/HomeScreen';
@@ -27,18 +28,58 @@ import { useNotesStore } from './src/store/notesStore';
 import { getFiipTheme } from './src/theme/fiipDesign';
 
 import { FloatingTabBar } from './src/components/FloatingTabBar';
+import { ZeroKnowledgeGate } from './src/components/ZeroKnowledgeGate';
+import { ClerkSupabaseProvider } from './src/providers/ClerkSupabaseProvider';
+import { FeatureFlagProvider } from './src/providers/FeatureFlagProvider';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+const renderFloatingTabBar = (props: React.ComponentProps<typeof FloatingTabBar>) => <FloatingTabBar {...props} />;
+
+const tabScreenOptions = {
+  tabBarShowLabel: false,
+  headerShown: false,
+};
+
+function PlatformDesignProvider({ children, isDark }: { children: React.ReactNode; isDark: boolean }) {
+  if (Platform.OS !== 'android') {
+    return <>{children}</>;
+  }
+
+  const fiipTheme = getFiipTheme(isDark, 'android');
+  const baseTheme = isDark ? MD3DarkTheme : MD3LightTheme;
+  const paperTheme = {
+    ...baseTheme,
+    colors: {
+      ...baseTheme.colors,
+      background: fiipTheme.background,
+      error: fiipTheme.danger,
+      onBackground: fiipTheme.text,
+      onPrimary: fiipTheme.onPrimary,
+      onPrimaryContainer: fiipTheme.onPrimaryContainer,
+      onSurface: fiipTheme.text,
+      onSurfaceVariant: fiipTheme.textSecondary,
+      outline: fiipTheme.outline,
+      outlineVariant: fiipTheme.outlineVariant,
+      primary: fiipTheme.primary,
+      primaryContainer: fiipTheme.primaryContainer,
+      secondaryContainer: fiipTheme.secondaryContainer,
+      surface: fiipTheme.surface,
+      surfaceDisabled: fiipTheme.surfaceContainerLow,
+      surfaceVariant: fiipTheme.surfaceContainerHigh,
+    },
+    roundness: 4,
+  };
+
+  return <PaperProvider theme={paperTheme}>{children}</PaperProvider>;
+}
+
 function TabNavigator() {
   return (
     <Tab.Navigator
-      tabBar={props => <FloatingTabBar {...props} />}
-      screenOptions={({ route }) => ({
-        tabBarShowLabel: false,
-        headerShown: false,
-      })}
+      tabBar={renderFloatingTabBar}
+      screenOptions={tabScreenOptions}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Accueil' }} />
       <Tab.Screen name="Search" component={FavoritesScreen} options={{ title: 'Recherche' }} />
@@ -106,21 +147,29 @@ function App() {
   const isDark = true;
   const appTheme = getFiipTheme(isDark, Platform.OS);
   return (
-    <I18nextProvider i18n={i18n}>
-      <View style={[styles.container, { backgroundColor: appTheme.background }]}>
-        {Platform.OS === 'ios' ? <LiquidGlassView style={StyleSheet.absoluteFill} effect="clear" /> : null}
-        <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="MainTabs" component={TabNavigator} />
-            <Stack.Screen name="NoteEditor" component={NoteEditorScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
-            <Stack.Screen name="AiChat" component={AiChatScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
-            <Stack.Screen name="PdfViewer" component={PdfViewerScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
-            <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
-            <Stack.Screen name="Auth" component={SupabaseAuthScreen} options={{ presentation: Platform.OS === 'ios' ? 'fullScreenModal' : 'card' }} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </View>
-    </I18nextProvider>
+    <ClerkSupabaseProvider>
+      <FeatureFlagProvider>
+        <ZeroKnowledgeGate>
+          <I18nextProvider i18n={i18n}>
+            <PlatformDesignProvider isDark={isDark}>
+              <View style={[styles.container, { backgroundColor: appTheme.background }]}>
+                {Platform.OS === 'ios' ? <LiquidGlassView style={StyleSheet.absoluteFill} effect="clear" /> : null}
+                <NavigationContainer theme={isDark ? DarkTheme : DefaultTheme}>
+                  <Stack.Navigator screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="MainTabs" component={TabNavigator} />
+                    <Stack.Screen name="NoteEditor" component={NoteEditorScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
+                    <Stack.Screen name="AiChat" component={AiChatScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
+                    <Stack.Screen name="PdfViewer" component={PdfViewerScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
+                    <Stack.Screen name="SubscriptionScreen" component={SubscriptionScreen} options={{ presentation: Platform.OS === 'ios' ? 'modal' : 'card' }} />
+                    <Stack.Screen name="Auth" component={SupabaseAuthScreen} options={{ presentation: Platform.OS === 'ios' ? 'fullScreenModal' : 'card' }} />
+                  </Stack.Navigator>
+                </NavigationContainer>
+              </View>
+            </PlatformDesignProvider>
+          </I18nextProvider>
+        </ZeroKnowledgeGate>
+      </FeatureFlagProvider>
+    </ClerkSupabaseProvider>
   );
 }
 

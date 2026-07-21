@@ -94,7 +94,7 @@ class KeyAuthService {
             } else {
                 return { success: false, message: "Service de licence indisponible pour le moment." };
             }
-        } catch (error) {
+        } catch {
                 return { success: false, message: "Service de licence indisponible pour le moment." };
             } finally {
                 this.initPromise = null;
@@ -161,7 +161,7 @@ class KeyAuthService {
             } else {
                 return { success: false, message: data.message };
             }
-        } catch (error) {
+        } catch {
             return { success: false, message: "Validation de licence impossible pour le moment." };
         }
     }

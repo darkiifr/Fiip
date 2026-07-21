@@ -30,7 +30,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: any) {
             try {
               const { LiquidGlassView } = require('@callstack/liquid-glass');
               return <LiquidGlassView style={StyleSheet.absoluteFill} intensity={40} />;
-            } catch (e) {
+            } catch {
               return null;
             }
           })()}
@@ -173,88 +173,92 @@ export function FloatingTabBar({ state, descriptors, navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
+  activeDot: {
+    borderRadius: 1.75,
+    height: 3.5,
+    marginTop: 4,
+    width: 3.5,
+  },
+  blurWrapper: {
     bottom: 0,
-    width: '100%',
-    height: Platform.OS === 'ios' ? 96 : 92,
+    left: 0,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  container: {
     borderTopWidth: 1,
+    bottom: 0,
     elevation: Platform.OS === 'android' ? 3 : 8,
+    height: Platform.OS === 'ios' ? 96 : 92,
+    position: 'absolute',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: Platform.OS === 'ios' ? 0.08 : 0.1,
     shadowRadius: Platform.OS === 'ios' ? 22 : 8,
-  },
-  blurWrapper: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  tabBarContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 8,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 8,
-  },
-  regularTabContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
     width: '100%',
   },
   iconCapsule: {
-    minWidth: Platform.OS === 'android' ? 64 : undefined,
-    height: Platform.OS === 'android' ? 32 : undefined,
-    paddingHorizontal: Platform.OS === 'android' ? 18 : 16,
-    paddingVertical: Platform.OS === 'android' ? 0 : 6,
+    alignItems: 'center',
+    borderColor: 'transparent',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'transparent',
-    marginBottom: 4,
-    alignItems: 'center',
+    height: Platform.OS === 'android' ? 32 : undefined,
     justifyContent: 'center',
-  },
-  tabLabel: {
-    fontSize: 10,
-    letterSpacing: -0.1,
-  },
-  activeDot: {
-    width: 3.5,
-    height: 3.5,
-    borderRadius: 1.75,
-    marginTop: 4,
+    marginBottom: 4,
+    minWidth: Platform.OS === 'android' ? 64 : undefined,
+    paddingHorizontal: Platform.OS === 'android' ? 18 : 16,
+    paddingVertical: Platform.OS === 'android' ? 0 : 6,
   },
   newButtonContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   newIconCircle: {
-    width: Platform.OS === 'android' ? 56 : 42,
-    height: Platform.OS === 'android' ? 56 : 42,
+    alignItems: 'center',
     borderRadius: Platform.OS === 'android' ? 16 : 21,
     borderWidth: 1,
-    alignItems: 'center',
+    elevation: Platform.OS === 'android' ? 6 : 0,
+    height: Platform.OS === 'android' ? 56 : 42,
     justifyContent: 'center',
     marginBottom: 4,
     overflow: 'hidden',
-    elevation: Platform.OS === 'android' ? 6 : 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.14,
     shadowRadius: 14,
+    width: Platform.OS === 'android' ? 56 : 42,
   },
   newLiquidOverlay: {
-    position: 'absolute',
-    top: 1,
-    left: 3,
-    right: 3,
-    height: 14,
-    borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.36)',
+    borderRadius: 12,
+    height: 14,
+    left: 3,
+    position: 'absolute',
+    right: 3,
+    top: 1,
+  },
+  regularTabContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  tabBarContent: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 8,
+  },
+  tabButton: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: 8,
+  },
+  tabLabel: {
+    fontSize: 10,
+    letterSpacing: -0.1,
   }
 });

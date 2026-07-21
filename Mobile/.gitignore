@@ -88,3 +88,8 @@ pnpm-debug.log
 .expo-shared/
 /.react-native/
 /.metro-cache/
+
+# Expo
+.expo
+dist/
+web-build/

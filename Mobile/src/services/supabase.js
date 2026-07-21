@@ -1,10 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY } from '@env';
+import {
+  decryptNoteFromCloud,
+  decryptSettingsEnvelope,
+  encryptNoteForCloud,
+  encryptSettingsEnvelope,
+} from './cloudEncryption';
+import {
+  getExternalIdentityUser,
+  signOutExternalIdentity,
+} from './externalIdentity';
 import { canAttachFile, canCreateNote, getStorageLimit, resolvePlanLevel } from './planLimits';
 
 const SUPABASE_URL = VITE_SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = VITE_SUPABASE_ANON_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+let accessTokenProvider = null;
+
+async function identityAwareFetch(input, init = {}) {
+  if (!accessTokenProvider) return fetch(input, init);
+  const token = await accessTokenProvider();
+  const headers = new Headers(init.headers || {});
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(input, { ...init, headers });
+}
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn("Supabase URL or Key missing in environment variables.");
@@ -14,16 +34,22 @@ export const supabase = createClient(
   SUPABASE_URL && SUPABASE_URL.trim() !== '' ? SUPABASE_URL : 'https://placeholder.supabase.co', 
   SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.trim() !== '' ? SUPABASE_ANON_KEY : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx',
   {
+    global: {
+      fetch: identityAwareFetch,
+    },
     auth: {
       storage: AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
-    }
+    },
   }
 );
 
 export { getStorageLimit };
+export function setSupabaseAccessTokenProvider(provider) {
+  accessTokenProvider = typeof provider === 'function' ? provider : null;
+}
 
 // Auth Services
 export const authService = {
@@ -76,6 +102,11 @@ export const authService = {
   },
 
   async signOut() {
+    const externalUser = await getExternalIdentityUser();
+    if (externalUser) {
+      await signOutExternalIdentity();
+      return { error: null };
+    }
     return await supabase.auth.signOut();
   },
 
@@ -100,6 +131,8 @@ export const authService = {
 
   async getUser() {
     try {
+      const externalUser = await getExternalIdentityUser();
+      if (externalUser) return externalUser;
       // Wrapped in a 5-second timeout to prevent infinite loading screens everywhere
       const getUserLogic = async () => {
         // 1. First fast check locally (avoids slow network request when offline)
@@ -207,6 +240,7 @@ export const authService = {
       return supabase.auth.onAuthStateChange(callback);
   },
 
+  /** @param {import('@supabase/supabase-js').User | null} user */
   async getPlanLevel(user = null) {
     const currentUser = user || await this.getUser();
     if (!currentUser) return 0;
@@ -266,7 +300,22 @@ export const dataService = {
         });
     }
     
-    let combinedData = Array.from(allNotesMap.values());
+    let combinedData = await Promise.all(Array.from(allNotesMap.values()).map(async (note) => {
+      try {
+        return await decryptNoteFromCloud(note);
+      } catch (error) {
+        console.warn('Could not decrypt cloud note:', note.id, error);
+        return {
+          ...note,
+          title: 'Note verrouillée',
+          content: '',
+          attachments: [],
+          tags: [],
+          badges: [],
+          zeroKnowledgeLocked: true,
+        };
+      }
+    }));
     combinedData.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
     // Map DB fields back to what the frontend expects
@@ -313,19 +362,12 @@ export const dataService = {
       }
     }
 
-    // Format note for DB (remove local-only constructs if any)
-    const dbNote = {
-      id: note.id,
-      user_id: user.id,
-      title: note.title,
-      content: note.content,
-      attachments: note.attachments || [],
-      is_favorite: note.favorite || false,
-      tags: note.tags || [],
-      badges: note.badges || [],
-      deleted: note.deleted || false,
-      updated_at: new Date(note.updatedAt || Date.now()).toISOString()
-    };
+    let dbNote;
+    try {
+      dbNote = await encryptNoteForCloud(note, { userId: user.id });
+    } catch (error) {
+      return { error };
+    }
 
     const { data, error } = await supabase
       .from('notes')
@@ -362,14 +404,39 @@ export const dataService = {
       return { error: 'FREE_PUBLIC_SHARE_DISABLED' };
     }
 
-    // Generate a random slug
     const slug = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+    const localNotes = JSON.parse(await AsyncStorage.getItem('fiip-notes') || '[]');
+    let note = localNotes.find((item) => item.id === noteId);
+    if (!note) {
+      const { data: encryptedNote, error: noteError } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('id', noteId)
+        .eq('user_id', user.id)
+        .single();
+      if (noteError) return { data: null, error: noteError };
+      try {
+        note = await decryptNoteFromCloud(encryptedNote);
+      } catch (error) {
+        return { data: null, error };
+      }
+    }
 
     const { data, error } = await supabase
-      .from('notes')
-      .update({ public_slug: slug, updated_at: new Date().toISOString() })
-      .eq('id', noteId)
-      .eq('user_id', user.id) // Ensure ownership
+      .from('public_note_snapshots')
+      .upsert({
+        note_id: noteId,
+        owner_id: user.id,
+        public_slug: slug,
+        title: note.title || '',
+        content: note.content || '',
+        attachments: note.publicAttachments || [],
+        tags: note.tags || [],
+        badges: note.badges || [],
+        author_profile: {},
+        updated_at: new Date().toISOString(),
+        unpublished_at: null,
+      }, { onConflict: 'note_id' })
       .select()
       .single();
 
@@ -380,22 +447,21 @@ export const dataService = {
     const user = await authService.getUser();
     if (!user) return { error: 'Not authenticated' };
 
-    const { data, error } = await supabase
-      .from('notes')
-      .update({ public_slug: null, updated_at: new Date().toISOString() })
-      .eq('id', noteId)
-      .eq('user_id', user.id)
-      .select()
-      .single();
+    const { error } = await supabase
+      .from('public_note_snapshots')
+      .delete()
+      .eq('note_id', noteId)
+      .eq('owner_id', user.id);
 
-    return { data, error };
+    return { data: null, error };
   },
 
   async getPublicNote(slug) {
     const { data, error } = await supabase
-      .from('notes')
+      .from('public_note_snapshots')
       .select('*')
       .eq('public_slug', slug)
+      .is('unpublished_at', null)
       .single();
     
     return { data, error };
@@ -579,29 +645,33 @@ export const dataService = {
       const user = await authService.getUser();
       if (!user) return { data: {}, error: 'Not authenticated' };
 
-      const { data, error } = await supabase
-          .from('user_settings')
-          .select('config')
-          .eq('user_id', user.id)
-          .single();
-      
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "Row not found"
-           console.error('Error fetching settings:', error);
+      const { data, error } = await supabase.functions.invoke('sync-settings', {
+        body: { settings: {}, deviceId: 'mobile' },
+      });
+      if (error) {
+        const cached = await AsyncStorage.getItem('fiip-settings');
+        return { data: cached ? JSON.parse(cached) : {}, error };
       }
 
-      const settings = data?.config || {};
+      const settings = await decryptSettingsEnvelope(data?.settings || {});
       await AsyncStorage.setItem('fiip-settings', JSON.stringify(settings));
-      return { data: settings, error };
+      return { data: settings, error: null };
   },
 
   async saveSettings(settings) {
       const user = await authService.getUser();
       if (!user) return { error: 'Not authenticated' };
 
-      const { error } = await supabase
-          .from('user_settings')
-          .upsert({ user_id: user.id, config: settings, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-      
+      const encryptedSettings = await encryptSettingsEnvelope(settings);
+      const { error } = await supabase.functions.invoke('sync-settings', {
+        body: { settings: encryptedSettings, deviceId: 'mobile' },
+      });
+      await AsyncStorage.setItem('fiip-settings', JSON.stringify(settings));
+      if (error) {
+        await AsyncStorage.setItem('fiip-settings-pending', JSON.stringify(encryptedSettings));
+      } else {
+        await AsyncStorage.removeItem('fiip-settings-pending');
+      }
       return { error };
   },
 
@@ -614,63 +684,16 @@ export const dataService = {
         if (!userId) return 0;
     }
 
-    let totalSize = 0;
-    let page = 0;
-    const pageSize = 100;
-    let hasMore = true;
-
-    try {
-      while (hasMore) {
-        const { data: rootItems, error: rootError } = await supabase
-          .storage
-          .from('attachments')
-          .list(`${userId}`, {
-            limit: pageSize,
-            offset: page * pageSize,
-            sortBy: { column: 'name', order: 'asc' }
-          });
-
-        if (rootError) throw rootError;
-
-        if (!rootItems || rootItems.length === 0) {
-          hasMore = false;
-        } else {
-            // Parallel fetch for folder contents
-            const sizePromises = rootItems.map(async (item) => {
-                // Check if folder (no metadata or size 0 usually indicates folder in Supabase storage list)
-                if (!item.metadata || !item.metadata.size) {
-                    // It's a folder (Note ID) -> List contents
-                    const { data: folderFiles, error: folderError } = await supabase
-                        .storage
-                        .from('attachments')
-                        .list(`${userId}/${item.name}`, {
-                            limit: 1000,
-                            sortBy: { column: 'name', order: 'asc' }
-                        });
-                    
-                    if (!folderError && folderFiles) {
-                         return folderFiles.reduce((acc, file) => acc + (file.metadata ? file.metadata.size : 0), 0);
-                    }
-                    return 0;
-                } else {
-                    // It's a file at root level
-                    return (item.metadata ? item.metadata.size : 0);
-                }
-            });
-
-            const sizes = await Promise.all(sizePromises);
-            totalSize += sizes.reduce((acc, s) => acc + s, 0);
-
-            page++;
-            if (page > 50) hasMore = false; 
-        }
-      }
-    } catch (e) {
-      console.error("Error calculating usage:", e);
-      return totalSize; // Return what we found so far
+    const { data, error } = await supabase
+      .from('files')
+      .select('file_size')
+      .eq('owner_id', userId)
+      .eq('status', 'confirmed');
+    if (error) {
+      console.error('Error calculating R2 usage:', error);
+      return 0;
     }
-
-    return totalSize;
+    return (data || []).reduce((total, file) => total + Number(file.file_size || 0), 0);
   },
 
   // --- Storage (Attachments) ---
@@ -686,23 +709,19 @@ export const dataService = {
       return { error: new Error("STORAGE_LIMIT_EXCEEDED") };
     }
     
-    // Path should be: {userId}/{noteId}/{filename}
-    // We should use 'attachments' bucket
-    const { data, error } = await supabase
-        .storage
-        .from('attachments')
-        .upload(path, file, {
-            upsert: true
-        });
-
-    if (error) return { error };
-
-    const { data: publicUrlData } = supabase
-        .storage
-        .from('attachments')
-        .getPublicUrl(path);
-
-    return { data: { path: data.path, publicUrl: publicUrlData.publicUrl }, error: null };
+    try {
+      const { uploadFile } = await import('./storageR2');
+      const noteId = String(path || '').split('/').filter(Boolean)[0] || undefined;
+      const data = await uploadFile({
+        uri: file.uri,
+        name: file.name,
+        type: file.type || 'application/octet-stream',
+        size: file.size,
+      }, noteId);
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error };
+    }
   }
 };
 
@@ -720,20 +739,13 @@ export const storageService = {
       return dataService.uploadAttachment(file, `${userId}/${path}`);
   },
 
-  async downloadFile(userId, path) {
-      const finalPath = path.startsWith(userId) ? path : `${userId}/${path}`;
-      const { data, error } = await supabase
-        .storage
-        .from('attachments')
-        .download(finalPath);
-  
-      if (error) throw error;
-      return await data.text();
+  async downloadFile(_userId, fileId) {
+      const { downloadFile } = await import('./storageR2');
+      return downloadFile(fileId);
   },
 
-  getPublicUrl(userId, path) {
-    const finalPath = path.startsWith(userId) ? path : `${userId}/${path}`;
-    const { data } = supabase.storage.from('attachments').getPublicUrl(finalPath);
-    return data.publicUrl;
+  async getPublicUrl(_userId, fileId) {
+    const { getFileUrl } = await import('./storageR2');
+    return getFileUrl(fileId);
   }
 };

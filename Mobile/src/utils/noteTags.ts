@@ -5,6 +5,8 @@ export interface FiipTag {
   color?: number;
 }
 
+type NoteTagInput = FiipTag | { id?: unknown; label?: unknown; name?: unknown; icon?: unknown; color?: unknown } | string;
+
 export function slugifyTagLabel(label = '') {
   return String(label || '')
     .normalize('NFD')
@@ -14,20 +16,25 @@ export function slugifyTagLabel(label = '') {
     .replace(/^-+|-+$/g, '') || 'tag';
 }
 
-export function normalizeNoteTags(tags: any[] = [], legacyBadges: string[] = []): FiipTag[] {
+function isTagObject(tag: NoteTagInput): tag is Exclude<NoteTagInput, string> {
+  return typeof tag === 'object' && tag !== null;
+}
+
+export function normalizeNoteTags(tags: NoteTagInput[] = [], legacyBadges: string[] = []): FiipTag[] {
   const result = new Map<string, FiipTag>();
   const inputs = Array.isArray(tags) && tags.length > 0 ? tags : legacyBadges;
 
   inputs.forEach((tag) => {
-    const label = typeof tag === 'string' ? tag : String(tag?.label || tag?.name || '').trim();
+    const legacyName = isTagObject(tag) && 'name' in tag ? tag.name : '';
+    const label = typeof tag === 'string' ? tag : String(tag.label || legacyName || '').trim();
     if (!label) return;
 
-    const id = typeof tag === 'object' && tag?.id ? String(tag.id) : slugifyTagLabel(label);
+    const id = isTagObject(tag) && tag.id ? String(tag.id) : slugifyTagLabel(label);
     result.set(id, {
       id,
       label,
-      icon: typeof tag === 'object' ? tag.icon : undefined,
-      color: typeof tag === 'object' ? tag.color : undefined,
+      icon: isTagObject(tag) && typeof tag.icon === 'string' ? tag.icon : undefined,
+      color: isTagObject(tag) && typeof tag.color === 'number' ? tag.color : undefined,
     });
   });
 

@@ -20,6 +20,10 @@ function getInitials(name = 'Fiip') {
     .join('') || 'F';
 }
 
+function ListSeparator() {
+  return <View style={styles.separator} />;
+}
+
 export default function FavoritesScreen() {
   const navigation = useNavigation<any>();
   const { colors } = useAppTheme();
@@ -95,7 +99,7 @@ export default function FavoritesScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ItemSeparatorComponent={ListSeparator}
         renderItem={({ item }: any) => {
           const firstTag = normalizeNoteTags(item.tags || [], item.badges || [])[0]?.label;
           return (
@@ -130,51 +134,51 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   header: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
     marginBottom: 16,
   },
-  profileButton: {
-    width: 44,
-    height: 44,
+  listContent: {
+    paddingBottom: 132,
   },
-  profileImage: {
-    width: 44,
+  profileButton: {
     height: 44,
-    borderRadius: 22,
+    width: 44,
   },
   profileFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
     alignItems: 'center',
+    borderRadius: 22,
+    height: 44,
     justifyContent: 'center',
+    width: 44,
   },
   profileFallbackText: {
     color: '#FFF',
     fontSize: 14,
     fontWeight: '900',
   },
-  searchBar: {
-    marginBottom: 12,
-  },
-  searchInput: {
-    flex: 1,
-    minHeight: 42,
-    fontSize: 16,
-    fontWeight: '700',
-    paddingVertical: 8,
-  },
-  resultsHeader: {
-    marginBottom: 10,
+  profileImage: {
+    borderRadius: 22,
+    height: 44,
+    width: 44,
   },
   resultsCount: {
     fontSize: 13,
     fontWeight: '700',
   },
-  listContent: {
-    paddingBottom: 132,
+  resultsHeader: {
+    marginBottom: 10,
+  },
+  searchBar: {
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    minHeight: 42,
+    paddingVertical: 8,
   },
   separator: {
     height: 10,

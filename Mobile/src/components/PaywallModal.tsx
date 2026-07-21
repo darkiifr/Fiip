@@ -5,7 +5,14 @@ import { SFSymbol } from 'react-native-sfsymbols';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Platform } from 'react-native';
 
-export const PaywallModal = ({ visible, featureName, onClose, onUpgrade }) => {
+interface PaywallModalProps {
+  visible: boolean;
+  featureName?: string;
+  onClose: () => void;
+  onUpgrade: () => void;
+}
+
+export const PaywallModal = ({ visible, featureName, onClose, onUpgrade }: PaywallModalProps) => {
   const { colors, isDark } = useAppTheme();
 
   if (!visible) return null;
@@ -25,7 +32,7 @@ export const PaywallModal = ({ visible, featureName, onClose, onUpgrade }) => {
             Fonctionnalité Premium
           </Text>
           <Text style={[styles.description, { color: colors.textSecondary }]}>
-            {featureName || 'Cette fonctionnalité'} est réservée aux abonnés Pro et Pro+. Débloquez tout le potentiel de l'application et de nos modèles d'IA !
+            {featureName || 'Cette fonctionnalité'} est réservée aux abonnés Pro et Pro+. {`Débloquez tout le potentiel de l'application et de nos modèles d'IA !`}
           </Text>
           <TouchableOpacity style={styles.upgradeBtn} onPress={() => { onClose(); onUpgrade(); }}>
             <Text style={styles.upgradeText}>Voir les offres</Text>
@@ -41,21 +48,33 @@ export const PaywallModal = ({ visible, featureName, onClose, onUpgrade }) => {
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
+  cancelBtn: {
+    paddingVertical: 10,
   },
-  modalCard: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 48,
-    borderTopWidth: 1,
-    alignItems: 'center'
+  cancelText: {
+    fontSize: 15
+  },
+  description: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 32,
+    textAlign: 'center'
   },
   iconContainer: {
     marginBottom: 16
+  },
+  modalCard: {
+    alignItems: 'center',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    padding: 24,
+    paddingBottom: 48
+  },
+  overlay: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   title: {
     fontSize: 22,
@@ -63,30 +82,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center'
   },
-  description: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32
-  },
   upgradeBtn: {
-    backgroundColor: '#007AFF', // Theme tint
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 20,
-    width: '100%',
     alignItems: 'center',
-    marginBottom: 12
+    backgroundColor: '#007AFF', // Theme tint
+    borderRadius: 20,
+    marginBottom: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    width: '100%',
   },
   upgradeText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600'
-  },
-  cancelBtn: {
-    paddingVertical: 10,
-  },
-  cancelText: {
-    fontSize: 15
   }
 });

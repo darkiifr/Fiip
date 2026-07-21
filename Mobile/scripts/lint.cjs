@@ -27,5 +27,13 @@ if (result.error) {
 if (result.signal) {
   console.error(`ESLint stopped with signal ${result.signal}`);
 }
+if ((result.status ?? 1) !== 0) {
+  process.exit(result.status ?? 1);
+}
 
-process.exit(result.status ?? 1);
+const tscBin = require.resolve('typescript/bin/tsc', { paths: [path.join(__dirname, '..')] });
+const typecheck = spawnSync(nodePath, [tscBin, '--noEmit'], {
+  stdio: 'inherit',
+  cwd: path.join(__dirname, '..'),
+});
+process.exit(typecheck.status ?? 1);

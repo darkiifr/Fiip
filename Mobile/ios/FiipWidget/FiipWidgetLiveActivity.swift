@@ -1,48 +1,98 @@
 import ActivityKit
-import WidgetKit
+import Foundation
 import SwiftUI
+import WidgetKit
 
 struct FiipWidgetLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NoteActivityAttributes.self) { context in
-            // Lock screen / Notification Center banner
-            VStack {
-                Text("En train d'éditer: \(context.attributes.noteTitle)")
-                    .font(.subheadline)
-                Text("Temps passé: \(context.state.timeElapsed)")
-                    .font(.headline)
+            HStack(spacing: 12) {
+                Image(systemName: "pencil.and.scribble")
+                    .font(.title3)
+                    .foregroundStyle(.blue)
+                    .frame(width: 32, height: 32)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Edition en cours")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(context.attributes.noteTitle)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(formattedElapsed(context.state.elapsedSeconds))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.blue)
+                }
+
+                Spacer(minLength: 0)
             }
             .padding()
+            .activityBackgroundTint(.background)
+            .activitySystemActionForegroundColor(.blue)
         } dynamicIsland: { context in
             DynamicIsland {
-                // Expanded UI (When you long press the island)
                 DynamicIslandExpandedRegion(.leading) {
-                    Image(systemName: "pencil.and.outline")
-                        .foregroundColor(.blue)
-                        .padding(.top, 4)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Fiip", systemImage: "note.text")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.blue)
+                        Text("Edition")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(context.state.timeElapsed)
-                        .font(.headline)
-                        .foregroundColor(.blue)
-                        .padding(.top, 4)
+                    Text(formattedElapsed(context.state.elapsedSeconds))
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(.blue)
                 }
+
                 DynamicIslandExpandedRegion(.bottom) {
-                    Text(context.attributes.noteTitle)
-                        .font(.caption)
+                    HStack(spacing: 8) {
+                        Image(systemName: "pencil.line")
+                            .foregroundStyle(.blue)
+                        Text(context.attributes.noteTitle)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.top, 2)
                 }
             } compactLeading: {
                 Image(systemName: "pencil")
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
             } compactTrailing: {
-                Text(context.state.timeElapsed) // Right side of the pill
-                    .font(.caption)
-                    .foregroundStyle(.white)
+                Text(shortElapsed(context.state.elapsedSeconds))
+                    .font(.caption2.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.primary)
             } minimal: {
-                Image(systemName: "pencil") // Very small island
-                    .foregroundColor(.blue)
+                Image(systemName: "note.text")
+                    .foregroundStyle(.blue)
             }
-            .keylineTint(.cyan)
+            .keylineTint(.blue)
         }
     }
+}
+
+private func formattedElapsed(_ seconds: Double) -> String {
+    let value = max(0, Int(seconds))
+    let hours = value / 3600
+    let minutes = (value % 3600) / 60
+    let remainingSeconds = value % 60
+
+    if hours > 0 {
+        return String(format: "%d:%02d:%02d", hours, minutes, remainingSeconds)
+    }
+
+    return String(format: "%02d:%02d", minutes, remainingSeconds)
+}
+
+private func shortElapsed(_ seconds: Double) -> String {
+    let value = max(0, Int(seconds))
+    let minutes = value / 60
+    if minutes >= 100 {
+        return "99m+"
+    }
+    return "\(minutes)m"
 }

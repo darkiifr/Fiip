@@ -28,6 +28,33 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="fiip" android:host="login-callback" />
         </intent-filter>
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="fiip" android:host="newNote" />
+            <data android:scheme="fiip" android:host="search" />
+        </intent-filter>
       </activity>
+      <receiver
+        android:name=".widget.FiipWidgetProvider"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent-filter>
+        <meta-data
+            android:name="android.appwidget.provider"
+            android:resource="@xml/fiip_widget_info" />
+      </receiver>
+      <receiver
+        android:name=".widget.FiipQuickWidgetProvider"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent-filter>
+        <meta-data
+            android:name="android.appwidget.provider"
+            android:resource="@xml/fiip_quick_widget_info" />
+      </receiver>
     </application>
 </manifest>

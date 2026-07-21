@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator, 
   Share, Alert, Platform, TouchableWithoutFeedback, Animated, Dimensions
@@ -44,42 +44,50 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
   // Custom animations
   const [showModal, setShowModal] = useState(visible);
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [translateY] = useState(() => new Animated.Value(SCREEN_HEIGHT));
+  const [fadeAnim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (visible) {
-      setShowModal(true);
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          bounciness: 6,
-          speed: 12,
-        })
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: SCREEN_HEIGHT,
-          duration: 300,
-          useNativeDriver: true,
-        })
-      ]).start(() => {
-        setShowModal(false);
-      });
+      const frame = requestAnimationFrame(() => setShowModal(true));
+      return () => cancelAnimationFrame(frame);
     }
-  }, [visible]);
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: SCREEN_HEIGHT,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      setShowModal(false);
+    });
+
+    return undefined;
+  }, [fadeAnim, translateY, visible]);
+
+  useEffect(() => {
+    if (!visible || !showModal) return;
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        bounciness: 6,
+        speed: 12,
+      })
+    ]).start();
+  }, [fadeAnim, showModal, translateY, visible]);
 
   const handleClose = () => {
     triggerHaptic('selection');
@@ -109,7 +117,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           Alert.alert(t('Erreur'), t('Impossible de rendre la note publique. Vérifiez votre connexion.'));
         }
       }
-    } catch (e) {
+    } catch {
       triggerHaptic('notificationError');
       Alert.alert(t('Erreur'), t('Impossible de contacter le serveur.'));
     }
@@ -238,21 +246,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                </View>
             )}
 
-            <View style={[styles.divider, { backgroundColor: surfaceBorder }]} />
-
-            {/* Collaboration (Preview) */}
-            <View style={styles.groupRow}>
-              <View style={[styles.iconFloatSub, { backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : 'rgba(168, 85, 247, 0.1)' }]}>
-                <Ionicons name="people-outline" size={18} color="#A855F7" />
-              </View>
-              <View style={styles.glassTextContent}>
-                <Text style={[styles.glassTitle, { color: colors.text, fontSize: 16 }]}>{t('Collaborer en ligne')}</Text>
-                <Text style={[styles.glassSubtitle, { color: colors.textSecondary }]}>{t("Inviter d'autres utilisateurs")}</Text>
-              </View>
-              <View style={[styles.badgePro, { backgroundColor: isDark ? 'rgba(168, 85, 247, 0.2)' : 'rgba(168, 85, 247, 0.1)' }]}>
-                <Text style={[styles.badgeProText, { color: '#A855F7' }]}>{t('Bientôt')}</Text>
-              </View>
-            </View>
           </View>
 
           {/* Danger Zone Glass Card */}
@@ -281,86 +274,40 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  touchableDismiss: {
-    flex: 1,
-  },
-  sheetContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    width: '100%',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -5 },
-    shadowOpacity: 0.15,
-    shadowRadius: 15,
-    elevation: 10,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  handleContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  handle: {
-    width: 36,
-    height: 5,
-    borderRadius: 3,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    letterSpacing: -0.4,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
     alignItems: 'center',
+    borderRadius: 16,
+    height: 32,
     justifyContent: 'center',
+    width: 32,
+  },
+  copyBtn: {
+    padding: 6,
   },
   glassCard: {
-    flexDirection: 'row',
     alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginBottom: 16,
     padding: 16,
+  },
+  glassGroup: {
     borderRadius: 20,
     borderWidth: 1,
     marginBottom: 16,
+    overflow: 'hidden',
   },
-  iconFloat: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  iconFloatSub: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
+  glassSubtitle: {
+    fontSize: 13,
+    fontWeight: '400',
   },
   glassTextContent: {
     flex: 1,
@@ -369,65 +316,105 @@ const styles = StyleSheet.create({
   glassTitle: {
     fontSize: 17,
     fontWeight: '600',
-    marginBottom: 3,
     letterSpacing: -0.2,
-  },
-  glassSubtitle: {
-    fontSize: 13,
-    fontWeight: '400',
-  },
-  glassGroup: {
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 16,
-    overflow: 'hidden',
+    marginBottom: 3,
   },
   groupRow: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     padding: 16,
   },
-  divider: {
-    height: 1,
-    marginHorizontal: 16,
+  handle: {
+    borderRadius: 3,
+    height: 5,
+    width: 36,
+  },
+  handleContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  iconFloat: {
+    alignItems: 'center',
+    borderRadius: 14,
+    elevation: 2,
+    height: 44,
+    justifyContent: 'center',
+    marginRight: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    width: 44,
+  },
+  iconFloatSub: {
+    alignItems: 'center',
+    borderRadius: 12,
+    height: 40,
+    justifyContent: 'center',
+    marginRight: 16,
+    width: 40,
+  },
+  sheet: {
+    borderBottomWidth: 0,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    elevation: 10,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    width: '100%',
+  },
+  sheetContainer: {
+    bottom: 0,
+    justifyContent: 'flex-end',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+  },
+  toggleBtn: {
+    alignItems: 'center',
+    borderRadius: 20,
+    minWidth: 84,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  toggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  touchableDismiss: {
+    flex: 1,
   },
   urlContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginBottom: 16,
     borderRadius: 12,
+    flexDirection: 'row',
+    marginBottom: 16,
+    marginHorizontal: 16,
     paddingLeft: 12,
     paddingRight: 6,
     paddingVertical: 6,
   },
   urlText: {
     flex: 1,
-    fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  copyBtn: {
-    padding: 6,
-  },
-  toggleBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    minWidth: 84,
-    alignItems: 'center',
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  badgePro: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  badgeProText: {
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    fontSize: 13,
   }
 });

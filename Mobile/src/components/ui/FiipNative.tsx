@@ -12,7 +12,7 @@ import {
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 
 import { useAppTheme } from '../../hooks/useAppTheme';
-import { fiipRadius } from '../../theme/fiipDesign';
+import { fiipRadius, getPlatformDesignSpec } from '../../theme/fiipDesign';
 import { Icon } from './Icon';
 
 type IconName = {
@@ -60,10 +60,11 @@ interface FiipToolbarProps {
 }
 
 export function FiipScreen({ children, edges = ['top', 'left', 'right'], style, contentStyle }: FiipScreenProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const design = getPlatformDesignSpec(Platform.OS, isDark);
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }, style]} edges={edges}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: design.surface.background || colors.background }, style]} edges={edges}>
       <View style={[styles.screenContent, contentStyle]}>{children}</View>
     </SafeAreaView>
   );
@@ -72,6 +73,7 @@ export function FiipScreen({ children, edges = ['top', 'left', 'right'], style, 
 export function FiipToolbar({ children, style }: FiipToolbarProps) {
   const { colors, isDark } = useAppTheme();
   const isIOS = Platform.OS === 'ios';
+  const design = getPlatformDesignSpec(Platform.OS, isDark);
 
   return (
     <View
@@ -80,12 +82,19 @@ export function FiipToolbar({ children, style }: FiipToolbarProps) {
         {
           backgroundColor: isIOS
             ? isDark ? 'rgba(18,18,20,0.64)' : 'rgba(255,255,255,0.7)'
-            : colors.surfaceContainer,
-          borderColor: colors.outlineVariant,
+            : colors.surfaceContainerHigh,
+          borderColor: design.surface.stroke,
+          borderRadius: design.surface.radius,
+          minHeight: design.controls.minimumHeight,
         },
         style,
       ]}
     >
+      {isIOS ? (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.liquidGlassSheen]} />
+      ) : (
+        <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: design.controls.stateLayer, opacity: 0.12 }]} />
+      )}
       {children}
     </View>
   );
@@ -102,9 +111,12 @@ export function FiipAction({
   compact = false,
   style,
 }: FiipActionProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const design = getPlatformDesignSpec(Platform.OS, isDark);
   const fg = destructive ? colors.danger : selected ? colors.onPrimaryContainer : colors.text;
-  const bg = selected ? colors.primaryContainer : colors.surfaceContainerLow;
+  const bg = selected
+    ? colors.primaryContainer
+    : design.language === 'material' ? colors.surfaceContainerHigh : colors.surfaceContainerLow;
 
   return (
     <Pressable
@@ -118,6 +130,8 @@ export function FiipAction({
         {
           backgroundColor: bg,
           borderColor: selected ? colors.primary : colors.outlineVariant,
+          borderRadius: compact && design.language === 'material' ? 20 : design.controls.radius,
+          minHeight: compact ? design.controls.minimumHeight : Math.max(42, design.controls.minimumHeight),
           opacity: disabled ? 0.48 : pressed ? 0.76 : 1,
         },
         style,
@@ -140,7 +154,8 @@ export function FiipListRow({
   accentColor,
   right,
 }: FiipListRowProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+  const design = getPlatformDesignSpec(Platform.OS, isDark);
   const iconColor = accentColor || (selected ? colors.primary : colors.textSecondary);
 
   return (
@@ -152,11 +167,13 @@ export function FiipListRow({
         {
           backgroundColor: selected ? colors.primaryContainer : colors.surfaceContainerLow,
           borderColor: selected ? colors.primary : colors.outlineVariant,
+          borderRadius: design.language === 'material' ? 20 : 22,
+          minHeight: design.language === 'material' ? 72 : 68,
           opacity: pressed ? 0.78 : 1,
         },
       ]}
     >
-      <View style={[styles.rowIcon, { backgroundColor: colors.surfaceContainerHigh }]}>
+      <View style={[styles.rowIcon, { backgroundColor: colors.surfaceContainerHigh, borderRadius: design.language === 'material' ? 14 : 16 }]}>
         <Icon sfSymbol={sfSymbol} mdIcon={mdIcon} size={18} color={iconColor} />
       </View>
       <View style={styles.rowText}>
@@ -194,54 +211,80 @@ export function textStyles(colors: { text: string; textSecondary: string }): Rec
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  screenContent: {
-    flex: 1,
-  },
-  toolbar: {
-    borderRadius: Platform.OS === 'ios' ? fiipRadius.xl : 28,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   action: {
-    minHeight: 42,
+    alignItems: 'center',
     borderRadius: Platform.OS === 'ios' ? 21 : 16,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 7,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: 14,
   },
   actionCompact: {
-    width: 42,
     paddingHorizontal: 0,
+    width: 42,
   },
   actionText: {
     fontSize: 13,
     fontWeight: '800',
   },
+  empty: {
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingVertical: 42,
+  },
+  emptyAction: {
+    marginTop: 18,
+  },
+  emptyIcon: {
+    alignItems: 'center',
+    borderRadius: 20,
+    height: 56,
+    justifyContent: 'center',
+    marginBottom: 16,
+    width: 56,
+  },
+  emptyMessage: {
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  liquidGlassSheen: {
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'transparent',
+  },
   row: {
-    minHeight: 68,
+    alignItems: 'center',
     borderRadius: Platform.OS === 'ios' ? 22 : 18,
     borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 68,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
   },
   rowIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: Platform.OS === 'ios' ? 16 : 14,
     alignItems: 'center',
+    borderRadius: Platform.OS === 'ios' ? 16 : 14,
+    height: 42,
     justifyContent: 'center',
+    width: 42,
+  },
+  rowMeta: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  rowSubtitle: {
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+    marginTop: 3,
   },
   rowText: {
     flex: 1,
@@ -251,41 +294,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
   },
-  rowSubtitle: {
-    marginTop: 3,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '500',
+  screen: {
+    flex: 1,
   },
-  rowMeta: {
-    fontSize: 12,
-    fontWeight: '800',
+  screenContent: {
+    flex: 1,
   },
-  empty: {
+  toolbar: {
     alignItems: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 42,
-  },
-  emptyIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    textAlign: 'center',
-  },
-  emptyMessage: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
-  },
-  emptyAction: {
-    marginTop: 18,
+    borderRadius: Platform.OS === 'ios' ? fiipRadius.xl : 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 8,
+    overflow: 'hidden',
+    padding: 8,
   },
 });

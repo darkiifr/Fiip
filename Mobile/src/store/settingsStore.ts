@@ -5,6 +5,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 export type ThemeMode = 'dark';
 export type TypographyMode = 'Inter' | 'Roboto' | 'System' | 'Outfit';
 export type FontSizeMode = 'petite' | 'moyenne' | 'grande';
+export type SubscriptionPlan = 'basic' | 'pro' | 'ai' | 'family_pro';
 
 interface SettingsState {
   hapticsEnabled: boolean;
@@ -15,8 +16,8 @@ interface SettingsState {
   setThemeMode: (mode?: ThemeMode) => void;
   globalLockEnabled: boolean;
   setGlobalLockEnabled: (enabled: boolean) => void;
-  subscriptionPlan: 'free' | 'pro' | 'pro+';
-  setSubscriptionPlan: (plan: 'free' | 'pro' | 'pro+') => void;
+  subscriptionPlan: SubscriptionPlan;
+  setSubscriptionPlan: (plan: SubscriptionPlan) => void;
   lang: string;
   setLang: (lang: string) => void;
   
@@ -44,7 +45,7 @@ export const useSettingsStore = create<SettingsState>()(
       setThemeMode: () => set({ themeMode: 'dark' }),
       globalLockEnabled: false,
       setGlobalLockEnabled: (enabled) => set({ globalLockEnabled: enabled }),
-      subscriptionPlan: 'free',
+      subscriptionPlan: 'basic',
       setSubscriptionPlan: (plan) => set({ subscriptionPlan: plan }),
       lang: 'fr',
       setLang: (lang) => set({ lang: lang }),

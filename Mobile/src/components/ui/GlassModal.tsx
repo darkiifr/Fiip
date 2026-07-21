@@ -65,43 +65,43 @@ const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    flex: 1,
+    justifyContent: 'flex-end',
     paddingBottom: 40,
   },
-  modalContent: {
-    width: width * 0.9,
-    maxHeight: height * 0.8,
+  body: {
+    padding: 20,
+    paddingBottom: 30,
   },
-  modalContentAndroid: {
-    width: width * 0.9,
-    maxHeight: height * 0.8,
-    borderRadius: 24,
+  closeBtnIOS: {
+    borderRadius: 16,
+    padding: 6,
   },
   header: {
+    alignItems: 'center',
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 20,
-    borderBottomWidth: 1,
   },
-  titleIOS: {
-    fontSize: 22,
-    fontWeight: '700',
-    fontFamily: 'System',
+  modalContent: {
+    maxHeight: height * 0.8,
+    width: width * 0.9,
+  },
+  modalContentAndroid: {
+    borderRadius: 24,
+    maxHeight: height * 0.8,
+    width: width * 0.9,
   },
   titleAndroid: {
     fontSize: 20,
     fontWeight: '500',
   },
-  closeBtnIOS: {
-    padding: 6,
-    borderRadius: 16,
-  },
-  body: {
-    padding: 20,
-    paddingBottom: 30,
+  titleIOS: {
+    fontFamily: 'System',
+    fontSize: 22,
+    fontWeight: '700',
   }
 });

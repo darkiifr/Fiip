@@ -49,7 +49,7 @@ export interface IconMapping {
       'default': { sfSymbol: 'tag.fill', mdIcon: 'tag', color: '#8E8E93', backgroundColor: 'rgba(142, 142, 147, 0.1)' },
     };
     
-    return map[lucideName.toLowerCase()] || map['default'];
+    return map[lucideName.toLowerCase()] || map.default;
   };
   
   // Automatically deduce mapping based on Badge string contents (fallback logic)

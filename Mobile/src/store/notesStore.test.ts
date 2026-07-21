@@ -1,10 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports */
 const mockGetUser = jest.fn();
 const mockGetSession = jest.fn();
 const mockFrom = jest.fn();
+const mockEncryptNoteForCloud = jest.fn();
 const mockUseSettingsStore = jest.fn((selector: any) => selector({ syncEnabled: true }));
 
 jest.mock('../services/supabase', () => ({
+  authService: {
+    getUser: (...args: any[]) => mockGetUser(...args).then((result: any) => result.data.user),
+  },
   supabase: {
     auth: {
       getUser: (...args: any[]) => mockGetUser(...args),
@@ -12,6 +15,11 @@ jest.mock('../services/supabase', () => ({
     },
     from: (...args: any[]) => mockFrom(...args),
   },
+}));
+
+jest.mock('../services/cloudEncryption', () => ({
+  decryptNoteFromCloud: jest.fn((note: any) => Promise.resolve(note)),
+  encryptNoteForCloud: (...args: any[]) => mockEncryptNoteForCloud(...args),
 }));
 
 jest.mock('./settingsStore', () => ({
@@ -31,6 +39,15 @@ describe('mobile notes store sync behavior', () => {
     mockUseSettingsStore.mockImplementation((selector: any) => selector({ syncEnabled: true }));
     mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } });
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
+    mockEncryptNoteForCloud.mockImplementation((note: any, { userId }: any) => Promise.resolve({
+      id: note.id,
+      user_id: userId,
+      title: '',
+      content: '',
+      tags: [],
+      badges: [],
+      encrypted_content_v2: 'ENC:private-note',
+    }));
     mockFrom.mockReturnValue({
       upsert: jest.fn(() => Promise.resolve({ error: null })),
       update: jest.fn(() => ({ eq: jest.fn(() => ({ eq: jest.fn(() => Promise.resolve({ error: null })) })) })),
@@ -124,9 +141,14 @@ describe('mobile notes store sync behavior', () => {
     await useNotesStore.getState().syncWithCloud();
 
     const note = useNotesStore.getState().notes['note-local'];
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockEncryptNoteForCloud).toHaveBeenCalledWith(expect.objectContaining({
       tags: [expect.objectContaining({ id: 'desktop', label: 'Desktop' })],
       badges: ['Desktop'],
+    }), { userId: 'user-1' });
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
+      title: '',
+      content: '',
+      encrypted_content_v2: 'ENC:private-note',
     }), { onConflict: 'id' });
     expect(note._status).toBe('created');
     expect(note.tags).toEqual([expect.objectContaining({ id: 'desktop', label: 'Desktop' })]);

@@ -30,7 +30,7 @@ const FILTERS: Array<{ label: string; value: HomeFilter; sfSymbol: string; mdIco
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const isIOS = Platform.OS === 'ios';
   const notesById = useNotesStore((state) => state.notes);
   const isSyncing = useNotesStore((state) => state.isSyncing);
@@ -171,7 +171,7 @@ export default function HomeScreen() {
             </View>
           </View>
         }
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ItemSeparatorComponent={ListSeparator}
         renderItem={({ item }: any) => (
           <FiipListRow
             title={item.title || 'Sans titre'}
@@ -196,6 +196,10 @@ export default function HomeScreen() {
       />
     </FiipScreen>
   );
+}
+
+function ListSeparator() {
+  return <View style={styles.separator} />;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -229,135 +233,135 @@ function QuickAction({ title, sfSymbol, mdIcon, onPress }: { title: string; sfSy
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 132,
-  },
-  headerStack: {
-    gap: 14,
-    marginBottom: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  createButton: {
-    width: 48,
-    height: 48,
-    borderRadius: Platform.OS === 'ios' ? 24 : 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: Platform.OS === 'android' ? 3 : 0,
-  },
-  heroCard: {
-    padding: 18,
-    gap: 16,
-  },
-  heroTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 14,
-  },
-  heroTitleGroup: {
-    flex: 1,
-  },
   cardLabel: {
     fontSize: 11,
     fontWeight: '900',
-    textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: 6,
+    textTransform: 'uppercase',
   },
-  heroTitle: {
-    fontSize: 26,
-    lineHeight: 31,
-    fontWeight: '900',
+  container: {
+    flex: 1,
   },
-  heroExcerpt: {
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  syncPill: {
-    height: 34,
-    borderRadius: 17,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
+  createButton: {
     alignItems: 'center',
-    gap: 6,
+    borderRadius: Platform.OS === 'ios' ? 24 : 16,
+    elevation: Platform.OS === 'android' ? 3 : 0,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
   },
-  syncText: {
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  metricGrid: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  metric: {
+  filterAction: {
     flex: 1,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    padding: 11,
-  },
-  metricValue: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  metricLabel: {
-    marginTop: 3,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  searchInput: {
-    flex: 1,
-    minHeight: 42,
-    fontSize: 16,
-    fontWeight: '700',
-    paddingVertical: 8,
   },
   filterRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  filterAction: {
+  header: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  headerStack: {
+    gap: 14,
+    marginBottom: 12,
+  },
+  heroCard: {
+    gap: 16,
+    padding: 18,
+  },
+  heroExcerpt: {
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    lineHeight: 31,
+  },
+  heroTitleGroup: {
     flex: 1,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'space-between',
+  },
+  listContent: {
+    paddingBottom: 132,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+  },
+  metric: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    flex: 1,
+    padding: 11,
+  },
+  metricGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  quickAction: {
+    alignItems: 'center',
+    borderRadius: Platform.OS === 'ios' ? 22 : 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 50,
   },
   quickActions: {
     flexDirection: 'row',
     gap: 10,
   },
-  quickAction: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: Platform.OS === 'ios' ? 22 : 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
   quickTitle: {
     fontSize: 13,
     fontWeight: '900',
   },
-  sectionHeader: {
-    marginTop: 4,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    gap: 12,
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    minHeight: 42,
+    paddingVertical: 8,
   },
   sectionCaption: {
     fontSize: 12,
     fontWeight: '700',
   },
+  sectionHeader: {
+    alignItems: 'flex-end',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
   separator: {
     height: 10,
+  },
+  syncPill: {
+    alignItems: 'center',
+    borderRadius: 17,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 10,
+  },
+  syncText: {
+    fontSize: 12,
+    fontWeight: '900',
   },
 });

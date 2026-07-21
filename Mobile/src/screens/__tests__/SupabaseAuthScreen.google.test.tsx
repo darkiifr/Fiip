@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { act } from 'react-test-renderer';
 import { SupabaseAuthScreen } from '../SupabaseAuthScreen';
 import { startGoogleOAuth } from '../../services/googleAuth';
@@ -9,6 +9,7 @@ jest.mock('../../services/googleAuth', () => ({
   startGoogleOAuth: jest.fn(),
   subscribeGoogleOAuthResults: jest.fn((success, error) => { callback.success = success; callback.error = error; return jest.fn(); }),
 }));
+jest.mock('../../providers/ClerkSupabaseProvider', () => ({ isMobileClerkConfigured: () => false, isMobilePasskeyConfigured: () => false }));
 jest.mock('../../services/supabase', () => ({ dataService: { fetchProfile: jest.fn().mockResolvedValue(null) }, supabase: { auth: {} } }));
 jest.mock('../../store/notesStore', () => ({ useNotesStore: (selector: any) => selector({ syncWithCloud: jest.fn().mockResolvedValue(null) }) }));
 jest.mock('../../hooks/useAppTheme', () => ({ useAppTheme: () => ({ colors: { primary: 'blue', text: 'white', textSecondary: 'gray' }, isDark: true }) }));
@@ -22,10 +23,12 @@ it('starts Google login and closes after callback success', async () => {
   (startGoogleOAuth as jest.Mock).mockResolvedValue(undefined);
   const onClose = jest.fn();
   const view = render(<SupabaseAuthScreen onClose={onClose} />);
-  fireEvent.press(view.getByLabelText('Continuer avec Google'));
-  await waitFor(() => expect(startGoogleOAuth).toHaveBeenCalled());
+  await act(async () => {
+    fireEvent.press(view.getByLabelText('Continuer avec Google'));
+  });
+  expect(startGoogleOAuth).toHaveBeenCalled();
   await act(async () => {
     callback.success();
   });
-  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  expect(onClose).toHaveBeenCalled();
 });

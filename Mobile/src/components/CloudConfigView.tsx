@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { useTranslation } from 'react-i18next';
-import { supabase, storageService } from '../services/supabase';
+import { authService, supabase, storageService } from '../services/supabase';
+import { getStorageLimit } from '../services/planLimits';
 import { ProgressBar } from 'react-native-paper';
 import { Icon } from './ui/Icon';
 
@@ -21,8 +22,9 @@ export const CloudConfigView = () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const u = await storageService.getUsage(user.id);
-                setUsage(u);
+                const totalBytes = await storageService.getUsage(user.id);
+                const level = await authService.getPlanLevel(user);
+                setUsage({ totalBytes, limitBytes: getStorageLimit(level) });
             }
         } catch (e) {
             console.error("Erreur de récupération de l'usage", e);
@@ -84,47 +86,47 @@ export const CloudConfigView = () => {
 };
 
 const styles = StyleSheet.create({
+    barContainer: {
+        marginBottom: 12,
+    },
     container: {
         borderRadius: 16,
-        padding: 16,
         borderWidth: StyleSheet.hairlineWidth,
-        marginHorizontal: 16,
         marginBottom: 20,
+        marginHorizontal: 16,
+        padding: 16,
+    },
+    errorText: {
+        color: '#FF3B30',
+        fontSize: 12,
+        lineHeight: 16,
+        marginTop: 4,
+    },
+    footer: {
+        gap: 4,
     },
     header: {
-        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        flexDirection: 'row',
         gap: 8,
+        marginBottom: 12,
     },
-    titleIOS: {
-        fontSize: 16,
-        fontWeight: '600',
-        fontFamily: 'System',
+    progressBar: {
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        borderRadius: 3,
+        height: 6,
     },
     titleAndroid: {
         fontSize: 14,
         fontWeight: '500',
     },
-    barContainer: {
-        marginBottom: 12,
-    },
-    progressBar: {
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: 'rgba(0,0,0,0.05)',
-    },
-    footer: {
-        gap: 4,
+    titleIOS: {
+        fontFamily: 'System',
+        fontSize: 16,
+        fontWeight: '600',
     },
     usageText: {
         fontSize: 13,
         fontWeight: '500',
-    },
-    errorText: {
-        fontSize: 12,
-        color: '#FF3B30',
-        lineHeight: 16,
-        marginTop: 4,
     }
 });

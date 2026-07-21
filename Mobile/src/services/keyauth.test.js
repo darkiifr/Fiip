@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 describe('mobile KeyAuth service state helpers', () => {
   beforeEach(() => {
     jest.resetModules();

@@ -21,7 +21,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
   const { noteToEdit } = route.params || {};
   const onClose = () => navigation.goBack();
   const { colors } = useAppTheme();
-  
+
   // Zustand Store integrations
   const addNote = useNotesStore(state => state.addNote);
   const updateNote = useNotesStore(state => state.updateNote);
@@ -64,7 +64,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
     if (!title.trim() && !content.trim()) return currentNoteId;
 
     const normalizedTags = normalizeNoteTags(tags, []);
-    
+
     const notePayload = {
       title: title || 'Sans titre',
       content,
@@ -151,9 +151,9 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
       "Êtes-vous sûr de vouloir supprimer cette note définitivement ?",
       [
         { text: "Annuler", style: "cancel" },
-        { 
-          text: "Supprimer", 
-          style: "destructive", 
+        {
+          text: "Supprimer",
+          style: "destructive",
           onPress: () => {
             if (currentNoteId) {
               deleteNote(currentNoteId);
@@ -226,17 +226,17 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
   return (
     <FiipScreen style={{ backgroundColor: colors.background }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        
+
         <View style={styles.header}>
           <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backBtn} onPress={() => { saveCurrentNote(); onClose(); }}>
              <Icon sfSymbol="chevron.left" mdIcon="chevron-left" size={22} color={colors.text} />
           </Pressable>
-          
+
           <View style={styles.headerTitleGroup}>
             <Icon sfSymbol="doc.text" mdIcon="file-document-outline" size={16} color={colors.textSecondary} />
             <Text style={[styles.headerTitleText, { color: colors.text }]}>Note</Text>
           </View>
-          
+
           <View style={styles.headerActions}>
               <FiipAction label="Favori" sfSymbol={isFavorite ? "star.fill" : "star"} mdIcon="star" compact selected={isFavorite} onPress={toggleFavorite} />
               <FiipAction label="Protéger" sfSymbol={isLocked ? "lock.fill" : "lock.open"} mdIcon="lock" compact destructive={isLocked} onPress={toggleLock} />
@@ -251,11 +251,11 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
           <TextInput
             testID="note-title-input"
             style={[
-              styles.titleInput, 
-              { 
-                color: colors.text, 
-                fontFamily: activeFontFamily, 
-                fontSize: sizeStyles.title 
+              styles.titleInput,
+              {
+                color: colors.text,
+                fontFamily: activeFontFamily,
+                fontSize: sizeStyles.title
               }
             ]}
             placeholder="Titre"
@@ -265,16 +265,16 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
             multiline
             scrollEnabled={false}
           />
-          
+
           {/* Metadata Row */}
-          <Text style={[styles.pubDateText, { color: colors.textSecondary }]}>Aujourd'hui à 09:41</Text>
+          <Text style={[styles.pubDateText, { color: colors.textSecondary }]}>{"Aujourd'hui à 09:41"}</Text>
 
           {/* Tags Row */}
           <View style={styles.badgeRow}>
              {tagSuggestions.map(tag => {
                const active = tags.some(item => item.id === tag.id);
                return (
-                 <TouchableOpacity 
+                 <TouchableOpacity
                    key={tag.id}
                    style={[styles.badge, { backgroundColor: active ? tagBg : 'rgba(255,255,255,0.03)', borderColor: active ? copperAccent : 'rgba(255,255,255,0.08)' }]}
                    onPress={() => toggleTag(tag)}
@@ -290,12 +290,12 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
           <TextInput
             testID="note-content-input"
             style={[
-              styles.contentInput, 
-              { 
-                color: colors.text, 
-                fontFamily: activeFontFamily, 
-                fontSize: sizeStyles.body, 
-                lineHeight: sizeStyles.lineHeight 
+              styles.contentInput,
+              {
+                color: colors.text,
+                fontFamily: activeFontFamily,
+                fontSize: sizeStyles.body,
+                lineHeight: sizeStyles.lineHeight
               }
             ]}
             placeholder="Commencez à écrire..."
@@ -376,118 +376,118 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({ route, navig
 };
 
 const styles = StyleSheet.create({
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    paddingHorizontal: 20, 
-    paddingVertical: 12 
+  actionMenu: {
+    borderRadius: 18,
+    borderWidth: 1,
+    elevation: 8,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    width: 206,
   },
-  backBtn: { 
-    padding: 4 
+  backBtn: {
+    padding: 4
+  },
+  badge: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 5.5,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  contentInput: {
+    letterSpacing: -0.1,
+    minHeight: 350,
+  },
+  editorContent: {
+    paddingHorizontal: 24,
+    paddingTop: 10
+  },
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12
+  },
+  headerActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 16
   },
   headerTitleGroup: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 6,
   },
   headerTitleText: {
     fontSize: 16,
     fontWeight: '700',
   },
-  headerActions: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 16 
+  menuBackdrop: {
+    alignItems: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    flex: 1,
+    paddingRight: 18,
+    paddingTop: 76,
   },
-  editorContent: { 
-    paddingHorizontal: 24, 
-    paddingTop: 10 
+  menuItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 48,
+    paddingHorizontal: 16,
   },
-  titleInput: { 
-    fontWeight: '800', 
-    marginBottom: 8,
-    letterSpacing: -0.5
+  menuText: {
+    fontSize: 15,
+    fontWeight: '800',
   },
   pubDateText: {
     fontSize: 13,
     fontWeight: '500',
     marginBottom: 16,
   },
-  badgeRow: { 
-    flexDirection: 'row', 
-    gap: 8, 
-    marginBottom: 20,
-    flexWrap: 'wrap',
-  },
-  badge: { 
-    paddingHorizontal: 12, 
-    paddingVertical: 5.5, 
-    borderRadius: 10, 
-    borderWidth: 1, 
-  },
-  badgeText: { 
-    fontSize: 12, 
-    fontWeight: '700' 
-  },
-  contentInput: { 
-    minHeight: 350,
-    letterSpacing: -0.1,
-  },
-  statsContainer: {
-    alignItems: 'flex-start',
-    marginTop: 32,
-    marginBottom: 20,
-  },
-  statsCard: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   statItem: {
-    flexDirection: 'row',
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 6,
   },
   statValue: {
     fontSize: 13,
     fontWeight: '600',
   },
-  verticalDivider: {
-    width: 1,
-    height: 14,
-  },
-  menuBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-    alignItems: 'flex-end',
-    paddingTop: 76,
-    paddingRight: 18,
-  },
-  actionMenu: {
-    width: 206,
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
-  },
-  menuItem: {
-    minHeight: 48,
+  statsCard: {
     paddingHorizontal: 16,
-    flexDirection: 'row',
+    paddingVertical: 10,
+  },
+  statsContainer: {
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    marginTop: 32,
+  },
+  statsRow: {
     alignItems: 'center',
+    flexDirection: 'row',
     gap: 12,
   },
-  menuText: {
-    fontSize: 15,
+  titleInput: {
     fontWeight: '800',
+    letterSpacing: -0.5,
+    marginBottom: 8
+  },
+  verticalDivider: {
+    height: 14,
+    width: 1,
   }
 });

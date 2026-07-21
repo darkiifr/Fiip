@@ -6,7 +6,7 @@ import { AiChatScreen } from '../AiChatScreen';
 const mockNavigate = jest.fn();
 const mockUpdateNote = jest.fn();
 const mockGenerateText = jest.fn();
-const mockSubscribeToAIUsage = jest.fn(() => jest.fn());
+const mockSubscribeToAIUsage = jest.fn((_listener: unknown) => jest.fn());
 const mockUseNotesStore = jest.fn((selector: any) => selector({
   notes: {
     'note-1': {
@@ -41,9 +41,9 @@ jest.mock('../../store/notesStore', () => ({
 
 jest.mock('../../services/ai', () => ({
   FREE_MODEL_ROUTER: 'openrouter/free',
-  generateText: (...args: any[]) => mockGenerateText(...args),
+  generateText: (...args: unknown[]) => mockGenerateText(...args),
   getLastAIUsageStats: jest.fn(() => null),
-  subscribeToAIUsage: (...args: any[]) => mockSubscribeToAIUsage(...args),
+  subscribeToAIUsage: (listener: unknown) => mockSubscribeToAIUsage(listener),
 }));
 
 jest.mock('../../components/ui/GlassCard', () => {

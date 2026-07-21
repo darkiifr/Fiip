@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-require-imports, @typescript-eslint/no-shadow */
 import React from 'react';
 import { Alert } from 'react-native';
 import { fireEvent, render, act, waitFor } from '@testing-library/react-native';

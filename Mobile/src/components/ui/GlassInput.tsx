@@ -43,44 +43,44 @@ export const GlassInput: React.FC<GlassInputProps> = ({ icon, style, ...props })
 };
 
 const styles = StyleSheet.create({
-  containerIOS: {
-    minHeight: 52,
-    marginBottom: 12,
-  },
   containerAndroid: {
-    minHeight: 56,
-    borderRadius: 16,
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
     elevation: 1,
+    flexDirection: 'row',
+    marginBottom: 12,
+    minHeight: 56,
+    overflow: 'hidden',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
   },
+  containerIOS: {
+    marginBottom: 12,
+    minHeight: 52,
+  },
   content: {
+    alignItems: 'center',
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
   },
   iconWrapper: {
+    justifyContent: 'center',
     paddingLeft: 12,
     paddingRight: 8,
-    justifyContent: 'center',
-  },
-  inputIOS: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 12,
-    fontSize: 16,
-    fontFamily: 'System',
   },
   inputAndroid: {
     flex: 1,
+    fontSize: 16,
     height: '100%',
     paddingHorizontal: 12,
+  },
+  inputIOS: {
+    flex: 1,
+    fontFamily: 'System',
     fontSize: 16,
+    height: '100%',
+    paddingHorizontal: 12,
   },
 });

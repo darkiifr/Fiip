@@ -1,7 +1,10 @@
 import { Platform } from 'react-native';
+import ReactNativeBlobUtil from 'react-native-blob-util';
 import DeviceInfo from 'react-native-device-info';
 
-import { supabase } from './supabase';
+import { decryptNoteFromCloud, encryptNoteForCloud } from './cloudEncryption';
+import { uploadFile } from './storageR2';
+import { authService, dataService, supabase } from './supabase';
 
 async function getPublicIpAddress(): Promise<string | null> {
   try {
@@ -52,13 +55,24 @@ export const updateUserClientVersion = async (versionStr: string) => {
 
 // 2. Synchronisation Cloud des Notes
 export const syncNotesWithCloud = async (localNotes: any[]) => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await authService.getUser();
   if (!user) throw new Error("Non authentifié");
+
+  const cloudPayloads = await Promise.all(
+    localNotes.filter((note) => !note.zeroKnowledgeLocked)
+      .map((note) => encryptNoteForCloud(note, { userId: user.id })),
+  );
+  if (cloudPayloads.length) {
+    const { error: uploadError } = await supabase
+      .from('notes')
+      .upsert(cloudPayloads, { onConflict: 'id' });
+    if (uploadError) throw uploadError;
+  }
 
   // Sync descendant: récupérer de Supabase
   const { data: cloudNotes, error: fetchError } = await supabase
     .from('notes')
-    .select('*, note_tasks (*), note_attachments (*)')
+    .select('*')
     .eq('user_id', user.id)
     .is('deleted_at', null);
 
@@ -66,12 +80,12 @@ export const syncNotesWithCloud = async (localNotes: any[]) => {
 
   // Stratégie de merging basique via updatedAt / lastModified
   // Le merge sera retourné pour mise à jour locale
-  return cloudNotes;
+  return Promise.all((cloudNotes || []).map(decryptNoteFromCloud));
 };
 
 // 2.5 Récupération spécifique des favoris et partagés
 export const fetchFavoriteAndSharedNotes = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await authService.getUser();
   if (!user) return [];
 
   // Récupérer les notes favorites ou celles ayant des collaborateurs
@@ -92,15 +106,27 @@ export const fetchFavoriteAndSharedNotes = async () => {
   }
 
   // Filtrer localement au besoin pour extraire ce qui est pertinent
-  return data || [];
+  return Promise.all((data || []).map(decryptNoteFromCloud));
 };
 
 // 3. Modifier Statut Verrouillé, Favori et Badges
 export const updateNoteMeta = async (noteId: string, meta: { is_locked?: boolean, is_favorite?: boolean, badges?: string[] }) => {
+  if (meta.badges) {
+    const { data: row, error: readError } = await supabase.from('notes').select('*').eq('id', noteId).single();
+    if (readError) throw readError;
+    const note = await decryptNoteFromCloud(row);
+    const user = await authService.getUser();
+    if (!user) throw new Error('Non authentifié');
+    const payload = await encryptNoteForCloud({ ...note, ...meta }, { userId: user.id });
+    const { error } = await supabase.from('notes').upsert(payload, { onConflict: 'id' });
+    if (error) throw error;
+    return;
+  }
   const { error } = await supabase
     .from('notes')
     .update({ 
-      ...meta,
+      is_locked: meta.is_locked,
+      is_favorite: meta.is_favorite,
       updated_at: new Date().toISOString()
     })
     .eq('id', noteId);
@@ -117,30 +143,17 @@ export const inviteCollaborator = async (noteId: string, collaboratorEmail: stri
    return { status: 'success' };
 };
 
-// 5. Upload File (Attachment, Memo, Drawing) to Supabase Storage
+// 5. Upload File (Attachment, Memo, Drawing) to R2
 export const uploadNoteAttachment = async (noteId: string, fileUri: string, fileName: string, contentType: string) => {
-  // Try mapping uri to blob / FormData for native upload
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Non authentifié");
-
-    const formData = new FormData();
-    formData.append('file', {
-      uri: /* Platform.OS === 'ios' ? fileUri.replace('file://', '') : */ fileUri,
+    const stat = await ReactNativeBlobUtil.fs.stat(fileUri.replace(/^file:\/\//, ''));
+    const file = await uploadFile({
+      uri: fileUri,
       name: fileName,
       type: contentType,
-    } as any);
-
-    const { data, error } = await supabase.storage
-      .from('attachments')
-      .upload(`${user.id}/${noteId}/${fileName}`, formData, {
-        cacheControl: '3600',
-        upsert: false,
-      });
-    
-    if (error) throw error;
-    // Logique à chainer pour rajouter cet attachement dans la DB table "note_attachments_links" ou metadata array()
-    return data.path;
+      size: Number(stat.size),
+    }, noteId);
+    return 'id' in file ? file.id : `queued:${file.queueId}`;
   } catch (error) {
     console.error('Upload Error:', error);
     throw error;
@@ -149,33 +162,9 @@ export const uploadNoteAttachment = async (noteId: string, fileUri: string, file
 
 
 export const publishNote = async (noteId: string) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Not authenticated' };
-
-  const slug = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
-
-  const { data, error } = await supabase
-    .from('notes')
-    .update({ public_slug: slug, shared: true, is_public: true, updated_at: new Date().toISOString() })
-    .eq('id', noteId)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-
-  return { data, error };
+  return dataService.publishNote(noteId);
 };
 
 export const unpublishNote = async (noteId: string) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'Not authenticated' };
-
-  const { data, error } = await supabase
-    .from('notes')
-    .update({ public_slug: null, shared: false, is_public: false, updated_at: new Date().toISOString() })
-    .eq('id', noteId)
-    .eq('user_id', user.id)
-    .select()
-    .single();
-
-  return { data, error };
+  return dataService.unpublishNote(noteId);
 };

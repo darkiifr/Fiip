@@ -71,7 +71,10 @@ describe('Google OAuth mobile', () => {
     const remove = jest.fn();
     let hot: ((event: { url: string }) => void) | undefined;
     jest.spyOn(Linking, 'getInitialURL').mockResolvedValue('fiip://login-callback?code=cold');
-    jest.spyOn(Linking, 'addEventListener').mockImplementation((_type, listener: any) => { hot = listener; return { remove }; });
+    jest.spyOn(Linking, 'addEventListener').mockImplementation((_type, listener: any) => {
+      hot = listener;
+      return { remove } as unknown as ReturnType<typeof Linking.addEventListener>;
+    });
     (auth.exchangeCodeForSession as jest.Mock).mockResolvedValue({ error: null });
     const success = jest.fn();
     const failure = jest.fn();
@@ -90,7 +93,10 @@ describe('Google OAuth mobile', () => {
   it('finalizes only once for concurrent distinct cold/hot callbacks and treats sync failure as best-effort', async () => {
     let hot: ((event: { url: string }) => void) | undefined;
     jest.spyOn(Linking, 'getInitialURL').mockResolvedValue('fiip://login-callback?code=cycle-cold');
-    jest.spyOn(Linking, 'addEventListener').mockImplementation((_type, listener: any) => { hot = listener; return { remove: jest.fn() }; });
+    jest.spyOn(Linking, 'addEventListener').mockImplementation((_type, listener: any) => {
+      hot = listener;
+      return { remove: jest.fn() } as unknown as ReturnType<typeof Linking.addEventListener>;
+    });
     (auth.exchangeCodeForSession as jest.Mock).mockResolvedValue({ error: null });
     const finalize = jest.fn().mockRejectedValue(new Error('sync unavailable'));
     const success = jest.fn();
@@ -109,7 +115,10 @@ describe('Google OAuth mobile', () => {
   it('starts a fresh completion cycle for a second login after logout in the same process', async () => {
     let hot: ((event: { url: string }) => void) | undefined;
     jest.spyOn(Linking, 'getInitialURL').mockResolvedValue(null);
-    jest.spyOn(Linking, 'addEventListener').mockImplementation((_type, listener: any) => { hot = listener; return { remove: jest.fn() }; });
+    jest.spyOn(Linking, 'addEventListener').mockImplementation((_type, listener: any) => {
+      hot = listener;
+      return { remove: jest.fn() } as unknown as ReturnType<typeof Linking.addEventListener>;
+    });
     jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
     (auth.signInWithOAuth as jest.Mock).mockResolvedValue({ data: { url: 'https://accounts.google.com/oauth' }, error: null });
     (auth.exchangeCodeForSession as jest.Mock).mockResolvedValue({ error: null });

@@ -106,83 +106,83 @@ export const NoteList = ({ onNotePress }: { onNotePress: (note: any) => void }) 
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: 10,
-  },
-  headerIOS: {
-    fontSize: 20,
-    fontWeight: '700',
-    fontFamily: 'System',
-    color: '#000',
-  },
-  headerAndroid: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  cardContainerIOS: {
-    width: 160,
-    height: 150,
-    padding: 16,
-    justifyContent: 'space-between',
-  },
-  cardContainerAndroid: {
-    width: 160,
-    height: 150,
-    borderRadius: 16,
-    marginRight: 12,
-    overflow: 'hidden',
-  },
-  ripplePad: {
-    padding: 16,
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  titleIOS: {
-    fontSize: 16,
-    fontWeight: '500',
-    fontFamily: 'System',
-  },
-  titleAndroid: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  excerptIOS: {
-    fontSize: 13,
-    fontFamily: 'System',
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  excerptAndroid: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  dateIOS: {
-    fontSize: 12,
-    fontFamily: 'System',
-    marginTop: 8,
-  },
-  dateAndroid: {
-    fontSize: 12,
-    marginTop: 8,
+  badge: {
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   badgeContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
-    marginTop: 6,
-    marginBottom: 2
-  },
-  badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    marginBottom: 2,
+    marginTop: 6
   },
   badgeText: {
     fontSize: 10,
+    fontWeight: '500',
+  },
+  cardContainerAndroid: {
+    borderRadius: 16,
+    height: 150,
+    marginRight: 12,
+    overflow: 'hidden',
+    width: 160,
+  },
+  cardContainerIOS: {
+    height: 150,
+    justifyContent: 'space-between',
+    padding: 16,
+    width: 160,
+  },
+  container: {
+    marginVertical: 10,
+  },
+  dateAndroid: {
+    fontSize: 12,
+    marginTop: 8,
+  },
+  dateIOS: {
+    fontFamily: 'System',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  excerptAndroid: {
+    fontSize: 14,
+    marginTop: 4,
+  },
+  excerptIOS: {
+    fontFamily: 'System',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  headerAndroid: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  headerIOS: {
+    color: '#000',
+    fontFamily: 'System',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  ripplePad: {
+    flex: 1,
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  scrollContent: {
+    gap: 12,
+    paddingHorizontal: 16,
+  },
+  titleAndroid: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  titleIOS: {
+    fontFamily: 'System',
+    fontSize: 16,
     fontWeight: '500',
   }
 });
