@@ -201,7 +201,7 @@ describe('Supabase authService', () => {
         expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
             provider: 'google',
             options: {
-                redirectTo: 'https://portail.fiip.fr/auth/callback',
+                redirectTo: 'https://accounts.fiip.fr/auth/callback',
                 skipBrowserRedirect: true,
             },
         });
@@ -243,7 +243,7 @@ describe('Supabase authService', () => {
         expect(supabase.auth.linkIdentity).toHaveBeenCalledWith({
             provider: 'google',
             options: {
-                redirectTo: 'https://portail.fiip.fr/auth/callback',
+                redirectTo: 'https://accounts.fiip.fr/auth/callback',
                 skipBrowserRedirect: true,
             },
         });

@@ -204,10 +204,10 @@ describe('Fiip extension background helpers', () => {
       supabaseUrl: 'https://project.supabase.co',
       supabaseAnonKey: 'anon',
       clerkSyncHost: 'https://clerk.fiip.fr',
-      clerkSignInUrl: 'https://accounts.fiip.fr/sign-in',
+      clerkSignInUrl: 'https://portail.fiip.fr/sign-in',
     });
 
-    expect(url).toBe('https://accounts.fiip.fr/sign-in?redirect_url=https%3A%2F%2Fportail.fiip.fr%2F');
+    expect(url).toBe('https://portail.fiip.fr/sign-in?redirect_url=https%3A%2F%2Faccounts.fiip.fr%2Faccount');
   });
 
   it('maps a Clerk extension session before posting the clip to Supabase', async () => {
@@ -227,7 +227,7 @@ describe('Fiip extension background helpers', () => {
         supabaseAnonKey: 'anon',
         clerkPublishableKey: 'pk_test_123',
         clerkSyncHost: 'https://clerk.fiip.fr',
-        clerkSignInUrl: 'https://accounts.fiip.fr/sign-in',
+        clerkSignInUrl: 'https://portail.fiip.fr/sign-in',
       },
       createClerkSession: vi.fn().mockResolvedValue({
         token: 'clerk-jwt',

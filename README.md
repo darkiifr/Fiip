@@ -10,7 +10,7 @@ Site public et liens de notes partagees :
 [https://fiip.fr/](https://fiip.fr/)
 
 Portail compte :
-[https://portail.fiip.fr/](https://portail.fiip.fr/)
+[https://accounts.fiip.fr/](https://accounts.fiip.fr/)
 
 ## Licence & Achat
 
@@ -33,7 +33,7 @@ Clerk est le fournisseur d'identite cloud du desktop, de l'app Expo et de l'exte
 
 L'application mobile utilise Expo et `@clerk/expo`. Le cache de jetons est conserve dans SecureStore, Google passe par `useSSO()` et `Mobile/src/services/clerkSessionBridge.ts` fournit le pont Clerk/Supabase. Les passkeys mobiles necessitent le plan Clerk Pro, `@clerk/expo-passkeys`, une development build et les associations de domaine natives; elles ne doivent pas etre affichees tant que ces quatre prerequis ne sont pas actives.
 
-L'extension Chrome utilise `@clerk/chrome-extension` avec `syncHost=https://clerk.fiip.fr`; la connexion Google est deleguee au portail Clerk heberge sur `https://accounts.fiip.fr/sign-in`. Ajouter `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_SYNC_HOST` et `VITE_CLERK_SIGN_IN_URL` au packaging, publier une extension avec un CRX ID stable, puis ajouter `chrome-extension://<id>` dans les allowed origins Clerk. Les captures cloud passent ensuite par le JWT Clerk et `identity-bootstrap` avant l'ecriture Supabase.
+L'extension Chrome utilise `@clerk/chrome-extension` avec `syncHost=https://clerk.fiip.fr`; la connexion Google est deleguee au portail Clerk heberge sur `https://portail.fiip.fr/sign-in`, puis revient sur `https://accounts.fiip.fr/account`. Ajouter `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_SYNC_HOST` et `VITE_CLERK_SIGN_IN_URL` au packaging, publier une extension avec un CRX ID stable, puis ajouter `chrome-extension://<id>` dans les allowed origins Clerk. Les captures cloud passent ensuite par le JWT Clerk et `identity-bootstrap` avant l'ecriture Supabase.
 
 L'instance Clerk de production utilise `fiip.fr`, Google OAuth et les enregistrements DNS `clerk`, `accounts`, `clkmail`, `clk._domainkey` et `clk2._domainkey`. Clerk Billing reste desactive: les droits Fiip continuent de provenir de SellAuth/KeyAuth et des tables de plans Supabase afin d'eviter deux sources de facturation concurrentes. Resend reste reserve aux e-mails produit des Edge Functions; Clerk envoie les e-mails d'authentification via son domaine d'envoi DKIM dedie.
 

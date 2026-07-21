@@ -65,6 +65,28 @@ function getDeviceLimit(activeLicense: any) {
   return resolveAccountDeviceLimit(activeLicense, isLicenseActive);
 }
 
+function buildTrialAccess(profile: any) {
+  if (profile?.plan_source !== 'trial' || !profile?.trial_ends_at) return null;
+  const endsAt = new Date(profile.trial_ends_at);
+  if (Number.isNaN(endsAt.getTime()) || endsAt.getTime() <= Date.now()) return null;
+  const caps = getTierCapabilities('trial');
+  return {
+    id: 'trial',
+    tier: 'trial',
+    status: 'active',
+    billing_interval: null,
+    expires_at: profile.trial_ends_at,
+    renews_at: null,
+    device_limit: caps.deviceLimit,
+    sharing_enabled: caps.sharingEnabled,
+    ai_enabled: caps.aiEnabled,
+    ocr_limit: caps.ocrLimit,
+    family_slots: caps.familySlots,
+    keyauth_level: 0,
+    trial: true,
+  };
+}
+
 function serializeDevice(device: any, currentInstallationId?: string | null) {
   return {
     id: device.id,
@@ -234,7 +256,7 @@ async function ensureFamilyGroup(supabaseAdmin: any, user: any, selectedLicense:
 async function buildAccountSummary(supabaseAdmin: any, user: any, body: any = {}) {
   const { data: profile } = await supabaseAdmin
     .from('profiles')
-    .select('plan_level, active_license_id')
+    .select('plan_level, plan_source, active_license_id, trial_started_at, trial_ends_at, trial_consumed_at')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -258,7 +280,8 @@ async function buildAccountSummary(supabaseAdmin: any, user: any, body: any = {}
   ]);
   const family = await loadFamilyState(supabaseAdmin, user, selectedLicense);
   const familyMemberLicense = buildFamilyMemberLicense(family);
-  const effectiveLicense = selectedActiveLicense || familyMemberLicense || selectedLicense;
+  const trialAccess = buildTrialAccess(profile);
+  const effectiveLicense = selectedActiveLicense || familyMemberLicense || trialAccess || selectedLicense;
   const usageScope = resolveAiUsageScope(family, user.id);
   const { data: aiUsage } = await supabaseAdmin
     .from('ai_usage')
@@ -268,6 +291,7 @@ async function buildAccountSummary(supabaseAdmin: any, user: any, body: any = {}
     .limit(1)
     .maybeSingle();
   const activeDeviceCount = (accountDevices || []).filter((device: any) => !device.revoked_at).length;
+  const { data: quota } = await supabaseAdmin.rpc('fiip_admin_quota_summary', { p_user_id: user.id });
 
   return {
     user: { id: user.id, email: user.email },
@@ -276,9 +300,19 @@ async function buildAccountSummary(supabaseAdmin: any, user: any, body: any = {}
     licenses: familyMemberLicense ? [familyMemberLicense, ...(licenses || [])] : licenses || [],
     active_license_id: effectiveLicense?.id || null,
     device_count: activeDeviceCount,
-    device_limit: getDeviceLimit(selectedActiveLicense || familyMemberLicense),
+    device_limit: getDeviceLimit(selectedActiveLicense || familyMemberLicense || trialAccess),
     devices: (accountDevices || []).map((device: any) => serializeDevice(device, body.installation_id || null)),
     ai_usage: aiUsage,
+    quota,
+    trial: trialAccess ? {
+      active: true,
+      started_at: profile?.trial_started_at,
+      ends_at: profile?.trial_ends_at,
+    } : {
+      active: false,
+      used: Boolean(profile?.trial_consumed_at),
+      ends_at: profile?.trial_ends_at || null,
+    },
     ...family,
     email_events: emailEvents || [],
   };
@@ -314,7 +348,7 @@ Deno.serve(async (req) => {
 
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('plan_level, active_license_id')
+      .select('plan_level, plan_source, active_license_id, trial_started_at, trial_ends_at, trial_consumed_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -334,6 +368,40 @@ Deno.serve(async (req) => {
     const selectedLicense = selectedActiveLicense
       || (licenses || [])[0]
       || null;
+
+    if (action === 'start_trial') {
+      if (selectedActiveLicense || profile?.trial_consumed_at || Number(profile?.plan_level || 0) > 0) {
+        return jsonResponse({ error: 'Cet essai a déjà été utilisé ou une offre est déjà active.' }, { status: 409 });
+      }
+      const startedAt = new Date();
+      const endsAt = new Date(startedAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+      const { data: updated, error } = await supabaseAdmin
+        .from('profiles')
+        .update({
+          plan_level: 2,
+          plan_source: 'trial',
+          plan_updated_at: startedAt.toISOString(),
+          trial_started_at: startedAt.toISOString(),
+          trial_ends_at: endsAt.toISOString(),
+          trial_consumed_at: startedAt.toISOString(),
+        })
+        .eq('id', user.id)
+        .is('trial_consumed_at', null)
+        .eq('plan_level', 0)
+        .select('trial_started_at,trial_ends_at')
+        .maybeSingle();
+      if (error) throw error;
+      if (!updated) return jsonResponse({ error: 'Cet essai a déjà été utilisé.' }, { status: 409 });
+
+      await sendTemplateEmail({
+        supabaseAdmin,
+        userId: user.id,
+        to: user.email,
+        template: 'trial_started',
+        data: { tier: 'Pro', expiresAt: endsAt.toISOString(), portalUrl: 'https://accounts.fiip.fr/' },
+      }).catch(() => null);
+      return jsonResponse({ trial: { active: true, ...updated }, capabilities: getTierCapabilities('trial') });
+    }
 
     if (action === 'list_licenses') {
       const family = await loadFamilyState(supabaseAdmin, user, selectedLicense);
@@ -700,7 +768,7 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
       } else {
-        const origin = String(body.origin || req.headers.get('origin') || 'https://portail.fiip.fr');
+        const origin = String(body.origin || req.headers.get('origin') || 'https://accounts.fiip.fr');
         const inviteUrl = `${origin.replace(/\/$/, '')}/account/family?invite=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
         await sendTemplateEmail({
           supabaseAdmin,

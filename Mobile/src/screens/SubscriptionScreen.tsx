@@ -7,12 +7,20 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { Icon } from '../components/ui/Icon';
 import { useAppTheme } from '../hooks/useAppTheme';
 import { FiipAction, FiipScreen } from '../components/ui/FiipNative';
-import { SubscriptionPlan } from '../store/settingsStore';
-import { FIIP_LICENSE_PURCHASE_URL } from '../config/links';
+import { FIIP_ACCOUNT_PORTAL_URL } from '../config/links';
 
 const plans = [
   {
+    id: 'free',
+    level: 0,
+    title: 'Fiip Free',
+    price: 'Gratuit',
+    features: ['Notes locales sans limite', '5 notes cloud', '5 Mo de pièces jointes', '1 appareil cloud'],
+    color: '#8E8E93',
+  },
+  {
     id: 'basic',
+    level: 1,
     title: 'Fiip Basic',
     price: '3,99 € / mois',
     features: ['100 notes synchronisées', '100 Mo pour les notes', '2 Go de pièces jointes', '250 Mo par fichier'],
@@ -20,6 +28,7 @@ const plans = [
   },
   {
     id: 'pro',
+    level: 2,
     title: 'Fiip Pro',
     price: '6,99 € / mois',
     features: ['1 000 notes synchronisées', '1 Go pour les notes', '25 Go de pièces jointes', '2 Go par fichier'],
@@ -27,6 +36,7 @@ const plans = [
   },
   {
     id: 'ai',
+    level: 3,
     title: 'Fiip AI',
     price: '8,99 € / mois',
     features: ['Quotas du plan Pro', 'Assistant IA', 'OCR illimité', 'Support prioritaire'],
@@ -34,9 +44,10 @@ const plans = [
   },
   {
     id: 'family_pro',
+    level: 4,
     title: 'Fiip Family Pro',
     price: '11,99 € / mois',
-    features: ['Notes illimitées', '5 Go pour les notes', '100 Go de pièces jointes', '5 Go par fichier'],
+    features: ['Notes illimitées', '5 Go pour les notes partagés', '100 Go de pièces jointes partagés', '5 Go par fichier'],
     color: '#FF9F0A',
   },
 ];
@@ -45,17 +56,11 @@ export default function SubscriptionScreen() {
   const navigation = useNavigation<any>();
   const isIOS = Platform.OS === 'ios';
   const { colors, isDark } = useAppTheme();
-  const { subscriptionPlan, setSubscriptionPlan } = useSettingsStore();
+  const subscriptionPlan = useSettingsStore((state) => state.subscriptionPlan || 'free');
 
-  const handleSelectPlan = async (planId: SubscriptionPlan) => {
-    if (Platform.OS === 'ios') {
-      triggerHaptic('selection');
-      await Linking.openURL(FIIP_LICENSE_PURCHASE_URL);
-      return;
-    }
-
-    triggerHaptic('notificationSuccess');
-    setSubscriptionPlan(planId);
+  const handleSelectPlan = async () => {
+    triggerHaptic('selection');
+    await Linking.openURL(`${FIIP_ACCOUNT_PORTAL_URL}pricing`);
   };
 
   return (
@@ -96,7 +101,14 @@ export default function SubscriptionScreen() {
                 </Text>
                 {isActive && (
                   <View style={[styles.activeBadge, { backgroundColor: plan.color }]}>
-                    <Text style={styles.activeBadgeText}>Actuel</Text>
+                    <Text style={styles.activeBadgeText}>{plan.level === 0 ? 'Actuel · Free' : `Actuel · L${plan.level}`}</Text>
+                  </View>
+                )}
+                {!isActive && (
+                  <View style={[styles.levelBadge, { borderColor: plan.color }]}>
+                    <Text style={[styles.levelBadgeText, { color: plan.color }]}>
+                      {plan.level === 0 ? 'FREE' : `KEYAUTH L${plan.level}`}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -115,11 +127,11 @@ export default function SubscriptionScreen() {
 
               {!isActive && (
                 <FiipAction
-                  label={isIOS ? 'Ouvrir le portail' : 'Choisir ce plan'}
+                  label="Ouvrir le portail sécurisé"
                   sfSymbol="checkmark.circle"
                   mdIcon="check-circle-outline"
                   selected={!isIOS}
-                  onPress={() => handleSelectPlan(plan.id as SubscriptionPlan)}
+                  onPress={handleSelectPlan}
                 />
               )}
             </GlassCard>
@@ -175,6 +187,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 20,
     paddingBottom: 10,
+  },
+  levelBadge: {
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  levelBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   planHeader: {
     alignItems: 'center',

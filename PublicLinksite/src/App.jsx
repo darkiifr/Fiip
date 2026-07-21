@@ -6,10 +6,12 @@ import LegalPage from './components/LegalPage';
 import PricingCheckout from './components/account/PricingCheckout';
 import PublicNoteView from './components/PublicNoteView';
 import OAuthCallback from './components/OAuthCallback';
+import { FiipClerkSignIn, useFiipClerk } from './providers/ClerkAccountBridge';
 import { FIIP_ACCOUNT_PORTAL_URL, FIIP_DISCORD_SUPPORT_URL, FIIP_DOWNLOAD_URL, FIIP_PUBLIC_SITE_URL } from './config/links';
 import { LEGAL_NAV_ITEMS } from './config/legal';
 import {
   activateLicense,
+  bootstrapClerkIdentity,
   canUsePasskeys,
   fetchAccountDevices,
   fetchAccountSummary,
@@ -28,6 +30,7 @@ import {
   sendPasswordReset,
   selectLicense,
   signOut,
+  startProTrial,
   verifyMagicCode,
 } from './services/account';
 import { fetchFeatureFlags, readCachedFeatureFlags } from './services/featureFlags';
@@ -263,6 +266,13 @@ function AccountPortal({ path }) {
     return result;
   };
 
+  const handleStartTrial = async () => {
+    await startProTrial();
+    const summary = await fetchAccountSummary();
+    setAccount(summary);
+    return summary;
+  };
+
   const handlePasswordLogin = async (event) => {
     event.preventDefault();
     setMessage('');
@@ -461,7 +471,7 @@ function AccountPortal({ path }) {
 
   return (
     <AccountLayout active={active} account={account} user={user} onNavigate={handleNavigate} onSignOut={async () => { await signOut(); window.location.assign('/'); }}>
-      {active === 'account' ? <AccountOverview account={account} /> : null}
+      {active === 'account' ? <AccountOverview account={account} onStartTrial={handleStartTrial} /> : null}
       {active !== 'account' ? (
         <Suspense fallback={<section className="account-section"><p className="account-message">Chargement de la section...</p></section>}>
           {active === 'subscription' ? <AccountSubscription account={account} onActivateLicense={handleActivateLicense} onSelectLicense={handleSelectLicense} /> : null}
@@ -646,7 +656,7 @@ function OAuthConsentPage() {
         <h1>Continuer avec votre compte Fiip</h1>
         <p>
           Cette page sert à confirmer l’accès d’une application compatible à votre compte Fiip.
-          Vérifiez toujours que l’adresse affichée dans votre navigateur commence par https://portail.fiip.fr.
+          Vérifiez toujours que l’adresse affichée dans votre navigateur commence par https://accounts.fiip.fr.
         </p>
         <div className="hero-actions">
           <a className="download-link" href="/account">Ouvrir mon compte</a>
@@ -708,10 +718,71 @@ function FeatureFlagGate({ children }) {
   );
 }
 
+function ClerkAccountPortal({ path }) {
+  const clerk = useFiipClerk();
+  const [bridgeReady, setBridgeReady] = useState(false);
+  const [bridgeError, setBridgeError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!clerk.loaded || !clerk.signedIn) {
+      setBridgeReady(false);
+      return undefined;
+    }
+    bootstrapClerkIdentity()
+      .then(() => {
+        if (!cancelled) setBridgeReady(true);
+      })
+      .catch((error) => {
+        if (!cancelled) setBridgeError(getAuthErrorMessage(error));
+      });
+    return () => { cancelled = true; };
+  }, [clerk.loaded, clerk.signedIn, clerk.user?.id]);
+
+  if (!clerk.loaded) {
+    return <main className="public-shell public-center"><section className="public-panel auth-panel"><p>Chargement du compte...</p></section></main>;
+  }
+  if (!clerk.signedIn) {
+    return <main className="public-shell public-center"><section className="clerk-auth-shell"><FiipClerkSignIn /></section></main>;
+  }
+  if (bridgeError) {
+    return <main className="public-shell public-center"><section className="public-panel auth-panel"><h1>Compte indisponible</h1><p className="account-error">{bridgeError}</p></section></main>;
+  }
+  if (!bridgeReady) {
+    return <main className="public-shell public-center"><section className="public-panel auth-panel"><p>Préparation du compte...</p></section></main>;
+  }
+  return <AccountPortal path={path} />;
+}
+
+function ClerkAuthenticationPortal() {
+  const clerk = useFiipClerk();
+
+  useEffect(() => {
+    if (clerk.loaded && clerk.signedIn) {
+      window.location.replace('https://accounts.fiip.fr/account');
+    }
+  }, [clerk.loaded, clerk.signedIn]);
+
+  return (
+    <main className="public-shell public-center">
+      <section className="clerk-auth-shell">
+        {clerk.loaded && !clerk.signedIn
+          ? <FiipClerkSignIn />
+          : <p>Ouverture de votre espace Fiip...</p>}
+      </section>
+    </main>
+  );
+}
+
 function RoutedApp() {
   const path = window.location.pathname;
   const hostname = window.location.hostname.toLowerCase();
-  const isPortalHost = hostname === 'portail.fiip.fr';
+  const isPortalHost = hostname === 'accounts.fiip.fr';
+  const isAuthenticationHost = hostname === 'portail.fiip.fr';
+
+  if (isAuthenticationHost) {
+    return <ClerkAuthenticationPortal />;
+  }
 
   if (path && path.toLowerCase().startsWith('/auth/callback')) {
     return <OAuthCallback />;
@@ -726,7 +797,7 @@ function RoutedApp() {
   }
 
   if ((path && path.toLowerCase().startsWith('/account')) || isPortalHost) {
-    return <AccountPortal path={path.toLowerCase()} />;
+    return <ClerkAccountPortal path={path.toLowerCase()} />;
   }
 
   if (path && path.toLowerCase() === '/pricing') {

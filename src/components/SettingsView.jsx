@@ -52,6 +52,14 @@ import IconBot from '~icons/mingcute/robot-fill';
 import IconSettings from '~icons/mingcute/settings-1-fill';
 import IconUser from '~icons/mingcute/user-3-fill';
 
+const FIIP_ACCESS_LEVELS = [
+    { level: 0, name: 'Free', quota: '5 notes cloud · 5 Mo fichiers', detail: 'Local illimité' },
+    { level: 1, name: 'Basic', quota: '100 notes · 2 Go fichiers', detail: '2 appareils · OCR 5/mois' },
+    { level: 2, name: 'Pro', quota: '1 000 notes · 25 Go fichiers', detail: 'Partage · extension · OCR' },
+    { level: 3, name: 'AI', quota: 'Quotas Pro · budget IA', detail: 'Assistant IA · support prioritaire' },
+    { level: 4, name: 'Family Pro', quota: '5 Go notes · 100 Go partagés', detail: '5 comptes · budget IA partagé' },
+];
+
 export default function SettingsView({
     settings,
     onUpdateSettings,
@@ -191,6 +199,9 @@ export default function SettingsView({
         : keyAuthService.isAuthenticated
             ? keyAuthService.getCurrentSubscriptionName()
             : t('settings.no_active_license', 'No active license');
+    const currentAccessLevel = activeAccountLicense?.is_family_member_license
+        ? 4
+        : Number(keyAuthService.currentLevel || 0);
     const windowEffectOptions = getWindowEffectOptions(osType);
     const biometricInfo = getBiometricPlatformInfo(osType);
 
@@ -868,6 +879,26 @@ export default function SettingsView({
                                         <p className="text-[11px] font-semibold text-warm-text-muted-light">{t('settings.current_license', 'Current license')}</p>
                                         <p className="mt-1 text-sm font-semibold">{currentLicenseName}</p>
                                     </div>
+                                </div>
+                                <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-5" aria-label={t('settings.access_levels', 'Niveaux Fiip')}>
+                                    {FIIP_ACCESS_LEVELS.map((plan) => {
+                                        const active = currentAccessLevel === plan.level;
+                                        return (
+                                            <div
+                                                key={plan.level}
+                                                className={`min-h-28 rounded-lg border p-3 ${active ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-warm-border-light bg-white/45 dark:border-white/10 dark:bg-black/10'}`}
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="text-sm font-bold">{plan.name}</p>
+                                                    <span className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] font-bold ${active ? 'bg-emerald-500 text-zinc-950' : 'bg-zinc-950/10 dark:bg-white/10'}`}>
+                                                        {plan.level === 0 ? 'FREE' : `L${plan.level}`}
+                                                    </span>
+                                                </div>
+                                                <p className="mt-3 text-[11px] font-semibold leading-4">{plan.quota}</p>
+                                                <p className="mt-1 text-[10px] leading-4 text-warm-text-muted-light dark:text-warm-text-muted-dark">{plan.detail}</p>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                                 <form onSubmit={handleActivateLicense} className="mt-5 rounded-2xl border border-warm-border-light bg-white/60 p-4 dark:border-white/10 dark:bg-white/[0.04]">
                                     <label className="text-xs font-bold uppercase tracking-wide text-warm-text-muted-light dark:text-warm-text-muted-dark" htmlFor="fiip-license-key">

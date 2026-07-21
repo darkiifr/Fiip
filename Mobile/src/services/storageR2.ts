@@ -17,6 +17,7 @@ import { assertSafeArchive } from './zipBombGuard';
 const REQUEST_TIMEOUT_MS = 30_000;
 const CACHE_DIRECTORY = `${RNFS.CachesDirectoryPath}/fiip-r2`;
 const UPLOAD_QUEUE_KEY = 'fiip-r2-upload-queue-v1';
+export const CLOUD_QUOTA_STATE_KEY = 'fiip-cloud-quota-state';
 let queueProcessing = false;
 
 type LocalFile = {
@@ -44,6 +45,25 @@ async function invokeFunction(name: string, body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) throw error;
   return data;
+}
+
+function isCloudQuotaError(error: unknown) {
+  const candidate = error as { message?: string; details?: string; hint?: string; code?: string };
+  const value = typeof error === 'string'
+    ? error
+    : [candidate?.message, candidate?.details, candidate?.hint, candidate?.code].filter(Boolean).join(' ');
+  return /(?:NOTE|ATTACHMENT|STORAGE).*(?:LIMIT|QUOTA)|(?:LIMIT|QUOTA).*EXCEEDED/i.test(value);
+}
+
+async function setCloudQuotaBlocked(blocked: boolean) {
+  if (!blocked) {
+    await AsyncStorage.removeItem(CLOUD_QUOTA_STATE_KEY);
+    return;
+  }
+  await AsyncStorage.setItem(CLOUD_QUOTA_STATE_KEY, JSON.stringify({
+    blocked: true,
+    detectedAt: new Date().toISOString(),
+  }));
 }
 
 function localPath(uri: string) {
@@ -112,18 +132,19 @@ export async function uploadFile(file: LocalFile, noteId?: string, queueOnOfflin
     type: file.type,
   });
 
-  const upload = await invokeFunction('generate-upload-url', {
-    noteId,
-    fileType: 'application/octet-stream',
-    encryptedFileName,
-    fileSize: encryptedBytes.byteLength,
-  });
-
-  await ensureCacheDirectory();
-  const encryptedPath = `${CACHE_DIRECTORY}/${upload.fileId}.encrypted`;
-  await RNFS.writeFile(encryptedPath, fromByteArray(encryptedBytes), 'base64');
-
+  let encryptedPath = '';
   try {
+    const upload = await invokeFunction('generate-upload-url', {
+      noteId,
+      fileType: 'application/octet-stream',
+      encryptedFileName,
+      fileSize: encryptedBytes.byteLength,
+    });
+
+    await ensureCacheDirectory();
+    encryptedPath = `${CACHE_DIRECTORY}/${upload.fileId}.encrypted`;
+    await RNFS.writeFile(encryptedPath, fromByteArray(encryptedBytes), 'base64');
+
     const response = await withTimeout(ReactNativeBlobUtil.fetch(
       'PUT',
       upload.uploadUrl,
@@ -140,15 +161,20 @@ export async function uploadFile(file: LocalFile, noteId?: string, queueOnOfflin
     });
     const cachedPath = `${CACHE_DIRECTORY}/${upload.fileId}.plain`;
     await RNFS.copyFile(sourcePath, cachedPath);
+    await setCloudQuotaBlocked(false);
     return { ...confirmed.file, localPath: cachedPath };
   } catch (error) {
+    if (queueOnOffline && isCloudQuotaError(error)) {
+      await setCloudQuotaBlocked(true);
+      return enqueueUpload(file, noteId);
+    }
     if (queueOnOffline) {
       const network = await NetInfo.fetch();
       if (!network.isConnected) return enqueueUpload(file, noteId);
     }
     throw error;
   } finally {
-    if (await RNFS.exists(encryptedPath)) await RNFS.unlink(encryptedPath);
+    if (encryptedPath && await RNFS.exists(encryptedPath)) await RNFS.unlink(encryptedPath);
   }
 }
 

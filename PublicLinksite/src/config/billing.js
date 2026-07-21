@@ -1,6 +1,26 @@
+import { FIIP_ACCOUNT_PORTAL_URL } from './links';
+
 export const SELLAUTH_SHOP_URL = (import.meta.env.VITE_SELLAUTH_SHOP_URL || 'https://vinsstudio.mysellauth.com').replace(/\/$/, '');
 
 export const BILLING_TIERS = [
+  {
+    id: 'free',
+    name: 'Free',
+    monthly: '0€',
+    yearly: '0€',
+    description: 'Écriture locale complète et petit espace cloud chiffré pour découvrir Fiip.',
+    badge: 'Gratuit',
+    accent: 'Sans carte bancaire',
+    capabilities: {
+      deviceLimit: 1,
+      sharingEnabled: false,
+      extensionEnabled: false,
+      aiEnabled: false,
+      ocrLimit: 0,
+      familySlots: 1,
+    },
+    features: ['Notes locales sans limite', '5 notes cloud / 5 Mo', '5 Mo de pièces jointes', '1 appareil cloud', 'Aucun prélèvement'],
+  },
   {
     id: 'basic',
     name: 'Basic',
@@ -118,6 +138,7 @@ export function canUseAi(tierId) {
 }
 
 export function getCheckoutUrl(tier, interval, email) {
+  if (tier.id === 'free') return new URL('/account', FIIP_ACCOUNT_PORTAL_URL).toString();
   const productId = interval === 'yearly' ? tier.yearlyProductId : tier.monthlyProductId;
   const variantId = interval === 'yearly' ? tier.yearlyVariantId : tier.monthlyVariantId;
   if (!SELLAUTH_SHOP_URL) return '';

@@ -81,10 +81,14 @@ export function extractKeyAuthLicenseKey(payload: unknown) {
 
 export async function generateKeyAuthLicense(input: KeyAuthLicenseRequest) {
   const caps = getTierCapabilities(input.tier);
+  if (!caps.keyauthSubscription || caps.keyauthLevel < 1) {
+    throw new Error('A paid Fiip tier is required for KeyAuth provisioning');
+  }
   const note = JSON.stringify({
     user_id: input.userId,
     email: input.email || null,
     tier: input.tier,
+    keyauth_subscription: caps.keyauthSubscription,
     source_event_id: input.sourceEventId || null,
   });
 

@@ -111,7 +111,7 @@ export function getClerkSignInUrl(config = {}) {
     throw createExtensionError('Fiip Clerk is not configured.', 'CLERK_CONFIG_MISSING');
   }
   const url = new URL(clerkSignInUrl);
-  url.searchParams.set('redirect_url', 'https://portail.fiip.fr/');
+  url.searchParams.set('redirect_url', 'https://accounts.fiip.fr/account');
   return url.toString();
 }
 

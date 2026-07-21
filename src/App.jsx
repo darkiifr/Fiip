@@ -34,7 +34,7 @@ import { getFriendlyErrorMessage } from './services/errorMessages';
 import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook, parseClipperNoteId, removeTaskById } from './services/fiipV1';
 import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } from "./services/fileManager";
 import { keyAuthService } from "./services/keyauth";
-import { queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
+import { getCloudQuotaState, queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
 import { soundManager } from "./services/soundManager";
 import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
 import { applyTheme } from './services/theme';
@@ -153,6 +153,7 @@ function App() {
   const [isBiometricLocked, setIsBiometricLocked] = useState(false);
   const [biometricLockError, setBiometricLockError] = useState('');
   const [storageLimitAlerted, setStorageLimitAlerted] = useState(false);
+  const [cloudQuotaBlocked, setCloudQuotaBlocked] = useState(() => Boolean(getCloudQuotaState()?.blocked));
   const [offlineChoice, setOfflineChoice] = useState({ visible: false, waiting: false });
   const [notebooks, setNotebooks] = useState(() => {
     const saved = localStorage.getItem('fiip-notebooks');
@@ -302,6 +303,7 @@ function App() {
           dataService,
           authService,
       });
+      setCloudQuotaBlocked(Boolean(syncResult.quotaBlocked));
 
       if (syncResult.notes) {
           const remoteNotes = syncResult.notes.filter((note) => !isTransientSyncWelcomeNote(note));
@@ -1147,6 +1149,11 @@ function App() {
       {storageUsage.percent >= 90 && (
           <div className={`text-white text-[11px] font-medium py-1.5 px-4 flex justify-center items-center shadow-md z-50 text-center w-full shrink-0 ${storageUsage.percent >= 100 ? 'bg-[#E81123]' : 'bg-[#FEBC2E] text-black'}`}>
               <span>⚠️ {storageUsage.percent >= 100 ? 'Limite atteint' : 'Stockage presque plein'}. Vos notes risquent de ne plus être synchronisées.</span>
+          </div>
+      )}
+      {cloudQuotaBlocked && (
+          <div className="bg-[#B3261E] text-white text-[11px] font-medium py-1.5 px-4 flex justify-center items-center shadow-md z-50 text-center w-full shrink-0">
+              <span>Espace cloud plein : vos modifications restent sur cet appareil et reprendront après libération d’espace.</span>
           </div>
       )}
 

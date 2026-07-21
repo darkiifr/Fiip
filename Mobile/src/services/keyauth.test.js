@@ -21,7 +21,7 @@ describe('mobile KeyAuth service state helpers', () => {
   it('setLocalLevel(0) clears premium and AI access', () => {
     const { keyAuthService } = require('./keyauth');
 
-    keyAuthService.setLocalLevel(2, 'Vincent', 'license-key');
+    keyAuthService.setLocalLevel(3, 'Vincent', 'license-key');
     expect(keyAuthService.hasAIAccess()).toBe(true);
 
     keyAuthService.setLocalLevel(0);

@@ -13,9 +13,9 @@ const KA_CONFIG = {
 
 export const SUBSCRIPTION_LEVELS = {
     BASIC: 1,
-    AI: 1.5,
     PRO: 2,
-    DEV: 4
+    AI: 3,
+    FAMILY_PRO: 4,
 };
 
 export const STORAGE_LIMITS = {
@@ -39,24 +39,6 @@ class KeyAuthService {
         this.trialExpiry = null;
     }
 
-    async restoreTrial() {
-        try {
-            const expiryStr = await AsyncStorage.getItem('fiip-trial-expiry');
-            if (expiryStr) {
-                const expiry = parseInt(expiryStr, 10);
-                if (Date.now() < expiry) {
-                    this.isTrialActive = true;
-                    this.trialExpiry = new Date(expiry).toISOString().split('T')[0];
-                } else {
-                    this.isTrialActive = false;
-                    this.trialExpiry = null;
-                }
-            }
-        } catch (e) {
-            console.error('Error restoring trial', e);
-        }
-    }
-
     async _fetchHWID() {
         if (this.hwid) return;
         try {
@@ -70,7 +52,6 @@ class KeyAuthService {
 
     async init() {
         await this._fetchHWID();
-        await this.restoreTrial(); // Initialize trial state asynchronously
         
         if (this.initialized && this.sessionid) return { success: true };
         
@@ -257,48 +238,19 @@ class KeyAuthService {
     }
 
     hasAIAccess() {
-        return (this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.AI) || this.isTrialActive;
+        return this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.AI;
     }
 
     hasProAccess() {
-        return (this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.PRO) || this.isTrialActive;
+        return this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.PRO;
     }
 
     getCurrentSubscriptionName() {
         if (this.isAuthenticated && this.currentLevel >= 4) return "Family Pro";
+        if (this.isAuthenticated && this.currentLevel >= 3) return "AI";
         if (this.isAuthenticated && this.currentLevel >= 2) return "Pro";
-        if (this.isAuthenticated && this.currentLevel >= 1.5) return "AI Plus";
         if (this.isAuthenticated && this.currentLevel >= 1) return "Basic";
-        if (this.isTrialActive) return "Essai Gratuit";
         return "Free";
-    }
-
-    async canStartTrial() {
-        try {
-            const trialUsed = await AsyncStorage.getItem('fiip-trial-used') === 'true';
-            return !this.isAuthenticated && !trialUsed;
-        } catch {
-            return false;
-        }
-    }
-
-    async startTrial() {
-        const canStart = await this.canStartTrial();
-        if (!canStart) return false;
-        
-        try {
-            const now = Date.now();
-            const duration = 15 * 24 * 60 * 60 * 1000; 
-            const expiry = now + duration;
-            await AsyncStorage.setItem('fiip-trial-used', 'true');
-            await AsyncStorage.setItem('fiip-trial-expiry', expiry.toString());
-            this.isTrialActive = true;
-            this.trialExpiry = new Date(expiry).toISOString().split('T')[0];
-            return true;
-        } catch (e) {
-            console.error('Error starting trial', e);
-            return false;
-        }
     }
 }
 

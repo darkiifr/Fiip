@@ -43,7 +43,7 @@ describe('KeyAuth service state helpers', () => {
   it('setLocalLevel(0) clears premium and AI access', async () => {
     const { keyAuthService } = await import('./keyauth');
 
-    keyAuthService.setLocalLevel(2, 'Vincent', 'license-key');
+    keyAuthService.setLocalLevel(3, 'Vincent', 'license-key');
     expect(keyAuthService.hasAIAccess()).toBe(true);
 
     keyAuthService.setLocalLevel(0);
@@ -68,7 +68,6 @@ describe('KeyAuth service state helpers', () => {
     const { keyAuthService } = await import('./keyauth');
 
     keyAuthService.setLocalLevel(2, 'Vincent', 'license-key');
-    keyAuthService.startTrial();
     keyAuthService.logout();
 
     expect(keyAuthService.isAuthenticated).toBe(false);

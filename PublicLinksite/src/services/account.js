@@ -1,13 +1,28 @@
 import { supabase } from './supabase';
 import { getCurrentDeviceDescriptor, getInstallationId } from './deviceIdentity';
 import { FIIP_ACCOUNT_PORTAL_URL } from '../config/links';
+import { getClerkUser, signOutClerk } from './clerkSession';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function getSessionUser() {
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  return data?.user || null;
+  const user = getClerkUser();
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.primaryEmailAddress?.emailAddress || '',
+    user_metadata: {
+      username: user.username || user.fullName || user.firstName || '',
+      avatar_url: user.imageUrl || '',
+    },
+  };
+}
+
+export async function bootstrapClerkIdentity() {
+  if (!supabase) throw new Error('Compte Fiip non configuré.');
+  const { data, error } = await supabase.functions.invoke('identity-bootstrap', { body: {} });
+  if (error || !data?.userId) throw error || new Error('Identity bootstrap failed');
+  return data;
 }
 
 export function getAccountRedirectUrl() {
@@ -162,8 +177,11 @@ export async function registerPasskey() {
 }
 
 export async function signOut() {
-  if (!supabase) return;
-  await supabase.auth.signOut();
+  await signOutClerk();
+}
+
+export async function startProTrial() {
+  return invokeAccountAction({ action: 'start_trial' }, 'Impossible de démarrer cet essai.');
 }
 
 export async function fetchAccountSummary() {

@@ -1,7 +1,6 @@
 import { open } from '@tauri-apps/plugin-shell';
 import { useState } from 'react';
 
-import { keyAuthService } from '../services/keyauth';
 import { authService } from '../services/supabase';
 
 import IconGoogle from '~icons/logos/google-icon';
@@ -12,7 +11,7 @@ import IconMail from '~icons/mingcute/mail-send-fill';
 import IconUser from '~icons/mingcute/user-4-fill';
 
 const tabs = [
-  { id: 'trial', label: 'Essai local' },
+  { id: 'trial', label: 'Gratuit local' },
   { id: 'login', label: 'Connexion' },
   { id: 'register', label: "S'inscrire" },
 ];
@@ -58,10 +57,6 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
   };
 
   const handleFreeTrial = () => {
-    if (!keyAuthService.startTrial()) {
-      setError("L'essai gratuit a déjà été utilisé sur cet appareil ou une licence est déjà active.");
-      return;
-    }
     localStorage.setItem('fiip-onboarding-completed', 'true');
     localStorage.setItem('fiip-mode-local', 'true');
     onComplete();
@@ -239,7 +234,7 @@ export default function OnboardingView({ onComplete, onLoginSuccess }) {
               {activeTab === 'trial' && (
                 <div className="animate-[fadeIn_220ms_ease-out] space-y-5 motion-reduce:animate-none">
                   <div className="rounded-xl border border-[color:var(--accent)]/35 bg-[color:var(--accent)]/10 px-4 py-3 text-sm font-semibold leading-6 text-[color:var(--text-primary)] shadow-[0_0_0_4px_rgba(110,116,255,0.06)]">
-                    L’essai local dure 7 jours sur cet appareil. Connectez-vous plus tard pour synchroniser.
+                    Le mode gratuit reste local et sans limite de durée. Connectez-vous pour activer la synchronisation ou l’essai Pro de 14 jours.
                   </div>
                   <div className="space-y-3">
                     {localBenefits.map((benefit) => (

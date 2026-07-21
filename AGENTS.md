@@ -51,7 +51,8 @@ Fiip utilise Deno comme interface principale du desktop/web, npm pour les sous-p
 ## URLs Produit
 
 - Site public Fiip: `https://fiip.fr/`
-- Portail compte Fiip: `https://portail.fiip.fr/`
+- Authentification Clerk Fiip: `https://portail.fiip.fr/`
+- Espace compte Fiip: `https://accounts.fiip.fr/`
 - Notes publiques: `https://fiip.fr/n/{slug}`
 - Achat licence: `https://vinsstudio.mysellauth.com/`
 - Utiliser les constantes de liens du projet au lieu de hardcoder ces URLs dans les composants.

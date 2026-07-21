@@ -13,16 +13,13 @@ const KA_CONFIG = {
     apiUrl: "https://keyauth.win/api/1.2/"
 };
 
-const TRIAL_USED_KEY = 'fiip-trial-used';
 const TRIAL_EXPIRY_KEY = 'fiip-trial-expiry';
-const TRIAL_DEVICE_KEY = 'fiip-trial-device-proof';
-const TRIAL_DAYS = 7;
 
 export const SUBSCRIPTION_LEVELS = {
     BASIC: 1,
-    AI: 1.5,
     PRO: 2,
-    DEV: 4
+    AI: 3,
+    FAMILY_PRO: 4,
 };
 
 // These should now be checked against Supabase limits, but kept here for reference/fallback
@@ -46,7 +43,6 @@ class KeyAuthService {
         this.isTrialActive = false;
         this.trialExpiry = null;
         
-        this._restoreTrial();
     }
 
     async _fetchHWID() {
@@ -57,10 +53,6 @@ class KeyAuthService {
             console.error("Failed to get HWID:", e);
             this.hwid = "UNKNOWN";
         }
-    }
-
-    _getTrialDeviceKey() {
-        return this.hwid && this.hwid !== 'UNKNOWN' ? this.hwid : navigator.userAgent || 'browser';
     }
 
     async init() {
@@ -259,55 +251,19 @@ class KeyAuthService {
     }
 
     hasAIAccess() {
-        return (this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.AI) || this.isTrialActive;
+        return this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.AI;
     }
 
     hasProAccess() {
-        return (this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.PRO) || this.isTrialActive;
+        return this.isAuthenticated && this.currentLevel >= SUBSCRIPTION_LEVELS.PRO;
     }
 
     getCurrentSubscriptionName() {
         if (this.isAuthenticated && this.currentLevel >= 4) {return "Family Pro";}
+        if (this.isAuthenticated && this.currentLevel >= 3) {return "AI";}
         if (this.isAuthenticated && this.currentLevel >= 2) {return "Pro";}
-        if (this.isAuthenticated && this.currentLevel >= 1.5) {return "AI Plus";}
         if (this.isAuthenticated && this.currentLevel >= 1) {return "Basic";}
-        if (this.isTrialActive) {return "Essai Gratuit";}
         return "Free";
-    }
-
-    // --- Trial Management ---
-    canStartTrial() {
-        const trialUsed = localStorage.getItem(TRIAL_USED_KEY) === 'true';
-        const proof = localStorage.getItem(TRIAL_DEVICE_KEY);
-        const currentProof = this._getTrialDeviceKey();
-        return !this.isAuthenticated && !trialUsed && (!proof || proof === currentProof);
-    }
-
-    startTrial() {
-        if (!this.canStartTrial()) {return false;}
-        const now = Date.now();
-        const duration = TRIAL_DAYS * 24 * 60 * 60 * 1000;
-        const expiry = now + duration;
-        localStorage.setItem(TRIAL_USED_KEY, 'true');
-        localStorage.setItem(TRIAL_EXPIRY_KEY, expiry.toString());
-        localStorage.setItem(TRIAL_DEVICE_KEY, this._getTrialDeviceKey());
-        this.isTrialActive = true;
-        this.trialExpiry = new Date(expiry).toISOString().split('T')[0];
-        return true;
-    }
-    
-    _restoreTrial() {
-        const expiryStr = localStorage.getItem(TRIAL_EXPIRY_KEY);
-        if (expiryStr) {
-            const expiry = parseInt(expiryStr, 10);
-            if (Date.now() < expiry) {
-                this.isTrialActive = true;
-                this.trialExpiry = new Date(expiry).toISOString().split('T')[0];
-            } else {
-                this.isTrialActive = false;
-                this.trialExpiry = null;
-            }
-        }
     }
 }
 

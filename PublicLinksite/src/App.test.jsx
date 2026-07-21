@@ -14,7 +14,7 @@ describe('Public Fiip landing', () => {
     expect(screen.getByText('Notes, licences et compte')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voir les licences' })).toHaveAttribute('href', '/pricing');
     expect(screen.getByRole('link', { name: 'Partage public' })).toHaveAttribute('href', '/share');
-    expect(screen.getAllByRole('link', { name: 'Mon compte' })[0]).toHaveAttribute('href', 'https://portail.fiip.fr/');
+    expect(screen.getAllByRole('link', { name: 'Mon compte' })[0]).toHaveAttribute('href', 'https://accounts.fiip.fr/');
     expect(screen.getByText('Une note qui respire.')).toBeInTheDocument();
     expect(screen.queryByText('Copie')).not.toBeInTheDocument();
     expect(screen.queryByText('Markdown')).not.toBeInTheDocument();
@@ -63,13 +63,13 @@ describe('Public Fiip landing', () => {
     expect(screen.queryByText(/Information non juridique/i)).not.toBeInTheDocument();
   });
 
-  it('renders the Supabase OAuth consent route configured for portail.fiip.fr', () => {
+  it('renders the Supabase OAuth consent route on the account application', () => {
     window.history.pushState({}, '', '/oauth/consent');
 
     render(<App />);
 
     expect(screen.getByRole('heading', { name: 'Continuer avec votre compte Fiip' })).toBeInTheDocument();
-    expect(screen.getByText(/https:\/\/portail\.fiip\.fr/)).toBeInTheDocument();
+    expect(screen.getByText(/https:\/\/accounts\.fiip\.fr/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ouvrir mon compte' })).toHaveAttribute('href', '/account');
   });
 });

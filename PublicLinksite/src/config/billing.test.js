@@ -38,7 +38,7 @@ describe('Fiip billing capabilities', () => {
   });
 
   it('keeps the displayed tiers backed by explicit capabilities', () => {
-    expect(BILLING_TIERS).toHaveLength(4);
+    expect(BILLING_TIERS).toHaveLength(5);
     for (const tier of BILLING_TIERS) {
       expect(tier.capabilities).toEqual(expect.objectContaining({
         sharingEnabled: expect.any(Boolean),

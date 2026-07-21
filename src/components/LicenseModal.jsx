@@ -37,7 +37,6 @@ export default function LicenseModal({ isOpen, onClose, onOpenAccount }) {
   const shouldReduceMotion = useReducedMotion();
   const [authData, setAuthData] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [canTrial, setCanTrial] = useState(false);
   const [updateStatus, setUpdateStatus] = useState('idle'); // idle, checking, available, downloading, error
   const [updateInfo, setUpdateInfo] = useState(null);
 
@@ -98,7 +97,6 @@ export default function LicenseModal({ isOpen, onClose, onOpenAccount }) {
           });
       } else {
         setAuthData(null);
-        setCanTrial(keyAuthService.canStartTrial());
       }
       
       setTimeout(() => setRefreshing(false), 500);
@@ -114,10 +112,8 @@ export default function LicenseModal({ isOpen, onClose, onOpenAccount }) {
   }, [isOpen]);
 
   const handleStartTrial = () => {
-      if (keyAuthService.startTrial()) {
-          refreshAuthData();
-          if (onClose) {onClose();} // Auto close on success if requested, but let's refresh UI first
-      }
+      onOpenAccount?.();
+      onClose?.();
   };
 
   const handleLogout = () => {
@@ -239,7 +235,6 @@ export default function LicenseModal({ isOpen, onClose, onOpenAccount }) {
                   </div>
               </div>
 
-              {canTrial && (
                   <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-4">
                       <div className="flex items-start gap-3">
                           <div className="bg-blue-500/20 p-2 rounded-lg">
@@ -247,17 +242,16 @@ export default function LicenseModal({ isOpen, onClose, onOpenAccount }) {
                           </div>
                           <div className="flex-1">
                               <h3 className="text-blue-400 font-semibold mb-1">{t('license.trial_title', 'Essai Gratuit')}</h3>
-                              <p className="text-sm text-gray-400 mb-3">{t('license.trial_desc', 'Profitez de 15 jours d\'essai pour découvrir toutes les fonctionnalités de base.')}</p>
+                              <p className="text-sm text-gray-400 mb-3">{t('license.trial_desc', 'Essayez Pro pendant 14 jours avec des quotas adaptés, après connexion sécurisée.')}</p>
                               <button
                                   onClick={handleStartTrial}
                                   className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
                               >
-                                  {t('license.start_trial', 'Démarrer l\'essai (15 jours)')}
+                                  {t('license.start_trial', 'Démarrer l\'essai Pro (14 jours)')}
                               </button>
                           </div>
                       </div>
                   </div>
-              )}
 
               <div className="space-y-3 bg-white/[0.035] p-6 rounded-xl border border-white/10 text-center">
                   <p className="text-sm text-gray-400 mb-2">

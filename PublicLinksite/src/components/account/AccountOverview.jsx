@@ -1,15 +1,43 @@
+import { useState } from 'react';
 import { formatAccountDate, getDeviceLimitState, getDisplayLicense, getLicenseState, getOcrState } from '../../services/accountPresentation';
 import IconCalendar from '~icons/mingcute/calendar-2-fill';
 import IconCertificate from '~icons/mingcute/certificate-fill';
 import IconDevices from '~icons/mingcute/device-fill';
 import IconScan from '~icons/mingcute/scan-2-fill';
+import IconCloud from '~icons/mingcute/cloud-fill';
 
-export default function AccountOverview({ account }) {
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} Go`;
+  return `${(bytes / 1024 ** 2).toFixed(bytes > 0 ? 1 : 0)} Mo`;
+}
+
+function usagePercent(used, limit) {
+  if (!Number(limit)) return 0;
+  return Math.min(100, Math.round((Number(used || 0) / Number(limit)) * 100));
+}
+
+export default function AccountOverview({ account, onStartTrial }) {
+  const [trialStatus, setTrialStatus] = useState('');
   const license = getDisplayLicense(account);
   const licenseState = getLicenseState(account);
   const ocrState = getOcrState(account);
   const deviceState = getDeviceLimitState(account);
   const renewal = license?.renews_at || license?.expires_at;
+  const quota = account?.quota || {};
+  const notePercent = usagePercent(quota.note_bytes_used, quota.note_storage_bytes);
+  const attachmentPercent = usagePercent(quota.attachment_bytes_used, quota.attachment_storage_bytes);
+  const canStartTrial = !account?.trial?.active && !account?.trial?.used && !licenseState.hasActiveLicense;
+
+  const startTrial = async () => {
+    setTrialStatus('loading');
+    try {
+      await onStartTrial?.();
+      setTrialStatus('success');
+    } catch (error) {
+      setTrialStatus(error?.message || 'Essai indisponible.');
+    }
+  };
 
   return (
     <section className="account-section account-overview">
@@ -45,6 +73,26 @@ export default function AccountOverview({ account }) {
           <strong>{deviceState.label}</strong>
         </article>
       </div>
+      <div className="quota-usage-grid" aria-label="Utilisation cloud">
+        <article className="quota-usage">
+          <div><span>Notes chiffrées</span><strong>{notePercent}%</strong></div>
+          <div className="quota-track"><span style={{ width: `${notePercent}%` }} /></div>
+          <small>{formatBytes(quota.note_bytes_used)} utilisés sur {formatBytes(quota.note_storage_bytes)}</small>
+        </article>
+        <article className="quota-usage">
+          <div><span>Pièces jointes R2</span><strong>{attachmentPercent}%</strong></div>
+          <div className="quota-track"><span style={{ width: `${attachmentPercent}%` }} /></div>
+          <small>{formatBytes(quota.attachment_bytes_used)} utilisés sur {formatBytes(quota.attachment_storage_bytes)}{quota.shared_family ? ' partagés par la famille' : ''}</small>
+        </article>
+      </div>
+      {canStartTrial ? (
+        <article className="trial-cta">
+          <IconCloud />
+          <div><strong>Essayez Pro pendant 14 jours</strong><p>Partage, extension et 20 scans OCR. Sans carte bancaire, avec 250 Mo de pièces jointes.</p></div>
+          <button className="account-primary" type="button" onClick={startTrial} disabled={trialStatus === 'loading'}>{trialStatus === 'loading' ? 'Activation...' : 'Activer mon essai'}</button>
+        </article>
+      ) : null}
+      {typeof trialStatus === 'string' && !['', 'loading', 'success'].includes(trialStatus) ? <p className="account-error">{trialStatus}</p> : null}
     </section>
   );
 }

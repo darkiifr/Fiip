@@ -36,14 +36,14 @@ describe('browser extension packaging', () => {
       supabaseAnonKey: 'public-anon-key',
       clerkPublishableKey: 'pk_live_public',
       clerkSyncHost: 'https://clerk.fiip.fr',
-      clerkSignInUrl: 'https://accounts.fiip.fr/sign-in',
+      clerkSignInUrl: 'https://portail.fiip.fr/sign-in',
     });
 
     expect(source).toContain("supabaseUrl: 'https://fqouvzkovppyqocfxanl.supabase.co'");
     expect(source).toContain("supabaseAnonKey: 'public-anon-key'");
     expect(source).toContain("clerkPublishableKey: 'pk_live_public'");
     expect(source).toContain("clerkSyncHost: 'https://clerk.fiip.fr'");
-    expect(source).toContain("clerkSignInUrl: 'https://accounts.fiip.fr/sign-in'");
+    expect(source).toContain("clerkSignInUrl: 'https://portail.fiip.fr/sign-in'");
     expect(source).not.toContain('__FIIP_SUPABASE_ANON_KEY__');
     expect(source).not.toContain('__FIIP_CLERK_PUBLISHABLE_KEY__');
   });

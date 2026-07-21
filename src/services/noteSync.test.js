@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   clearPendingNoteSync,
+  getCloudQuotaState,
   getPendingNoteSync,
   queuePendingNoteSync,
   syncNotesNow,
@@ -46,6 +47,25 @@ describe('noteSync', () => {
 
     expect(result.pendingCount).toBe(1);
     expect(getPendingNoteSync()).toEqual([expect.objectContaining({ id: note.id })]);
+  });
+
+  it('keeps quota-rejected notes local and exposes the blocked state', async () => {
+    const note = { id: '22222222-2222-4222-8222-222222222222', title: 'Local', updatedAt: 10 };
+    const dataService = {
+      fetchNotes: vi.fn().mockResolvedValue({ data: [], error: null }),
+      saveNote: vi.fn().mockResolvedValue({ error: { message: 'NOTE_STORAGE_LIMIT_EXCEEDED' } }),
+    };
+
+    const result = await syncNotesNow({
+      localNotes: [note],
+      settings: { cloudSync: true },
+      dataService,
+      authService: { getUser: vi.fn().mockResolvedValue({ id: 'user-1' }) },
+    });
+
+    expect(result.quotaBlocked).toBe(true);
+    expect(result.pendingCount).toBe(1);
+    expect(getCloudQuotaState()).toMatchObject({ blocked: true });
   });
 
   it('migrates legacy local note ids before cloud sync', async () => {

@@ -30,9 +30,7 @@ export default function PricingCheckout({ user }) {
         <div>
           <p className="eyebrow">Boutique Fiip</p>
           <h2>Des offres claires pour écrire, synchroniser et partager.</h2>
-          <p className="section-lead">
-            Choisissez une formule mensuelle ou annuelle. Votre clé arrive après l’achat et s’active directement dans Fiip.
-          </p>
+          <p className="section-lead">Commencez gratuitement, puis augmentez vos quotas quand votre usage le justifie. Aucun dépassement n’est facturé.</p>
         </div>
         <div className="segmented-control pricing-toggle" data-interval={interval}>
           <span className="pricing-toggle-indicator" />
@@ -51,7 +49,7 @@ export default function PricingCheckout({ user }) {
             <h3>{tier.name}</h3>
             <div className="price-switcher" aria-live="polite">
               <p key={`${tier.id}-${interval}`} className="price">{interval === 'yearly' ? tier.yearly : tier.monthly}</p>
-              <span>{interval === 'yearly' ? 'par an' : 'par mois'}</span>
+              <span>{tier.id === 'free' ? 'pour toujours' : interval === 'yearly' ? 'par an' : 'par mois'}</span>
             </div>
             <p className="pricing-description">{tier.description}</p>
             <ul className="pricing-features">
@@ -64,7 +62,7 @@ export default function PricingCheckout({ user }) {
             </ul>
             <button className="account-primary" onClick={() => handleCheckout(tier)}>
               <IconShoppingBag />
-              Acheter {tier.name}
+              {tier.id === 'free' ? 'Commencer gratuitement' : `Choisir ${tier.name}`}
             </button>
           </article>
         ))}

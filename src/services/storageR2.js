@@ -1,3 +1,4 @@
+import { isCloudQuotaError, setCloudQuotaState } from './noteSync';
 import { authService, supabase } from './supabase';
 import { encryptBlob, encryptSensitiveJson } from './zeroKnowledge';
 import { assertSafeArchive } from './zipBombGuard';
@@ -85,8 +86,14 @@ export async function uploadFile(file, { noteId = null, passphrase, cache = true
     return queueEncryptedUpload(encryptedFile, metadata);
   }
   try {
-    return await performEncryptedUpload(encryptedFile, metadata, cache);
+    const uploaded = await performEncryptedUpload(encryptedFile, metadata, cache);
+    setCloudQuotaState(false);
+    return uploaded;
   } catch (error) {
+    if (isCloudQuotaError(error)) {
+      setCloudQuotaState(true, error);
+      return queueEncryptedUpload(encryptedFile, { ...metadata, blockedByQuota: true });
+    }
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       return queueEncryptedUpload(encryptedFile, metadata);
     }
@@ -129,7 +136,10 @@ export async function processUploadQueue() {
           fileSize: item.fileSize,
         });
         await queueCache.delete(cacheKey);
-      } catch {
+      } catch (error) {
+        if (isCloudQuotaError(error)) {
+          setCloudQuotaState(true, error);
+        }
         pending.push(item);
       }
     }

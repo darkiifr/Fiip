@@ -1,4 +1,4 @@
-import { getTierCapabilities, normalizeTier } from './tiers.ts';
+import { getTierCapabilities, normalizeAccessTier } from './tiers.ts';
 
 export async function getActiveLicenseAndUsage(supabaseAdmin: any, userId: string) {
   const { data: profile } = await supabaseAdmin
@@ -62,7 +62,7 @@ export async function getActiveLicenseAndUsage(supabaseAdmin: any, userId: strin
     }
   }
 
-  const tier = normalizeTier(license?.tier);
+  const tier = normalizeAccessTier(license?.tier);
   const caps = getTierCapabilities(tier);
   if (license?.family_group_id) {
     familyGroupId = license.family_group_id;

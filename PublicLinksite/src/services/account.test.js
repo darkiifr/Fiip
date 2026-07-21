@@ -148,7 +148,7 @@ describe('account service device actions', () => {
       email: 'buyer@fiip.fr',
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: 'https://portail.fiip.fr/account',
+        emailRedirectTo: 'https://accounts.fiip.fr/account',
       },
     });
   });
@@ -160,7 +160,7 @@ describe('account service device actions', () => {
 
     expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
-      options: { redirectTo: 'https://portail.fiip.fr/account' },
+      options: { redirectTo: 'https://accounts.fiip.fr/account' },
     });
   });
 
@@ -178,7 +178,7 @@ describe('account service device actions', () => {
       type: 'email',
     });
     expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('buyer@fiip.fr', {
-      redirectTo: 'https://portail.fiip.fr/account',
+      redirectTo: 'https://accounts.fiip.fr/account',
     });
   });
 
@@ -218,7 +218,7 @@ describe('account service device actions', () => {
       email: 'new@fiip.fr',
       password: 'password123',
       options: {
-        emailRedirectTo: 'https://portail.fiip.fr/account',
+        emailRedirectTo: 'https://accounts.fiip.fr/account',
         data: {
           username: 'New User',
           nickname: 'New User',
@@ -251,12 +251,12 @@ describe('account service device actions', () => {
 
     await signInWithMagicLink(' BUYER@FIIP.FR ');
 
-    expect(getAccountRedirectUrl()).toBe('https://portail.fiip.fr/account');
+    expect(getAccountRedirectUrl()).toBe('https://accounts.fiip.fr/account');
     expect(supabase.auth.signInWithOtp).toHaveBeenCalledWith({
       email: 'buyer@fiip.fr',
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: 'https://portail.fiip.fr/account',
+        emailRedirectTo: 'https://accounts.fiip.fr/account',
       },
     });
   });

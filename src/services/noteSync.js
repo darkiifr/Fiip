@@ -1,6 +1,43 @@
 import { normalizeNoteForV1 } from './fiipV1';
 
 export const PENDING_NOTE_SYNC_KEY = 'fiip-pending-note-sync';
+export const CLOUD_QUOTA_STATE_KEY = 'fiip-cloud-quota-state';
+
+const QUOTA_ERROR_PATTERN = /(?:NOTE|ATTACHMENT|STORAGE).*(?:LIMIT|QUOTA)|(?:LIMIT|QUOTA).*EXCEEDED/i;
+
+function errorText(error) {
+  if (!error) {return '';}
+  if (typeof error === 'string') {return error;}
+  return [error.message, error.details, error.hint, error.code]
+    .filter(Boolean)
+    .join(' ');
+}
+
+export function isCloudQuotaError(error) {
+  return QUOTA_ERROR_PATTERN.test(errorText(error));
+}
+
+export function getCloudQuotaState() {
+  try {
+    return JSON.parse(localStorage.getItem(CLOUD_QUOTA_STATE_KEY) || 'null');
+  } catch {
+    return null;
+  }
+}
+
+export function setCloudQuotaState(blocked, error = null) {
+  if (!blocked) {
+    localStorage.removeItem(CLOUD_QUOTA_STATE_KEY);
+    return null;
+  }
+  const state = {
+    blocked: true,
+    reason: errorText(error) || 'CLOUD_QUOTA_EXCEEDED',
+    detectedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(CLOUD_QUOTA_STATE_KEY, JSON.stringify(state));
+  return state;
+}
 
 export function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
@@ -87,22 +124,31 @@ export async function syncNotesNow({
   const normalizedLocal = localNotes.map(normalizeLocalNote);
   const notesToPush = [...pending, ...normalizedLocal].filter((note) => note && !note.deleted_at);
   const failed = [];
+  let quotaBlocked = false;
 
   for (const note of notesToPush) {
     const result = await dataService.saveNote(note);
     if (result?.error) {
       failed.push(note);
+      if (isCloudQuotaError(result.error)) {
+        quotaBlocked = true;
+        setCloudQuotaState(true, result.error);
+      }
     }
   }
 
   writePending(failed);
 
+  if (!quotaBlocked && notesToPush.length > 0 && failed.length === 0) {
+    setCloudQuotaState(false);
+  }
+
   const { data: remoteNotes, error } = await dataService.fetchNotes();
   if (error) {
-    return { notes: normalizedLocal, pendingCount: failed.length, error };
+    return { notes: normalizedLocal, pendingCount: failed.length, quotaBlocked, error };
   }
 
   const merged = mergeNotes(normalizedLocal, remoteNotes || []);
   localStorage.setItem('fiip-last-sync-at', new Date().toISOString());
-  return { notes: merged, pendingCount: failed.length, error: null };
+  return { notes: merged, pendingCount: failed.length, quotaBlocked, error: null };
 }

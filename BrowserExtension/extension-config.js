@@ -3,5 +3,5 @@ export const FIIP_EXTENSION_CONFIG = Object.freeze({
   supabaseAnonKey: '__FIIP_SUPABASE_ANON_KEY__',
   clerkPublishableKey: '__FIIP_CLERK_PUBLISHABLE_KEY__',
   clerkSyncHost: 'https://clerk.fiip.fr',
-  clerkSignInUrl: 'https://accounts.fiip.fr/sign-in',
+  clerkSignInUrl: 'https://portail.fiip.fr/sign-in',
 });

@@ -9,7 +9,7 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://fqouvzkovppyqocfxanl.supabase.co wss://fqouvzkovppyqocfxanl.supabase.co https://*.supabase.co wss://*.supabase.co https://vinsstudio.mysellauth.com https://fiip.fr https://portail.fiip.fr;"
+    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://*.clerk.accounts.dev https://clerk.fiip.fr; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://fqouvzkovppyqocfxanl.supabase.co wss://fqouvzkovppyqocfxanl.supabase.co https://*.supabase.co wss://*.supabase.co https://clerk.fiip.fr https://*.clerk.accounts.dev https://vinsstudio.mysellauth.com https://fiip.fr https://accounts.fiip.fr https://portail.fiip.fr; frame-src https://*.clerk.accounts.dev https://clerk.fiip.fr;"
     Referrer-Policy = "strict-origin-when-cross-origin"
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"

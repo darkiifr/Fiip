@@ -15,7 +15,7 @@ const workDir = join(outputDir, 'work');
 const CHROME_EXTENSION_VERSION_PATTERN = /^\d+(\.\d+){0,3}$/;
 const FIIP_SUPABASE_HOST = 'fqouvzkovppyqocfxanl.supabase.co';
 const DEFAULT_CLERK_SYNC_HOST = 'https://clerk.fiip.fr';
-const DEFAULT_CLERK_SIGN_IN_URL = 'https://accounts.fiip.fr/sign-in';
+const DEFAULT_CLERK_SIGN_IN_URL = 'https://portail.fiip.fr/sign-in';
 
 function resetDir(path) {
   rmSync(path, { recursive: true, force: true });

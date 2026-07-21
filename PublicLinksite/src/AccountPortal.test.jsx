@@ -3,10 +3,18 @@ import '@testing-library/jest-dom/vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
-import { fetchAccountDevices, fetchSecurityEvents, getSessionUser, registerCurrentDevice, signInWithGoogle } from './services/account';
+import { fetchAccountDevices, fetchSecurityEvents, getSessionUser, registerCurrentDevice } from './services/account';
+
+let clerkState = { loaded: true, signedIn: true, user: { id: 'user_clerk' }, signOut: vi.fn() };
+
+vi.mock('./providers/ClerkAccountBridge', () => ({
+  FiipClerkSignIn: () => <div>Connexion Clerk Fiip</div>,
+  useFiipClerk: () => clerkState,
+}));
 
 vi.mock('./services/account', () => ({
   activateLicense: vi.fn(),
+  bootstrapClerkIdentity: vi.fn().mockResolvedValue({ userId: 'user-1' }),
   canUsePasskeys: vi.fn(() => true),
   fetchAccountDevices: vi.fn(),
   fetchAccountSummary: vi.fn().mockResolvedValue({
@@ -26,7 +34,6 @@ vi.mock('./services/account', () => ({
   sendPasswordReset: vi.fn(),
   signInWithPasskey: vi.fn(),
   signInWithMagicLink: vi.fn(),
-  signInWithGoogle: vi.fn(),
   signInWithPassword: vi.fn(),
   signUpWithPassword: vi.fn(),
   signOut: vi.fn(),
@@ -36,6 +43,7 @@ vi.mock('./services/account', () => ({
 describe('AccountPortal navigation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clerkState = { loaded: true, signedIn: true, user: { id: 'user_clerk' }, signOut: vi.fn() };
     window.history.pushState({}, '', '/account');
     getSessionUser.mockResolvedValue({ id: 'user-1', email: 'vincent@fiip.app' });
     registerCurrentDevice.mockResolvedValue({ ok: true });
@@ -75,55 +83,18 @@ describe('AccountPortal navigation', () => {
   });
 });
 
-describe('AccountPortal Google sign-in', () => {
+describe('AccountPortal Clerk sign-in', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.history.pushState({}, '', '/account');
     getSessionUser.mockResolvedValue(null);
+    clerkState = { loaded: true, signedIn: false, user: null, signOut: vi.fn() };
   });
 
-  it('shows loading while Google OAuth starts and reports an OAuth error', async () => {
-    let rejectOAuth;
-    signInWithGoogle.mockReturnValue(new Promise((resolve, reject) => { rejectOAuth = reject; }));
+  it('delegates every signed-out account flow to Clerk', () => {
     render(<App />);
 
-    const button = await screen.findByRole('button', { name: /continuer avec google/i });
-    fireEvent.click(button);
-    expect(button).toBeDisabled();
-    expect(button).toHaveTextContent(/connexion à google/i);
-
-    rejectOAuth(new Error('Google indisponible'));
-    expect(await screen.findByText('Google indisponible')).toHaveClass('account-error');
-    expect(button).not.toBeDisabled();
-  });
-
-  it('keeps auth actions disabled until their required fields are present', async () => {
-    render(<App />);
-
-    expect(await screen.findByRole('button', { name: 'Se connecter' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Recevoir un magic link' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Mot de passe oublié' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Se connecter avec une passkey' })).toBeEnabled();
-    expect(screen.queryByText(/Windows Hello, Touch ID, Face ID/i)).not.toBeInTheDocument();
-
-    fireEvent.change(screen.getByPlaceholderText('email@exemple.com'), { target: { value: 'vincent@fiip.fr' } });
-
-    expect(screen.getByRole('button', { name: 'Recevoir un magic link' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Mot de passe oublié' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Se connecter' })).toBeDisabled();
-
-    fireEvent.change(screen.getByPlaceholderText('Mot de passe'), { target: { value: 'secret-password' } });
-
-    expect(screen.getByRole('button', { name: 'Se connecter' })).toBeEnabled();
-  });
-
-  it('prefills invited family signup emails from invite links', async () => {
-    window.history.pushState({}, '', '/account/family?invite=invite-token&email=ami%40fiip.app');
-
-    render(<App />);
-
-    const emailInput = await screen.findByPlaceholderText('email@exemple.com');
-    expect(emailInput).toHaveValue('ami@fiip.app');
-    expect(screen.getByRole('button', { name: 'Créer le compte' })).toBeInTheDocument();
+    expect(screen.getByText('Connexion Clerk Fiip')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Mot de passe')).not.toBeInTheDocument();
   });
 });

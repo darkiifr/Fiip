@@ -1,8 +1,9 @@
 export type FiipTier = 'basic' | 'pro' | 'ai' | 'family_pro';
+export type FiipAccessTier = 'free' | 'trial' | FiipTier;
 export type BillingInterval = 'monthly' | 'yearly';
 
 export interface TierCapabilities {
-  tier: FiipTier;
+  tier: FiipAccessTier;
   planLevel: number;
   deviceLimit: number | null;
   sharingEnabled: boolean;
@@ -11,9 +12,36 @@ export interface TierCapabilities {
   familySlots: number;
   aiBudgetEur: number;
   keyauthLevel: number;
+  keyauthSubscription: string | null;
 }
 
-export const TIER_CAPABILITIES: Record<FiipTier, TierCapabilities> = {
+export const PAID_TIERS: FiipTier[] = ['basic', 'pro', 'ai', 'family_pro'];
+
+export const TIER_CAPABILITIES: Record<FiipAccessTier, TierCapabilities> = {
+  free: {
+    tier: 'free',
+    planLevel: 0,
+    deviceLimit: 1,
+    sharingEnabled: false,
+    aiEnabled: false,
+    ocrLimit: 0,
+    familySlots: 1,
+    aiBudgetEur: 0,
+    keyauthLevel: 0,
+    keyauthSubscription: null,
+  },
+  trial: {
+    tier: 'trial',
+    planLevel: 2,
+    deviceLimit: 2,
+    sharingEnabled: true,
+    aiEnabled: false,
+    ocrLimit: 20,
+    familySlots: 1,
+    aiBudgetEur: 0,
+    keyauthLevel: 0,
+    keyauthSubscription: null,
+  },
   basic: {
     tier: 'basic',
     planLevel: 1,
@@ -24,6 +52,7 @@ export const TIER_CAPABILITIES: Record<FiipTier, TierCapabilities> = {
     familySlots: 1,
     aiBudgetEur: 0,
     keyauthLevel: 1,
+    keyauthSubscription: 'Fiip Basic',
   },
   pro: {
     tier: 'pro',
@@ -35,6 +64,7 @@ export const TIER_CAPABILITIES: Record<FiipTier, TierCapabilities> = {
     familySlots: 1,
     aiBudgetEur: 0,
     keyauthLevel: 2,
+    keyauthSubscription: 'Fiip Pro',
   },
   ai: {
     tier: 'ai',
@@ -46,6 +76,7 @@ export const TIER_CAPABILITIES: Record<FiipTier, TierCapabilities> = {
     familySlots: 1,
     aiBudgetEur: 1.35,
     keyauthLevel: 3,
+    keyauthSubscription: 'Fiip AI',
   },
   family_pro: {
     tier: 'family_pro',
@@ -57,6 +88,7 @@ export const TIER_CAPABILITIES: Record<FiipTier, TierCapabilities> = {
     familySlots: 5,
     aiBudgetEur: 2,
     keyauthLevel: 4,
+    keyauthSubscription: 'Fiip Family Pro',
   },
 };
 
@@ -103,8 +135,17 @@ export function normalizeTier(input: unknown): FiipTier {
   return 'basic';
 }
 
+export function normalizeAccessTier(input: unknown): FiipAccessTier {
+  const value = String(input || '').toLowerCase().replace(/[-\s]/g, '_');
+  if (!value || value === 'free') return 'free';
+  if (value === 'trial') return 'trial';
+  if (value === 'basic' || value === 'pro' || value === 'ai') return value;
+  if (value === 'family' || value === 'family_pro') return 'family_pro';
+  return 'free';
+}
+
 export function getTierCapabilities(tier: unknown) {
-  return TIER_CAPABILITIES[normalizeTier(tier)];
+  return TIER_CAPABILITIES[normalizeAccessTier(tier)];
 }
 
 export function variantEnvName(tier: FiipTier, interval: BillingInterval) {
@@ -112,7 +153,7 @@ export function variantEnvName(tier: FiipTier, interval: BillingInterval) {
 }
 
 export function resolveTierFromVariant(variantId: string) {
-  for (const tier of Object.keys(TIER_CAPABILITIES) as FiipTier[]) {
+  for (const tier of PAID_TIERS) {
     for (const interval of ['monthly', 'yearly'] as BillingInterval[]) {
       const envName = variantEnvName(tier, interval);
       if (Deno.env.get(envName) === variantId) {
