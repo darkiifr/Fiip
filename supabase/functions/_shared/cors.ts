@@ -5,7 +5,10 @@ export const corsHeaders = {
 };
 
 export function jsonResponse(body: unknown, init: ResponseInit = {}) {
-  return new Response(JSON.stringify(body), {
+  const safeBody = body instanceof Error
+    ? { error: 'Une erreur interne est survenue.' }
+    : body;
+  return new Response(JSON.stringify(safeBody), {
     ...init,
     headers: {
       'Content-Type': 'application/json',

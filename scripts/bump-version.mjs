@@ -62,11 +62,13 @@ export function updateProjectVersion(rootDirectory, bumpType = 'patch') {
   updateJsonVersion(path.join(rootDirectory, 'public', 'version.json'), version);
 
   const packageLockPath = path.join(rootDirectory, 'package-lock.json');
-  if (fs.existsSync(packageLockPath)) {
+  try {
     const packageLock = JSON.parse(fs.readFileSync(packageLockPath, 'utf8'));
     packageLock.version = version;
     if (packageLock.packages?.['']) packageLock.packages[''].version = version;
     fs.writeFileSync(packageLockPath, `${JSON.stringify(packageLock, null, 2)}\n`);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
   }
 
   return { previousVersion: packageJson.version, version };

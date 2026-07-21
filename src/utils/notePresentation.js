@@ -1,18 +1,28 @@
 import DOMPurify from 'dompurify';
 
+function getReadableText(root) {
+  const pieces = [];
+  const visit = (node) => {
+    if (node.nodeType === 3 && node.nodeValue) {
+      pieces.push(node.nodeValue);
+    }
+    node.childNodes?.forEach(visit);
+  };
+  visit(root);
+  return pieces.join(' ').replace(/\s+/g, ' ').trim();
+}
+
 export function stripNoteText(content = '') {
-  return DOMPurify.sanitize(String(content), {
+  const sanitized = DOMPurify.sanitize(String(content), {
     USE_PROFILES: { html: true },
     FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
     ALLOWED_ATTR: [],
-  })
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/\s+/g, ' ')
-    .trim();
+  });
+  if (typeof DOMParser === 'undefined') {
+    return sanitized.replaceAll('<', ' ').replaceAll('>', ' ').replace(/\s+/g, ' ').trim();
+  }
+  const parsed = new DOMParser().parseFromString(sanitized, 'text/html');
+  return getReadableText(parsed.body);
 }
 
 function countCjkCharacters(text = '') {

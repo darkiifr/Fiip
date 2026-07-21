@@ -104,12 +104,20 @@ const STARTER_PROMPTS = [
 
 function stripNoteText(value = '') {
     const html = String(value || '');
-    if (typeof document !== 'undefined') {
-        const element = document.createElement('div');
-        element.innerHTML = html;
-        return (element.textContent || '').replace(/\s+/g, ' ').trim();
+    if (typeof DOMParser !== 'undefined') {
+        const parsed = new DOMParser().parseFromString(html, 'text/html');
+        parsed.querySelectorAll('script, style, iframe, object, embed').forEach((element) => element.remove());
+        const pieces = [];
+        const visit = (node) => {
+            if (node.nodeType === 3 && node.nodeValue) {
+                pieces.push(node.nodeValue);
+            }
+            node.childNodes?.forEach(visit);
+        };
+        visit(parsed.body);
+        return pieces.join(' ').replace(/\s+/g, ' ').trim();
     }
-    return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return html.replaceAll('<', ' ').replaceAll('>', ' ').replace(/\s+/g, ' ').trim();
 }
 
 function getWordCount(value = '') {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getNoteStats, pickFeaturedNote } from './notePresentation';
+import { getNoteStats, pickFeaturedNote, stripNoteText } from './notePresentation';
 
 describe('note presentation helpers', () => {
   it('does not show reading time for empty notes', () => {
@@ -32,6 +32,12 @@ describe('note presentation helpers', () => {
     expect(rich.readSeconds).toBeGreaterThan(base.readSeconds);
     expect(rich.mediaCount).toBe(2);
     expect(rich.codeBlocks).toBe(1);
+  });
+
+  it('keeps active and malformed markup out of readable note text', () => {
+    const content = '<p title="1 > 0">Texte &amp; suite</p><script>alert("secret")</script><style>body{display:none}</style>';
+
+    expect(stripNoteText(content)).toBe('Texte & suite');
   });
 
   it('promotes useful notes over empty recent notes', () => {
