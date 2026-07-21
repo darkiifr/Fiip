@@ -27,9 +27,9 @@ jobs:
     timeout-minutes: 20
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-      HAS_SUPABASE_SECRETS: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && secrets.SUPABASE_DB_PASSWORD != '' && secrets.SUPABASE_PROJECT_ID != '' }}
+      HAS_SUPABASE_SECRETS: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && secrets.SUPABASE_DB_URL != '' && secrets.SUPABASE_PROJECT_ID != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -42,7 +42,7 @@ jobs:
       - name: Require deployment secrets outside pull requests
         if: github.event_name != 'pull_request' && env.HAS_SUPABASE_SECRETS != 'true'
         run: |
-          echo "SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD and SUPABASE_PROJECT_ID are required." >&2
+          echo "SUPABASE_ACCESS_TOKEN, SUPABASE_DB_URL and SUPABASE_PROJECT_ID are required." >&2
           exit 1
 
       - name: Validate migration files
@@ -64,20 +64,16 @@ jobs:
           test "$(printf '%s\n' "$versions" | sort | uniq -d | wc -l)" -eq 0
           echo "HAS_SUPABASE_MIGRATIONS=true" >> "$GITHUB_ENV"
 
-      - name: Link Supabase project
-        if: env.HAS_SUPABASE_SECRETS == 'true' && env.HAS_SUPABASE_MIGRATIONS == 'true'
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
-
       - name: Dry-run migrations on pull requests
         if: github.event_name == 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true' && env.HAS_SUPABASE_MIGRATIONS == 'true'
-        run: supabase db push --dry-run --linked --password "$SUPABASE_DB_PASSWORD"
+        run: supabase db push --dry-run --db-url "$SUPABASE_DB_URL"
 
       - name: Deploy migrations on main
         if: github.event_name != 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true' && env.HAS_SUPABASE_MIGRATIONS == 'true'
-        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD" --yes
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
 
       - name: Skip remote Supabase deployment without secrets
         if: github.event_name == 'pull_request' && (env.HAS_SUPABASE_SECRETS != 'true' || env.HAS_SUPABASE_MIGRATIONS != 'true')
         run: |
           echo "Supabase remote migration dry-run/deploy skipped."
-          echo "Configure SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD, SUPABASE_PROJECT_ID, and tracked migration files to enable it."
+          echo "Configure SUPABASE_ACCESS_TOKEN, SUPABASE_DB_URL, SUPABASE_PROJECT_ID, and tracked migration files to enable it."
