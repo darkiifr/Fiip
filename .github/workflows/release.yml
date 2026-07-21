@@ -132,9 +132,9 @@ jobs:
       - name: Get New Version
         id: get_version
         run: |
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "new_tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          NEW_VERSION="$(node -p "require('./package.json').version")"
+          echo "new_tag=v$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
 
       - name: Commit and Push
         run: |
@@ -184,27 +184,27 @@ jobs:
       - name: Sync Version from Tag
         shell: bash
         run: |
-          TAG_NAME=${{ needs.bump-version.outputs.new_tag || github.ref_name }}
+          TAG_NAME="${{ needs.bump-version.outputs.new_tag || github.ref_name }}"
           if [[ "$TAG_NAME" == v* ]]; then
             VERSION=${TAG_NAME#v}
             # Remove leading dot if present (e.g. v.1.9.4 -> .1.9.4 -> 1.9.4)
             VERSION=${VERSION#.}
             # Extract numeric X.Y.Z (drop any pre-release like -beta)
-            NUMERIC=$(echo "$VERSION" | grep -oE '^[0-9]+(\.[0-9]+){0,2}' || true)
+            NUMERIC="$(grep -oE '^[0-9]+(\.[0-9]+){0,2}' <<< "$VERSION" || true)"
             IFS='.' read -r MAJ MIN PATCH <<< "$NUMERIC"
             MIN=${MIN:-0}
             PATCH=${PATCH:-0}
             MSI_VERSION="$MAJ.$MIN.$PATCH"
             # Validate MSI constraints (each segment <= 65535)
-            for seg in $MAJ $MIN $PATCH; do
+            for seg in "$MAJ" "$MIN" "$PATCH"; do
               if [ "$seg" -gt 65535 ]; then
                 echo "Version segment $seg is greater than 65535 (invalid for MSI)" >&2
                 exit 1
               fi
             done
             echo "Syncing version to $VERSION from tag $TAG_NAME (MSI safe: $MSI_VERSION)"
-            echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
-            echo "MSI_VERSION=$MSI_VERSION" >> $GITHUB_ENV
+            echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+            echo "MSI_VERSION=$MSI_VERSION" >> "$GITHUB_ENV"
             node -e "
               const fs = require('fs');
               const pkgPath = 'package.json';
@@ -256,14 +256,16 @@ jobs:
         run: |
           if [ -f CHANGELOG.md ]; then
             echo "Reading CHANGELOG.md..."
-            body=$(cat CHANGELOG.md)
-            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-            echo "body<<$EOF" >> $GITHUB_OUTPUT
-            echo "$body" >> $GITHUB_OUTPUT
-            echo "$EOF" >> $GITHUB_OUTPUT
+            body="$(cat CHANGELOG.md)"
+            delimiter="$(dd if=/dev/urandom bs=15 count=1 status=none | base64)"
+            {
+              echo "body<<$delimiter"
+              printf '%s\n' "$body"
+              echo "$delimiter"
+            } >> "$GITHUB_OUTPUT"
           else
             echo "CHANGELOG.md not found."
-            echo "body=See the assets to download this version and install." >> $GITHUB_OUTPUT
+            echo "body=See the assets to download this version and install." >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build the app
@@ -727,10 +729,10 @@ jobs:
           echo "Patching Android node_modules before build..."
           if [ -d node_modules ]; then
             # Replace jcenter() with mavenCentral() in gradle files to avoid jcenter deprecation issues
-            find node_modules -type f -name build.gradle -print0 | xargs -0 sed -i 's/jcenter()/mavenCentral()/g' || true
+            find node_modules -type f -name build.gradle -exec sed -i 's/jcenter()/mavenCentral()/g' {} +
 
             # Replace provided() with compileOnly() for Gradle compatibility (remove deprecated 'provided')
-            find node_modules -type f -name build.gradle -print0 | xargs -0 sed -i "s/provided(/compileOnly(/g" || true
+            find node_modules -type f -name build.gradle -exec sed -i 's/provided(/compileOnly(/g' {} +
 
             # Specific fix for react-native-voice if present
             RNVOICE="node_modules/@react-native-voice/voice/android/build.gradle"
@@ -819,7 +821,7 @@ jobs:
 
       - name: Build Unsigned App
         working-directory: Mobile/ios
-        run: xcodebuild archive -workspace FiipMobile.xcworkspace -scheme FiipMobile -configuration Release -archivePath $PWD/build/FiipMobile.xcarchive CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -sdk iphoneos
+        run: xcodebuild archive -workspace FiipMobile.xcworkspace -scheme FiipMobile -configuration Release -archivePath "$PWD/build/FiipMobile.xcarchive" CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -sdk iphoneos
 
       - name: Inspect archive
         working-directory: Mobile/ios
@@ -848,14 +850,15 @@ jobs:
         working-directory: Mobile/ios
         run: |
           TAG_NAME="${{ needs.bump-version.outputs.new_tag || github.ref_name }}"
-          VERSION=$(echo $TAG_NAME | sed 's/^v[.]\?//')
-          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          SIZE=$(stat -f%z FiipMobile-Unsigned.ipa)
+          VERSION="${TAG_NAME#v}"
+          VERSION="${VERSION#.}"
+          DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          SIZE="$(stat -f%z FiipMobile-Unsigned.ipa)"
           
           cat <<EOF > altstore.json
           {
             "name": "Fiip",
-                "identifier": "com.fiipmobile.altstore",
+                "identifier": "com.fiipmobile",
             "sourceURL": "https://github.com/darkiifr/Fiip/releases/latest/download/altstore.json",
             "apps": [
               {
