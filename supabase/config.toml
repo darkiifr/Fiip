@@ -24,6 +24,12 @@ enabled = false
 [functions.sellauth-dynamic-delivery]
 verify_jwt = false
 
+[functions.keyauth-webhook]
+verify_jwt = false
+
+[functions.lemonsqueezy-webhook]
+verify_jwt = false
+
 [functions.account-api]
 verify_jwt = false
 

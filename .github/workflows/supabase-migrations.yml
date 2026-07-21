@@ -73,20 +73,18 @@ jobs:
         if: github.event_name != 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true' && env.HAS_SUPABASE_MIGRATIONS == 'true'
         run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
 
-      - name: Deploy zero-knowledge Edge Functions
+      - name: Deploy Edge Functions
         if: github.event_name != 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          functions=(
-            confirm-upload
-            generate-download-url
-            generate-upload-url
-            get-feature-flags
-            identity-bootstrap
-            restore-backup
-            sync-settings
+          mapfile -t functions < <(
+            find supabase/functions -mindepth 1 -maxdepth 1 -type d ! -name '_*' -printf '%f\n' | sort
           )
+          if [ "${#functions[@]}" -eq 0 ]; then
+            echo "No Edge Functions found." >&2
+            exit 1
+          fi
           for function_name in "${functions[@]}"; do
             supabase functions deploy "$function_name" --project-ref "$SUPABASE_PROJECT_ID"
           done
