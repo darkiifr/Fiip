@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 import { generateText } from '../services/ai';
 import { buildDexterNoteContext } from '../services/dexterContext';
+import { stripNoteText } from '../utils/notePresentation';
 
 import {
     AIActionCard,
@@ -101,24 +102,6 @@ const STARTER_PROMPTS = [
         text: "Aide-moi a demarrer une nouvelle note. Demande-moi le sujet si la demande suivante n'est pas assez precise.",
     },
 ];
-
-function stripNoteText(value = '') {
-    const html = String(value || '');
-    if (typeof DOMParser !== 'undefined') {
-        const parsed = new DOMParser().parseFromString(html, 'text/html');
-        parsed.querySelectorAll('script, style, iframe, object, embed').forEach((element) => element.remove());
-        const pieces = [];
-        const visit = (node) => {
-            if (node.nodeType === 3 && node.nodeValue) {
-                pieces.push(node.nodeValue);
-            }
-            node.childNodes?.forEach(visit);
-        };
-        visit(parsed.body);
-        return pieces.join(' ').replace(/\s+/g, ' ').trim();
-    }
-    return html.replaceAll('<', ' ').replaceAll('>', ' ').replace(/\s+/g, ' ').trim();
-}
 
 function getWordCount(value = '') {
     const text = stripNoteText(value);

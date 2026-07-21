@@ -5,17 +5,18 @@ export const corsHeaders = {
 };
 
 export function jsonResponse(body: unknown, init: ResponseInit = {}) {
-  const safeBody = body instanceof Error
-    ? { error: 'Une erreur interne est survenue.' }
-    : body;
-  return new Response(JSON.stringify(safeBody), {
+  const responseInit = {
     ...init,
     headers: {
       'Content-Type': 'application/json',
       ...corsHeaders,
       ...(init.headers || {}),
     },
-  });
+  };
+  if (body instanceof Error) {
+    return new Response('{"error":"Une erreur interne est survenue."}', responseInit);
+  }
+  return new Response(JSON.stringify(body), responseInit);
 }
 
 export function handleOptions(req: Request) {
