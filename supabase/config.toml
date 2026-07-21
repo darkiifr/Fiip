@@ -1,3 +1,26 @@
+[auth]
+site_url = "https://portail.fiip.fr"
+additional_redirect_urls = [
+  "https://portail.fiip.fr/auth/callback",
+  "https://portail.fiip.fr/account",
+  "fiip://login-callback",
+]
+
+[auth.email]
+enable_confirmations = true
+otp_length = 8
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.third_party.clerk]
+enabled = true
+domain = "env(CLERK_DOMAIN)"
+
+[storage.vector]
+enabled = false
+
 [functions.sellauth-dynamic-delivery]
 verify_jwt = false
 
@@ -9,4 +32,32 @@ verify_jwt = true
 
 [functions.ai-models-list]
 verify_jwt = true
+
+[functions.identity-bootstrap]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
+[functions.generate-upload-url]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
+[functions.confirm-upload]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
+[functions.generate-download-url]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
+[functions.sync-settings]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
+[functions.get-feature-flags]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.restore-backup]
+verify_jwt = false
+import_map = "./functions/deno.json"
 
