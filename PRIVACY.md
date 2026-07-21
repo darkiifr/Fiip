@@ -1,30 +1,46 @@
 # Privacy Policy
 
-**Last Updated:** 2026-03-28
+**Last Updated:** 2026-07-20
 
 ## Introduction
 
-Fiip ("we", "our", or "us") respects your privacy. This Privacy Policy explains how we handle your information when you use our application.
+Fiip respecte la vie privee de ses utilisateurs. Cette politique explique quelles donnees sont traitees, pourquoi elles le sont, et quelles limites techniques existent dans une architecture zero-knowledge.
 
-## Data Collection
+## Donnees et chiffrement
 
-Fiip is designed to respect user privacy.
-- **Local Data:** Most data created or processed by Fiip resides locally on your device.
-- **Cloud Data:** Some user data may be stored and processed securely in the cloud using Supabase to enable synchronization and cloud-related features. This data is used solely to provide the functionality of the application and is not sold to third parties.
-- **AI Features:** If you use AI-powered features (like Dexter), data sent to the AI provider is subject to their privacy policy. We do not store this data on our own servers.
+- Les notes privees, pieces jointes, resultats OCR synchronises et parametres synchronises sont chiffres cote client avant envoi reseau avec une cle derivee d'une passphrase Fiip.
+- Fiip ne stocke pas cette passphrase en clair et ne peut pas dechiffrer le contenu prive depuis Supabase, Cloudflare R2, Backblaze B2 ou le dashboard admin.
+- Les notes publiees par lien public sont une exception explicite: Fiip cree un snapshot public separe, dechiffrable par le serveur pour l'affichage public et la moderation.
+- Les metadonnees techniques necessaires au service peuvent inclure identifiant utilisateur, plan, taille de blobs chiffres, statut d'upload, appareils connectes, journaux d'audit et etats de feature flags.
 
-## Data Usage
+## Sous-traitants
 
-We use the information solely to provide the functionality of the application. We do not sell your personal data to third parties.
+- Supabase: authentification compatible Third-Party Auth, base Postgres, Edge Functions et RLS.
+- Clerk: gestion d'identite et emission de JWT pour les clients Fiip.
+- Cloudflare R2: stockage unique des pieces jointes utilisateur chiffrees.
+- Backblaze B2: stockage froid des backups Postgres compresses et chiffres uniquement.
+- OpenRouter: appels IA via `ai-proxy` lorsque l'utilisateur active une fonctionnalite IA.
+- Prestataires de paiement/licence configures par Fiip, notamment SellAuth/KeyAuth selon le flux d'achat actif.
 
-## Third-Party Services
+Certains sous-traitants peuvent traiter des donnees hors Union europeenne. Lorsque requis, Fiip s'appuie sur les clauses contractuelles types ou mecanismes contractuels equivalents fournis par ces prestataires.
 
-Fiip may use third-party services (e.g., for updates or AI processing). Please review the privacy policies of these third-party providers.
+## Conservation
 
-## Changes to This Policy
+- Contenu prive chiffre: conserve tant que le compte ou la synchronisation associee existe.
+- Snapshots publics: conserves tant que le lien public reste actif, puis revoques ou supprimes.
+- Pieces jointes R2 chiffrees: conservees tant qu'elles sont rattachees au compte ou a une note non supprimee.
+- Backups B2: retention reduite, avec 3 quotidiens glissants, 1 hebdomadaire et 1 mensuel.
+- Logs d'audit admin: conserves pour tracer les actions sensibles et destructives.
+- Donnees de compte/licence: conservees pendant la duree necessaire a la fourniture du service, aux obligations legales et au support.
 
-We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.
+## Droits utilisateur
 
-## Contact Us
+Vous pouvez demander l'acces, la rectification, l'effacement, la portabilite ou l'opposition au traitement de vos donnees. L'effacement d'un compte declenche la suppression des donnees actives et une purge progressive des backups selon la politique de retention. Pour exercer vos droits, contactez le support Fiip depuis le portail compte ou le canal officiel de support.
 
-If you have any questions about this Privacy Policy, please contact us.
+## Dashboard admin
+
+Le dashboard admin peut gerer feature flags, statut systeme, backups, utilisateurs, plans et moderation des notes publiques. Il ne doit pas pouvoir dechiffrer le contenu prive zero-knowledge. Toute action sensible ou destructive doit demander confirmation et etre journalisee dans `audit_log`.
+
+## Changements
+
+Cette politique peut etre mise a jour lorsque l'architecture ou les sous-traitants changent. La date ci-dessus indique la derniere mise a jour.
