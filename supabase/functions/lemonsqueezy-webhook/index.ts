@@ -3,14 +3,17 @@ import { getEnv } from '../_shared/env.ts';
 import { parseLemonPayload, verifyLemonSignature } from '../_shared/lemonsqueezy.ts';
 import { createAdminClient } from '../_shared/supabase.ts';
 import { generateKeyAuthLicense, revokeKeyAuthLicense } from '../_shared/keyauth.ts';
-import { getTierCapabilities, resolveTierFromVariant } from '../_shared/tiers.ts';
+import { resolveTierFromVariant } from '../_shared/tiers.ts';
 import { sendTemplateEmail } from '../_shared/mailer.ts';
 
 declare const EdgeRuntime: {
   waitUntil(promise: Promise<unknown>): void;
 };
 
-async function processLemonEvent(supabaseAdmin: any, parsed: ReturnType<typeof parseLemonPayload>) {
+async function processLemonEvent(
+  supabaseAdmin: ReturnType<typeof createAdminClient>,
+  parsed: ReturnType<typeof parseLemonPayload>,
+) {
   const tierInfo = resolveTierFromVariant(parsed.variantId);
   if (!tierInfo || !parsed.userId) {
     throw new Error('Unable to resolve Lemon Squeezy tier or user_id.');
@@ -116,13 +119,16 @@ async function processLemonEvent(supabaseAdmin: any, parsed: ReturnType<typeof p
     .update({ plan_level: caps.planLevel, plan_source: 'lemonsqueezy', plan_updated_at: new Date().toISOString() })
     .eq('id', parsed.userId);
 
-  await supabaseAdmin.rpc('fiip_reset_subscription_period', {
+  const { error: resetPeriodError } = await supabaseAdmin.rpc('fiip_reset_subscription_period', {
     p_user_id: parsed.userId,
     p_tier: tierInfo.tier,
     p_budget_limit_eur: caps.aiBudgetEur,
     p_period_start: new Date().toISOString(),
     p_period_end: parsed.renewsAt || parsed.expiresAt,
-  }).catch(console.error);
+  });
+  if (resetPeriodError) {
+    console.error('Unable to reset subscription period', resetPeriodError);
+  }
 
   if (parsed.email) {
     await sendTemplateEmail({

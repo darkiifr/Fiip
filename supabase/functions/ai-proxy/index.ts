@@ -63,12 +63,12 @@ Deno.serve(async (req) => {
     }
 
     let completion;
-    let modelUsed = selected.model;
+    let modelUsed: string;
     let fallbackUsed = false;
     try {
       completion = await callOpenRouter({ apiKey: openRouterApiKey, messages, model: selected.model, jsonMode: Boolean(body.jsonMode), maxTokens });
       modelUsed = completion?.model || selected.model;
-    } catch (error) {
+    } catch {
       try {
         completion = await callOpenRouter({ apiKey: openRouterApiKey, messages, model: MIMO_FALLBACK_MODEL, jsonMode: Boolean(body.jsonMode), maxTokens });
         modelUsed = completion?.model || MIMO_FALLBACK_MODEL;
