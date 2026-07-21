@@ -1,4 +1,4 @@
-name: Supabase Migrations
+name: Supabase Database and Edge Functions
 
 on:
   pull_request:
@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   migrations:
-    name: Validate or deploy migrations
+    name: Validate or deploy Supabase
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -72,6 +72,24 @@ jobs:
       - name: Deploy migrations on main
         if: github.event_name != 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true' && env.HAS_SUPABASE_MIGRATIONS == 'true'
         run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
+
+      - name: Deploy zero-knowledge Edge Functions
+        if: github.event_name != 'pull_request' && env.HAS_SUPABASE_SECRETS == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          functions=(
+            confirm-upload
+            generate-download-url
+            generate-upload-url
+            get-feature-flags
+            identity-bootstrap
+            restore-backup
+            sync-settings
+          )
+          for function_name in "${functions[@]}"; do
+            supabase functions deploy "$function_name" --project-ref "$SUPABASE_PROJECT_ID"
+          done
 
       - name: Skip remote Supabase deployment without secrets
         if: github.event_name == 'pull_request' && (env.HAS_SUPABASE_SECRETS != 'true' || env.HAS_SUPABASE_MIGRATIONS != 'true')
