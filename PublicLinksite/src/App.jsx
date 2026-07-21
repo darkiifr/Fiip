@@ -720,24 +720,34 @@ function FeatureFlagGate({ children }) {
 
 function ClerkAccountPortal({ path }) {
   const clerk = useFiipClerk();
-  const [bridgeReady, setBridgeReady] = useState(false);
-  const [bridgeError, setBridgeError] = useState('');
+  const [bridgedUserId, setBridgedUserId] = useState(null);
+  const [bridgeError, setBridgeError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     if (!clerk.loaded || !clerk.signedIn) {
-      setBridgeReady(false);
       return undefined;
     }
+    const userId = clerk.user?.id;
     bootstrapClerkIdentity()
       .then(() => {
-        if (!cancelled) setBridgeReady(true);
+        if (!cancelled) {
+          setBridgedUserId(userId);
+          setBridgeError(null);
+        }
       })
       .catch((error) => {
-        if (!cancelled) setBridgeError(getAuthErrorMessage(error));
+        if (!cancelled) {
+          setBridgeError({ userId, message: getAuthErrorMessage(error) });
+        }
       });
     return () => { cancelled = true; };
   }, [clerk.loaded, clerk.signedIn, clerk.user?.id]);
+
+  const bridgeReady = clerk.signedIn && bridgedUserId === clerk.user?.id;
+  const activeBridgeError = bridgeError && bridgeError.userId === clerk.user?.id
+    ? bridgeError.message
+    : '';
 
   if (!clerk.loaded) {
     return <main className="public-shell public-center"><section className="public-panel auth-panel"><p>Chargement du compte...</p></section></main>;
@@ -745,8 +755,8 @@ function ClerkAccountPortal({ path }) {
   if (!clerk.signedIn) {
     return <main className="public-shell public-center"><section className="clerk-auth-shell"><FiipClerkSignIn /></section></main>;
   }
-  if (bridgeError) {
-    return <main className="public-shell public-center"><section className="public-panel auth-panel"><h1>Compte indisponible</h1><p className="account-error">{bridgeError}</p></section></main>;
+  if (activeBridgeError) {
+    return <main className="public-shell public-center"><section className="public-panel auth-panel"><h1>Compte indisponible</h1><p className="account-error">{activeBridgeError}</p></section></main>;
   }
   if (!bridgeReady) {
     return <main className="public-shell public-center"><section className="public-panel auth-panel"><p>Préparation du compte...</p></section></main>;

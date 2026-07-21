@@ -29,10 +29,7 @@ jobs:
           upload_translations: false
           download_translations: true
           localization_branch_name: l10n_crowdin_translations
-          create_pull_request: true
-          pull_request_title: "chore(i18n): update Crowdin translations"
-          pull_request_body: "Automated Crowdin translation update."
-          pull_request_base_branch_name: main
+          create_pull_request: false
           config: crowdin.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
