@@ -106,10 +106,10 @@ jobs:
             pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges --file=/backup/pre-restore.dump
           age -r "$BACKUP_AGE_RECIPIENT" -o "pre-restore-${stamp}.dump.age" pre-restore.dump
           sha256sum "pre-restore-${stamp}.dump.age" > "pre-restore-${stamp}.dump.age.sha256"
-          rclone copy "pre-restore-${stamp}.dump.age" "fiip-b2:${B2_BACKUP_BUCKET}/pre-restore/" --retries 5 --low-level-retries 10
-          rclone copy "pre-restore-${stamp}.dump.age.sha256" "fiip-b2:${B2_BACKUP_BUCKET}/pre-restore/" --retries 5 --low-level-retries 10
+          rclone copy "pre-restore-${stamp}.dump.age" "fiip_b2:${B2_BACKUP_BUCKET}/pre-restore/" --retries 5 --low-level-retries 10
+          rclone copy "pre-restore-${stamp}.dump.age.sha256" "fiip_b2:${B2_BACKUP_BUCKET}/pre-restore/" --retries 5 --low-level-retries 10
           expected="$(sha256sum "pre-restore-${stamp}.dump.age" | cut -d' ' -f1)"
-          actual="$(rclone cat "fiip-b2:${B2_BACKUP_BUCKET}/pre-restore/pre-restore-${stamp}.dump.age" --retries 5 --low-level-retries 10 | sha256sum | cut -d' ' -f1)"
+          actual="$(rclone cat "fiip_b2:${B2_BACKUP_BUCKET}/pre-restore/pre-restore-${stamp}.dump.age" --retries 5 --low-level-retries 10 | sha256sum | cut -d' ' -f1)"
           test "$actual" = "$expected"
 
       - name: Download, verify, decrypt and restore
@@ -124,7 +124,7 @@ jobs:
           set -euo pipefail
           encrypted="$(basename "$BACKUP_KEY")"
           umask 077
-          rclone copyto "fiip-b2:${B2_BACKUP_BUCKET}/${BACKUP_KEY}" "$encrypted" --retries 5 --low-level-retries 10
+          rclone copyto "fiip_b2:${B2_BACKUP_BUCKET}/${BACKUP_KEY}" "$encrypted" --retries 5 --low-level-retries 10
           test "$(sha256sum "$encrypted" | cut -d' ' -f1)" = "$EXPECTED_CHECKSUM"
           printf '%s' "$BACKUP_AGE_IDENTITY" > age-identity.txt
           chmod 600 age-identity.txt

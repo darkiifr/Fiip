@@ -96,20 +96,20 @@ jobs:
           age -r "$BACKUP_AGE_RECIPIENT" -o "$encrypted" "$dump"
           sha256sum "$encrypted" > "$checksum"
 
-          rclone copyto "$encrypted" "fiip-b2:${B2_BACKUP_BUCKET}/${daily_key}" --retries 5 --low-level-retries 10
-          rclone copyto "$checksum" "fiip-b2:${B2_BACKUP_BUCKET}/${daily_key}.sha256" --retries 5 --low-level-retries 10
+          rclone copyto "$encrypted" "fiip_b2:${B2_BACKUP_BUCKET}/${daily_key}" --retries 5 --low-level-retries 10
+          rclone copyto "$checksum" "fiip_b2:${B2_BACKUP_BUCKET}/${daily_key}.sha256" --retries 5 --low-level-retries 10
 
           digest="$(cut -d' ' -f1 "$checksum")"
-          remote_digest="$(rclone cat "fiip-b2:${B2_BACKUP_BUCKET}/${daily_key}" --retries 5 --low-level-retries 10 | sha256sum | cut -d' ' -f1)"
+          remote_digest="$(rclone cat "fiip_b2:${B2_BACKUP_BUCKET}/${daily_key}" --retries 5 --low-level-retries 10 | sha256sum | cut -d' ' -f1)"
           test "$remote_digest" = "$digest"
 
           if [ "$(date -u +%u)" = "7" ]; then
-            rclone copyto "$encrypted" "fiip-b2:${B2_BACKUP_BUCKET}/weekly/${encrypted}" --retries 5 --low-level-retries 10
-            rclone copyto "$checksum" "fiip-b2:${B2_BACKUP_BUCKET}/weekly/${encrypted}.sha256" --retries 5 --low-level-retries 10
+            rclone copyto "$encrypted" "fiip_b2:${B2_BACKUP_BUCKET}/weekly/${encrypted}" --retries 5 --low-level-retries 10
+            rclone copyto "$checksum" "fiip_b2:${B2_BACKUP_BUCKET}/weekly/${encrypted}.sha256" --retries 5 --low-level-retries 10
           fi
           if [ "$(date -u +%d)" = "01" ]; then
-            rclone copyto "$encrypted" "fiip-b2:${B2_BACKUP_BUCKET}/monthly/${encrypted}" --retries 5 --low-level-retries 10
-            rclone copyto "$checksum" "fiip-b2:${B2_BACKUP_BUCKET}/monthly/${encrypted}.sha256" --retries 5 --low-level-retries 10
+            rclone copyto "$encrypted" "fiip_b2:${B2_BACKUP_BUCKET}/monthly/${encrypted}" --retries 5 --low-level-retries 10
+            rclone copyto "$checksum" "fiip_b2:${B2_BACKUP_BUCKET}/monthly/${encrypted}.sha256" --retries 5 --low-level-retries 10
           fi
 
           size="$(stat -c%s "$encrypted")"
@@ -134,10 +134,10 @@ jobs:
           prune() {
             folder="$1"
             keep="$2"
-            mapfile -t files < <(rclone lsf "fiip-b2:${B2_BACKUP_BUCKET}/${folder}/" --files-only --include '*.age' | sort -r)
+            mapfile -t files < <(rclone lsf "fiip_b2:${B2_BACKUP_BUCKET}/${folder}/" --files-only --include '*.age' | sort -r)
             for file in "${files[@]:$keep}"; do
-              rclone deletefile "fiip-b2:${B2_BACKUP_BUCKET}/${folder}/${file}"
-              rclone deletefile "fiip-b2:${B2_BACKUP_BUCKET}/${folder}/${file}.sha256" || true
+              rclone deletefile "fiip_b2:${B2_BACKUP_BUCKET}/${folder}/${file}"
+              rclone deletefile "fiip_b2:${B2_BACKUP_BUCKET}/${folder}/${file}.sha256" || true
             done
           }
           prune daily 3
