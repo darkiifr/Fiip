@@ -17,7 +17,9 @@ Deno.serve(async (req) => {
     .in('scope', ['all', scope])
     .order('feature_key', { ascending: true });
 
-  if (error) return jsonResponse({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('Unable to read feature flags', error);
+    return jsonResponse({ error: 'Les indicateurs de fonctionnalités sont indisponibles.' }, { status: 500 });
+  }
   return jsonResponse({ flags: data || [] });
 });
-

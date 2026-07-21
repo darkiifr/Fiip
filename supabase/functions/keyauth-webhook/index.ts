@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: true, duplicate: true });
   }
   if (insertError) {
-    return jsonResponse({ error: insertError.message }, { status: 500 });
+    console.error('Unable to persist KeyAuth webhook event', insertError);
+    return jsonResponse({ error: 'KeyAuth webhook persistence failed' }, { status: 500 });
   }
 
   try {
@@ -92,6 +93,7 @@ Deno.serve(async (req) => {
       .from('keyauth_webhook_events')
       .update({ status: 'failed', error: error instanceof Error ? error.message : String(error), processed_at: new Date().toISOString() })
       .eq('source_event_id', sourceEventId);
-    return jsonResponse({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    console.error('KeyAuth webhook processing failed', error);
+    return jsonResponse({ error: 'KeyAuth webhook processing failed' }, { status: 500 });
   }
 });

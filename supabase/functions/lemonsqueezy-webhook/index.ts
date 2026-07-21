@@ -179,7 +179,8 @@ Deno.serve(async (req) => {
     return jsonResponse({ ok: true, duplicate: true });
   }
   if (error) {
-    return jsonResponse({ error: error.message }, { status: 500 });
+    console.error('Unable to persist Lemon Squeezy webhook event', error);
+    return jsonResponse({ error: 'Lemon Squeezy webhook persistence failed' }, { status: 500 });
   }
 
   EdgeRuntime.waitUntil((async () => {
