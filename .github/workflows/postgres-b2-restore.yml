@@ -63,7 +63,9 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client age rclone jq
+          sudo apt-get install -y postgresql-client-17 age rclone jq
+          pg_dump --version
+          pg_restore --version
 
       - name: Resolve and mark backup
         id: backup
