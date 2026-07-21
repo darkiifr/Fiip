@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { sanitizeClipperPayload } from '../src/services/fiipV1.js';
 
 import * as backgroundHelpers from './background-helpers.js';
-import { buildDeepLinkUrl, buildSupabaseNotePayload, saveClip, sendToDeepLink, sendToSupabase } from './background-helpers.js';
+import {
+  buildDeepLinkUrl,
+  buildSupabaseNotePayload,
+  getClerkSignInUrl,
+  saveClip,
+  sendToDeepLink,
+  sendToSupabase,
+} from './background-helpers.js';
 
 const clip = {
   title: 'Article',
@@ -190,6 +197,66 @@ describe('Fiip extension background helpers', () => {
       expect.objectContaining({ body: JSON.stringify({ refresh_token: 'refresh-token' }) }),
     );
     expect(storageSet).toHaveBeenCalledTimes(1);
+  });
+
+  it('builds the Clerk portal sign-in URL for extension sync', () => {
+    const url = getClerkSignInUrl({
+      supabaseUrl: 'https://project.supabase.co',
+      supabaseAnonKey: 'anon',
+      clerkSyncHost: 'https://clerk.fiip.fr',
+      clerkSignInUrl: 'https://accounts.fiip.fr/sign-in',
+    });
+
+    expect(url).toBe('https://accounts.fiip.fr/sign-in?redirect_url=https%3A%2F%2Fportail.fiip.fr%2F');
+  });
+
+  it('maps a Clerk extension session before posting the clip to Supabase', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ userId: 'mapped-user' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue([{ id: 'note-1' }]),
+      });
+
+    const result = await sendToSupabase(clip, {
+      config: {
+        supabaseUrl: 'https://project.supabase.co/',
+        supabaseAnonKey: 'anon',
+        clerkPublishableKey: 'pk_test_123',
+        clerkSyncHost: 'https://clerk.fiip.fr',
+        clerkSignInUrl: 'https://accounts.fiip.fr/sign-in',
+      },
+      createClerkSession: vi.fn().mockResolvedValue({
+        token: 'clerk-jwt',
+        user: { id: 'user_clerk', email: 'user@example.com' },
+      }),
+      fetchImpl,
+      storageGet: vi.fn(),
+      storageSet: vi.fn(),
+      randomUUID: () => 'image-id',
+      now: () => new Date('2026-06-27T09:00:00.000Z'),
+    });
+
+    expect(result.noteId).toBe('note-1');
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      1,
+      'https://project.supabase.co/functions/v1/identity-bootstrap',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer clerk-jwt' }),
+      }),
+    );
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      'https://project.supabase.co/rest/v1/notes',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer clerk-jwt' }),
+        body: expect.stringContaining('"user_id":"mapped-user"'),
+      }),
+    );
   });
 
   it('rejects non-http source URLs before fallback upload', () => {

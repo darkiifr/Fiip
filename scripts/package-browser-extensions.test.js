@@ -34,11 +34,18 @@ describe('browser extension packaging', () => {
     const source = packageHelpers.buildBrowserExtensionConfigSource({
       supabaseUrl: 'https://fqouvzkovppyqocfxanl.supabase.co',
       supabaseAnonKey: 'public-anon-key',
+      clerkPublishableKey: 'pk_live_public',
+      clerkSyncHost: 'https://clerk.fiip.fr',
+      clerkSignInUrl: 'https://accounts.fiip.fr/sign-in',
     });
 
     expect(source).toContain("supabaseUrl: 'https://fqouvzkovppyqocfxanl.supabase.co'");
     expect(source).toContain("supabaseAnonKey: 'public-anon-key'");
+    expect(source).toContain("clerkPublishableKey: 'pk_live_public'");
+    expect(source).toContain("clerkSyncHost: 'https://clerk.fiip.fr'");
+    expect(source).toContain("clerkSignInUrl: 'https://accounts.fiip.fr/sign-in'");
     expect(source).not.toContain('__FIIP_SUPABASE_ANON_KEY__');
+    expect(source).not.toContain('__FIIP_CLERK_PUBLISHABLE_KEY__');
   });
 
   it('refuses to package an extension without valid Supabase public config', () => {
@@ -46,11 +53,18 @@ describe('browser extension packaging', () => {
     expect(() => packageHelpers.buildBrowserExtensionConfigSource({
       supabaseUrl: 'https://fqouvzkovppyqocfxanl.supabase.co',
       supabaseAnonKey: '',
+      clerkPublishableKey: 'pk_live_public',
     })).toThrow(/Supabase/);
     expect(() => packageHelpers.buildBrowserExtensionConfigSource({
       supabaseUrl: 'http://localhost:54321',
       supabaseAnonKey: 'anon',
+      clerkPublishableKey: 'pk_live_public',
     })).toThrow(/Supabase/);
+    expect(() => packageHelpers.buildBrowserExtensionConfigSource({
+      supabaseUrl: 'https://fqouvzkovppyqocfxanl.supabase.co',
+      supabaseAnonKey: 'anon',
+      clerkPublishableKey: '',
+    })).toThrow(/Clerk/);
   });
 
   it('injects Supabase public configuration in the release packaging job', () => {
@@ -58,5 +72,6 @@ describe('browser extension packaging', () => {
 
     expect(workflow).toContain('VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}');
     expect(workflow).toContain('VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}');
+    expect(workflow).toContain('VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}');
   });
 });

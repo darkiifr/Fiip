@@ -11,6 +11,9 @@ function createExtensionError(message, code) {
 function getConfig(config = {}) {
   const supabaseUrl = String(config.supabaseUrl || '').trim().replace(/\/$/, '');
   const supabaseAnonKey = String(config.supabaseAnonKey || '').trim();
+  const clerkPublishableKey = String(config.clerkPublishableKey || '').trim();
+  const clerkSyncHost = String(config.clerkSyncHost || '').trim().replace(/\/$/, '');
+  const clerkSignInUrl = String(config.clerkSignInUrl || '').trim();
   let parsedUrl;
   try {
     parsedUrl = new URL(supabaseUrl);
@@ -20,7 +23,19 @@ function getConfig(config = {}) {
   if (parsedUrl.protocol !== 'https:' || parsedUrl.pathname !== '/' || !supabaseAnonKey) {
     throw createExtensionError('Fiip Cloud is not configured.', 'SUPABASE_CONFIG_MISSING');
   }
-  return { supabaseUrl, supabaseAnonKey };
+  if (clerkSyncHost) {
+    const parsedSyncHost = new URL(clerkSyncHost);
+    if (parsedSyncHost.protocol !== 'https:' || parsedSyncHost.pathname !== '/') {
+      throw createExtensionError('Fiip Clerk is not configured.', 'CLERK_CONFIG_MISSING');
+    }
+  }
+  if (clerkSignInUrl) {
+    const parsedSignInUrl = new URL(clerkSignInUrl);
+    if (parsedSignInUrl.protocol !== 'https:' || parsedSignInUrl.username || parsedSignInUrl.password) {
+      throw createExtensionError('Fiip Clerk is not configured.', 'CLERK_CONFIG_MISSING');
+    }
+  }
+  return { supabaseUrl, supabaseAnonKey, clerkPublishableKey, clerkSyncHost, clerkSignInUrl };
 }
 
 function nowMs(now = Date.now) {
@@ -90,6 +105,16 @@ export async function signInWithPassword({ email, password }, dependencies) {
   return { user: session.user };
 }
 
+export function getClerkSignInUrl(config = {}) {
+  const { clerkSignInUrl } = getConfig(config);
+  if (!clerkSignInUrl) {
+    throw createExtensionError('Fiip Clerk is not configured.', 'CLERK_CONFIG_MISSING');
+  }
+  const url = new URL(clerkSignInUrl);
+  url.searchParams.set('redirect_url', 'https://portail.fiip.fr/');
+  return url.toString();
+}
+
 async function refreshSession(session, dependencies) {
   if (!session?.refreshToken) {
     throw createExtensionError('Connectez-vous à Fiip Cloud.', 'AUTH_REQUIRED');
@@ -101,12 +126,42 @@ async function refreshSession(session, dependencies) {
 
 async function getValidSession({
   config,
+  createClerkSession,
   fetchImpl = fetch,
   storageGet,
   storageSet,
   now = Date.now,
 }) {
-  getConfig(config);
+  const normalizedConfig = getConfig(config);
+  if (normalizedConfig.clerkPublishableKey && typeof createClerkSession === 'function') {
+    const clerkSession = await createClerkSession();
+    if (!clerkSession?.token || !clerkSession?.user?.id) {
+      throw createExtensionError('Connectez-vous à Fiip Cloud.', 'AUTH_REQUIRED');
+    }
+    const response = await fetchImpl(`${normalizedConfig.supabaseUrl}/functions/v1/identity-bootstrap`, {
+      method: 'POST',
+      headers: {
+        apikey: normalizedConfig.supabaseAnonKey,
+        Authorization: `Bearer ${clerkSession.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: '{}',
+    });
+    const data = await readResponseJson(response);
+    if (!response.ok || !data?.userId) {
+      throw createExtensionError('Connexion Fiip Cloud impossible.', 'AUTH_FAILED');
+    }
+    return {
+      accessToken: clerkSession.token,
+      refreshToken: '',
+      expiresAt: nowMs(now) + 300_000,
+      user: {
+        id: data.userId,
+        clerkSubject: clerkSession.user.id,
+        email: String(clerkSession.user.email || ''),
+      },
+    };
+  }
   const stored = await storageGet([SESSION_KEY]);
   const session = stored?.[SESSION_KEY];
   if (!session?.accessToken || !session?.user?.id) {
@@ -132,10 +187,17 @@ export async function getAuthState(dependencies) {
 
 export async function signOut({
   config,
+  clerkSignOut,
   fetchImpl = fetch,
   storageGet,
   storageRemove,
 }) {
+  const normalizedConfig = getConfig(config);
+  if (normalizedConfig.clerkPublishableKey && typeof clerkSignOut === 'function') {
+    await clerkSignOut();
+    await storageRemove([SESSION_KEY]);
+    return { authenticated: false };
+  }
   const stored = await storageGet([SESSION_KEY]);
   const session = stored?.[SESSION_KEY];
   try {
@@ -238,6 +300,7 @@ export async function sendToSupabase(
   payload,
   {
     config,
+    createClerkSession,
     fetchImpl = fetch,
     storageGet,
     storageSet,
@@ -246,7 +309,7 @@ export async function sendToSupabase(
   },
 ) {
   const normalizedConfig = getConfig(config);
-  let session = await getValidSession({ config, fetchImpl, storageGet, storageSet, now });
+  let session = await getValidSession({ config, createClerkSession, fetchImpl, storageGet, storageSet, now });
   const notePayload = buildSupabaseNotePayload(payload, {
     userId: session.user.id,
     randomUUID,
@@ -290,6 +353,7 @@ export async function saveClip(
   payload,
   {
     config,
+    createClerkSession,
     fetchImpl,
     storageGet,
     storageSet,
@@ -300,6 +364,7 @@ export async function saveClip(
   try {
     return await sendToSupabase(payload, {
       config,
+      createClerkSession,
       fetchImpl,
       storageGet,
       storageSet,

@@ -14,8 +14,6 @@ const openFiipLink = document.getElementById('open-fiip');
 const authForm = document.getElementById('auth-form');
 const accountPanel = document.getElementById('account-panel');
 const accountEmail = document.getElementById('account-email');
-const emailInput = document.getElementById('auth-email');
-const passwordInput = document.getElementById('auth-password');
 const signInButton = document.getElementById('sign-in');
 const signOutButton = document.getElementById('sign-out');
 const authStatus = document.getElementById('auth-status');
@@ -33,17 +31,19 @@ function renderAuthState(result = {}) {
 authForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   signInButton.disabled = true;
-  authStatus.textContent = 'Connexion...';
+  authStatus.textContent = 'Ouverture de Fiip...';
   try {
     const result = await signInFromPopup({
       runtime: chrome.runtime,
-      email: emailInput.value,
-      password: passwordInput.value,
     });
     if (result?.error) {
       throw new Error(result.error);
     }
-    passwordInput.value = '';
+    if (result?.openUrl) {
+      await chrome.tabs.create({ url: result.openUrl, active: true });
+      authStatus.textContent = 'Connectez-vous dans Fiip, puis rouvrez cette extension.';
+      return;
+    }
     renderAuthState(result);
   } catch (error) {
     authStatus.textContent = error?.message || 'Connexion impossible.';
@@ -70,7 +70,7 @@ signOutButton.addEventListener('click', async () => {
 openFiipLink.addEventListener('click', async (event) => {
   event.preventDefault();
   const url = openFiipLink.href;
-  if (!url || url === '#') return;
+  if (!url || url === '#') {return;}
   try {
     await chrome.tabs.create({ url, active: true });
     status.textContent = 'Ouverture de Fiip...';

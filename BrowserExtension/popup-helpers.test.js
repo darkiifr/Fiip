@@ -95,23 +95,17 @@ describe('Fiip extension popup helpers', () => {
     expect(status.textContent).not.toMatch(/Supabase|Edge Function|non-2xx|failed/i);
   });
 
-  it('submits extension credentials to the background auth flow', async () => {
+  it('asks the background worker for the Clerk sign-in handoff', async () => {
     expect(typeof popupHelpers.signInFromPopup).toBe('function');
     const runtime = {
-      sendMessage: vi.fn().mockResolvedValue({ user: { email: 'user@example.com' } }),
+      sendMessage: vi.fn().mockResolvedValue({ openUrl: 'https://portail.fiip.fr/sign-in' }),
     };
 
-    const result = await popupHelpers.signInFromPopup({
-      runtime,
-      email: ' user@example.com ',
-      password: 'correct horse battery staple',
-    });
+    const result = await popupHelpers.signInFromPopup({ runtime });
 
-    expect(result).toEqual({ user: { email: 'user@example.com' } });
+    expect(result).toEqual({ openUrl: 'https://portail.fiip.fr/sign-in' });
     expect(runtime.sendMessage).toHaveBeenCalledWith({
       type: 'FIIP_AUTH_SIGN_IN',
-      email: 'user@example.com',
-      password: 'correct horse battery staple',
     });
   });
 

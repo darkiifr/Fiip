@@ -70,7 +70,7 @@ export async function captureActiveTab({ tabs, runtime, scripting, status, captu
     }
     status.textContent = result?.warning || (result?.mode === 'supabase' ? 'Capture envoyée au cloud.' : 'Capture prête à ouvrir dans Fiip.');
     return result;
-  } catch (error) {
+  } catch {
     status.textContent = 'Capture impossible sur cette page.';
     return { error: status.textContent };
   }
@@ -80,11 +80,9 @@ export async function getAuthStateFromPopup({ runtime }) {
   return runtime.sendMessage({ type: 'FIIP_AUTH_STATE' });
 }
 
-export async function signInFromPopup({ runtime, email, password }) {
+export async function signInFromPopup({ runtime }) {
   return runtime.sendMessage({
     type: 'FIIP_AUTH_SIGN_IN',
-    email: String(email || '').trim(),
-    password: String(password || ''),
   });
 }
 

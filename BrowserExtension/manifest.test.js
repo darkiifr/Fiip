@@ -10,8 +10,14 @@ describe('Fiip extension manifest', () => {
   it('declares a Chrome and Edge compatible Manifest V3 clipper', () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.name).toBe('Fiip Web Clipper');
-    expect(manifest.permissions).toEqual(expect.arrayContaining(['activeTab', 'scripting', 'storage']));
-    expect(manifest.host_permissions).toEqual(['https://fqouvzkovppyqocfxanl.supabase.co/*']);
+    expect(manifest.permissions).toEqual(expect.arrayContaining(['activeTab', 'cookies', 'scripting', 'storage']));
+    expect(manifest.host_permissions).toEqual([
+      'https://fqouvzkovppyqocfxanl.supabase.co/*',
+      'https://portail.fiip.fr/*',
+      'https://clerk.fiip.fr/*',
+      'https://accounts.fiip.fr/*',
+      'https://*.clerk.accounts.dev/*',
+    ]);
     expect(manifest.background).toEqual({ service_worker: 'background.js', type: 'module' });
     expect(manifest.action.default_popup).toBe('popup.html');
     expect(manifest.content_scripts).toBeUndefined();
@@ -20,7 +26,13 @@ describe('Fiip extension manifest', () => {
 
   it('does not request broad host access or remote executable code', () => {
     expect(JSON.stringify(manifest)).not.toContain('<all_urls>');
-    expect(manifest.host_permissions).toEqual(['https://fqouvzkovppyqocfxanl.supabase.co/*']);
+    expect(manifest.host_permissions).toEqual([
+      'https://fqouvzkovppyqocfxanl.supabase.co/*',
+      'https://portail.fiip.fr/*',
+      'https://clerk.fiip.fr/*',
+      'https://accounts.fiip.fr/*',
+      'https://*.clerk.accounts.dev/*',
+    ]);
     expect(popupHtml).not.toMatch(/<script[^>]+src=["']https?:\/\//i);
   });
 
@@ -40,6 +52,7 @@ describe('Fiip extension manifest', () => {
     expect(popupHtml).toContain('Sélection');
     expect(popupHtml).toContain('Fiip Cloud');
     expect(popupHtml).toContain('id="auth-form"');
+    expect(popupHtml).toContain('Se connecter avec Fiip');
     expect(popupHtml).toContain('id="open-fiip"');
     expect(popupHtml).toContain('id="sign-out"');
   });

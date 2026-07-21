@@ -4,14 +4,18 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } fr
 import { platform } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const require = createRequire(import.meta.url);
 const sourceDir = join(root, 'BrowserExtension');
 const outputDir = join(root, 'dist', 'extensions');
 const workDir = join(outputDir, 'work');
 const CHROME_EXTENSION_VERSION_PATTERN = /^\d+(\.\d+){0,3}$/;
 const FIIP_SUPABASE_HOST = 'fqouvzkovppyqocfxanl.supabase.co';
+const DEFAULT_CLERK_SYNC_HOST = 'https://clerk.fiip.fr';
+const DEFAULT_CLERK_SIGN_IN_URL = 'https://accounts.fiip.fr/sign-in';
 
 function resetDir(path) {
   rmSync(path, { recursive: true, force: true });
@@ -34,9 +38,18 @@ function quoteJavaScriptString(value) {
   return `'${String(value).replaceAll('\\', '\\\\').replaceAll("'", "\\'").replaceAll('\r', '\\r').replaceAll('\n', '\\n')}'`;
 }
 
-export function buildBrowserExtensionConfigSource({ supabaseUrl, supabaseAnonKey }) {
+export function buildBrowserExtensionConfigSource({
+  supabaseUrl,
+  supabaseAnonKey,
+  clerkPublishableKey,
+  clerkSyncHost = DEFAULT_CLERK_SYNC_HOST,
+  clerkSignInUrl = DEFAULT_CLERK_SIGN_IN_URL,
+}) {
   const normalizedUrl = String(supabaseUrl || '').trim().replace(/\/$/, '');
   const normalizedKey = String(supabaseAnonKey || '').trim();
+  const normalizedClerkKey = String(clerkPublishableKey || '').trim();
+  const normalizedClerkSyncHost = String(clerkSyncHost || DEFAULT_CLERK_SYNC_HOST).trim().replace(/\/$/, '');
+  const normalizedClerkSignInUrl = String(clerkSignInUrl || DEFAULT_CLERK_SIGN_IN_URL).trim();
   let parsedUrl;
   try {
     parsedUrl = new URL(normalizedUrl);
@@ -52,11 +65,27 @@ export function buildBrowserExtensionConfigSource({ supabaseUrl, supabaseAnonKey
   ) {
     throw new Error('Valid Fiip Supabase public configuration is required to package the browser extension.');
   }
+  const parsedClerkHost = new URL(normalizedClerkSyncHost);
+  const parsedClerkSignInUrl = new URL(normalizedClerkSignInUrl);
+  if (
+    parsedClerkHost.protocol !== 'https:'
+    || parsedClerkHost.pathname !== '/'
+    || !normalizedClerkKey
+    || normalizedClerkKey.includes('__FIIP_')
+    || parsedClerkSignInUrl.protocol !== 'https:'
+    || parsedClerkSignInUrl.username
+    || parsedClerkSignInUrl.password
+  ) {
+    throw new Error('Valid Fiip Clerk public configuration is required to package the browser extension.');
+  }
 
   return [
     'export const FIIP_EXTENSION_CONFIG = Object.freeze({',
     `  supabaseUrl: ${quoteJavaScriptString(normalizedUrl)},`,
     `  supabaseAnonKey: ${quoteJavaScriptString(normalizedKey)},`,
+    `  clerkPublishableKey: ${quoteJavaScriptString(normalizedClerkKey)},`,
+    `  clerkSyncHost: ${quoteJavaScriptString(normalizedClerkSyncHost)},`,
+    `  clerkSignInUrl: ${quoteJavaScriptString(normalizedClerkSignInUrl)},`,
     '});',
     '',
   ].join('\n');
@@ -66,8 +95,28 @@ function writeRuntimeConfig(targetDir) {
   const source = buildBrowserExtensionConfigSource({
     supabaseUrl: process.env.VITE_SUPABASE_URL || `https://${FIIP_SUPABASE_HOST}`,
     supabaseAnonKey: process.env.VITE_SUPABASE_ANON_KEY,
+    clerkPublishableKey: process.env.VITE_CLERK_PUBLISHABLE_KEY,
+    clerkSyncHost: process.env.VITE_CLERK_SYNC_HOST || DEFAULT_CLERK_SYNC_HOST,
+    clerkSignInUrl: process.env.VITE_CLERK_SIGN_IN_URL || DEFAULT_CLERK_SIGN_IN_URL,
   });
   writeFileSync(join(targetDir, 'extension-config.js'), source);
+}
+
+function bundleBackgroundWorker(targetDir) {
+  const { buildSync } = require('esbuild');
+  const bundledWorker = join(targetDir, 'background.bundle.js');
+  buildSync({
+    entryPoints: [join(targetDir, 'background.js')],
+    outfile: bundledWorker,
+    bundle: true,
+    format: 'esm',
+    platform: 'browser',
+    target: 'chrome102',
+    logLevel: 'silent',
+  });
+  rmSync(join(targetDir, 'background.js'), { force: true });
+  writeFileSync(join(targetDir, 'background.js'), readFileSync(bundledWorker, 'utf8'));
+  rmSync(bundledWorker, { force: true });
 }
 
 export function normalizeBrowserExtensionVersion(value) {
@@ -132,6 +181,7 @@ export function packageBrowserExtensions() {
     copyPayload(target);
     writeRuntimeConfig(target);
     setManifestVersion(target, getRequestedVersion());
+    bundleBackgroundWorker(target);
     zipDirectory(target, join(outputDir, `Fiip-Web-Clipper-${store}.zip`));
   }
 

@@ -4,8 +4,14 @@
   "short_name": "Fiip Clipper",
   "version": "0.1.0",
   "description": "Capture web pages, selections, and source metadata into Fiip.",
-  "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["https://fqouvzkovppyqocfxanl.supabase.co/*"],
+  "permissions": ["activeTab", "cookies", "scripting", "storage"],
+  "host_permissions": [
+    "https://fqouvzkovppyqocfxanl.supabase.co/*",
+    "https://portail.fiip.fr/*",
+    "https://clerk.fiip.fr/*",
+    "https://accounts.fiip.fr/*",
+    "https://*.clerk.accounts.dev/*"
+  ],
   "homepage_url": "https://fiip.fr/",
   "icons": {
     "16": "icons/icon16.png",
