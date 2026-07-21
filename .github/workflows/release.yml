@@ -1,10 +1,19 @@
 name: Release
+
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
     inputs:
+      operation:
+        description: 'Validate only or create a release'
+        required: true
+        default: 'validate'
+        type: choice
+        options:
+        - validate
+        - release
       bump_type:
         description: 'Type of version bump'
         required: true
@@ -19,22 +28,96 @@ on:
         - premajor
         - prerelease
 
+permissions:
+  contents: read
+
+concurrency:
+  group: fiip-release
+  cancel-in-progress: false
+
 jobs:
-  bump-version:
-    if: github.event_name == 'workflow_dispatch'
+  preflight:
+    name: Validate release source
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Require main for manual releases
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          echo "Manual releases must be started from the main branch." >&2
+          exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Validate release tag
+        if: github.event_name == 'push'
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          if ! [[ "$TAG_NAME" =~ ^v\.?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag must use vX.Y.Z or legacy v.X.Y.Z syntax: $TAG_NAME" >&2
+            exit 1
+          fi
+
+      - name: Validate required release secrets
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for name in \
+            VITE_SUPABASE_URL \
+            VITE_SUPABASE_ANON_KEY \
+            VITE_CLERK_PUBLISHABLE_KEY \
+            VITE_TURNSTILE_SITE_KEY \
+            TAURI_SIGNING_PRIVATE_KEY \
+            TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+          do
+            if [ -z "${!name}" ]; then
+              echo "$name is required for release builds." >&2
+              exit 1
+            fi
+          done
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release source
+        run: |
+          npm run lint
+          npm run test
+          npm run test:extensions
+          npm run build
+
+  bump-version:
+    needs: preflight
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production-release
     permissions:
       contents: write
     outputs:
       new_tag: ${{ steps.get_version.outputs.new_tag }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
+          ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -50,20 +133,20 @@ jobs:
         id: get_version
         run: |
           NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "new_tag=v.$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "new_tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Commit and Push
         run: |
-          git add package.json src-tauri/tauri.conf.json
-          git commit -m "chore(release): $NEW_VERSION"
+          git add package.json package-lock.json public/version.json src-tauri/tauri.conf.json
+          git commit -m "chore(release): préparer la version $NEW_VERSION"
           git push origin main
-          git tag v.$NEW_VERSION
-          git push origin v.$NEW_VERSION
+          git tag "v$NEW_VERSION"
+          git push origin "v$NEW_VERSION"
 
   release:
-    needs: bump-version
-    if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
+    needs: [preflight, bump-version]
+    if: always() && github.event_name == 'push' && needs.preflight.result == 'success' && needs.bump-version.result == 'skipped'
     permissions:
       contents: write
     strategy:
@@ -85,15 +168,16 @@ jobs:
             rust_targets: "aarch64-pc-windows-msvc"
 
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -154,7 +238,7 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install frontend dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci
 
       - name: Validate CAPTCHA site key
         shell: bash
@@ -193,6 +277,9 @@ jobs:
           VITE_KEYAUTH_VERSION: ${{ vars.VITE_KEYAUTH_VERSION || '1.0' }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_CLERK_SYNC_HOST: ${{ vars.VITE_CLERK_SYNC_HOST || 'https://clerk.fiip.fr' }}
+          VITE_CLERK_SIGN_IN_URL: ${{ vars.VITE_CLERK_SIGN_IN_URL || 'https://accounts.fiip.fr/sign-in' }}
           VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
           VITE_CHROME_EXTENSION_URL: ${{ vars.VITE_CHROME_EXTENSION_URL }}
         with:
@@ -256,23 +343,24 @@ jobs:
     needs: [release, bump-version]
     if: always() && (needs.release.result == 'success')
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: Mobile/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install frontend dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci
 
       - name: Resolve browser extension version
         id: extension_version
@@ -311,10 +399,13 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_CLERK_SYNC_HOST: ${{ vars.VITE_CLERK_SYNC_HOST || 'https://clerk.fiip.fr' }}
+          VITE_CLERK_SIGN_IN_URL: ${{ vars.VITE_CLERK_SIGN_IN_URL || 'https://accounts.fiip.fr/sign-in' }}
         run: npm run package:extensions -- --version "${{ steps.extension_version.outputs.version }}"
 
       - name: Upload Chrome Store and manual Edge extension packages
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           files: |
@@ -344,6 +435,8 @@ jobs:
           done
 
       - name: Publish Chrome Web Store extension
+        id: publish_chrome
+        continue-on-error: true
         env:
           CHROME_WEBSTORE_EXTENSION_ID: ${{ secrets.CHROME_WEBSTORE_EXTENSION_ID }}
           CHROME_WEBSTORE_PUBLISHER_ID: ${{ secrets.CHROME_WEBSTORE_PUBLISHER_ID }}
@@ -353,22 +446,30 @@ jobs:
           CHROME_EXTENSION_ZIP: dist/extensions/Fiip-Web-Clipper-Chrome.zip
         run: npm run publish:chrome-extension
 
+      - name: Report Chrome Web Store review requirement
+        if: steps.publish_chrome.outcome == 'failure'
+        run: |
+          echo "::warning::Chrome package upload succeeded, but automatic publication was refused. Review the item metadata in the Chrome Web Store dashboard."
+          echo "### Chrome Web Store" >> "$GITHUB_STEP_SUMMARY"
+          echo "Package uploaded, publication pending a metadata or store review correction." >> "$GITHUB_STEP_SUMMARY"
+
 
   generate-updater-json:
     needs: [release, bump-version]
     if: always() && (needs.release.result == 'success')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci
 
       - name: Generate latest.json
         uses: actions/github-script@v7
@@ -558,30 +659,40 @@ jobs:
             }
 
   build-android:
-    needs: bump-version
-    if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
+    needs: [preflight, bump-version]
+    if: always() && github.event_name == 'push' && needs.preflight.result == 'success' && needs.bump-version.result == 'skipped'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+      VITE_CLERK_SYNC_HOST: ${{ vars.VITE_CLERK_SYNC_HOST || 'https://clerk.fiip.fr' }}
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_CLERK_PASSKEYS_ENABLED: 'false'
+      VITE_KEYAUTH_NAME: ${{ vars.VITE_KEYAUTH_NAME || 'Fiip' }}
+      VITE_KEYAUTH_OWNERID: ${{ secrets.VITE_KEYAUTH_OWNERID }}
+      VITE_KEYAUTH_SECRET: ${{ secrets.VITE_KEYAUTH_SECRET }}
+      VITE_KEYAUTH_VERSION: ${{ vars.VITE_KEYAUTH_VERSION || '1.0' }}
+      VITE_KEYAUTH_APIURL: ${{ vars.VITE_KEYAUTH_APIURL || 'https://keyauth.win/api/1.2/' }}
     permissions:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -639,31 +750,41 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Upload Release APK
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           files: Mobile/android/app/build/outputs/apk/release/*.apk
 
   build-ios:
-    needs: bump-version
-    if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
+    needs: [preflight, bump-version]
+    if: always() && github.event_name == 'push' && needs.preflight.result == 'success' && needs.bump-version.result == 'skipped'
     runs-on: macos-latest
+    timeout-minutes: 45
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+      VITE_CLERK_SYNC_HOST: ${{ vars.VITE_CLERK_SYNC_HOST || 'https://clerk.fiip.fr' }}
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_CLERK_PASSKEYS_ENABLED: 'false'
+      VITE_KEYAUTH_NAME: ${{ vars.VITE_KEYAUTH_NAME || 'Fiip' }}
+      VITE_KEYAUTH_OWNERID: ${{ secrets.VITE_KEYAUTH_OWNERID }}
+      VITE_KEYAUTH_SECRET: ${{ secrets.VITE_KEYAUTH_SECRET }}
+      VITE_KEYAUTH_VERSION: ${{ vars.VITE_KEYAUTH_VERSION || '1.0' }}
+      VITE_KEYAUTH_APIURL: ${{ vars.VITE_KEYAUTH_APIURL || 'https://keyauth.win/api/1.2/' }}
     permissions:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -734,12 +855,12 @@ jobs:
           cat <<EOF > altstore.json
           {
             "name": "Fiip",
-            "identifier": "vinsstudio.FiipMobile.altstore",
+                "identifier": "com.fiipmobile.altstore",
             "sourceURL": "https://github.com/darkiifr/Fiip/releases/latest/download/altstore.json",
             "apps": [
               {
                 "name": "Fiip",
-                "bundleIdentifier": "vinsstudio.FiipMobile",
+                "bundleIdentifier": "com.fiipmobile",
                 "developerName": "VinsSoftware",
                 "version": "$VERSION",
                 "versionDate": "$DATE",
@@ -764,7 +885,7 @@ jobs:
           EOF
 
       - name: Upload Release IPA and AltStore JSON
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
           files: |

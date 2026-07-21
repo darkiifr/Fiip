@@ -1,46 +1,81 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import fs from 'fs';
-import path from 'path';
+const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
+const SUPPORTED_BUMPS = new Set([
+  'patch',
+  'minor',
+  'major',
+  'prepatch',
+  'preminor',
+  'premajor',
+  'prerelease',
+]);
 
-const packageJsonPath = path.resolve('package.json');
-const tauriConfPath = path.resolve('src-tauri/tauri.conf.json');
+export function bumpVersion(currentVersion, bumpType = 'patch') {
+  const match = VERSION_PATTERN.exec(String(currentVersion));
+  if (!match) throw new Error(`Version invalide: ${currentVersion}`);
+  if (!SUPPORTED_BUMPS.has(bumpType)) throw new Error(`Type de version invalide: ${bumpType}`);
 
-// Read package.json
-const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-const currentVersion = packageJson.version;
+  let major = Number(match[1]);
+  let minor = Number(match[2]);
+  let patch = Number(match[3]);
+  const prerelease = match[4] || '';
 
-// Get bump type from args
-const args = process.argv.slice(2);
-const typeArg = args.find(arg => arg.startsWith('--type='));
-const bumpType = typeArg ? typeArg.split('=')[1] : 'patch';
+  if (bumpType === 'major' || bumpType === 'premajor') {
+    major += 1;
+    minor = 0;
+    patch = 0;
+  } else if (bumpType === 'minor' || bumpType === 'preminor') {
+    minor += 1;
+    patch = 0;
+  } else if (bumpType === 'patch' || bumpType === 'prepatch') {
+    patch += 1;
+  }
 
-// Parse version
-const parts = currentVersion.split('.').map(Number);
+  if (bumpType === 'prerelease') {
+    const identifiers = prerelease ? prerelease.split('.') : ['rc', '0'];
+    const last = identifiers.at(-1);
+    if (/^\d+$/.test(last || '')) identifiers[identifiers.length - 1] = String(Number(last) + 1);
+    else identifiers.push('0');
+    return `${major}.${minor}.${patch}-${identifiers.join('.')}`;
+  }
+  if (bumpType.startsWith('pre')) return `${major}.${minor}.${patch}-rc.0`;
 
-if (bumpType === 'major') {
-    parts[0] += 1;
-    parts[1] = 0;
-    parts[2] = 0;
-} else if (bumpType === 'minor') {
-    parts[1] += 1;
-    parts[2] = 0;
-} else {
-    // patch (default)
-    parts[2] += 1;
+  return `${major}.${minor}.${patch}`;
 }
 
-const newVersion = parts.join('.');
+function updateJsonVersion(filePath, version) {
+  const document = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  document.version = version;
+  fs.writeFileSync(filePath, `${JSON.stringify(document, null, 2)}\n`);
+}
 
-console.log(`Bumping version (${bumpType}): ${currentVersion} -> ${newVersion}`);
+export function updateProjectVersion(rootDirectory, bumpType = 'patch') {
+  const packageJsonPath = path.join(rootDirectory, 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  const version = bumpVersion(packageJson.version, bumpType);
 
-// Update package.json
-packageJson.version = newVersion;
-fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+  updateJsonVersion(packageJsonPath, version);
+  updateJsonVersion(path.join(rootDirectory, 'src-tauri', 'tauri.conf.json'), version);
+  updateJsonVersion(path.join(rootDirectory, 'public', 'version.json'), version);
 
-// Update tauri.conf.json
-const tauriConf = JSON.parse(fs.readFileSync(tauriConfPath, 'utf-8'));
-tauriConf.version = newVersion;
-fs.writeFileSync(tauriConfPath, JSON.stringify(tauriConf, null, 2) + '\n');
+  const packageLockPath = path.join(rootDirectory, 'package-lock.json');
+  if (fs.existsSync(packageLockPath)) {
+    const packageLock = JSON.parse(fs.readFileSync(packageLockPath, 'utf8'));
+    packageLock.version = version;
+    if (packageLock.packages?.['']) packageLock.packages[''].version = version;
+    fs.writeFileSync(packageLockPath, `${JSON.stringify(packageLock, null, 2)}\n`);
+  }
 
-console.log(`::set-output name=new_version::${newVersion}`);
-console.log(newVersion);
+  return { previousVersion: packageJson.version, version };
+}
+
+const isDirectRun = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+if (isDirectRun) {
+  const typeArgument = process.argv.slice(2).find((argument) => argument.startsWith('--type='));
+  const bumpType = typeArgument?.split('=', 2)[1] || 'patch';
+  const result = updateProjectVersion(process.cwd(), bumpType);
+  console.log(`Version ${result.previousVersion} -> ${result.version} (${bumpType})`);
+}
