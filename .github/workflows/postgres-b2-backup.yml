@@ -50,16 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y age ca-certificates curl gnupg jq rclone
-          sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc |
-            sudo gpg --dearmor --yes -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
-          codename="$(. /etc/os-release; printf '%s' "$VERSION_CODENAME")"
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt ${codename}-pgdg main" |
-            sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
-          pg_dump --version
+          sudo apt-get install -y age jq rclone
+          docker pull postgres:17
+          docker run --rm postgres:17 pg_dump --version
 
       - name: Dump, encrypt, upload and register
         shell: bash
@@ -98,7 +91,8 @@ jobs:
               --data-binary @-)"
           run_id="$(jq -er '.[0].id' <<<"$pending")"
 
-          pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges --file="$dump"
+          docker run --rm --volume "$PWD:/backup" postgres:17 \
+            pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges --file="/backup/$dump"
           age -r "$BACKUP_AGE_RECIPIENT" -o "$encrypted" "$dump"
           sha256sum "$encrypted" > "$checksum"
 

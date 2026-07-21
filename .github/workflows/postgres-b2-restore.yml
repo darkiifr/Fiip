@@ -65,17 +65,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y age ca-certificates curl gnupg jq rclone
-          sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc |
-            sudo gpg --dearmor --yes -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
-          codename="$(. /etc/os-release; printf '%s' "$VERSION_CODENAME")"
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] https://apt.postgresql.org/pub/repos/apt ${codename}-pgdg main" |
-            sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
-          pg_dump --version
-          pg_restore --version
+          sudo apt-get install -y age jq rclone
+          docker pull postgres:17
+          docker run --rm postgres:17 pg_dump --version
+          docker run --rm postgres:17 pg_restore --version
 
       - name: Resolve and mark backup
         id: backup
@@ -109,7 +102,8 @@ jobs:
         run: |
           set -euo pipefail
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-          pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges --file=pre-restore.dump
+          docker run --rm --volume "$PWD:/backup" postgres:17 \
+            pg_dump "$SUPABASE_DB_URL" --format=custom --compress=9 --no-owner --no-privileges --file=/backup/pre-restore.dump
           age -r "$BACKUP_AGE_RECIPIENT" -o "pre-restore-${stamp}.dump.age" pre-restore.dump
           sha256sum "pre-restore-${stamp}.dump.age" > "pre-restore-${stamp}.dump.age.sha256"
           rclone copy "pre-restore-${stamp}.dump.age" "fiip-b2:${B2_BACKUP_BUCKET}/pre-restore/" --retries 5 --low-level-retries 10
@@ -135,7 +129,9 @@ jobs:
           printf '%s' "$BACKUP_AGE_IDENTITY" > age-identity.txt
           chmod 600 age-identity.txt
           age --decrypt -i age-identity.txt -o restore.dump "$encrypted"
-          pg_restore --clean --if-exists --exit-on-error --single-transaction --no-owner --no-privileges --dbname="$SUPABASE_DB_URL" restore.dump
+          docker run --rm --volume "$PWD:/restore" postgres:17 \
+            pg_restore --clean --if-exists --exit-on-error --single-transaction --no-owner --no-privileges \
+              --dbname="$SUPABASE_DB_URL" /restore/restore.dump
 
       - name: Mark restored and audit
         if: success()
