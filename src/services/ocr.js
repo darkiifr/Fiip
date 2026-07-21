@@ -77,7 +77,7 @@ function normalizeOcrText(text = '') {
 
 function cleanChatOcrLine(line = '') {
   let value = String(line || '').trim();
-  if (!value) return '';
+  if (!value) {return '';}
 
   value = value
     .replace(/\s*[=~-]\s*\d{2}[-:]\d{2}\s*$/i, '')
@@ -284,8 +284,8 @@ async function getOpenCv() {
   if (!openCvPromise) {
     openCvPromise = import('@techstark/opencv-js').then(async (module) => {
       const cv = module.default || module;
-      if (cv instanceof Promise) return cv;
-      if (cv?.Mat) return cv;
+      if (cv instanceof Promise) {return cv;}
+      if (cv?.Mat) {return cv;}
       await new Promise((resolve) => {
         const previous = cv?.onRuntimeInitialized;
         cv.onRuntimeInitialized = () => {
@@ -301,7 +301,7 @@ async function getOpenCv() {
 
 async function createOpenCvOcrVariant(baseImageData, width, height) {
   const cv = await getOpenCv();
-  if (!cv?.matFromImageData || !cv?.adaptiveThreshold || !cv?.cvtColor) return null;
+  if (!cv?.matFromImageData || !cv?.adaptiveThreshold || !cv?.cvtColor) {return null;}
 
   const source = cv.matFromImageData(baseImageData);
   const grayscale = new cv.Mat();
@@ -353,12 +353,12 @@ async function imageSourceToBitmap(source) {
 }
 
 export async function preprocessImageVariantsForOcr(file) {
-  if (typeof document === 'undefined' || !canRunImageOcr(file)) return [{ name: 'original', source: file }];
+  if (typeof document === 'undefined' || !canRunImageOcr(file)) {return [{ name: 'original', source: file }];}
 
   const bitmap = await imageSourceToBitmap(file);
   const sourceWidth = bitmap.width || bitmap.naturalWidth;
   const sourceHeight = bitmap.height || bitmap.naturalHeight;
-  if (!sourceWidth || !sourceHeight) return [{ name: 'original', source: file }];
+  if (!sourceWidth || !sourceHeight) {return [{ name: 'original', source: file }];}
 
   const maxSide = 2600;
   const minReadableSide = 1400;
@@ -369,7 +369,7 @@ export async function preprocessImageVariantsForOcr(file) {
   baseCanvas.width = width;
   baseCanvas.height = height;
   const context = baseCanvas.getContext('2d', { willReadFrequently: true });
-  if (!context) return [{ name: 'original', source: file }];
+  if (!context) {return [{ name: 'original', source: file }];}
   context.drawImage(bitmap, 0, 0, width, height);
 
   const baseImageData = context.getImageData(0, 0, width, height);
@@ -380,30 +380,30 @@ export async function preprocessImageVariantsForOcr(file) {
     canvas.width = width;
     canvas.height = height;
     const variantContext = canvas.getContext('2d', { willReadFrequently: true });
-    if (!variantContext) return;
+    if (!variantContext) {return;}
     const imageData = new ImageData(new Uint8ClampedArray(baseImageData.data), width, height);
     transform(imageData.data);
     variantContext.putImageData(imageData, 0, 0);
     const blob = await new Promise((resolve) => {
       canvas.toBlob((nextBlob) => resolve(nextBlob), 'image/png', 0.98);
     });
-    if (blob) variants.push({ name, source: blob });
+    if (blob) {variants.push({ name, source: blob });}
   };
 
   const addOpenCvVariant = async () => {
     try {
       const imageData = await createOpenCvOcrVariant(baseImageData, width, height);
-      if (!imageData) return;
+      if (!imageData) {return;}
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const variantContext = canvas.getContext('2d', { willReadFrequently: true });
-      if (!variantContext) return;
+      if (!variantContext) {return;}
       variantContext.putImageData(imageData, 0, 0);
       const blob = await new Promise((resolve) => {
         canvas.toBlob((nextBlob) => resolve(nextBlob), 'image/png', 0.98);
       });
-      if (blob) variants.push({ name: 'opencv-adaptive', source: blob });
+      if (blob) {variants.push({ name: 'opencv-adaptive', source: blob });}
     } catch {
       // The original and lightweight variants remain available if OpenCV cannot initialize.
     }

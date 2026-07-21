@@ -1,5 +1,6 @@
 import { PenLine, X, ThumbsDown, ThumbsUp, Clipboard, ArrowRightCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
+
 import { generateText, getLastAIUsageStats } from '../../services/ai';
 
 const SUGGESTIONS = [
@@ -21,7 +22,7 @@ export default function DesktopAssistantPanel({ note, onApplyText, onClose }) {
   }, [note]);
 
   async function runPrompt(prompt) {
-    if (!note) return;
+    if (!note) {return;}
     setLoading(true);
     try {
       const messages = [

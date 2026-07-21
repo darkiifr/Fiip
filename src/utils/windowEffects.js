@@ -8,7 +8,7 @@ export const WINDOW_EFFECTS = [
 ];
 
 export function normalizeOsType(osType) {
-  if (osType === 'windows' || osType === 'macos' || osType === 'linux') return osType;
+  if (osType === 'windows' || osType === 'macos' || osType === 'linux') {return osType;}
   return 'unknown';
 }
 

@@ -7,7 +7,7 @@ import IconCheck from '~icons/mingcute/check-fill';
 import IconChevronDown from '~icons/mingcute/down-fill';
 
 
-export default function ModelSelector({ selectedModel, onSelectModel, defaultModelLabel }) {
+export default function ModelSelector({ selectedModel, onSelectModel }) {
     const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const [models, setModels] = useState([]);

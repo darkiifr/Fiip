@@ -6017,10 +6017,15 @@
     ],
     "packageJson": {
       "dependencies": [
+        "npm:@aws-sdk/client-s3@^3.1090.0",
+        "npm:@aws-sdk/s3-request-presigner@^3.1090.0",
+        "npm:@clerk/chrome-extension@^3.1.54",
+        "npm:@clerk/react@^6.12.5",
         "npm:@crowdin/cli@^4.12.0",
         "npm:@eslint/js@^9.39.3",
         "npm:@hocuspocus/provider@^4.1.0",
         "npm:@iconify-json/formkit@^1.2.2",
+        "npm:@iconify-json/hugeicons@^1.2.31",
         "npm:@iconify-json/logos@^1.2.10",
         "npm:@iconify-json/mingcute@^1.2.7",
         "npm:@iconify-json/mynaui@^1.2.17",
@@ -6081,10 +6086,11 @@
         "npm:clsx@^2.1.1",
         "npm:csv-parser@^3.2.0",
         "npm:debounce@3",
-        "npm:dompurify@^3.4.11",
+        "npm:dompurify@3.4.12",
         "npm:dotenv-cli@11",
         "npm:dotenv@^17.3.1",
         "npm:emoji-picker-react@^4.16.1",
+        "npm:esbuild@~0.28.1",
         "npm:eslint-plugin-import@^2.32.0",
         "npm:eslint-plugin-jsx-a11y@^6.10.2",
         "npm:eslint-plugin-promise@^7.3.0",
@@ -6127,7 +6133,7 @@
         "npm:react-dom@^19.1.0",
         "npm:react-i18next@^16.5.0",
         "npm:react@^19.1.0",
-        "npm:shadcn@^4.13.0",
+        "npm:shadcn@4.13.1",
         "npm:source-map-cli@^1.0.1",
         "npm:tailwind-merge@^3.4.0",
         "npm:tailwindcss@^4.1.17",
@@ -6142,7 +6148,11 @@
         "npm:yjs@^13.6.30"
       ],
       "overrides": {
-        "flatted": ">=3.4.2"
+        "@hono/node-server": "2.0.11",
+        "flatted": ">=3.4.2",
+        "jayson": {
+          "uuid": "^11.1.1"
+        }
       }
     }
   }

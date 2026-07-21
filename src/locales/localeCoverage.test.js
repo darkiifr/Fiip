@@ -10,8 +10,8 @@ const reference = JSON.parse(fs.readFileSync(path.join(localesDir, 'fr.json'), '
 function flatten(value, prefix = '', out = {}) {
   for (const [key, child] of Object.entries(value)) {
     const next = prefix ? `${prefix}.${key}` : key;
-    if (child && typeof child === 'object' && !Array.isArray(child)) flatten(child, next, out);
-    else out[next] = String(child);
+    if (child && typeof child === 'object' && !Array.isArray(child)) {flatten(child, next, out);}
+    else {out[next] = String(child);}
   }
   return out;
 }

@@ -30,22 +30,24 @@ import {
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { cacheAttachment, classifyAttachment, formatBytes, getAttachmentPreviewUrl, readAttachmentOcrCache, resolveAttachmentCachePath, writeAttachmentOcrCache } from '../services/attachmentCache';
+import { createTask } from '../services/fiipV1';
+import { exportNoteAsFiin } from '../services/fileManager';
+import { canRunImageOcr, extractImageOcr, shouldRunAttachmentOcr } from '../services/ocr';
+import { getAttachmentLimitAlert, getStorageLimitAlert } from '../services/planLimits';
+import { soundManager } from '../services/soundManager';
+import { dataService } from '../services/supabase';
+import { decryptData, encryptData } from '../utils/crypto';
+import { getNoteStats } from '../utils/notePresentation';
+import { getTagColorClasses, normalizeNoteTags, serializeNoteTags } from '../utils/noteTags';
+import { normalizeTaskTime } from '../utils/taskTime';
+
 import AttachmentViewer from './AttachmentViewer';
 import CanvasDraw from './CanvasDraw';
 import DocumentScanner from './DocumentScanner';
 import EditorActionBar from './EditorActionBar';
 import RichTextEditor from './RichTextEditor';
-import { exportNoteAsFiin } from '../services/fileManager';
-import { createTask } from '../services/fiipV1';
-import { cacheAttachment, classifyAttachment, formatBytes, getAttachmentPreviewUrl, readAttachmentOcrCache, resolveAttachmentCachePath, writeAttachmentOcrCache } from '../services/attachmentCache';
-import { canRunImageOcr, extractImageOcr, shouldRunAttachmentOcr } from '../services/ocr';
-import { getAttachmentLimitAlert, getStorageLimitAlert } from '../services/planLimits';
-import { dataService } from '../services/supabase';
-import { soundManager } from '../services/soundManager';
-import { decryptData, encryptData } from '../utils/crypto';
-import { getTagColorClasses, normalizeNoteTags, serializeNoteTags } from '../utils/noteTags';
-import { getNoteStats } from '../utils/notePresentation';
-import { normalizeTaskTime } from '../utils/taskTime';
 
 const getCurrentTimestamp = () => new Date().getTime();
 
@@ -57,7 +59,7 @@ const escapeHtml = (value = '') => String(value)
     .replace(/'/g, '&#039;');
 
 function buildDateTimeLocal(dateValue = '', timeValue = '') {
-    if (!dateValue) return '';
+    if (!dateValue) {return '';}
     const time = normalizeTaskTime(timeValue) || '09:00';
     return `${dateValue}T${time}`;
 }
@@ -70,7 +72,7 @@ function formatDateInput(date) {
 }
 
 function parseDateInput(value) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) {return null;}
     const [year, month, day] = value.split('-').map(Number);
     const date = new Date(year, month - 1, day);
     return Number.isNaN(date.getTime()) ? null : date;
@@ -179,9 +181,9 @@ const attachmentIcons = {
 };
 
 const getOcrBadge = (status, label, confidence, qualityScore = 0, qualityLevel = '') => {
-    if (status === 'processing') return { label: 'OCR en cours...', detail: '', Icon: ScanLine };
-    if (status === 'failed') return { label: 'OCR indisponible', detail: '', Icon: AlertCircle };
-    if (status === 'empty') return { label: label || 'Aucun texte détecté', detail: '', Icon: AlertCircle };
+    if (status === 'processing') {return { label: 'OCR en cours...', detail: '', Icon: ScanLine };}
+    if (status === 'failed') {return { label: 'OCR indisponible', detail: '', Icon: AlertCircle };}
+    if (status === 'empty') {return { label: label || 'Aucun texte détecté', detail: '', Icon: AlertCircle };}
     if (status === 'complete') {
         const qualityDetail = qualityScore ? `Qualité OCR ${Math.round(qualityScore)}%` : '';
         const qualityLabel = qualityLevel === 'low' ? 'Scan OCR à vérifier' : label || 'OCR terminé';
@@ -299,7 +301,7 @@ export default function Editor({
     onOpenLicense,
     onCreateNote,
     tagSuggestions = [],
-    notebooks = [],
+    _notebooks = [],
     tasks = [],
     onSaveTask,
     onDeleteTask,
@@ -333,7 +335,7 @@ export default function Editor({
     const fileInputRef = useRef(null);
 
     const showLimitAlert = async (limitAlert) => {
-        if (!limitAlert) return;
+        if (!limitAlert) {return;}
         if (window.__TAURI_INTERNALS__) {
             await message(limitAlert.message, { title: limitAlert.title, kind: 'warning' });
             return;
@@ -357,11 +359,11 @@ export default function Editor({
                 const shouldRefreshPreview = nextAttachment.previewable && (!nextAttachment.url || (isSessionPreviewUrl(nextAttachment.url) && hasLocalSource));
                 if (shouldRefreshPreview) {
                     const url = await getAttachmentPreviewUrl(nextAttachment);
-                    if (url) nextAttachment.url = url;
+                    if (url) {nextAttachment.url = url;}
                 }
                 if (!nextAttachment.ocrStatus && canRunImageOcr(nextAttachment)) {
                     const cachedOcr = await readAttachmentOcrCache(nextAttachment);
-                    if (cachedOcr) Object.assign(nextAttachment, buildOcrAttachmentFields(cachedOcr));
+                    if (cachedOcr) {Object.assign(nextAttachment, buildOcrAttachmentFields(cachedOcr));}
                 }
                 return nextAttachment;
             }));
@@ -378,7 +380,7 @@ export default function Editor({
 
     useEffect(() => {
         const protectedNote = Boolean(note.is_locked || note.encrypted_content);
-        if (protectedNote) return;
+        if (protectedNote) {return;}
 
         const retryableAttachments = attachmentsRef.current.filter((attachment) => (
             attachment.ocrStatus === 'failed'
@@ -457,7 +459,7 @@ export default function Editor({
             updatedAt: getCurrentTimestamp(),
         });
 
-        if (result.cancelled) return;
+        if (result.cancelled) {return;}
 
         if (result.success) {
             await message('Note exportée en .fiin.', { title: 'Fiip', kind: 'info' }).catch(console.error);
@@ -472,7 +474,7 @@ export default function Editor({
 
     const submitPasswordDialog = async (event) => {
         event?.preventDefault();
-        if (!passwordDialog || !passwordValue) return;
+        if (!passwordDialog || !passwordValue) {return;}
         setPasswordError('');
         const password = passwordValue;
         if (passwordDialog.mode === 'unlock') {
@@ -531,7 +533,7 @@ export default function Editor({
 
     const handleAddTask = async (event) => {
         event.preventDefault();
-        if (!taskTitle.trim()) return;
+        if (!taskTitle.trim()) {return;}
         await onSaveTask?.(createTask({
             noteId: note.id,
             title: taskTitle,
@@ -612,7 +614,7 @@ export default function Editor({
 
     const addFiles = async (files, { attachmentSource = '', skipOcr = false } = {}) => {
         const incomingFiles = Array.from(files || []);
-        if (!incomingFiles.length) return;
+        if (!incomingFiles.length) {return;}
 
         const attachmentLimitAlert = getAttachmentLimitAlert({
             level: planLevel,
@@ -743,7 +745,7 @@ export default function Editor({
 
     const handlePaste = async (event) => {
         const files = Array.from(event.clipboardData?.files || []);
-        if (!files.length) return;
+        if (!files.length) {return;}
         event.preventDefault();
         await addFiles(files);
     };

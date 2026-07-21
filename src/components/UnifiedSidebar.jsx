@@ -21,7 +21,7 @@ import { getSafeImageUrl, sanitizeDomText } from '../utils/safeUrl';
 
 import { PRESET_ICONS } from './NoteBadges';
 
-function NoteSearchBox({ value, onChange, resultCount, totalCount, placeholder, clearLabel, resultLabel }) {
+function NoteSearchBox({ value, onChange, resultCount: _resultCount, totalCount: _totalCount, placeholder, clearLabel, resultLabel }) {
     const hasQuery = value.trim().length > 0;
 
     return (
@@ -96,18 +96,18 @@ export default function UnifiedSidebar({
     useEffect(() => {
         let isMounted = true;
         authService.getUser().then(u => {
-            if (isMounted) setUser(u);
+            if (isMounted) {setUser(u);}
         }).catch(console.error);
         dataService.fetchProfile().then(({ data }) => {
-            if (isMounted) setProfile(data || null);
+            if (isMounted) {setProfile(data || null);}
         }).catch(() => {});
 
         // Sub to auth changes
         const { data: { subscription } } = authService.onAuthStateChange((event, session) => {
-            if (isMounted) setUser(session?.user || null);
+            if (isMounted) {setUser(session?.user || null);}
             if (session?.user) {
                 dataService.fetchProfile().then(({ data }) => {
-                    if (isMounted) setProfile(data || null);
+                    if (isMounted) {setProfile(data || null);}
                 }).catch(() => {});
             } else {
                 setProfile(null);
@@ -117,7 +117,7 @@ export default function UnifiedSidebar({
         const refreshLocalProfile = () => {
             try {
                 const localProfile = JSON.parse(localStorage.getItem('fiip_public_profile') || 'null');
-                if (localProfile && isMounted) setProfile((current) => ({ ...current, ...localProfile }));
+                if (localProfile && isMounted) {setProfile((current) => ({ ...current, ...localProfile }));}
             } catch {
                 // Ignore invalid local profile cache.
             }
@@ -161,11 +161,11 @@ export default function UnifiedSidebar({
     }, [notes, activeNav, searchQuery]);
 
     const navNotesCount = useMemo(() => {
-        if (activeNav === 'favorites') return notes.filter((n) => n.favorite && !n.deleted).length;
-        if (activeNav === 'trash') return notes.filter((n) => n.deleted).length;
+        if (activeNav === 'favorites') {return notes.filter((n) => n.favorite && !n.deleted).length;}
+        if (activeNav === 'trash') {return notes.filter((n) => n.deleted).length;}
         if (activeNav?.startsWith?.('notebook:')) {
             const notebookId = activeNav.replace('notebook:', '');
-            if (notebookId === 'all-notes') return notes.filter((n) => !n.deleted).length;
+            if (notebookId === 'all-notes') {return notes.filter((n) => !n.deleted).length;}
             return notes.filter((n) => !n.deleted && (n.notebookId || n.notebook_id || n.folder_id || 'all-notes') === notebookId).length;
         }
         return notes.filter((n) => !n.deleted).length;
@@ -181,17 +181,17 @@ export default function UnifiedSidebar({
         };
 
         notes.forEach((note) => {
-            if (note.deleted) return;
+            if (note.deleted) {return;}
             const id = note.notebookId || note.notebook_id || note.folder_id || 'all-notes';
             const item = ensure(id);
             item.notes += 1;
-            if (note.favorite) item.favorites += 1;
+            if (note.favorite) {item.favorites += 1;}
             item.lastUpdatedAt = Math.max(item.lastUpdatedAt, Number(note.updatedAt || Date.parse(note.updated_at || '') || 0));
 
             const allNotes = ensure('all-notes');
             if (id !== 'all-notes') {
                 allNotes.notes += 1;
-                if (note.favorite) allNotes.favorites += 1;
+                if (note.favorite) {allNotes.favorites += 1;}
                 allNotes.lastUpdatedAt = Math.max(allNotes.lastUpdatedAt, item.lastUpdatedAt);
             }
         });
@@ -373,7 +373,7 @@ export default function UnifiedSidebar({
                                             onSubmit={(event) => {
                                                 event.preventDefault();
                                                 const nextName = notebookDraft.trim();
-                                                if (nextName) onRenameNotebook?.(notebook, nextName);
+                                                if (nextName) {onRenameNotebook?.(notebook, nextName);}
                                                 setEditingNotebookId('');
                                             }}
                                         >
@@ -383,7 +383,7 @@ export default function UnifiedSidebar({
                                                 onChange={(event) => setNotebookDraft(event.target.value)}
                                                 onBlur={() => setEditingNotebookId('')}
                                                 onKeyDown={(event) => {
-                                                    if (event.key === 'Escape') setEditingNotebookId('');
+                                                    if (event.key === 'Escape') {setEditingNotebookId('');}
                                                 }}
                                                 className="h-6 w-full rounded-lg border border-amber-500/30 bg-white px-2 text-[11px] font-bold outline-none dark:bg-[#111316]"
                                             />

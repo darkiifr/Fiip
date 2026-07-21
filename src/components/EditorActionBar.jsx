@@ -4,14 +4,14 @@ import { Bot, Image as ImageIcon, Lock, Mic, Palette, Pause, Play, Plus, Tag, Ty
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { soundManager } from '../services/soundManager';
-import { getTagColorClasses, normalizeNoteTags, serializeNoteTags, TAG_SOLID_COLOR_CLASSES } from '../utils/noteTags';
 import { stripNoteText } from '../utils/notePresentation';
+import { getTagColorClasses, normalizeNoteTags, serializeNoteTags, TAG_SOLID_COLOR_CLASSES } from '../utils/noteTags';
 
 import { PRESET_ICONS } from './NoteBadges';
 
 function TagIcon({ icon, className = 'h-3.5 w-3.5' }) {
     const isExternal = typeof icon === 'string' && (icon.includes(':') || icon.startsWith('logos'));
-    if (isExternal) return <IconifyIcon icon={icon} className={className} />;
+    if (isExternal) {return <IconifyIcon icon={icon} className={className} />;}
     const Icon = PRESET_ICONS[icon] || Tag;
     return <Icon className={className} />;
 }
@@ -113,7 +113,7 @@ function TagPicker({ tags, suggestions, onChange }) {
                             value={label}
                             onChange={(event) => setLabel(event.target.value)}
                             onKeyDown={(event) => {
-                                if (event.key === 'Enter' && label.trim()) commitTag();
+                                if (event.key === 'Enter' && label.trim()) {commitTag();}
                             }}
                             placeholder="Nouveau tag"
                             className="h-9 w-full rounded-xl border border-black/10 bg-white px-3 text-sm font-semibold outline-none focus:border-amber-500/50 dark:border-white/10 dark:bg-white/[0.06]"
@@ -185,7 +185,7 @@ export default function EditorActionBar({
 
     const speakNote = () => {
         soundManager.play('interaction').catch(console.error);
-        if (!window.speechSynthesis) return;
+        if (!window.speechSynthesis) {return;}
         if (speechState === 'playing') {
             window.speechSynthesis.pause();
             setSpeechState('paused');
@@ -197,7 +197,7 @@ export default function EditorActionBar({
             return;
         }
         const text = stripNoteText(note.content || '');
-        if (!text) return;
+        if (!text) {return;}
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.onend = () => setSpeechState('idle');

@@ -227,7 +227,7 @@ export default function ChatModal({ isOpen, onClose }) {
 
     const getSafeImageUrl = (url) => {
         const safeUrl = getSafePublicUrl(url, { allowSvg: false });
-        if (!safeUrl) return '';
+        if (!safeUrl) {return '';}
         const parsed = new URL(safeUrl);
         const isTenorMedia = parsed.hostname === 'media.tenor.com' || parsed.hostname.endsWith('.media.tenor.com');
         return /\.(jpeg|jpg|gif|png|webp)$/i.test(parsed.pathname) || isTenorMedia
@@ -515,7 +515,7 @@ export default function ChatModal({ isOpen, onClose }) {
                                              <div className="grid grid-cols-2 gap-2">
                                                  {mediaList.map((url, i) => {
                                                      const safeUrl = getSafeImageUrl(url);
-                                                     if (!safeUrl) return null;
+                                                     if (!safeUrl) {return null;}
                                                      return (
                                                          <div key={i} onClick={() => handleGifClick(safeUrl)} className="aspect-video bg-[#1E1F22] rounded cursor-pointer hover:ring-2 hover:ring-[#5865F2] overflow-hidden relative group">
                                                              <img src={safeUrl} alt="GIF" className="w-full h-full object-cover" />

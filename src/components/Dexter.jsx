@@ -4,6 +4,9 @@ import { marked } from 'marked';
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { generateText } from '../services/ai';
+import { buildDexterNoteContext } from '../services/dexterContext';
+
 import {
     AIActionCard,
     AIComposer,
@@ -17,8 +20,6 @@ import {
     AIWorkspaceHeader,
     AIWorkspaceSidebar,
 } from './ui/AIWorkspace';
-import { generateText } from '../services/ai';
-import { buildDexterNoteContext } from '../services/dexterContext';
 
 const getCurrentTimestamp = () => new Date().getTime();
 
@@ -137,7 +138,7 @@ function parseActionFromResponse(response, fallback) {
         };
     }
 
-    if (!fallback) return null;
+    if (!fallback) {return null;}
 
     return {
         action: fallback.action,
@@ -183,15 +184,15 @@ export default function Dexter({
     const noteContext = useMemo(() => buildDexterNoteContext(currentNote), [currentNote]);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {return;}
         const id = window.setTimeout(() => inputRef.current?.focus(), 80);
         return () => window.clearTimeout(id);
     }, [isOpen]);
 
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {return;}
         const handleKeyDown = (event) => {
-            if (event.key === 'Escape') onClose?.();
+            if (event.key === 'Escape') {onClose?.();}
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
@@ -213,7 +214,7 @@ export default function Dexter({
 
     const handleAccept = useCallback((index, msg) => {
         const { data } = msg;
-        if (!data) return;
+        if (!data) {return;}
 
         if (data.action === 'create' || data.action === 'create_note') {
             onCreateNote?.({ title: data.title || 'Nouvelle note', content: data.content || '' });
@@ -266,7 +267,7 @@ export default function Dexter({
 
     const runDexterRequest = useCallback(async ({ text, visibleText = text, fallbackAction = null, actionId = null }) => {
         const prompt = String(text || '').trim();
-        if (!prompt || isThinking) return;
+        if (!prompt || isThinking) {return;}
 
         setInput('');
         setActiveAction(actionId);
@@ -356,12 +357,12 @@ export default function Dexter({
 
     const handleSend = () => {
         const text = input.trim();
-        if (!text) return;
+        if (!text) {return;}
         runDexterRequest({ text });
     };
 
     useEffect(() => {
-        if (!isOpen || !initialPrompt?.text || consumedInitialPromptRef.current === initialPrompt.id) return;
+        if (!isOpen || !initialPrompt?.text || consumedInitialPromptRef.current === initialPrompt.id) {return;}
 
         consumedInitialPromptRef.current = initialPrompt.id;
         runDexterRequest({ text: initialPrompt.text });

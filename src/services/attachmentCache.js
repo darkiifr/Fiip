@@ -218,21 +218,21 @@ export function classifyAttachment({ name = '', mimeType = '' } = {}) {
   const mime = String(mimeType || '').toLowerCase();
   const extension = getExtension(name);
 
-  if (mime.startsWith('image/') || IMAGE_EXTENSIONS.has(extension)) return { kind: 'image', extension, previewable: true };
-  if (mime.startsWith('video/') || VIDEO_EXTENSIONS.has(extension)) return { kind: 'video', extension, previewable: true };
-  if (mime.startsWith('audio/') || AUDIO_EXTENSIONS.has(extension)) return { kind: 'audio', extension, previewable: true };
-  if (mime.startsWith('text/') || TEXT_EXTENSIONS.has(extension)) return { kind: 'text', extension, previewable: true };
-  if (extension === 'pdf' || mime === 'application/pdf') return { kind: 'pdf', extension, previewable: true };
-  if (DOCUMENT_EXTENSIONS.has(extension)) return { kind: 'document', extension, previewable: false };
-  if (SPREADSHEET_EXTENSIONS.has(extension)) return { kind: 'spreadsheet', extension, previewable: false };
-  if (PRESENTATION_EXTENSIONS.has(extension)) return { kind: 'presentation', extension, previewable: false };
-  if (ARCHIVE_EXTENSIONS.has(extension)) return { kind: 'archive', extension, previewable: false };
+  if (mime.startsWith('image/') || IMAGE_EXTENSIONS.has(extension)) {return { kind: 'image', extension, previewable: true };}
+  if (mime.startsWith('video/') || VIDEO_EXTENSIONS.has(extension)) {return { kind: 'video', extension, previewable: true };}
+  if (mime.startsWith('audio/') || AUDIO_EXTENSIONS.has(extension)) {return { kind: 'audio', extension, previewable: true };}
+  if (mime.startsWith('text/') || TEXT_EXTENSIONS.has(extension)) {return { kind: 'text', extension, previewable: true };}
+  if (extension === 'pdf' || mime === 'application/pdf') {return { kind: 'pdf', extension, previewable: true };}
+  if (DOCUMENT_EXTENSIONS.has(extension)) {return { kind: 'document', extension, previewable: false };}
+  if (SPREADSHEET_EXTENSIONS.has(extension)) {return { kind: 'spreadsheet', extension, previewable: false };}
+  if (PRESENTATION_EXTENSIONS.has(extension)) {return { kind: 'presentation', extension, previewable: false };}
+  if (ARCHIVE_EXTENSIONS.has(extension)) {return { kind: 'archive', extension, previewable: false };}
   return { kind: 'file', extension, previewable: false };
 }
 
 export function formatBytes(bytes = 0) {
   const value = Number(bytes) || 0;
-  if (value <= 0) return '0 o';
+  if (value <= 0) {return '0 o';}
   const units = ['o', 'Ko', 'Mo', 'Go'];
   const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
   const amount = value / 1024 ** index;
@@ -366,13 +366,13 @@ export async function readAttachmentOcrCache(attachment) {
   }
 
   const path = getOcrCachePath(attachment);
-  if (!path) return null;
+  if (!path) {return null;}
 
   try {
-    if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) return null;
+    if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) {return null;}
     const raw = await readTextFile(path, { baseDir: BaseDirectory.AppData });
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 1 || parsed?.attachmentId !== attachment.id) return null;
+    if (parsed?.version !== 1 || parsed?.attachmentId !== attachment.id) {return null;}
     return parsed.ocr || null;
   } catch {
     return null;
@@ -404,7 +404,7 @@ export async function writeAttachmentOcrCache(attachment, ocr) {
   }
 
   const path = getOcrCachePath(attachment);
-  if (!path || !ocr) return false;
+  if (!path || !ocr) {return false;}
 
   try {
     const payload = {
@@ -423,7 +423,7 @@ export async function writeAttachmentOcrCache(attachment, ocr) {
 }
 
 async function sumDir(path) {
-  if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) return 0;
+  if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) {return 0;}
   const entries = await readDir(path, { baseDir: BaseDirectory.AppData });
   let total = 0;
   for (const entry of entries) {

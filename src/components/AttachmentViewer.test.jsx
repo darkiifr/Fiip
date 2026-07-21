@@ -1,8 +1,8 @@
+import { openPath } from '@tauri-apps/plugin-opener';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import AttachmentViewer from './AttachmentViewer';
-import { openPath } from '@tauri-apps/plugin-opener';
 
 vi.mock('@tauri-apps/plugin-opener', () => ({
   openPath: vi.fn(),

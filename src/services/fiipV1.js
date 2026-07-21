@@ -1,7 +1,8 @@
 import DOMPurify from 'dompurify';
 
-import { classifyAttachment } from './attachmentCache';
 import { normalizeNoteTags, serializeNoteTags, slugifyTagLabel } from '../utils/noteTags';
+
+import { classifyAttachment } from './attachmentCache';
 
 export const DEFAULT_NOTEBOOK_ID = 'all-notes';
 
@@ -18,7 +19,7 @@ export function nowIso() {
 }
 
 export function stripHtml(value = '') {
-  if (!value) return '';
+  if (!value) {return '';}
   return DOMPurify.sanitize(String(value), { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
 }
 
@@ -160,8 +161,8 @@ export function normalizeNoteForV1(input = {}) {
 
 export function canUseNoteContent(note, action = 'search') {
   const normalized = normalizeNoteForV1(note);
-  if (!normalized.isProtected) return true;
-  if (!PROTECTED_BLOCKED_ACTIONS.has(action)) return true;
+  if (!normalized.isProtected) {return true;}
+  if (!PROTECTED_BLOCKED_ACTIONS.has(action)) {return true;}
   return normalized.security.locked === false && action !== 'public-share' && action !== 'collaboration';
 }
 
@@ -257,19 +258,19 @@ export function filterNotesAdvanced(notes = [], query = {}, { tasks = [], now = 
   });
 
   return notes.map(normalizeNoteForV1).filter((note) => {
-    if (note.deleted) return false;
-    if (parsed.notebook && note.notebookId.toLowerCase() !== parsed.notebook) return false;
+    if (note.deleted) {return false;}
+    if (parsed.notebook && note.notebookId.toLowerCase() !== parsed.notebook) {return false;}
     if (parsed.tag) {
       const hasTag = normalizeNoteTags(note.tags).some((tag) => slugifyTagLabel(tag.label) === slugifyTagLabel(parsed.tag));
-      if (!hasTag) return false;
+      if (!hasTag) {return false;}
     }
     if (parsed.has) {
       const hasAttachment = note.attachments.some((attachment) => (attachment.type || '').toLowerCase() === parsed.has);
-      if (!hasAttachment) return false;
+      if (!hasAttachment) {return false;}
     }
-    if (parsed.due === 'overdue' && !dueByNote.has(note.id)) return false;
-    if (parsed.protected === 'true' && !note.isProtected) return false;
-    if (parsed.protected === 'false' && note.isProtected) return false;
+    if (parsed.due === 'overdue' && !dueByNote.has(note.id)) {return false;}
+    if (parsed.protected === 'true' && !note.isProtected) {return false;}
+    if (parsed.protected === 'false' && note.isProtected) {return false;}
     if (parsed.keywords?.length) {
       const searchable = [note.title, stripHtml(note.content), normalizeNoteTags(note.tags).map((tag) => tag.label).join(' ')].join(' ').toLowerCase();
       return parsed.keywords.every((keyword) => searchable.includes(keyword));
@@ -281,7 +282,7 @@ export function filterNotesAdvanced(notes = [], query = {}, { tasks = [], now = 
 function sanitizeUrl(value) {
   try {
     const url = new URL(value);
-    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    if (!['http:', 'https:'].includes(url.protocol)) {return '';}
     return url.toString();
   } catch {
     return '';

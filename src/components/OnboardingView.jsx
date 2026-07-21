@@ -1,8 +1,8 @@
 import { open } from '@tauri-apps/plugin-shell';
 import { useState } from 'react';
 
-import { authService } from '../services/supabase';
 import { keyAuthService } from '../services/keyauth';
+import { authService } from '../services/supabase';
 
 import IconGoogle from '~icons/logos/google-icon';
 import IconArrowRight from '~icons/mingcute/arrow-right-line';

@@ -36,7 +36,7 @@ export function slugifyTagLabel(label = '') {
 
 export function createTag(label, overrides = {}) {
   const cleanLabel = String(label || '').trim();
-  if (!cleanLabel) return null;
+  if (!cleanLabel) {return null;}
   const color = overrides.color ?? DEFAULT_TAG_COLOR;
   return {
     id: overrides.id || `tag-${slugifyTagLabel(cleanLabel)}`,
@@ -60,9 +60,9 @@ export function normalizeNoteTags(tags = []) {
           color: item?.color,
         });
 
-    if (!tag) continue;
+    if (!tag) {continue;}
     const key = tag.label.toLowerCase();
-    if (seen.has(key)) continue;
+    if (seen.has(key)) {continue;}
     seen.add(key);
     normalized.push(tag);
   }

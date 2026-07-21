@@ -1,3 +1,4 @@
+/* eslint-disable import/order */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('tesseract.js', () => ({
@@ -13,6 +14,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 import { recognize } from 'tesseract.js';
+
 import { assessOcrQuality, canRunImageOcr, classifyOcrResult, extractImageOcr, shouldRunAttachmentOcr } from './ocr';
 
 describe('ocr service', () => {

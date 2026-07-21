@@ -5,7 +5,10 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 // Icons Import (Pim's Edition)
+import { useUI } from '../providers/UIProvider';
+
 import { PRESET_ICONS } from './NoteBadges';
+import { LiquidGlassPrimitive } from './ui/LiquidGlassPrimitive';
 
 import IconPlus from '~icons/mingcute/add-fill';
 import IconRestore from '~icons/mingcute/back-2-fill';
@@ -16,8 +19,6 @@ import IconStarOn from '~icons/mingcute/star-fill';
 import IconStarOff from '~icons/mingcute/star-line';
 
 
-import { useUI } from '../providers/UIProvider';
-import { LiquidGlassPrimitive } from './ui/LiquidGlassPrimitive';
 
 const BADGE_COLORS = [
     'text-red-400', 'text-orange-400', 'text-yellow-400', 'text-green-400', 'text-blue-400', 'text-indigo-400', 'text-purple-400', 'text-pink-400', 'text-gray-400'

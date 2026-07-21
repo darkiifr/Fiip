@@ -2,6 +2,7 @@ import { Camera, Check, RefreshCw, RotateCcw, SlidersHorizontal, Upload, X } fro
 import { useEffect, useRef, useState } from 'react';
 
 import { getFriendlyErrorMessage } from '../services/errorMessages';
+
 import { MotionSurface } from './ui';
 
 const DEFAULT_CROP = { x: 8, y: 8, width: 84, height: 84 };
@@ -49,7 +50,7 @@ function findDocumentBounds(imageData, width, height) {
     for (let y = 2; y < height - 2; y += 1) {
         for (let x = 2; x < width - 2; x += 1) {
             const seed = y * width + x;
-            if (!edges[seed] || visited[seed]) continue;
+            if (!edges[seed] || visited[seed]) {continue;}
 
             let head = 0;
             let tail = 0;
@@ -75,7 +76,7 @@ function findDocumentBounds(imageData, width, height) {
 
                 const neighbors = [current - 1, current + 1, current - width, current + width];
                 for (const next of neighbors) {
-                    if (next <= 0 || next >= pixelCount || visited[next] || !edges[next]) continue;
+                    if (next <= 0 || next >= pixelCount || visited[next] || !edges[next]) {continue;}
                     visited[next] = 1;
                     queue[tail] = next;
                     tail += 1;
@@ -109,7 +110,7 @@ function findDocumentBounds(imageData, width, height) {
         }
     }
 
-    if (!best) return null;
+    if (!best) {return null;}
 
     const pad = Math.floor(Math.min(width, height) * 0.035);
     return {
@@ -120,7 +121,7 @@ function findDocumentBounds(imageData, width, height) {
     };
 }
 function cropFromBounds(bounds, width, height) {
-    if (!bounds) return DEFAULT_CROP;
+    if (!bounds) {return DEFAULT_CROP;}
     return {
         x: clamp((bounds.x / width) * 100, 0, 95),
         y: clamp((bounds.y / height) * 100, 0, 95),
@@ -139,7 +140,7 @@ function cropToBounds(crop, width, height) {
 }
 
 function isAppleCameraRuntime() {
-    if (typeof navigator === 'undefined') return false;
+    if (typeof navigator === 'undefined') {return false;}
     const platform = navigator.userAgentData?.platform || navigator.platform || '';
     return /mac|iphone|ipad|ipod/i.test(platform);
 }
@@ -281,17 +282,17 @@ export default function DocumentScanner({ onSave, onClose }) {
     }, [deviceId]);
 
     useEffect(() => () => {
-        if (capturedUrl) URL.revokeObjectURL(capturedUrl);
+        if (capturedUrl) {URL.revokeObjectURL(capturedUrl);}
     }, [capturedUrl]);
 
     useEffect(() => {
-        if (capturedUrl || error) return undefined;
+        if (capturedUrl || error) {return undefined;}
         const detectorCanvas = document.createElement('canvas');
         const detectorContext = detectorCanvas.getContext('2d', { willReadFrequently: true });
 
         const interval = window.setInterval(() => {
             const video = videoRef.current;
-            if (!video?.videoWidth || !video?.videoHeight) return;
+            if (!video?.videoWidth || !video?.videoHeight) {return;}
 
             const maxWidth = 480;
             const scale = Math.min(1, maxWidth / video.videoWidth);
@@ -331,7 +332,7 @@ export default function DocumentScanner({ onSave, onClose }) {
 
     const saveCrop = async () => {
         const source = fullCanvasRef.current;
-        if (!source) return;
+        if (!source) {return;}
 
         setIsCapturing(true);
         try {
@@ -353,7 +354,7 @@ export default function DocumentScanner({ onSave, onClose }) {
     const importFile = async (event) => {
         const file = event.target.files?.[0];
         event.target.value = '';
-        if (!file) return;
+        if (!file) {return;}
         if (!file.type?.startsWith('image/')) {
             setError('Choisissez une image de document compatible.');
             return;
@@ -371,7 +372,7 @@ export default function DocumentScanner({ onSave, onClose }) {
     };
 
     const retake = () => {
-        if (capturedUrl) URL.revokeObjectURL(capturedUrl);
+        if (capturedUrl) {URL.revokeObjectURL(capturedUrl);}
         setCapturedUrl('');
         setCaptureSize({ width: 0, height: 0 });
         setCrop(DEFAULT_CROP);
@@ -393,7 +394,7 @@ export default function DocumentScanner({ onSave, onClose }) {
         event.preventDefault();
         event.stopPropagation();
         const rect = cropStageRef.current?.getBoundingClientRect();
-        if (!rect) return;
+        if (!rect) {return;}
         dragRef.current = {
             handle,
             rect,
@@ -406,7 +407,7 @@ export default function DocumentScanner({ onSave, onClose }) {
 
     const updateCropDrag = (event) => {
         const drag = dragRef.current;
-        if (!drag) return;
+        if (!drag) {return;}
         const dx = ((event.clientX - drag.startX) / Math.max(1, drag.rect.width)) * 100;
         const dy = ((event.clientY - drag.startY) / Math.max(1, drag.rect.height)) * 100;
         const start = drag.startCrop;
@@ -420,12 +421,12 @@ export default function DocumentScanner({ onSave, onClose }) {
                 next.x = start.x + dx;
                 next.width = start.width - dx;
             }
-            if (drag.handle.includes('e')) next.width = start.width + dx;
+            if (drag.handle.includes('e')) {next.width = start.width + dx;}
             if (drag.handle.includes('n')) {
                 next.y = start.y + dy;
                 next.height = start.height - dy;
             }
-            if (drag.handle.includes('s')) next.height = start.height + dy;
+            if (drag.handle.includes('s')) {next.height = start.height + dy;}
         }
 
         setCrop(normalizeCrop(next));
@@ -439,7 +440,7 @@ export default function DocumentScanner({ onSave, onClose }) {
         const nextZoom = Number(value);
         setZoom(nextZoom);
         const track = streamRef.current?.getVideoTracks?.()[0];
-        if (!track || !zoomRange) return;
+        if (!track || !zoomRange) {return;}
         try {
             await track.applyConstraints({ advanced: [{ zoom: nextZoom }] });
         } catch {

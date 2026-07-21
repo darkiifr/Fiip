@@ -1,5 +1,6 @@
-import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from 'node:url';
+
+import react from "@vitejs/plugin-react";
 import Icons from 'unplugin-icons/vite';
 import { defineConfig } from "vite";
 

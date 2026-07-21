@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { authService } from '../../services/supabase';
+
 import { keyAuthService } from '../../services/keyauth';
+import { authService } from '../../services/supabase';
 
 export default function DesktopAuthFlow({ onAuthed }) {
   const [stage, setStage] = useState('entry');
@@ -16,7 +17,7 @@ export default function DesktopAuthFlow({ onAuthed }) {
     setError('');
     const { error: err } = await authService.signIn(email, password);
     setLoading(false);
-    if (err) return setError(err.message || 'Connexion impossible');
+    if (err) {return setError(err.message || 'Connexion impossible');}
     onAuthed();
   }
 
@@ -42,7 +43,7 @@ export default function DesktopAuthFlow({ onAuthed }) {
     setError('');
     const { error: err } = await authService.signUp(email, password, username || email.split('@')[0]);
     setLoading(false);
-    if (err) return setError(err.message || 'Inscription impossible');
+    if (err) {return setError(err.message || 'Inscription impossible');}
     setStage('login');
   }
 
@@ -51,7 +52,7 @@ export default function DesktopAuthFlow({ onAuthed }) {
     setError('');
     const { error: err } = await authService.sendPasswordReset(email);
     setLoading(false);
-    if (err) return setError(err.message || 'Réinitialisation impossible');
+    if (err) {return setError(err.message || 'Réinitialisation impossible');}
     setError('Lien de réinitialisation envoyé.');
   }
 
@@ -60,7 +61,7 @@ export default function DesktopAuthFlow({ onAuthed }) {
     setError('');
     const { error: err } = await authService.sendEmailCode(email);
     setLoading(false);
-    if (err) return setError(err.message || 'Envoi du code impossible');
+    if (err) {return setError(err.message || 'Envoi du code impossible');}
     setError('Code e-mail envoyé. Collez le code reçu pour ouvrir la session.');
   }
 
@@ -69,7 +70,7 @@ export default function DesktopAuthFlow({ onAuthed }) {
     setError('');
     const { error: err } = await authService.verifyEmailOtp(email, otpCode);
     setLoading(false);
-    if (err) return setError(err.message || 'Code e-mail invalide');
+    if (err) {return setError(err.message || 'Code e-mail invalide');}
     onAuthed();
   }
 

@@ -14,11 +14,11 @@ function isFilesystemPath(value = '') {
 }
 
 export async function resolveAttachmentOpenTarget(attachment, previewUrl = '') {
-    if (!attachment) return '';
+    if (!attachment) {return '';}
     if (attachment.cachePath || attachment.path || attachment.filePath || attachment.localPath || attachment.absolutePath) {
         return resolveAttachmentCachePath(attachment);
     }
-    if (isAppPreviewBlob(previewUrl)) return previewUrl;
+    if (isAppPreviewBlob(previewUrl)) {return previewUrl;}
     return getSafePublicUrl(previewUrl || attachment.url || '', {
         allowDataMedia: true,
         allowSvg: classifyAttachment({ name: attachment.name, mimeType: attachment.mimeType }).kind === 'image',
@@ -155,9 +155,9 @@ export default function AttachmentViewer({ attachment, onClose }) {
                 try {
                     const response = await fetch(previewUrl);
                     const text = await response.text();
-                    if (!cancelled) setTextContent(text);
+                    if (!cancelled) {setTextContent(text);}
                 } catch {
-                    if (!cancelled) setError('Impossible de lire ce fichier texte.');
+                    if (!cancelled) {setError('Impossible de lire ce fichier texte.');}
                 }
             }
         };

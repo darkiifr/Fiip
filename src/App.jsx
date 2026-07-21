@@ -8,35 +8,34 @@ import { Bot, Crown, Database, FileText, Link, Lock, Plus, Search, Settings, Sha
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 
-import OnboardingView from "./components/OnboardingView";
-import SettingsView from "./components/SettingsView";
-import { CommandPalette } from "./components/ui/CommandPalette";
-import { AIFloatingAssistant } from "./components/ui/AIWorkspace";
 import AuthModal from "./components/AuthModal";
 import Dexter from "./components/Dexter";
 import Editor from "./components/Editor";
+import HomeDashboard from "./components/HomeDashboard";
 import LicenseModal from "./components/LicenseModal";
 import LoadingScreen from "./components/LoadingScreen";
 import OfflineConnectionDialog from "./components/OfflineConnectionDialog";
+import OnboardingView from "./components/OnboardingView";
+import SettingsView from "./components/SettingsView";
 import ShareModal from "./components/ShareModal";
+import { AIFloatingAssistant } from "./components/ui/AIWorkspace";
+import { CommandPalette } from "./components/ui/CommandPalette";
 import UnifiedSidebar from "./components/UnifiedSidebar";
-import HomeDashboard from "./components/HomeDashboard";
-import Titlebar from "./components/Titlebar";
 import UserProfileModal from "./components/UserProfileModal";
 import { buildPublicNoteUrl } from "./config/links";
+import { getAttachmentCacheSize } from './services/attachmentCache';
 import {
   authenticateBiometricLock,
   BIOMETRIC_LOCK_STORAGE_KEY,
   getBiometricPlatformInfo,
   getBiometricUserMessage,
 } from './services/biometricLock';
-import { getAttachmentCacheSize } from './services/attachmentCache';
+import { getFriendlyErrorMessage } from './services/errorMessages';
+import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook, parseClipperNoteId, removeTaskById } from './services/fiipV1';
 import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } from "./services/fileManager";
 import { keyAuthService } from "./services/keyauth";
 import { queuePendingNoteSync, syncNotesNow } from "./services/noteSync";
 import { soundManager } from "./services/soundManager";
-import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook, parseClipperNoteId, removeTaskById } from './services/fiipV1';
-import { getFriendlyErrorMessage } from './services/errorMessages';
 import { authService, dataService, getStorageLimit, supabase } from './services/supabase';
 import { applyTheme } from './services/theme';
 import { normalizeNoteTags } from './utils/noteTags';
@@ -46,7 +45,7 @@ import "./App.css";
 const getCurrentTimestamp = () => new Date().getTime();
 
 function parseClipperPayloadParam(rawPayload) {
-    if (!rawPayload) return null;
+    if (!rawPayload) {return null;}
 
     try {
         return JSON.parse(rawPayload);
@@ -56,13 +55,13 @@ function parseClipperPayloadParam(rawPayload) {
 }
 
 async function fitMainWindowToVisibleArea() {
-  if (!window.__TAURI_INTERNALS__) return;
+  if (!window.__TAURI_INTERNALS__) {return;}
 
   try {
     const appWindow = getCurrentWindow();
     const monitor = await currentMonitor();
     const workArea = monitor?.workArea || monitor?.size;
-    if (!workArea?.width || !workArea?.height) return;
+    if (!workArea?.width || !workArea?.height) {return;}
 
     const scaleFactor = monitor?.scaleFactor || 1;
     const maxWidth = Math.floor((workArea.width / scaleFactor) - 32);
@@ -94,7 +93,7 @@ function App() {
     return localStorage.getItem('fiip-onboarding-completed') === 'true';
   });
   const [, setUser] = useState(null);
-  
+
   const [notes, setNotes] = useState(() => {
     const saved = localStorage.getItem("fiip-notes");
     if (saved) {
@@ -125,14 +124,13 @@ function App() {
   const [selectedNoteId, setSelectedNoteId] = useState(notes?.[0]?.id || null);
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem("fiip-settings");
-    const defaults = { 
-        theme: 'dark', 
-        autoSave: true, 
+    const defaults = {
+        theme: 'dark',
+        autoSave: true,
         aiEnabled: true,
         appSound: true,
         chatSound: true,
         windowEffect: 'mica',
-        titlebarStyle: 'macos',
         darkMode: true,
         cloudSync: true,
         biometricLockEnabled: false
@@ -140,7 +138,7 @@ function App() {
     const parsed = saved ? JSON.parse(saved) : {};
     return { ...defaults, ...parsed, theme: 'dark' };
   });
-  
+
   const [isDexterOpen, setIsDexterOpen] = useState(false);
   const [dexterInitialPrompt, setDexterInitialPrompt] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -241,10 +239,10 @@ function App() {
 
   useEffect(() => {
     if (storageUsage.percent < 100) {
-      if (storageLimitAlerted) setStorageLimitAlerted(false);
+      if (storageLimitAlerted) {setStorageLimitAlerted(false);}
       return;
     }
-    if (storageLimitAlerted) return;
+    if (storageLimitAlerted) {return;}
     setStorageLimitAlerted(true);
 
     const title = 'Espace de stockage atteint';
@@ -419,8 +417,8 @@ function App() {
     let cleanupInit = () => {};
     const init = async () => {
       try {
-        console.log("Fiip v" + (await invoke("get_app_version").catch(() => "3.0.0")) + " initializing...");
-        
+        console.warn("Fiip v" + (await invoke("get_app_version").catch(() => "3.0.0")) + " initializing...");
+
         if (window.__TAURI_INTERNALS__) {
             await fitMainWindowToVisibleArea();
             await invoke("register_deep_link").catch((error) => {
@@ -428,14 +426,14 @@ function App() {
             });
             Promise.resolve(type()).then(setOsType).catch(() => setOsType('unknown'));
         }
-        
+
         const setupDeepLink = async () => {
           try {
             const handledStartupUrls = new Set();
             const handleUrls = async (urls) => {
-              console.log('URLs deep link received:', urls);
+              console.warn('URLs deep link received:', urls);
               for (const url of urls) {
-                if (!url || handledStartupUrls.has(url)) continue;
+                if (!url || handledStartupUrls.has(url)) {continue;}
                 handledStartupUrls.add(url);
                 try {
                     const parsedUrl = new URL(url);
@@ -504,20 +502,20 @@ function App() {
             const unlistenDeepLink = await listen('fiip://deep-link', (event) => handleUrls([event.payload]));
             const unlistenOAuthFallback = await listen('fiip://oauth-callback', (event) => handleUrls([event.payload]));
             const startupUrls = await getCurrent();
-            if (startupUrls?.length) await handleUrls(startupUrls);
+            if (startupUrls?.length) {await handleUrls(startupUrls);}
             const launchDeepLink = await invoke('read_launch_deep_link').catch(() => null);
-            if (launchDeepLink) await handleUrls([launchDeepLink]);
+            if (launchDeepLink) {await handleUrls([launchDeepLink]);}
             return () => { unlistenOpen(); unlistenDeepLink(); unlistenOAuthFallback(); };
           } catch (e) {
             console.error("Deep link setup failed", e);
           }
         };
-        
+
         let unlistenFn;
         if (window.__TAURI_INTERNALS__) {
             unlistenFn = await setupDeepLink();
         }
-        
+
         const sessionUser = await authService.getUser();
         if (sessionUser) {
             setUser(sessionUser);
@@ -560,9 +558,9 @@ function App() {
       }
     };
     init().then((cleanup) => {
-      if (!cleanup) return;
-      if (disposed) cleanup();
-      else cleanupInit = cleanup;
+      if (!cleanup) {return;}
+      if (disposed) {cleanup();}
+      else {cleanupInit = cleanup;}
     });
     return () => {
       disposed = true;
@@ -580,8 +578,8 @@ function App() {
     const channel = supabase
       .channel('fiip-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, (payload) => {
-        if (isSyncing) return;
-        
+        if (isSyncing) {return;}
+
         if (payload.event === 'INSERT' || payload.event === 'UPDATE') {
             const receivedNote = payload.new;
             setNotes(prev => {
@@ -690,11 +688,11 @@ function App() {
     let lastSoundAt = 0;
     const playInteractionSound = (event) => {
       const target = event.target;
-      if (!target?.closest) return;
+      if (!target?.closest) {return;}
       const interactive = target.closest('button, [role="button"], a, select, [data-sound="interaction"]');
-      if (!interactive || interactive.disabled || interactive.getAttribute('aria-disabled') === 'true') return;
+      if (!interactive || interactive.disabled || interactive.getAttribute('aria-disabled') === 'true') {return;}
       const now = Date.now();
-      if (now - lastSoundAt < 90) return;
+      if (now - lastSoundAt < 90) {return;}
       lastSoundAt = now;
       soundManager.play('interaction').catch(() => {});
     };
@@ -718,7 +716,7 @@ function App() {
     setNotes((prev) => [newNote, ...prev]);
     setSelectedNoteId(newNote.id);
     setActiveNav(inNotebook ? `notebook:${newNote.notebookId}` : 'home');
-    
+
     try {
         if (settings.cloudSync !== false) {
             const result = await dataService.saveNote(newNote);
@@ -730,7 +728,7 @@ function App() {
         queuePendingNoteSync(newNote);
         console.error("Failed to sync new note", e);
     }
-    
+
     return newNote;
   }, [activeNav, settings.cloudSync, t]);
 
@@ -847,8 +845,8 @@ function App() {
       return;
     }
 
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    
+    if (saveTimeoutRef.current) {clearTimeout(saveTimeoutRef.current);}
+
     saveTimeoutRef.current = setTimeout(async () => {
       if (settings.cloudSync === false) {
         return;
@@ -882,10 +880,10 @@ function App() {
 
   const handleRenameNotebook = async (notebook, nextNameInput) => {
     const notebookId = notebook?.id || notebook?.notebook_id;
-    if (!notebookId || notebookId === 'all-notes') return;
+    if (!notebookId || notebookId === 'all-notes') {return;}
     const currentName = notebook.name || '';
     const nextName = String(nextNameInput || '').trim();
-    if (!nextName || nextName === currentName) return;
+    if (!nextName || nextName === currentName) {return;}
     const updatedNotebook = normalizeNotebook({ ...notebook, name: nextName, updated_at: new Date().toISOString() });
     setNotebooks((prev) => prev.map((item) => (item.id === notebookId ? updatedNotebook : item)));
     dataService.saveNotebook(updatedNotebook).catch(console.error);
@@ -893,17 +891,17 @@ function App() {
 
   const handleDeleteNotebook = async (notebook) => {
     const notebookId = notebook?.id || notebook?.notebook_id;
-    if (!notebookId || notebookId === 'all-notes') return;
+    if (!notebookId || notebookId === 'all-notes') {return;}
     const shouldDelete = await ask(`Supprimer le carnet "${notebook.name || 'Sans nom'}" ? Les notes seront replacées dans Toutes les notes.`, {
       title: 'Supprimer le carnet',
       kind: 'warning',
     }).catch(() => false);
-    if (!shouldDelete) return;
+    if (!shouldDelete) {return;}
     setNotebooks((prev) => prev.filter((item) => item.id !== notebookId));
     const movedNotes = [];
     setNotes((prev) => prev.map((note) => {
       const currentNotebookId = note.notebookId || note.notebook_id || note.folder_id || 'all-notes';
-      if (currentNotebookId !== notebookId) return note;
+      if (currentNotebookId !== notebookId) {return note;}
       const movedNote = { ...note, notebookId: 'all-notes', notebook_id: null, folder_id: null, updatedAt: getCurrentTimestamp() };
       movedNotes.push(movedNote);
       return movedNote;
@@ -941,15 +939,15 @@ function App() {
 
   const handleDeleteNote = async (noteId) => {
     const idToDelete = noteId || selectedNoteId;
-    if (!idToDelete) return;
+    if (!idToDelete) {return;}
 
     if (activeNav === 'trash') {
         const confirmed = await ask(
             "Voulez-vous supprimer définitivement cette note ?",
             { title: "Fiip", kind: 'warning', okLabel: 'Supprimer', cancelLabel: 'Annuler' }
         );
-        if (!confirmed) return;
-        
+        if (!confirmed) {return;}
+
         const newNotes = notes.filter((n) => n.id !== idToDelete);
         setNotes(newNotes);
         if (selectedNoteId === idToDelete) {
@@ -992,7 +990,7 @@ function App() {
         "Voulez-vous vider la corbeille ? Cette action est irréversible.",
         { title: "Fiip", kind: 'warning', okLabel: 'Vider', cancelLabel: 'Annuler' }
     );
-    if (!confirmed) return;
+    if (!confirmed) {return;}
 
     const toDelete = notes.filter(n => n.deleted);
     for (const n of toDelete) {
@@ -1116,16 +1114,15 @@ function App() {
     }));
 
     return [...actions, ...noteItems];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [notes, activeNote, handleCreateNote]);
 
   // If Onboarding is not completed, route to OnboardingView
   if (!onboardingCompleted) {
       return (
           <>
-              <Titlebar style={settings.titlebarStyle} />
-              <OnboardingView 
-                  onComplete={() => setOnboardingCompleted(true)} 
+              <OnboardingView
+                  onComplete={() => setOnboardingCompleted(true)}
                   onLoginSuccess={handleLoginSuccess}
               />
               {appLoading.isLoading && (
@@ -1147,8 +1144,6 @@ function App() {
   return (
     <div className="h-screen w-screen bg-transparent text-warm-text-primary-light dark:text-warm-text-primary-dark overflow-hidden flex flex-col font-sans select-none relative">
       <div className="mica-noise-overlay" />
-      <Titlebar style={settings.titlebarStyle} />
-      
       {storageUsage.percent >= 90 && (
           <div className={`text-white text-[11px] font-medium py-1.5 px-4 flex justify-center items-center shadow-md z-50 text-center w-full shrink-0 ${storageUsage.percent >= 100 ? 'bg-[#E81123]' : 'bg-[#FEBC2E] text-black'}`}>
               <span>⚠️ {storageUsage.percent >= 100 ? 'Limite atteint' : 'Stockage presque plein'}. Vos notes risquent de ne plus être synchronisées.</span>
@@ -1156,7 +1151,7 @@ function App() {
       )}
 
       <div className="flex-1 flex overflow-hidden relative">
-        <UnifiedSidebar 
+        <UnifiedSidebar
             notes={notes}
             selectedNoteId={selectedNoteId}
             onSelectNote={setSelectedNoteId}
@@ -1181,7 +1176,7 @@ function App() {
 
         <div className="flex-1 flex flex-col h-full bg-transparent relative overflow-hidden">
             {activeNav === 'settings' ? (
-                <SettingsView 
+                <SettingsView
                     settings={settings}
                     onUpdateSettings={setSettings}
                     storageUsage={storageUsage}
@@ -1194,8 +1189,8 @@ function App() {
                     osType={osType}
                 />
             ) : activeNav === 'home' && !selectedNoteId ? (
-                <HomeDashboard 
-                    featuredNote={notes.find(n => !n.deleted)} 
+                <HomeDashboard
+                    featuredNote={notes.find(n => !n.deleted)}
                     recentNotes={notes.filter(n => !n.deleted).slice(0, 6)}
                     onSelectNote={setSelectedNoteId}
                     notebooks={notebooks}
@@ -1205,10 +1200,10 @@ function App() {
                     onAdvancedSearch={handleAdvancedSearch}
                 />
             ) : activeNote ? (
-                <Editor 
+                <Editor
                     key={activeNote.id}
-                    note={activeNote} 
-                    onUpdateNote={handleUpdateNote} 
+                    note={activeNote}
+                    onUpdateNote={handleUpdateNote}
                     settings={settings}
                     onOpenShare={() => setIsShareModalOpen(true)}
                     onDeleteNote={handleDeleteNote}
@@ -1225,8 +1220,8 @@ function App() {
                     planLevel={planLevel}
                 />
             ) : (
-                <HomeDashboard 
-                    featuredNote={notes.find(n => !n.deleted)} 
+                <HomeDashboard
+                    featuredNote={notes.find(n => !n.deleted)}
                     recentNotes={notes.filter(n => !n.deleted).slice(0, 6)}
                     onSelectNote={setSelectedNoteId}
                     notebooks={notebooks}
@@ -1238,9 +1233,9 @@ function App() {
             )}
         </div>
 
-        <Dexter 
-            isOpen={isDexterOpen} 
-            onClose={() => setIsDexterOpen(false)} 
+        <Dexter
+            isOpen={isDexterOpen}
+            onClose={() => setIsDexterOpen(false)}
             currentNote={activeNote}
             onCreateNote={handleCreateNote}
             onUpdateNote={handleUpdateNote}
@@ -1269,10 +1264,10 @@ function App() {
           />
         )}
       </div>
-      
-      <LicenseModal 
-        isOpen={isLicenseModalOpen} 
-        onClose={() => setIsLicenseModalOpen(false)} 
+
+      <LicenseModal
+        isOpen={isLicenseModalOpen}
+        onClose={() => setIsLicenseModalOpen(false)}
         onOpenAccount={handleOpenAccountFromLicense}
       />
 
@@ -1282,9 +1277,9 @@ function App() {
         onLoginSuccess={handleLoginSuccess}
       />
 
-      <UserProfileModal 
-        isOpen={isUserProfileOpen} 
-        onClose={() => setIsUserProfileOpen(false)} 
+      <UserProfileModal
+        isOpen={isUserProfileOpen}
+        onClose={() => setIsUserProfileOpen(false)}
       />
 
       <ShareModal
@@ -1295,7 +1290,7 @@ function App() {
         onUpdateNote={handleUpdateNote}
       />
 
-      <CommandPalette 
+      <CommandPalette
         items={commandItems}
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}

@@ -1,18 +1,19 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 
-import IconCheck from '~icons/mingcute/check-fill';
-import IconClose from '~icons/mingcute/close-fill';
-import IconPen from '~icons/mingcute/pen-fill';
-import IconSend from '~icons/mingcute/send-plane-fill';
-import IconStop from '~icons/mingcute/stop-fill';
-import IconTrash from '~icons/mingcute/delete-2-fill';
-
 import { Badge } from './badge';
 import { Button } from './button';
 import { Card, CardContent, CardHeader, CardTitle } from './card';
 import { ScrollArea } from './scroll-area';
 import { Textarea } from './textarea';
+
+import IconCheck from '~icons/mingcute/check-fill';
+import IconClose from '~icons/mingcute/close-fill';
+import IconTrash from '~icons/mingcute/delete-2-fill';
+import IconPen from '~icons/mingcute/pen-fill';
+import IconSend from '~icons/mingcute/send-plane-fill';
+import IconStop from '~icons/mingcute/stop-fill';
+
 
 function AILight({ className = 'h-8 w-8', active = false, shouldReduceMotion = false }) {
   return (
@@ -325,7 +326,7 @@ export function AIMessageRow({ children, role, shouldReduceMotion, itemKey }) {
 }
 
 export function AIStarterPrompts({ prompts, onPrompt }) {
-  if (!prompts?.length) return null;
+  if (!prompts?.length) {return null;}
 
   return (
     <div className="grid gap-3 md:grid-cols-3">

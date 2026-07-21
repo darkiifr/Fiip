@@ -1,5 +1,5 @@
-import { supabase } from './supabase';
 import { keyAuthService } from './keyauth';
+import { supabase } from './supabase';
 
 export const AI_PROXY_FUNCTION = 'ai-proxy';
 export const AI_MODELS_FUNCTION = 'ai-models-list';

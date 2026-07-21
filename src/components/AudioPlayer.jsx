@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { getFriendlyErrorMessage } from '../services/errorMessages';
+
 import IconCheck from '~icons/mingcute/check-fill';
 import IconClose from '~icons/mingcute/close-fill';
 import IconEdit from '~icons/mingcute/edit-2-fill';
@@ -34,7 +35,7 @@ export default function AudioPlayer({ src, name, onRename, onError }) {
 
     useEffect(() => {
         const audio = audioRef.current;
-        if (!audio || typeof audio.setSinkId !== 'function') return;
+        if (!audio || typeof audio.setSinkId !== 'function') {return;}
         try {
             const settings = JSON.parse(localStorage.getItem('fiip-settings') || '{}') || {};
             const outputId = settings.audioOutputId;

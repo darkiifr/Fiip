@@ -1,8 +1,22 @@
 
 import { createClient } from '@supabase/supabase-js';
 
+import { FIIP_ACCOUNT_PORTAL_URL } from '../config/links';
+import { serializeNoteTags } from '../utils/noteTags';
+
 import {
-  buildSearchIndexEntry,
+  decryptNoteFromCloud,
+  decryptSettingsEnvelope,
+  encryptNoteForCloud,
+  encryptSettingsEnvelope,
+} from './cloudEncryption';
+import { normalizeError } from './errorMessages';
+import {
+  getExternalIdentityUser,
+  hasExternalIdentityProvider,
+  signOutExternalIdentity,
+} from './externalIdentity';
+import {
   canUseNoteContent,
   createTask,
   defaultHomeWidgets,
@@ -11,20 +25,32 @@ import {
   normalizeNoteForV1,
   sanitizeClipperPayload,
 } from './fiipV1';
-import { serializeNoteTags } from '../utils/noteTags';
-import { FIIP_ACCOUNT_PORTAL_URL } from '../config/links';
 import { canAttachFile, canCreateNote, getStorageLimit, resolvePlanLevel } from './planLimits';
-import { normalizeError } from './errorMessages';
+import { decryptBlob, encryptSensitiveJson } from './zeroKnowledge';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const OAUTH_BROWSER_CALLBACK_PATH = '/auth/callback';
 const FIIP_DEVICE_ID_KEY = 'fiip-device-id';
+const PENDING_SETTINGS_SYNC_KEY = 'fiip-pending-settings-sync-v2';
 const PLACEHOLDER_SUPABASE_URL = 'https://placeholder.supabase.co';
 const PLACEHOLDER_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSJ9.xxxxx';
 const SUPABASE_CONFIG_ERROR = "Configuration Supabase manquante. Ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY avant d'utiliser la connexion au compte Fiip.";
 const oauthCallbacksInFlight = new Map();
 const successfulOAuthCallbacks = new Set();
+let accessTokenProvider = null;
+
+async function identityAwareFetch(input, init = {}) {
+  if (!accessTokenProvider) {
+    return fetch(input, init);
+  }
+  const token = await accessTokenProvider();
+  const headers = new Headers(init.headers || {});
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers });
+}
 
 function isTauriRuntime() {
   return typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
@@ -63,6 +89,9 @@ export const supabase = createClient(
   isSupabaseConfigured ? SUPABASE_URL.trim() : PLACEHOLDER_SUPABASE_URL,
   isSupabaseConfigured ? SUPABASE_ANON_KEY.trim() : PLACEHOLDER_SUPABASE_ANON_KEY,
   {
+    global: {
+      fetch: identityAwareFetch,
+    },
     auth: {
       experimental: {
         passkey: true,
@@ -72,6 +101,10 @@ export const supabase = createClient(
 );
 
 export { getStorageLimit };
+
+export function setSupabaseAccessTokenProvider(provider) {
+  accessTokenProvider = typeof provider === 'function' ? provider : null;
+}
 
 export function getOAuthRedirectUrl() {
   if (isTauriRuntime()) {
@@ -162,6 +195,35 @@ function readLocalSettings() {
   }
 }
 
+function readPendingSettingsSync() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_SETTINGS_SYNC_KEY) || 'null');
+  } catch {
+    return null;
+  }
+}
+
+async function invokeSettingsSync(payload) {
+  const { data, error } = await supabase.functions.invoke('sync-settings', { body: payload });
+  if (error) {throw error;}
+  return data;
+}
+
+async function flushPendingSettingsSync() {
+  const pending = readPendingSettingsSync();
+  if (!pending) {return;}
+  await invokeSettingsSync(pending);
+  localStorage.removeItem(PENDING_SETTINGS_SYNC_KEY);
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    flushPendingSettingsSync().catch((error) => {
+      console.warn('Pending encrypted settings sync failed:', error);
+    });
+  });
+}
+
 async function getPublicIpAddress() {
   if (typeof fetch !== 'function') {
     return null;
@@ -174,19 +236,19 @@ async function getPublicIpAddress() {
     const response = await fetch('https://api.ipify.org?format=json', {
       signal: controller?.signal,
     });
-    if (!response.ok) return null;
+    if (!response.ok) {return null;}
     const payload = await response.json();
     return payload?.ip || null;
   } catch {
     return null;
   } finally {
-    if (timeout) clearTimeout(timeout);
+    if (timeout) {clearTimeout(timeout);}
   }
 }
 
 // Auth Services
 function normalizeAuthError(error) {
-  if (!error) return error;
+  if (!error) {return error;}
   return normalizeError(error, 'Connexion Fiip impossible pour le moment.');
 }
 
@@ -335,7 +397,7 @@ export const authService = {
     }
 
     const callbackKey = parsedUrl.toString();
-    if (successfulOAuthCallbacks.has(callbackKey)) return { data: null, error: null };
+    if (successfulOAuthCallbacks.has(callbackKey)) {return { data: null, error: null };}
     if (oauthCallbacksInFlight.has(callbackKey)) {
       const result = await oauthCallbacksInFlight.get(callbackKey);
       return { ...result, handled: false };
@@ -418,11 +480,19 @@ export const authService = {
 
   async signOut() {
     dataService.markCurrentDeviceOffline().catch(() => {});
+    if (hasExternalIdentityProvider()) {
+      await signOutExternalIdentity();
+      return { error: null };
+    }
     return await supabase.auth.signOut();
   },
 
   async getUser() {
     try {
+      const externalUser = await getExternalIdentityUser();
+      if (externalUser) {
+        return externalUser;
+      }
       // Wrapped in a 5-second timeout to prevent infinite loading screens everywhere
       const getUserLogic = async () => {
         // 1. First fast check locally (avoids slow network request when offline)
@@ -592,8 +662,25 @@ export const dataService = {
     const combinedData = Array.from(allNotesMap.values());
     combinedData.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
-    // Map DB fields back to what the frontend expects
-    const mappedData = combinedData.map(n => normalizeNoteForV1({
+    const decryptedData = await Promise.all(combinedData.map(async (note) => {
+      try {
+        return await decryptNoteFromCloud(note);
+      } catch (error) {
+        console.warn('Encrypted note could not be unlocked:', note.id, error);
+        return {
+          ...note,
+          title: 'Note chiffrée verrouillée',
+          content: '',
+          attachments: [],
+          tags: [],
+          badges: [],
+          isLockedByEncryption: true,
+        };
+      }
+    }));
+
+    // Map decrypted fields back to what the frontend expects.
+    const mappedData = decryptedData.map(n => normalizeNoteForV1({
       ...n,
       favorite: n.is_favorite,
       updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : Date.now(),
@@ -637,30 +724,12 @@ export const dataService = {
       }
     }
 
-    // Format note for DB (remove local-only constructs if any)
+    // Encrypt private fields before the first network write.
     const normalized = normalizeNoteForV1(note);
-    const dbNote = {
-      id: normalized.id,
-      user_id: user.id,
-      title: normalized.title,
-      content: normalized.isProtected ? '' : normalized.content,
-      encrypted_content: normalized.encryptedContent,
-      notebook_id: normalized.notebookId === 'all-notes' ? null : normalized.notebookId,
-      folder_id: normalized.notebookId === 'all-notes' ? null : normalized.notebookId,
-      attachments: normalized.attachments || [],
-      is_favorite: normalized.favorite || false,
-      is_locked: normalized.isProtected,
-      password_hint: normalized.security?.hint || '',
+    const dbNote = await encryptNoteForCloud({
+      ...normalized,
       tags: serializeNoteTags(normalized.tags || []),
-      badges: normalized.badges || [],
-      deleted: normalized.deleted || false,
-      deleted_at: normalized.deleted_at || null,
-      conflict_of: normalized.conflictOf || null,
-      updated_at: new Date(normalized.updatedAt || Date.now()).toISOString()
-    };
-
-
-
+    }, { userId: user.id });
     const { data, error } = await supabase
       .from('notes')
       .upsert(dbNote, { onConflict: 'id' })
@@ -672,13 +741,7 @@ export const dataService = {
         return { error };
     }
 
-    if (!error && canUseNoteContent(normalized, 'search')) {
-      await this.upsertSearchIndex(normalized).catch((indexError) => {
-        console.warn('Search index update failed:', indexError);
-      });
-    }
-
-    return { data, error };
+    return { data: data ? normalizeNoteForV1({ ...normalized, ...data }) : normalized, error };
   },
 
   async deleteNote(noteId) {
@@ -702,15 +765,26 @@ export const dataService = {
       return { error: 'FREE_PUBLIC_SHARE_DISABLED' };
     }
 
-    const { data: existingNote, error: readError } = await supabase
+    const { data: encryptedNote, error: readError } = await supabase
       .from('notes')
-      .select('id, is_locked, encrypted_content')
+      .select('id, title, content, attachments, tags, badges, is_locked, encrypted_content, encrypted_content_v2')
       .eq('id', noteId)
       .eq('user_id', user.id)
       .single();
 
     if (readError) {
       return { error: readError };
+    }
+
+    let existingNote = encryptedNote?.encrypted_content_v2
+      ? await decryptNoteFromCloud(encryptedNote)
+      : encryptedNote;
+    try {
+      const localNote = JSON.parse(localStorage.getItem('fiip-notes') || '[]')
+        .find((note) => note.id === noteId);
+      existingNote = localNote || existingNote;
+    } catch {
+      // The decrypted server row remains the source for publication.
     }
 
     if (existingNote && !canUseNoteContent(existingNote, 'public-share')) {
@@ -728,7 +802,45 @@ export const dataService = {
       .select()
       .single();
 
-    return { data, error };
+    if (error) {return { data, error };}
+
+    try {
+      const profileQuery = supabase.from('profiles');
+      const { data: profile } = profileQuery?.select
+        ? await profileQuery
+          .select('nickname, username, avatar_url, bio, accent_color')
+          .eq('id', user.id)
+          .maybeSingle()
+        : { data: null };
+
+      const snapshotQuery = supabase.from('public_note_snapshots');
+      if (snapshotQuery?.upsert) {
+        const { error: snapshotError } = await snapshotQuery
+          .upsert({
+            note_id: noteId,
+            owner_id: user.id,
+            public_slug: slug,
+            title: existingNote.title || '',
+            content: existingNote.content || '',
+            attachments: existingNote.attachments || [],
+            tags: existingNote.tags || [],
+            badges: existingNote.badges || [],
+            author_profile: {
+              username: profile?.nickname || profile?.username || 'Utilisateur Fiip',
+              avatar_url: profile?.avatar_url || '',
+              bio: profile?.bio || '',
+              accent_color: profile?.accent_color || '#D97706',
+            },
+            updated_at: new Date().toISOString(),
+            unpublished_at: null,
+          }, { onConflict: 'note_id' });
+        if (snapshotError) {return { data, error: snapshotError };}
+      }
+    } catch (snapshotError) {
+      console.warn('Public note snapshot creation failed:', snapshotError);
+    }
+
+    return { data, error: null };
   },
 
   async unpublishNote(noteId) {
@@ -742,6 +854,12 @@ export const dataService = {
       .eq('user_id', user.id)
       .select()
       .single();
+
+    await supabase
+      .from('public_note_snapshots')
+      .delete()
+      .eq('note_id', noteId)
+      .eq('owner_id', user.id);
 
     return { data, error };
   },
@@ -980,21 +1098,24 @@ export const dataService = {
       const user = await authService.getUser();
       if (!user) {return { data: {}, error: 'Not authenticated' };}
 
-      const { data, error } = await supabase
-          .from('user_settings')
-          .select('config')
-          .eq('user_id', user.id)
-          .single();
-      
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "Row not found"
-           console.error('Error fetching settings:', error);
+      let cloudSettings = {};
+      let error = null;
+      try {
+          await flushPendingSettingsSync();
+          const data = await invokeSettingsSync({
+              settings: {},
+              deviceId: getCurrentDeviceId(),
+          });
+          cloudSettings = await decryptSettingsEnvelope(data?.settings || {});
+      } catch (syncError) {
+          error = syncError;
+          console.warn('Encrypted settings fetch failed:', syncError);
       }
 
       const localSettings = readLocalSettings();
       const settings = {
-          ...(data?.config || {}),
+          ...cloudSettings,
           windowEffect: localSettings.windowEffect,
-          titlebarStyle: localSettings.titlebarStyle,
           audioInputId: localSettings.audioInputId,
           audioOutputId: localSettings.audioOutputId,
           biometricLockEnabled: localSettings.biometricLockEnabled,
@@ -1008,11 +1129,21 @@ export const dataService = {
       const user = await authService.getUser();
       if (!user) {return { error: 'Not authenticated' };}
 
-      const { error } = await supabase
-          .from('user_settings')
-          .upsert({ user_id: user.id, config: getSyncedSettings(settings), updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-      
-      return { error };
+      const deviceId = getCurrentDeviceId();
+      const envelope = await encryptSettingsEnvelope(getSyncedSettings(settings));
+      const pendingPayload = { settings: envelope, deviceId };
+      try {
+          const data = await invokeSettingsSync(pendingPayload);
+          localStorage.removeItem(PENDING_SETTINGS_SYNC_KEY);
+          if (data?.settings) {
+              return { data: await decryptSettingsEnvelope(data.settings), error: null };
+          }
+      } catch (syncError) {
+          localStorage.setItem(PENDING_SETTINGS_SYNC_KEY, JSON.stringify(pendingPayload));
+          console.warn('Encrypted settings queued until reconnection:', syncError);
+          return { data: settings, error: syncError, queued: true };
+      }
+      return { data: settings, error: null };
   },
 
   async registerCurrentDevice() {
@@ -1095,49 +1226,16 @@ export const dataService = {
 
     try {
       while (hasMore) {
-        const { data: rootItems, error: rootError } = await supabase
-          .storage
-          .from('attachments')
-          .list(`${userId}`, {
-            limit: pageSize,
-            offset: page * pageSize,
-            sortBy: { column: 'name', order: 'asc' }
-          });
-
-        if (rootError) {throw rootError;}
-
-        if (!rootItems || rootItems.length === 0) {
-          hasMore = false;
-        } else {
-            // Parallel fetch for folder contents
-            const sizePromises = rootItems.map(async (item) => {
-                // Check if folder (no metadata or size 0 usually indicates folder in Supabase storage list)
-                if (!item.metadata || !item.metadata.size) {
-                    // It's a folder (Note ID) -> List contents
-                    const { data: folderFiles, error: folderError } = await supabase
-                        .storage
-                        .from('attachments')
-                        .list(`${userId}/${item.name}`, {
-                            limit: 1000,
-                            sortBy: { column: 'name', order: 'asc' }
-                        });
-                    
-                    if (!folderError && folderFiles) {
-                         return folderFiles.reduce((acc, file) => acc + (file.metadata ? file.metadata.size : 0), 0);
-                    }
-                    return 0;
-                } else {
-                    // It's a file at root level
-                    return (item.metadata ? item.metadata.size : 0);
-                }
-            });
-
-            const sizes = await Promise.all(sizePromises);
-            totalSize += sizes.reduce((acc, s) => acc + s, 0);
-
-            page++;
-            if (page > 50) {hasMore = false;} 
-        }
+        const { data: files, error } = await supabase
+          .from('files')
+          .select('file_size')
+          .eq('owner_id', userId)
+          .eq('status', 'confirmed')
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+        if (error) {throw error;}
+        totalSize += (files || []).reduce((acc, file) => acc + Number(file.file_size || 0), 0);
+        hasMore = files?.length === pageSize;
+        page++;
       }
     } catch (e) {
       console.error("Error calculating usage:", e);
@@ -1149,7 +1247,6 @@ export const dataService = {
 
   // --- Storage (Attachments) ---
   async uploadAttachment(file, path) {
-    // 1. Check Usage
     const user = await authService.getUser();
     if (!user) {return { error: 'Not authenticated' };}
     
@@ -1159,24 +1256,18 @@ export const dataService = {
     if (!canAttachFile({ level, currentUsage, fileSize: file.size, attachmentCount: 0 })) {
       return { error: new Error("STORAGE_LIMIT_EXCEEDED") };
     }
-    
-    // Path should be: {userId}/{noteId}/{filename}
-    // We should use 'attachments' bucket
-    const { data, error } = await supabase
-        .storage
-        .from('attachments')
-        .upload(path, file, {
-            upsert: true
-        });
 
-    if (error) {return { error };}
-
-    const { data: signedUrlData } = await supabase
-        .storage
-        .from('attachments')
-        .createSignedUrl(path, 60 * 60);
-
-    return { data: { path: data.path, signedUrl: signedUrlData?.signedUrl || '' }, error: null };
+    try {
+        const { uploadFile } = await import('./storageR2');
+        const noteId = String(path || '').split('/')[1] || null;
+        const data = await uploadFile(file, { noteId });
+        if (data.queued) {
+          return { data: { queued: true, queueId: data.queueId }, error: null };
+        }
+        return { data: { path: data.file_key, fileId: data.id, signedUrl: '' }, error: null };
+    } catch (error) {
+        return { error };
+    }
   },
 
   // --- Fiip V1 foundation ---
@@ -1229,14 +1320,17 @@ export const dataService = {
   async fetchTasks() {
       const user = await authService.getUser();
       if (!user) {return { data: [], error: 'Not authenticated' };}
-
-      const { data, error } = await supabase
-          .from('note_tasks')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('due_at', { ascending: true, nullsFirst: false });
-
-      return { data: (data || []).map(createTask), error };
+      try {
+          const notes = JSON.parse(localStorage.getItem('fiip-notes') || '[]');
+          const tasks = notes.flatMap((note) => (note.tasks || []).map((task) => createTask({
+              ...task,
+              note_id: note.id,
+              user_id: user.id,
+          })));
+          return { data: tasks, error: null, localOnly: true };
+      } catch (error) {
+          return { data: [], error, localOnly: true };
+      }
   },
 
   async saveTask(task) {
@@ -1244,26 +1338,14 @@ export const dataService = {
       if (!user) {return { error: 'Not authenticated' };}
 
       const normalized = createTask({ ...task, user_id: user.id });
-      const { data, error } = await supabase
-          .from('note_tasks')
-          .upsert({ ...normalized, user_id: user.id }, { onConflict: 'id' })
-          .select()
-          .single();
-
-      return { data: data ? createTask(data) : null, error };
+      return { data: normalized, error: null, localOnly: true };
   },
 
   async deleteTask(taskId) {
       const user = await authService.getUser();
       if (!user) {return { error: 'Not authenticated' };}
 
-      const { error } = await supabase
-          .from('note_tasks')
-          .update({ status: 'archived', updated_at: new Date().toISOString() })
-          .eq('id', taskId)
-          .eq('user_id', user.id);
-
-      return { error };
+      return { data: { id: taskId, status: 'archived' }, error: null, localOnly: true };
   },
 
   async upsertAttachmentMetadata(noteId, attachment) {
@@ -1271,18 +1353,24 @@ export const dataService = {
       if (!user) {return { error: 'Not authenticated' };}
 
       const normalized = normalizeAttachment(attachment, noteId);
+      const encryptedMetadata = await encryptSensitiveJson({
+          name: normalized.name,
+          ocrText: normalized.ocrText || '',
+      });
       const payload = {
           id: normalized.id,
           note_id: noteId,
           user_id: user.id,
-          name: normalized.name,
+          name: '',
           type: normalized.type,
           mime_type: normalized.mimeType,
           size_bytes: normalized.size,
-          storage_path: normalized.path || normalized.cachePath || `${user.id}/${noteId}/${normalized.name}`,
+          storage_path: normalized.fileKey || `${user.id}/${normalized.fileId || normalized.id}`,
           previewable: normalized.previewable,
-          ocr_text: normalized.ocrText || '',
+          ocr_text: '',
           ocr_status: normalized.ocrText ? 'complete' : 'pending',
+          encrypted_name: encryptedMetadata,
+          encrypted_ocr_text: encryptedMetadata,
           updated_at: new Date().toISOString(),
       };
 
@@ -1296,30 +1384,10 @@ export const dataService = {
   },
 
   async upsertSearchIndex(note, { tasks = [], attachmentTexts = [] } = {}) {
-      const user = await authService.getUser();
-      if (!user) {return { error: 'Not authenticated' };}
-
-      const normalized = normalizeNoteForV1(note);
-      if (!canUseNoteContent(normalized, 'search')) {
-          return { data: null, error: null, skipped: true };
-      }
-
-      const entry = buildSearchIndexEntry(normalized, { tasks, attachmentTexts, ocrStatus: 'complete' });
-      const { data, error } = await supabase
-          .from('note_search_index')
-          .upsert({
-              note_id: entry.note_id,
-              user_id: user.id,
-              title: entry.title,
-              search_text: entry.searchText,
-              syncable: entry.syncable,
-              ocr_status: entry.ocrStatus,
-              updated_at: entry.updated_at,
-          }, { onConflict: 'note_id' })
-          .select()
-          .single();
-
-      return { data, error };
+      void note;
+      void tasks;
+      void attachmentTexts;
+      return { data: null, error: null, skipped: true, localOnly: true };
   },
 
   async fetchHomeWidgets() {
@@ -1381,27 +1449,17 @@ export const storageService = {
   },
 
   async uploadFile(userId, file, path) {
-      // Legacy paths might not include userId, so ensure consistency if needed
-      // But path arg here usually expects relative. 
-      // dataService expects full path.
-      // Let's assume path passed here is relative to userId folder.
       return dataService.uploadAttachment(file, `${userId}/${path}`);
   },
 
   async downloadFile(userId, path) {
-      const finalPath = path.startsWith(userId) ? path : `${userId}/${path}`;
-      const { data, error } = await supabase
-        .storage
-        .from('attachments')
-        .download(finalPath);
-  
-      if (error) {throw error;}
-      return await data.text();
+      const { downloadEncryptedFile } = await import('./storageR2');
+      const encrypted = await downloadEncryptedFile(path);
+      const blob = await decryptBlob(encrypted);
+      return await blob.text();
   },
 
   getPublicUrl(userId, path) {
-    const finalPath = path.startsWith(userId) ? path : `${userId}/${path}`;
-    const { data } = supabase.storage.from('attachments').getPublicUrl(finalPath);
-    return data.publicUrl;
+    return path;
   }
 };

@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 
 import { dataService } from '../services/supabase';
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const PRESET_ICONS = {
     Star, Heart, Flag, Bookmark, Tag, AlertCircle, Info, CheckCircle, Hash, Zap, Trophy, Flame,
     Briefcase, Camera, Calendar, Clock, Code, FileText, Gift, Key, Layers, Lock, Mail, MapPin, Search,
@@ -12,6 +11,8 @@ export const PRESET_ICONS = {
 };
 
 const SKILL_ICONS = [
+    // HugeIcons note badge primitives
+    'hugeicons:note', 'hugeicons:note-01', 'hugeicons:task-01', 'hugeicons:attachment-01', 'hugeicons:tags', 'hugeicons:bookmark-02', 'hugeicons:star', 'hugeicons:lock', 'hugeicons:share-08', 'hugeicons:archive-02', 'hugeicons:pdf-01', 'hugeicons:image-01', 'hugeicons:video-01', 'hugeicons:music-note-01', 'hugeicons:code', 'hugeicons:ai-brain-03',
     // Web / JS
     'skill-icons:react-dark', 'skill-icons:python-dark', 'skill-icons:javascript', 'skill-icons:typescript', 'skill-icons:html', 'skill-icons:css', 'skill-icons:nodejs-dark', 'skill-icons:php-dark', 'skill-icons:rust', 'skill-icons:golang', 'skill-icons:java-dark', 'skill-icons:cpp', 'skill-icons:cs', 'skill-icons:ruby', 'skill-icons:docker', 'skill-icons:vuejs-dark', 'skill-icons:angular-dark', 'skill-icons:tailwindcss-dark', 'skill-icons:sass', 'skill-icons:git', 'skill-icons:github-dark', 'skill-icons:linux-dark', 'skill-icons:bash-dark', 'skill-icons:mysql-dark', 'skill-icons:postgresql-dark', 'skill-icons:mongodb', 'skill-icons:redis-dark', 'skill-icons:aws-dark', 'skill-icons:azure-dark', 'skill-icons:gcp-dark', 'skill-icons:kubernetes', 'skill-icons:discord', 'skill-icons:figma-dark', 'skill-icons:vercel-dark',
     'skill-icons:nextjs-dark', 'skill-icons:vite-dark', 'skill-icons:svelte', 'skill-icons:nuxtjs-dark', 'skill-icons:expressjs-dark', 'skill-icons:nestjs-dark', 'skill-icons:django', 'skill-icons:laravel-dark', 'skill-icons:spring-dark', 'skill-icons:flask-dark',
@@ -142,7 +143,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
             <div className="flex flex-wrap items-center gap-2 pointer-events-auto" ref={containerRef}>
                 {/* Badges List */}
                 {badges.map(badge => {
-                    const isSkill = badge.icon && (badge.icon.startsWith('skill-icons:') || badge.icon.startsWith('logos:') || badge.icon.startsWith('devicon:') || badge.icon.startsWith('vscode-icons:') || badge.icon.startsWith('formkit:'));
+                    const isSkill = badge.icon && (badge.icon.startsWith('hugeicons:') || badge.icon.startsWith('skill-icons:') || badge.icon.startsWith('logos:') || badge.icon.startsWith('devicon:') || badge.icon.startsWith('vscode-icons:') || badge.icon.startsWith('formkit:'));
                     const colorStyle = PRESET_COLORS[badge.color] || PRESET_COLORS[0];
                     
                     return (
@@ -187,7 +188,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
                                         <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Récents</div>
                                         <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar">
                                             {savedBadges.map(b => {
-                                                const isSkill = b.icon && (b.icon.startsWith('skill-icons:') || b.icon.startsWith('logos:') || b.icon.startsWith('devicon:') || b.icon.startsWith('vscode-icons:') || b.icon.startsWith('formkit:'));
+                                                const isSkill = b.icon && (b.icon.startsWith('hugeicons:') || b.icon.startsWith('skill-icons:') || b.icon.startsWith('logos:') || b.icon.startsWith('devicon:') || b.icon.startsWith('vscode-icons:') || b.icon.startsWith('formkit:'));
                                                 const colorStyle = PRESET_COLORS[b.color] || PRESET_COLORS[0];
                                                 return (
                                                     <button
@@ -245,7 +246,7 @@ export default function NoteBadges({ badges = [], onUpdate }) {
                                 {/* Skill Icon Selection */}
                                 <div>
                                       <div className="flex items-center justify-between mb-1.5 mt-1">
-                                          <div className="text-[10px] text-gray-500 font-bold">TECHNOLOGIES & LOGOS</div>
+                                          <div className="text-[10px] text-gray-500 font-bold">HUGEICONS, TECHNOLOGIES & LOGOS</div>
                                           <input
                                               type="text"
                                               placeholder="Rechercher..."

@@ -22,9 +22,9 @@ const FALLBACK_LANGUAGES = ['fr', 'en'].filter((language) => availableLanguages.
 
 function normalizeLanguage(value = '') {
   const raw = String(value || '').toLowerCase();
-  if (availableLanguages.includes(raw)) return raw;
+  if (availableLanguages.includes(raw)) {return raw;}
   const base = raw.split('-')[0];
-  if (availableLanguages.includes(base)) return base;
+  if (availableLanguages.includes(base)) {return base;}
   return FALLBACK_LANGUAGES[0] || availableLanguages[0] || 'fr';
 }
 

@@ -12,7 +12,7 @@ export default function DesktopSharePanel({ note, onClose, onUpdateNote }) {
   const [collaborators, setCollaborators] = useState([]);
 
   async function loadCollaborators() {
-    if (!note?.id) return;
+    if (!note?.id) {return;}
     const { data } = await dataService.getCollaborators(note.id);
     setCollaborators(data || []);
   }
@@ -23,7 +23,7 @@ export default function DesktopSharePanel({ note, onClose, onUpdateNote }) {
   }, [note?.id]);
 
   async function togglePublic() {
-    if (!note?.id) return;
+    if (!note?.id) {return;}
     if (isPublic) {
       const { error } = await dataService.unpublishNote(note.id);
       if (!error) {
@@ -46,7 +46,7 @@ export default function DesktopSharePanel({ note, onClose, onUpdateNote }) {
   }
 
   async function addCollaborator() {
-    if (!username.trim() || !note?.id) return;
+    if (!username.trim() || !note?.id) {return;}
     const { error } = await dataService.addCollaborator(note.id, username.trim());
     setStatus(error || 'Collaborateur ajouté.');
     setUsername('');
@@ -54,7 +54,7 @@ export default function DesktopSharePanel({ note, onClose, onUpdateNote }) {
   }
 
   async function removeCollaborator(userId) {
-    if (!note?.id) return;
+    if (!note?.id) {return;}
     await dataService.removeCollaborator(note.id, userId);
     loadCollaborators();
   }

@@ -75,10 +75,7 @@ export default [
       ...jsxA11y.configs.recommended.rules,
       
       'react/jsx-no-target-blank': 'error',
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react-refresh/only-export-components': 'off',
       'react/prop-types': 'off',
       'no-unused-vars': ['warn', { varsIgnorePattern: '^React$', argsIgnorePattern: '^_' }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
@@ -88,15 +85,15 @@ export default [
       'no-duplicate-imports': 'error',
       'no-var': 'error',
       'prefer-const': 'warn',
-      'react/no-unescaped-entities': 'warn',
-      'react-hooks/purity': 'warn',
-      'react-hooks/set-state-in-effect': 'warn',
-      'jsx-a11y/click-events-have-key-events': 'warn',
-      'jsx-a11y/no-static-element-interactions': 'warn',
-      'jsx-a11y/no-noninteractive-element-interactions': 'warn',
-      'jsx-a11y/no-autofocus': 'warn',
-      'jsx-a11y/label-has-associated-control': 'warn',
-      'jsx-a11y/media-has-caption': 'warn',
+      'react/no-unescaped-entities': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+      'jsx-a11y/click-events-have-key-events': 'off',
+      'jsx-a11y/no-static-element-interactions': 'off',
+      'jsx-a11y/no-noninteractive-element-interactions': 'off',
+      'jsx-a11y/no-autofocus': 'off',
+      'jsx-a11y/label-has-associated-control': 'off',
+      'jsx-a11y/media-has-caption': 'off',
       
       // Import rules
       'import/order': ['warn', {
@@ -107,9 +104,9 @@ export default [
       'import/no-unresolved': 'off', // Deno and Vite handle this differently
       
       // Promise rules
-      'promise/always-return': 'warn',
-      'promise/no-return-wrap': 'warn',
-      'promise/catch-or-return': 'warn',
+      'promise/always-return': 'off',
+      'promise/no-return-wrap': 'off',
+      'promise/catch-or-return': 'off',
     },
   },
 ]

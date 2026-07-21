@@ -16,9 +16,9 @@ function groupNotes(notes = []) {
     const d = new Date(getNoteTimestamp(note));
     const isToday = d.toDateString() === now.toDateString();
     const isYesterday = d.toDateString() === y.toDateString();
-    if (isToday) today.push(note);
-    else if (isYesterday) yesterday.push(note);
-    else older.push(note);
+    if (isToday) {today.push(note);}
+    else if (isYesterday) {yesterday.push(note);}
+    else {older.push(note);}
   });
 
   const sortDesc = (a, b) => getNoteTimestamp(b) - getNoteTimestamp(a);
@@ -46,7 +46,7 @@ function NoteRow({ note, isActive, onSelect }) {
 }
 
 function Group({ title, notes, selectedNoteId, onSelect }) {
-  if (!notes.length) return null;
+  if (!notes.length) {return null;}
   return (
     <section className="fiip-note-group">
       <h4>{title}</h4>

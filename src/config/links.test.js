@@ -15,7 +15,7 @@ describe('Fiip public links', () => {
     expect(FIIP_PUBLIC_NOTES_URL).toBe('https://fiip.fr/');
     expect(FIIP_ACCOUNT_PORTAL_URL).toBe('https://portail.fiip.fr/');
     expect(FIIP_LICENSE_PURCHASE_URL).toBe('https://vinsstudio.mysellauth.com/');
-    expect(FIIP_CHROME_EXTENSION_URL).toBe('');
+    expect(FIIP_CHROME_EXTENSION_URL).toBe('https://chromewebstore.google.com/detail/fiip-web-clipper/kgjgfajhpigjmiblpjbihcpndfnibdko');
   });
 
   it('builds public note URLs on the production public site', () => {

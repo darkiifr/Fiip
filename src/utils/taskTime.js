@@ -21,6 +21,6 @@ export function normalizeTaskTime(value = '') {
     return '';
   }
 
-  if (hours > 23 || minutes > 59) return '';
+  if (hours > 23 || minutes > 59) {return '';}
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }

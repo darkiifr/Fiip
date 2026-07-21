@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import IconCalendar from '~icons/mingcute/calendar-line';
-import IconSearch from '~icons/mingcute/search-line';
-import IconTime from '~icons/mingcute/time-line';
-import IconBook from '~icons/mingcute/book-line';
-import IconCheck from '~icons/mingcute/check-circle-line';
-import IconBot from '~icons/mingcute/robot-line';
+
 import { generateText } from '../services/ai';
 import { getDueTasks } from '../services/fiipV1';
 import { getNoteStats, pickFeaturedNote, stripNoteText } from '../utils/notePresentation';
+
+import IconBook from '~icons/mingcute/book-line';
+import IconCalendar from '~icons/mingcute/calendar-line';
+import IconCheck from '~icons/mingcute/check-circle-line';
+import IconBot from '~icons/mingcute/robot-line';
+import IconSearch from '~icons/mingcute/search-line';
+import IconTime from '~icons/mingcute/time-line';
+
 
 const getNoteTimestamp = (note) => note?.updatedAt || note?.createdAt || 0;
 const EMPTY_LIST = [];
@@ -99,7 +102,7 @@ export default function HomeDashboard({
     }, [aiNotesContext, dexterEnabled, enabledWidgets]);
 
     const runAdvancedSearch = () => {
-        if (!searchQuery.trim()) return;
+        if (!searchQuery.trim()) {return;}
         onAdvancedSearch?.(searchQuery);
     };
 

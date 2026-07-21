@@ -17,17 +17,15 @@
         "height": 760,
         "resizable": true,
         "maximized": false,
-        "decorations": false,
-        "transparent": true,
-        "titleBarStyle": "Transparent",
-        "hiddenTitle": true,
+        "decorations": true,
+        "transparent": false,
         "center": true,
         "label": "main",
         "devtools": false,
         "visible": true
       }
     ],
-    "macOSPrivateApi": true,
+    "macOSPrivateApi": false,
     "security": {
       "csp": "default-src 'self' tauri: asset: http://asset.localhost; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob: https:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://fqouvzkovppyqocfxanl.supabase.co wss://fqouvzkovppyqocfxanl.supabase.co https://*.supabase.co wss://*.supabase.co https://keyauth.win https://openrouter.ai https://api.openrouter.ai https://fiip.fr https://portail.fiip.fr https://vinsstudio.mysellauth.com wss:;"
     }

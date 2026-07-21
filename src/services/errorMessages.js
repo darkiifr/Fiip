@@ -1,8 +1,8 @@
 const TECHNICAL_FALLBACK = 'Action impossible pour le moment. Reessayez dans quelques instants.';
 
 function readMessage(error) {
-  if (!error) return '';
-  if (typeof error === 'string') return error;
+  if (!error) {return '';}
+  if (typeof error === 'string') {return error;}
   return String(error.message || error.error_description || error.code || '').trim();
 }
 
@@ -11,7 +11,7 @@ export function getFriendlyErrorMessage(error, fallback = TECHNICAL_FALLBACK) {
   const code = String(error?.code || '').trim();
   const value = `${code} ${message}`.trim();
 
-  if (!value) return fallback;
+  if (!value) {return fallback;}
 
   if (/le\.auth\.(registerPasskey|signInWithPasskey)|registerPasskey is not a function|signInWithPasskey is not a function|passkey/i.test(value)) {
     return 'Les passkeys ne sont pas disponibles dans cette session. Mettez Fiip a jour, utilisez un navigateur compatible, puis relancez la connexion passkey.';

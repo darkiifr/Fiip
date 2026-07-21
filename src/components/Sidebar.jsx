@@ -1,14 +1,14 @@
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { type } from '@tauri-apps/plugin-os';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useUI } from '../providers/UIProvider';
 import { keyAuthService } from '../services/keyauth';
+import { authService, dataService } from '../services/supabase';
 import { getSafePublicUrl } from '../utils/safeUrl';
 
 // Icons Import (Pim's Edition)
-import { authService, dataService } from '../services/supabase';
+
+import { LiquidGlassPrimitive } from './ui/LiquidGlassPrimitive';
 
 import IconTrash from '~icons/mingcute/delete-2-fill';
 import IconLogout from '~icons/mingcute/exit-fill';
@@ -20,7 +20,6 @@ import IconSettings from '~icons/mingcute/settings-3-fill';
 import IconStar from '~icons/mingcute/star-fill';
 import IconUser from '~icons/mingcute/user-4-fill';
 
-import { LiquidGlassPrimitive } from './ui/LiquidGlassPrimitive';
 
 export default function Sidebar({ 
     onOpenSettings, 
@@ -33,12 +32,10 @@ export default function Sidebar({
 }) {
     const { t } = useTranslation();
     const { theme } = useUI();
-    const appWindow = getCurrentWindow();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [localProfile, setLocalProfile] = useState(null);
     const [supabaseUser, setSupabaseUser] = useState(null);
     const safeAvatarUrl = getSafePublicUrl(localProfile?.avatar || localProfile?.avatar_url || supabaseUser?.user_metadata?.avatar_url || settings?.avatarUrl || '');
-    const osType = type();
 
     const getSafeUsername = () => {
         const candidates = [
@@ -109,21 +106,8 @@ export default function Sidebar({
                 background: theme === 'liquid-glass' ? undefined : '#1C1C1E'
             }}
         >
-            {/* Header : User Profile & Traffic Lights */}
+            {/* Header : User Profile */}
             <div className={`flex flex-col ${isCollapsed ? 'items-center px-0' : 'px-3'} pt-3 pb-2 select-none transition-all duration-250`}>
-                
-                {/* Traffic Lights Spacer for macOS native or 'none' layout */}
-                {osType === 'macos' && (!settings?.titlebarStyle || settings.titlebarStyle === 'none' || settings.titlebarStyle === 'native') && (
-                     <div className="w-[60px] h-8 mb-2" data-tauri-drag-region />
-                )}
-
-                {osType !== 'macos' && (!settings?.titlebarStyle || settings.titlebarStyle === 'none') && (
-                    <div className={`flex gap-2 mb-4 ${isCollapsed ? 'flex-col items-center gap-2 mb-2' : 'px-1'}`}>
-                        <button onClick={() => appWindow.close()} className="w-3 h-3 rounded-full bg-[#FF5F57] hover:bg-[#FF4A42] border border-black/10 transition-colors duration-150 ease-out" />
-                        <button onClick={() => appWindow.minimize()} className="w-3 h-3 rounded-full bg-[#FEBC2E] hover:bg-[#FEAE1C] border border-black/10 transition-colors duration-150 ease-out" />
-                        <button onClick={() => appWindow.toggleMaximize()} className="w-3 h-3 rounded-full bg-[#28C840] hover:bg-[#1EB332] border border-black/10 transition-colors duration-150 ease-out" />
-                    </div>
-                )}
 
                 <div className={`flex items-center justify-between ${isCollapsed ? 'flex-col gap-2' : 'flex-row'} w-full`}>
                     {/* Profile */}

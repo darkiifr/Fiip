@@ -40,17 +40,17 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from '.
 import IconCheck from '~icons/mingcute/check-fill';
 import IconCpu from '~icons/mingcute/chip-fill';
 import IconCloud from '~icons/mingcute/cloud-fill';
+import IconDocument from '~icons/mingcute/document-fill';
 import IconDownload from '~icons/mingcute/download-2-fill';
 import IconGlobe from '~icons/mingcute/earth-2-fill';
+import IconInfo from '~icons/mingcute/information-fill';
+import IconKey from '~icons/mingcute/key-2-fill';
+import IconLeft from '~icons/mingcute/left-fill';
+import IconPalette from '~icons/mingcute/palette-fill';
 import IconRefresh from '~icons/mingcute/refresh-3-fill';
 import IconBot from '~icons/mingcute/robot-fill';
-import IconLeft from '~icons/mingcute/left-fill';
 import IconSettings from '~icons/mingcute/settings-1-fill';
-import IconPalette from '~icons/mingcute/palette-fill';
-import IconDocument from '~icons/mingcute/document-fill';
 import IconUser from '~icons/mingcute/user-3-fill';
-import IconKey from '~icons/mingcute/key-2-fill';
-import IconInfo from '~icons/mingcute/information-fill';
 
 export default function SettingsView({
     settings,
@@ -171,6 +171,8 @@ export default function SettingsView({
             clearInterval(interval);
             unsubscribeAI?.();
         };
+    // Initial settings bootstrap only; refreshAccountLicenses reads current auth state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleUpdate = (newSettings) => {
@@ -247,12 +249,12 @@ export default function SettingsView({
     };
 
     const handleInstallUpdate = async () => {
-        if (!availableUpdate) return;
+        if (!availableUpdate) {return;}
         const confirmed = await ask(
             t('settings.update_install_confirm', 'Install Fiip {{version}} now? The app will restart after installation.', { version: availableUpdate.version }),
             { title: t('settings.update_dialog_title', 'Fiip update'), kind: 'info' }
         ).catch(() => false);
-        if (!confirmed) return;
+        if (!confirmed) {return;}
         try {
             setIsInstallingUpdate(true);
             setUpdateStatus(t('settings.downloading_installing', 'Downloading and installing...'));
@@ -339,7 +341,7 @@ export default function SettingsView({
             t('settings.license_switch_confirm', 'Activer cette licence pour ce compte ? Fiip va redémarrer pour appliquer les droits.'),
             { title: 'Fiip Premium', kind: 'info' }
         ).catch(() => false);
-        if (!confirmed) return;
+        if (!confirmed) {return;}
 
         setAccountLicenseStatus(t('settings.license_switching', 'Activation de la licence...'));
         try {
@@ -636,7 +638,7 @@ export default function SettingsView({
                                         disabled={!syncAvailable}
                                         checked={syncAvailable && localSettings.cloudSync !== false}
                                         onCheckedChange={async (enabled) => {
-                                            if (!syncAvailable) return;
+                                            if (!syncAvailable) {return;}
                                             if (window.confirm(t('settings.sync_confirm', "Changer ce réglage redémarrera l'application pour appliquer les nouveaux adaptateurs de stockage. Confirmer ?"))) {
                                                 handleUpdate({ ...localSettings, cloudSync: enabled });
                                                 localStorage.setItem('fiip-settings', JSON.stringify({ ...localSettings, cloudSync: enabled }));

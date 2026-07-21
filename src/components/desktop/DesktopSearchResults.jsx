@@ -2,9 +2,9 @@ import { FileText, Search } from 'lucide-react';
 
 function snippet(content, query) {
   const plain = (content || '').replace(/<[^>]+>/g, ' ');
-  if (!query) return plain.slice(0, 150);
+  if (!query) {return plain.slice(0, 150);}
   const idx = plain.toLowerCase().indexOf(query.toLowerCase());
-  if (idx < 0) return plain.slice(0, 150);
+  if (idx < 0) {return plain.slice(0, 150);}
   const start = Math.max(0, idx - 50);
   return `... ${plain.slice(start, start + 160)} ...`;
 }

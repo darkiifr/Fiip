@@ -59,24 +59,24 @@ async function openExternalUrl(url) {
 }
 
 export function normalizeOverextendedLinks(html = '') {
-    if (!html || typeof DOMParser === 'undefined') return html;
+    if (!html || typeof DOMParser === 'undefined') {return html;}
 
     const document = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
     document.body.querySelectorAll('a[href]').forEach((link) => {
         const text = link.textContent || '';
         const match = text.match(URL_PATTERN);
-        if (!match || match.index === undefined) return;
+        if (!match || match.index === undefined) {return;}
 
         const url = match[0].replace(/[.,;:!?)]$/, '');
         const href = link.getAttribute('href') || '';
-        if (!href.includes(url) && !url.includes(href)) return;
+        if (!href.includes(url) && !url.includes(href)) {return;}
 
         const prefix = text.slice(0, match.index);
         const suffix = text.slice(match.index + match[0].length);
-        if (!suffix.trim()) return;
+        if (!suffix.trim()) {return;}
 
         const replacement = document.createDocumentFragment();
-        if (prefix) replacement.append(document.createTextNode(prefix));
+        if (prefix) {replacement.append(document.createTextNode(prefix));}
 
         const cleanLink = document.createElement('a');
         cleanLink.setAttribute('href', href);
@@ -92,7 +92,7 @@ export function normalizeOverextendedLinks(html = '') {
 export function handleEditorLinkClick(event) {
     const target = event.target?.nodeType === Node.ELEMENT_NODE ? event.target : event.target?.parentElement;
     const link = target?.closest?.('a[href]');
-    if (!link) return false;
+    if (!link) {return false;}
 
     event.preventDefault();
     event.stopPropagation();

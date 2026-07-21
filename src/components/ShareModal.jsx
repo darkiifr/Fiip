@@ -101,7 +101,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
 
     const handleAddCollaborator = async (e) => {
         e.preventDefault();
-        if (!newCollabUsername.trim() || !selectedNote) return;
+        if (!newCollabUsername.trim() || !selectedNote) {return;}
         if (isProtectedNote) {
             setStatus({ type: 'error', message: 'Les notes protegees ne peuvent pas etre partagees en collaboration.' });
             return;
@@ -112,7 +112,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
         try {
             await dataService.saveNote(selectedNote);
             const res = await dataService.addCollaborator(selectedNote.id, newCollabUsername.trim());
-            if (res.error) throw new Error(res.error);
+            if (res.error) {throw new Error(res.error);}
             setStatus({ type: 'success', message: 'Collaborateur ajouté !' });
             setNewCollabUsername('');
             fetchCollaborators(selectedNote.id);
@@ -124,15 +124,15 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
     };
 
     const handleRemoveCollaborator = async (userId) => {
-        if (!selectedNote) return;
+        if (!selectedNote) {return;}
         setIsLoadingCollab(true);
         const { error } = await dataService.removeCollaborator(selectedNote.id, userId);
-        if (!error) fetchCollaborators(selectedNote.id);
+        if (!error) {fetchCollaborators(selectedNote.id);}
         setIsLoadingCollab(false);
     };
 
     const handleTogglePublic = async () => {
-        if (!selectedNote) return;
+        if (!selectedNote) {return;}
         if (isProtectedNote) {
             setStatus({ type: 'error', message: 'Les notes protegees ne peuvent pas etre publiees.' });
             return;
@@ -142,7 +142,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
 
         try {
             const saveRes = await dataService.saveNote(selectedNote);
-            if (saveRes && saveRes.error) throw saveRes.error;
+            if (saveRes && saveRes.error) {throw saveRes.error;}
             const syncedNote = {
                 ...selectedNote,
                 id: saveRes?.data?.id || selectedNote.id,
@@ -151,15 +151,15 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
 
             if (isPublic) {
                 const { error } = await dataService.unpublishNote(syncedNote.id);
-                if (error) throw error;
+                if (error) {throw error;}
                 setIsPublic(false);
                 setPublicUrl('');
                 setStatus({ type: 'success', message: 'Note rendue privée.' });
                 onUpdateNote({ ...syncedNote, public_slug: null, shared: false });
             } else {
                 const { data, error } = await dataService.publishNote(syncedNote.id);
-                if (error) throw error;
-                if (!data?.public_slug) throw new Error('NOTE_NOT_READY_FOR_SHARE');
+                if (error) {throw error;}
+                if (!data?.public_slug) {throw new Error('NOTE_NOT_READY_FOR_SHARE');}
                 setIsPublic(true);
                 setPublicUrl(buildPublicNoteUrl(data.public_slug));
                 setStatus({ type: 'success', message: 'Note publiée avec succès !' });
@@ -182,7 +182,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
     };
 
     const handleSocialShare = (platform) => {
-        if (!selectedNote) return;
+        if (!selectedNote) {return;}
         const text = `Je partage cette note depuis Fiip: ${selectedNote.title || 'Sans titre'}`;
         const contentPreview = (selectedNote.content?.substring(0, 100) || '') + '...';
         
@@ -217,7 +217,7 @@ export default function ShareModal({ isOpen, onClose, note, notes = [], onUpdate
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen) {return null;}
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 p-4 backdrop-blur-xl animate-fade-in font-sans select-none">

@@ -35,7 +35,6 @@ import IconVolume from '~icons/mingcute/volume-fill';
 interface Settings {
     language?: string;
     fontSize?: number;
-    titlebarStyle?: string;
     autoUpdate?: boolean;
     cloudSync?: boolean;
     windowEffect?: string;
@@ -304,27 +303,6 @@ export default function SettingsModal({
                         </div>
                         <p className="text-[10px] text-gray-400 px-1">
                             {t('settings.ui_theme_desc')}
-                        </p>
-                    </div>
-
-                    <div className="space-y-3">
-                        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t('settings.titlebar_style')}</h3>
-                        <div className="bg-white/5 border border-white/5 rounded-lg p-1 flex gap-1">
-                            {['native', 'windows', 'macos'].map((style) => (
-                                <button
-                                    key={style}
-                                    onClick={() => handleUpdate({ ...localSettings, titlebarStyle: style })}
-                                    className={`flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all ${localSettings.titlebarStyle === style
-                                        ? 'bg-white/10 text-blue-400 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
-                                        }`}
-                                >
-                                    {style === 'native' ? t('settings.native') : style.charAt(0).toUpperCase() + style.slice(1)}
-                                </button>
-                            ))}
-                        </div>
-                        <p className="text-[10px] text-gray-400 px-1">
-                            {t('settings.titlebar_desc')}
                         </p>
                     </div>
 
