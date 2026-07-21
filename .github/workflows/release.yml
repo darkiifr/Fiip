@@ -740,11 +740,12 @@ jobs:
               echo "Patching react-native-voice build.gradle"
               sed -i 's/jcenter()/mavenCentral()/g' "$RNVOICE" || true
               if ! grep -q "compileSdk" "$RNVOICE"; then
-                awk '/android *\{/{print; print "    compileSdkVersion 33"; next}1' "$RNVOICE" > "$RNVOICE.tmp" && mv "$RNVOICE.tmp" "$RNVOICE" || true
+                awk '/android *\{/{print; print "    compileSdkVersion 33"; next}1' "$RNVOICE" > "$RNVOICE.tmp"
+                mv "$RNVOICE.tmp" "$RNVOICE"
               fi
             fi
           else
-            echo "node_modules not found; ensure npm install ran correctly." || true
+            echo "node_modules not found; ensure npm install ran correctly."
           fi
 
       - name: Build APK
