@@ -1,7 +1,7 @@
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-signature, x-timestamp, x-fiip-delivery-token, x-keyauth-webhook-secret, x-idempotency-key, idempotency-key',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-retry-count, x-signature, x-timestamp, x-fiip-delivery-token, x-keyauth-webhook-secret, x-idempotency-key, idempotency-key',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
 };
 
 export function jsonResponse(body: unknown, init: ResponseInit = {}) {

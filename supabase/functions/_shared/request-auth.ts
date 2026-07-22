@@ -24,21 +24,23 @@ async function verifyClerkToken(token: string): Promise<JWTPayload> {
   }
 
   const { payload } = await jwtVerify(token, clerkJwks, { issuer });
-  if (payload.role !== 'authenticated') throw new Error('Not authenticated');
+  if (payload.role !== 'authenticated') {
+    throw new Error(`Invalid Clerk role: ${String(payload.role || 'missing')}`);
+  }
   return payload;
 }
 
 export function getBearerToken(req: Request) {
   const header = req.headers.get('Authorization') || '';
   const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match) throw new Error('Not authenticated');
+  if (!match) throw new Error('Missing authorization token');
   return match[1];
 }
 
 export async function getRequestSubject(req: Request) {
   const claims = await verifyClerkToken(getBearerToken(req));
   const subject = String(claims.sub || '');
-  if (!subject) throw new Error('Not authenticated');
+  if (!subject) throw new Error('Missing Clerk subject');
   return { subject, claims: claims as Record<string, unknown> };
 }
 
@@ -51,14 +53,20 @@ export async function resolveRequestUser(
     }>;
   },
 ): Promise<RequestUser> {
-  const { subject, claims } = await getRequestSubject(req);
+  let subject: string;
+  let claims: Record<string, unknown>;
+  try {
+    ({ subject, claims } = await getRequestSubject(req));
+  } catch (error) {
+    throw new Error(`Clerk verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
   const email = String(claims.email || '');
   const { data, error } = await supabase.rpc('fiip_bootstrap_identity', {
     p_subject: subject,
     p_email: email || null,
   });
   if (error || !data) {
-    throw new Error(error?.message || 'Identity mapping failed');
+    throw new Error(`Identity mapping failed: ${error?.message || 'No identity returned'}`);
   }
   return { id: String(data), subject, claims };
 }

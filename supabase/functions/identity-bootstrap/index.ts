@@ -15,7 +15,8 @@ Deno.serve(async (req) => {
       userId: identity.id,
       subject: identity.subject,
     });
-  } catch {
+  } catch (error) {
+    console.error('identity-bootstrap authentication failed', error instanceof Error ? error.message : 'Unknown error');
     return jsonResponse({ error: 'Not authenticated' }, { status: 401 });
   }
 });
