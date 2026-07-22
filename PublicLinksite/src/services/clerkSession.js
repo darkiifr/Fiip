@@ -4,8 +4,10 @@ export function installClerkSession(session) {
   currentSession = session;
 }
 
-export function clearClerkSession() {
-  currentSession = null;
+export function clearClerkSession(expectedSession) {
+  if (!expectedSession || currentSession === expectedSession) {
+    currentSession = null;
+  }
 }
 
 export async function getClerkAccessToken() {
