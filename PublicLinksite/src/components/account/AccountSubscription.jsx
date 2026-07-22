@@ -129,7 +129,7 @@ export default function AccountSubscription({ account, onActivateLicense, onSele
           {status ? <p className={statusTone === 'error' ? 'account-error' : 'account-message'}>{status}</p> : null}
         </form>
       </section>
-      <PricingCheckout user={account?.user} />
+      <PricingCheckout user={account?.user} account={account} />
     </>
   );
 }

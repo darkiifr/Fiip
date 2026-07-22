@@ -5,6 +5,7 @@ import IconCertificate from '~icons/mingcute/certificate-fill';
 import IconDevices from '~icons/mingcute/device-fill';
 import IconScan from '~icons/mingcute/scan-2-fill';
 import IconCloud from '~icons/mingcute/cloud-fill';
+import { getQuotaPrompt, getTrialDaysRemaining } from '../../services/conversionSignals';
 
 function formatBytes(value) {
   const bytes = Number(value || 0);
@@ -28,6 +29,8 @@ export default function AccountOverview({ account, onStartTrial }) {
   const notePercent = usagePercent(quota.note_bytes_used, quota.note_storage_bytes);
   const attachmentPercent = usagePercent(quota.attachment_bytes_used, quota.attachment_storage_bytes);
   const canStartTrial = !account?.trial?.active && !account?.trial?.used && !licenseState.hasActiveLicense;
+  const trialDaysRemaining = getTrialDaysRemaining(account?.trial);
+  const quotaPrompt = getQuotaPrompt(notePercent, attachmentPercent);
 
   const startTrial = async () => {
     setTrialStatus('loading');
@@ -90,6 +93,23 @@ export default function AccountOverview({ account, onStartTrial }) {
           <IconCloud />
           <div><strong>Essayez Pro pendant 14 jours</strong><p>Partage, extension et 20 scans OCR. Sans carte bancaire, avec 250 Mo de pièces jointes.</p></div>
           <button className="account-primary" type="button" onClick={startTrial} disabled={trialStatus === 'loading'}>{trialStatus === 'loading' ? 'Activation...' : 'Activer mon essai'}</button>
+        </article>
+      ) : null}
+      {trialDaysRemaining !== null ? (
+        <article className="conversion-cta" data-tone={trialDaysRemaining <= 3 ? 'warning' : 'info'}>
+          <IconCalendar />
+          <div>
+            <strong>{trialDaysRemaining > 0 ? `${trialDaysRemaining} jour${trialDaysRemaining > 1 ? 's' : ''} restant${trialDaysRemaining > 1 ? 's' : ''} dans votre essai` : 'Votre essai se termine aujourd’hui'}</strong>
+            <p>Conservez la synchronisation, le partage et vos quotas Pro après cette date.</p>
+          </div>
+          <a className="account-primary" href="/account/subscription">Conserver mes fonctions</a>
+        </article>
+      ) : null}
+      {quotaPrompt ? (
+        <article className="conversion-cta" data-tone={quotaPrompt.tone}>
+          <IconCloud />
+          <div><strong>{quotaPrompt.title}</strong><p>{quotaPrompt.detail}</p></div>
+          <a className="account-primary" href="/account/subscription">{quotaPrompt.action}</a>
         </article>
       ) : null}
       {typeof trialStatus === 'string' && !['', 'loading', 'success'].includes(trialStatus) ? <p className="account-error">{trialStatus}</p> : null}
