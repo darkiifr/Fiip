@@ -13,7 +13,15 @@ export function normalizeTag(tag) {
   return normalized;
 }
 
-export function createAltStoreSource({ tag, version, buildVersion, date, ipaSize }) {
+export function createAltStoreSource({
+  tag,
+  version,
+  buildVersion,
+  date,
+  ipaSize,
+  bundleIdentifier = BUNDLE_IDENTIFIER,
+  minOSVersion = '16.4',
+}) {
   const releaseVersion = normalizeTag(tag);
   const appVersion = String(version || '').trim();
   const appBuildVersion = String(buildVersion || '').trim();
@@ -43,7 +51,7 @@ export function createAltStoreSource({ tag, version, buildVersion, date, ipaSize
     apps: [
       {
         name: 'Fiip',
-        bundleIdentifier: BUNDLE_IDENTIFIER,
+        bundleIdentifier,
         developerName: 'VinsSoftware',
         subtitle: 'Notes chiffrées sur mobile et ordinateur.',
         localizedDescription: 'Créez, organisez et synchronisez vos notes Fiip depuis votre iPhone ou iPad.',
@@ -58,7 +66,7 @@ export function createAltStoreSource({ tag, version, buildVersion, date, ipaSize
             localizedDescription: `Fiip ${releaseVersion}`,
             downloadURL,
             size: ipaSize,
-            minOSVersion: '16.4',
+            minOSVersion,
           },
         ],
       },
@@ -75,6 +83,8 @@ export function generateAltStoreSource(env = process.env) {
     buildVersion: env.ALTSTORE_BUILD_VERSION,
     date: env.ALTSTORE_RELEASE_DATE || new Date().toISOString(),
     ipaSize: statSync(ipaPath).size,
+    bundleIdentifier: env.ALTSTORE_BUNDLE_IDENTIFIER || BUNDLE_IDENTIFIER,
+    minOSVersion: env.ALTSTORE_MIN_OS_VERSION || '16.4',
   });
 
   writeFileSync(outputPath, `${JSON.stringify(source, null, 2)}\n`, 'utf8');

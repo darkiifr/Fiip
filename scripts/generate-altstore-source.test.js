@@ -51,4 +51,24 @@ describe('AltStore source generator', () => {
       ipaSize: 1,
     })).toThrow('Invalid CFBundleShortVersionString');
   });
+
+  it('can describe a legacy IPA without changing its native identity', () => {
+    const source = createAltStoreSource({
+      tag: 'v.9.1.0',
+      version: '1.0',
+      buildVersion: '1',
+      date: '2026-07-16T16:30:08Z',
+      ipaSize: 10600371,
+      bundleIdentifier: 'vinsstudio.FiipMobile',
+      minOSVersion: '15.1',
+    });
+
+    expect(source.apps[0].bundleIdentifier).toBe('vinsstudio.FiipMobile');
+    expect(source.apps[0].versions[0]).toMatchObject({
+      version: '1.0',
+      buildVersion: '1',
+      marketingVersion: '9.1.0',
+      minOSVersion: '15.1',
+    });
+  });
 });
