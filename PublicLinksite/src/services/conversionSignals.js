@@ -36,3 +36,10 @@ export function getAnnualSavings(tier) {
   const savings = (monthly * 12) - yearly;
   return savings > 0 ? savings.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
 }
+
+export function getYearlyMonthlyEquivalent(tier) {
+  if (!tier || tier.id === 'free') return null;
+  const yearly = Number.parseFloat(String(tier.yearly).replace(',', '.'));
+  if (!Number.isFinite(yearly)) return null;
+  return (yearly / 12).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}

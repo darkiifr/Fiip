@@ -11,6 +11,7 @@ export const BILLING_TIERS = [
     description: 'Écriture locale complète et petit espace cloud chiffré pour découvrir Fiip.',
     badge: 'Gratuit',
     accent: 'Sans carte bancaire',
+    cta: 'Créer mon espace Fiip',
     capabilities: {
       deviceLimit: 1,
       sharingEnabled: false,
@@ -34,6 +35,7 @@ export const BILLING_TIERS = [
     description: 'Notes synchronisées sur 2 appareils, mobile lecture, OCR 5/mois.',
     badge: 'Pour commencer',
     accent: 'Starter',
+    cta: 'Synchroniser mes appareils',
     capabilities: {
       deviceLimit: 2,
       sharingEnabled: false,
@@ -55,8 +57,9 @@ export const BILLING_TIERS = [
     yearlyVariantId: import.meta.env.VITE_SELLAUTH_PRO_YEARLY_VARIANT_ID || '',
     productPath: import.meta.env.VITE_SELLAUTH_PRO_PRODUCT_PATH || 'fiip-pro',
     description: 'Partage public, extension navigateur, mobile complet, OCR illimité.',
-    badge: 'Populaire',
+    badge: 'Recommandé',
     accent: 'Meilleur équilibre',
+    cta: 'Débloquer Fiip Pro',
     capabilities: {
       deviceLimit: null,
       sharingEnabled: true,
@@ -80,6 +83,7 @@ export const BILLING_TIERS = [
     description: 'Pro + assistant IA avec budget mensuel et mode automatique.',
     badge: 'IA incluse',
     accent: 'Productivité',
+    cta: 'Activer mon assistant IA',
     capabilities: {
       deviceLimit: null,
       sharingEnabled: true,
@@ -103,6 +107,7 @@ export const BILLING_TIERS = [
     description: 'Jusqu’à 5 comptes, budget IA partagé et gestion famille.',
     badge: 'Famille',
     accent: 'Jusqu’à 5 comptes',
+    cta: 'Équiper ma famille',
     capabilities: {
       deviceLimit: null,
       sharingEnabled: true,

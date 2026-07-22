@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAnnualSavings, getQuotaPrompt, getTrialDaysRemaining } from './conversionSignals';
+import { getAnnualSavings, getQuotaPrompt, getTrialDaysRemaining, getYearlyMonthlyEquivalent } from './conversionSignals';
 
 describe('conversion signals', () => {
   it('computes a truthful rounded-up trial countdown', () => {
@@ -16,6 +16,7 @@ describe('conversion signals', () => {
 
   it('derives annual savings from configured prices', () => {
     expect(getAnnualSavings({ id: 'pro', monthly: '6,99€', yearly: '62,99€' })).toBe('20,89');
+    expect(getYearlyMonthlyEquivalent({ id: 'pro', yearly: '62,99€' })).toBe('5,25');
     expect(getAnnualSavings({ id: 'free', monthly: '0€', yearly: '0€' })).toBeNull();
   });
 });

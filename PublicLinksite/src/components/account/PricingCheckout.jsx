@@ -4,7 +4,7 @@ import { BILLING_TIERS, getCheckoutUrl } from '../../config/billing';
 import { openCheckout } from '../../services/sellauth';
 import IconCheckCircle from '~icons/mingcute/check-circle-fill';
 import IconShoppingBag from '~icons/mingcute/shopping-bag-3-fill';
-import { getAnnualSavings } from '../../services/conversionSignals';
+import { getAnnualSavings, getYearlyMonthlyEquivalent } from '../../services/conversionSignals';
 
 export default function PricingCheckout({ user, account }) {
   const [interval, setInterval] = useState('monthly');
@@ -45,6 +45,7 @@ export default function PricingCheckout({ user, account }) {
         {BILLING_TIERS.map((tier) => {
           const isCurrent = tier.id === currentTier;
           const annualSavings = getAnnualSavings(tier);
+          const yearlyMonthlyEquivalent = getYearlyMonthlyEquivalent(tier);
           return (
           <article key={tier.id} className={`account-card pricing-card ${tier.id === 'pro' ? 'featured' : ''}`} data-current={isCurrent ? 'true' : 'false'}>
             <div className="pricing-card-top">
@@ -54,7 +55,7 @@ export default function PricingCheckout({ user, account }) {
             <h3>{tier.name}</h3>
             <div className="price-switcher" aria-live="polite">
               <p key={`${tier.id}-${interval}`} className="price">{interval === 'yearly' ? tier.yearly : tier.monthly}</p>
-              <span>{tier.id === 'free' ? 'pour toujours' : interval === 'yearly' ? 'par an' : 'par mois'}</span>
+              <span>{tier.id === 'free' ? 'pour toujours' : interval === 'yearly' ? `par an, soit ${yearlyMonthlyEquivalent} € / mois` : 'par mois'}</span>
               {interval === 'yearly' && annualSavings ? <small>Vous économisez {annualSavings} € par an</small> : null}
             </div>
             <p className="pricing-description">{tier.description}</p>
@@ -68,8 +69,9 @@ export default function PricingCheckout({ user, account }) {
             </ul>
             <button className="account-primary" onClick={() => handleCheckout(tier)} disabled={isCurrent}>
               <IconShoppingBag />
-              {isCurrent ? 'Offre actuelle' : tier.id === 'free' ? 'Commencer gratuitement' : tier.id === 'pro' ? 'Passer à Pro' : `Choisir ${tier.name}`}
+              {isCurrent ? 'Offre actuelle' : tier.cta}
             </button>
+            <small className="checkout-reassurance">Paiement sécurisé · activation automatique · aucun dépassement facturé</small>
           </article>
         )})}
       </div>

@@ -1173,6 +1173,14 @@ button {
   color: currentColor;
 }
 
+.checkout-reassurance {
+  min-height: 32px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .status-pill {
   border: 1px solid var(--line);
   border-radius: 999px;
