@@ -1,15 +1,31 @@
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+import { getEnv } from './env.ts';
+
 export interface RequestUser {
   id: string;
   subject: string;
   claims: Record<string, unknown>;
 }
 
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  const [, payload] = token.split('.');
-  if (!payload) throw new Error('Missing JWT payload');
-  const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-  return JSON.parse(atob(padded));
+let clerkJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+let clerkIssuer = '';
+
+export function normalizeClerkIssuer(domain: string) {
+  const value = domain.trim().replace(/\/$/, '');
+  if (!value) throw new Error('CLERK_DOMAIN is not configured');
+  return value.startsWith('https://') ? value : `https://${value}`;
+}
+
+async function verifyClerkToken(token: string): Promise<JWTPayload> {
+  const issuer = normalizeClerkIssuer(getEnv('CLERK_DOMAIN'));
+  if (!clerkJwks || clerkIssuer !== issuer) {
+    clerkIssuer = issuer;
+    clerkJwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`));
+  }
+
+  const { payload } = await jwtVerify(token, clerkJwks, { issuer });
+  if (payload.role !== 'authenticated') throw new Error('Not authenticated');
+  return payload;
 }
 
 export function getBearerToken(req: Request) {
@@ -19,11 +35,11 @@ export function getBearerToken(req: Request) {
   return match[1];
 }
 
-export function getRequestSubject(req: Request) {
-  const claims = decodeJwtPayload(getBearerToken(req));
+export async function getRequestSubject(req: Request) {
+  const claims = await verifyClerkToken(getBearerToken(req));
   const subject = String(claims.sub || '');
   if (!subject) throw new Error('Not authenticated');
-  return { subject, claims };
+  return { subject, claims: claims as Record<string, unknown> };
 }
 
 export async function resolveRequestUser(
@@ -35,7 +51,7 @@ export async function resolveRequestUser(
     }>;
   },
 ): Promise<RequestUser> {
-  const { subject, claims } = getRequestSubject(req);
+  const { subject, claims } = await getRequestSubject(req);
   const email = String(claims.email || '');
   const { data, error } = await supabase.rpc('fiip_bootstrap_identity', {
     p_subject: subject,
