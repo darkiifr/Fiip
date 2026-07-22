@@ -40,23 +40,23 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.identity-bootstrap]
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/deno.json"
 
 [functions.generate-upload-url]
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/deno.json"
 
 [functions.confirm-upload]
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/deno.json"
 
 [functions.generate-download-url]
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/deno.json"
 
 [functions.sync-settings]
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/deno.json"
 
 [functions.get-feature-flags]
