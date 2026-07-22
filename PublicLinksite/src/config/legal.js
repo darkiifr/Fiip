@@ -79,40 +79,56 @@ export const LEGAL_DOCS = {
       {
         heading: '2. Donnees traitees',
         body: [
-          'Fiip peut traiter l’adresse e-mail, les informations de compte, les informations de licence, le statut d’abonnement, les appareils synchronises, les journaux techniques de securite, et les notes que l’utilisateur choisit de synchroniser ou publier.',
-          'Les notes locales restent sur l’appareil tant que la synchronisation ou le partage public ne sont pas actives.',
+          'Fiip traite les informations de compte et de licence, le statut d’abonnement, les appareils synchronises, les quotas, les journaux techniques de securite et les donnees que l’utilisateur choisit de synchroniser ou de rendre publiques.',
+          'Les notes locales restent sur l’appareil tant que la synchronisation ou le partage public ne sont pas actives. Les donnees privees synchronisees, notamment les notes, pieces jointes, resultats OCR et parametres, sont chiffrees sur l’appareil avant leur envoi.',
         ],
       },
       {
-        heading: '3. Finalites',
+        heading: '3. Chiffrement zero-knowledge',
         body: [
-          'Les donnees sont traitees pour fournir le compte, synchroniser les notes, verifier les licences, livrer les achats, gerer les appareils, appliquer les quotas OCR/IA, assurer la securite et repondre au support.',
+          'La passphrase Fiip servant a deriver la cle de chiffrement n’est ni transmise ni conservee en clair par Fiip. En consequence, Fiip et ses administrateurs ne peuvent pas lire le contenu prive chiffre et ne peuvent pas recuperer une passphrase perdue.',
+          'Lorsqu’un utilisateur publie une note, une copie publique distincte et lisible par le serveur est creee. La revocation du lien supprime cette copie publique sans dechiffrer la note privee.',
         ],
       },
       {
-        heading: '4. Services tiers',
+        heading: '4. Finalites et bases legales',
         body: [
-          'Fiip utilise des services tiers pour l’authentification, la base de donnees, l’hebergement du site public, le checkout, les licences, les e-mails transactionnels et les fonctions IA lorsque l’utilisateur les active.',
+          'Les traitements sont necessaires a l’execution du service pour fournir le compte, synchroniser les donnees chiffrees, verifier les licences, gerer les appareils et appliquer les quotas. La securite, la prevention des abus et certains journaux reposent sur l’interet legitime de Fiip.',
+          'Les communications facultatives et les technologies non essentielles reposent sur le consentement lorsqu’il est requis. Les obligations comptables et les preuves de transaction sont conservees pour respecter les obligations legales applicables.',
         ],
       },
       {
-        heading: '5. IA, OCR et contenu des notes',
+        heading: '5. Sous-traitants et transferts',
         body: [
-          'L’OCR local ne transmet pas l’image a un serveur externe. Le texte extrait peut etre insere dans une note.',
-          'Les actions IA sont optionnelles. Lorsque l’utilisateur les lance, le texte demande peut etre transmis aux services IA utilises par Fiip afin de generer la reponse.',
+          'Supabase fournit la base Postgres et les fonctions serveur; Clerk fournit l’authentification; Cloudflare R2 conserve les pieces jointes chiffrees; Backblaze B2 conserve uniquement les sauvegardes Postgres chiffrees; Netlify heberge le site; Resend transmet les e-mails produit; SellAuth et le systeme de licence Fiip traitent les achats et droits; OpenRouter traite les requetes IA lancees volontairement.',
+          'Certains prestataires peuvent traiter des donnees hors de l’Espace economique europeen. Fiip s’appuie, selon le prestataire et le traitement, sur une decision d’adequation, les clauses contractuelles types de la Commission europeenne et les mesures techniques complementaires disponibles, notamment le chiffrement avant transfert.',
         ],
       },
       {
-        heading: '6. Duree de conservation',
+        heading: '6. IA et OCR',
         body: [
-          'Les donnees de compte sont conservees pendant la duree d’utilisation du service. Les donnees de facturation et de preuve d’achat peuvent etre conservees selon les obligations legales applicables.',
-          'Les notes synchronisees ou publiees sont conservees tant que l’utilisateur ne les supprime pas ou ne desactive pas leur publication, sous reserve des sauvegardes techniques temporaires.',
+          'L’OCR est execute localement lorsque la plateforme le permet. Son resultat n’est synchronise qu’apres chiffrement avec les autres donnees privees.',
+          'Les actions IA sont optionnelles. Seul le texte que l’utilisateur choisit d’envoyer est transmis au service IA. Les notes protegees ne doivent pas etre envoyees a l’IA tant qu’elles ne sont pas explicitement deverrouillees et utilisees par l’utilisateur.',
         ],
       },
       {
-        heading: '7. Droits des utilisateurs',
+        heading: '7. Durees de conservation',
         body: [
-          'Conformement au RGPD, l’utilisateur peut demander l’acces, la rectification, l’effacement, la limitation, l’opposition ou la portabilite de ses donnees lorsque ces droits s’appliquent.',
+          'Le compte, les droits et les blobs synchronises sont conserves pendant la duree d’utilisation du service, puis supprimes apres la demande d’effacement et les delais techniques necessaires. Les snapshots publics sont conserves jusqu’a leur revocation. Les journaux de securite sont conserves pendant une duree proportionnee a la prevention des abus.',
+          'Les sauvegardes chiffrees suivent une retention de trois sauvegardes quotidiennes, une hebdomadaire et une mensuelle. Apres suppression d’un compte, ses donnees disparaissent des sauvegardes au fil de cette rotation; une restauration intermediaire doit reappliquer la demande d’effacement. Les preuves de facturation sont conservees pendant la duree legale applicable.',
+        ],
+      },
+      {
+        heading: '8. Dashboard administrateur',
+        body: [
+          'Le dashboard permet de gerer les comptes, licences, quotas, incidents, sauvegardes et notes rendues publiques. Les actions sensibles sont confirmees et journalisees.',
+          'Le dashboard ne dispose pas de la cle de chiffrement de l’utilisateur et ne peut techniquement pas afficher le contenu des notes ou pieces jointes privees chiffrees.',
+        ],
+      },
+      {
+        heading: '9. Droits des utilisateurs',
+        body: [
+          `Pour exercer les droits d’acces, de rectification, d’effacement, de limitation, d’opposition ou de portabilite, contactez ${LEGAL_CONTACT_EMAIL} en precisant le compte concerne. Une verification d’identite proportionnee peut etre demandee.`,
           'L’utilisateur peut egalement introduire une reclamation aupres de la CNIL.',
         ],
       },

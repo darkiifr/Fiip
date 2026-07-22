@@ -9,6 +9,9 @@ let clerkState = { loaded: true, signedIn: true, user: { id: 'user_clerk' }, sig
 
 vi.mock('./providers/ClerkAccountBridge', () => ({
   FiipClerkSignIn: () => <div>Connexion Clerk Fiip</div>,
+}));
+
+vi.mock('./providers/ClerkAccountContext', () => ({
   useFiipClerk: () => clerkState,
 }));
 

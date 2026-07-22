@@ -42,6 +42,20 @@ const tabScreenOptions = {
   headerShown: false,
 };
 
+export function NewNoteTabScreen({ navigation }: any) {
+  useEffect(() => {
+    navigation.navigate('Home');
+    navigation.getParent()?.navigate('NoteEditor');
+  }, [navigation]);
+
+  return (
+    <View style={styles.newNoteTransition} accessibilityLabel="Ouverture d'une nouvelle note">
+      <ActivityIndicator size="small" color="#007AFF" />
+      <Text style={styles.newNoteTransitionText}>Nouvelle note</Text>
+    </View>
+  );
+}
+
 function PlatformDesignProvider({ children, isDark }: { children: React.ReactNode; isDark: boolean }) {
   if (Platform.OS !== 'android') {
     return <>{children}</>;
@@ -83,7 +97,7 @@ function TabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Accueil' }} />
       <Tab.Screen name="Search" component={FavoritesScreen} options={{ title: 'Recherche' }} />
-      <Tab.Screen name="New" component={View} options={{ title: 'Nouveau' }} />
+      <Tab.Screen name="New" component={NewNoteTabScreen} options={{ title: 'Nouveau' }} />
       <Tab.Screen name="Assistant" component={AiChatScreen} options={{ title: 'Assistant' }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Réglages' }} />
     </Tab.Navigator>
@@ -176,6 +190,18 @@ function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  newNoteTransition: {
+    alignItems: 'center',
+    backgroundColor: '#0A0A0A',
+    flex: 1,
+    gap: 12,
+    justifyContent: 'center',
+  },
+  newNoteTransitionText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
 

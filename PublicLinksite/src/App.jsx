@@ -6,7 +6,8 @@ import LegalPage from './components/LegalPage';
 import PricingCheckout from './components/account/PricingCheckout';
 import PublicNoteView from './components/PublicNoteView';
 import OAuthCallback from './components/OAuthCallback';
-import { FiipClerkSignIn, useFiipClerk } from './providers/ClerkAccountBridge';
+import { FiipClerkSignIn } from './providers/ClerkAccountBridge';
+import { useFiipClerk } from './providers/ClerkAccountContext';
 import { FIIP_ACCOUNT_PORTAL_URL, FIIP_DISCORD_SUPPORT_URL, FIIP_DOWNLOAD_URL, FIIP_PUBLIC_SITE_URL } from './config/links';
 import { LEGAL_NAV_ITEMS } from './config/legal';
 import {

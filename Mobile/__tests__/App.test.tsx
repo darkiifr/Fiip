@@ -60,7 +60,7 @@ jest.mock('../src/i18n', () => ({
   use: jest.fn(() => ({ init: jest.fn() })),
 }));
 
-import App from '../App';
+import App, { NewNoteTabScreen } from '../App';
 import { installGoogleAuthLifecycle } from '../src/services/googleAuth';
 
 test('renders correctly', async () => {
@@ -77,4 +77,21 @@ test('cleans up the root OAuth callback lifecycle on unmount', async () => {
   await ReactTestRenderer.act(async () => { renderer = ReactTestRenderer.create(<App />); });
   await ReactTestRenderer.act(async () => { renderer.unmount(); });
   expect(mockCleanupGoogleAuth).toHaveBeenCalled();
+});
+
+test('opens the editor instead of rendering an empty New tab', async () => {
+  const parentNavigation = { navigate: jest.fn() };
+  const navigation = {
+    getParent: jest.fn(() => parentNavigation),
+    navigate: jest.fn(),
+  };
+  let renderer!: ReactTestRenderer.ReactTestRenderer;
+
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<NewNoteTabScreen navigation={navigation} />);
+  });
+
+  expect(navigation.navigate).toHaveBeenCalledWith('Home');
+  expect(parentNavigation.navigate).toHaveBeenCalledWith('NoteEditor');
+  await ReactTestRenderer.act(async () => { renderer.unmount(); });
 });

@@ -1,9 +1,10 @@
 import { SignIn, useAuth, useUser } from '@clerk/react';
-import { createContext, useContext, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { clearClerkSession, installClerkSession } from '../services/clerkSession';
+import { FiipClerkContext } from './ClerkAccountContext';
 
-const FiipClerkContext = createContext({ loaded: true, signedIn: false, user: null, signOut: async () => {} });
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 export function ClerkAccountBridge({ children }) {
   const auth = useAuth();
@@ -25,10 +26,17 @@ export function ClerkAccountBridge({ children }) {
   return <FiipClerkContext.Provider value={value}>{children}</FiipClerkContext.Provider>;
 }
 
-export function useFiipClerk() {
-  return useContext(FiipClerkContext);
-}
-
 export function FiipClerkSignIn() {
+  if (!clerkPublishableKey) {
+    return (
+      <div className="public-panel auth-panel">
+        <span className="eyebrow">Compte Fiip</span>
+        <h1>Connexion sécurisée</h1>
+        <p>La connexion s’ouvre sur le portail Fiip officiel.</p>
+        <a className="account-primary" href="https://portail.fiip.fr/sign-in">Continuer vers la connexion</a>
+      </div>
+    );
+  }
+
   return <SignIn routing="hash" fallbackRedirectUrl="https://accounts.fiip.fr/account" signUpFallbackRedirectUrl="https://accounts.fiip.fr/account" />;
 }

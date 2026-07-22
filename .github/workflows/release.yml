@@ -820,6 +820,21 @@ jobs:
         working-directory: Mobile/ios
         run: pod install --repo-update
 
+      - name: Sync iOS bundle version with release tag
+        working-directory: Mobile/ios
+        shell: bash
+        run: |
+          TAG_NAME="${{ needs.bump-version.outputs.new_tag || github.ref_name }}"
+          RELEASE_VERSION="${TAG_NAME#v}"
+          RELEASE_VERSION="${RELEASE_VERSION#.}"
+          IOS_VERSION="$(grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' <<< "$RELEASE_VERSION")"
+          if [ -z "$IOS_VERSION" ]; then
+            echo "Unable to derive an iOS version from $TAG_NAME." >&2
+            exit 1
+          fi
+          xcrun agvtool new-marketing-version "$IOS_VERSION"
+          xcrun agvtool new-version -all "${{ github.run_number }}"
+
       - name: Build Unsigned App
         working-directory: Mobile/ios
         run: xcodebuild archive -workspace FiipMobile.xcworkspace -scheme FiipMobile -configuration Release -archivePath "$PWD/build/FiipMobile.xcarchive" CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -sdk iphoneos
@@ -847,46 +862,30 @@ jobs:
           fi
           zip -r FiipMobile-Unsigned.ipa Payload
 
-      - name: Generate AltStore JSON
+      - name: Read packaged iOS metadata
+        id: ios_metadata
         working-directory: Mobile/ios
+        shell: bash
         run: |
-          TAG_NAME="${{ needs.bump-version.outputs.new_tag || github.ref_name }}"
-          VERSION="${TAG_NAME#v}"
-          VERSION="${VERSION#.}"
-          DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-          SIZE="$(stat -f%z FiipMobile-Unsigned.ipa)"
-          
-          cat <<EOF > altstore.json
-          {
-            "name": "Fiip",
-                "identifier": "com.fiipmobile",
-            "sourceURL": "https://github.com/darkiifr/Fiip/releases/latest/download/altstore.json",
-            "apps": [
-              {
-                "name": "Fiip",
-                "bundleIdentifier": "com.fiipmobile",
-                "developerName": "VinsSoftware",
-                "version": "$VERSION",
-                "versionDate": "$DATE",
-                "versionDescription": "Update to version $VERSION",
-                "downloadURL": "https://github.com/darkiifr/Fiip/releases/download/$TAG_NAME/FiipMobile-Unsigned.ipa",
-                "localizedDescription": "Application mobile Fiip",
-                "iconURL": "https://raw.githubusercontent.com/darkiifr/Fiip/main/src-tauri/icons/icon.png",
-                "tintColor": "#000000",
-                "size": $SIZE,
-                "versions": [
-                  {
-                    "version": "$VERSION",
-                    "date": "$DATE",
-                    "localizedDescription": "Update to version $VERSION",
-                    "downloadURL": "https://github.com/darkiifr/Fiip/releases/download/$TAG_NAME/FiipMobile-Unsigned.ipa",
-                    "size": $SIZE
-                  }
-                ]
-              }
-            ]
-          }
-          EOF
+          APP_PLIST="build/FiipMobile.xcarchive/Products/Applications/Fiip.app/Info.plist"
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PLIST")"
+          BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PLIST")"
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PLIST")"
+          if [ "$BUNDLE_ID" != "com.fiipmobile" ]; then
+            echo "Unexpected iOS bundle identifier: $BUNDLE_ID" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_version=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Generate AltStore JSON
+        env:
+          ALTSTORE_TAG: ${{ needs.bump-version.outputs.new_tag || github.ref_name }}
+          ALTSTORE_VERSION: ${{ steps.ios_metadata.outputs.version }}
+          ALTSTORE_BUILD_VERSION: ${{ steps.ios_metadata.outputs.build_version }}
+          ALTSTORE_IPA_PATH: Mobile/ios/FiipMobile-Unsigned.ipa
+          ALTSTORE_OUTPUT: Mobile/ios/altstore.json
+        run: node scripts/generate-altstore-source.mjs
 
       - name: Upload Release IPA and AltStore JSON
         uses: softprops/action-gh-release@v3

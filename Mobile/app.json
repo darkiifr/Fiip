@@ -5,6 +5,11 @@
     "scheme": "fiip",
     "ios": {
       "bundleIdentifier": "com.fiipmobile",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "altstore"
+        ]
+      },
       "associatedDomains": [
         "webcredentials:clerk.fiip.fr"
       ]
