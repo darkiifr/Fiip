@@ -656,7 +656,7 @@ function OAuthConsentPage() {
         <h1>Continuer avec votre compte Fiip</h1>
         <p>
           Cette page sert à confirmer l’accès d’une application compatible à votre compte Fiip.
-          Vérifiez toujours que l’adresse affichée dans votre navigateur commence par https://accounts.fiip.fr.
+          Vérifiez toujours que l’adresse affichée dans votre navigateur commence par https://portail.fiip.fr.
         </p>
         <div className="hero-actions">
           <a className="download-link" href="/account">Ouvrir mon compte</a>
@@ -769,7 +769,7 @@ function ClerkAuthenticationPortal() {
 
   useEffect(() => {
     if (clerk.loaded && clerk.signedIn) {
-      window.location.replace('https://accounts.fiip.fr/user');
+      window.location.replace('https://portail.fiip.fr/account');
     }
   }, [clerk.loaded, clerk.signedIn]);
 
@@ -787,15 +787,18 @@ function ClerkAuthenticationPortal() {
 function RoutedApp() {
   const path = window.location.pathname;
   const hostname = window.location.hostname.toLowerCase();
-  const isPortalHost = hostname === 'accounts.fiip.fr';
   const isAuthenticationHost = hostname === 'portail.fiip.fr';
-
-  if (isAuthenticationHost) {
-    return <ClerkAuthenticationPortal />;
-  }
 
   if (path && path.toLowerCase().startsWith('/auth/callback')) {
     return <OAuthCallback />;
+  }
+
+  if (isAuthenticationHost && path.toLowerCase().startsWith('/account')) {
+    return <ClerkAccountPortal path={path.toLowerCase()} />;
+  }
+
+  if (isAuthenticationHost) {
+    return <ClerkAuthenticationPortal />;
   }
 
   if (path && path.toLowerCase() === '/oauth/consent') {
@@ -806,7 +809,7 @@ function RoutedApp() {
     return <PublicNoteView />;
   }
 
-  if ((path && path.toLowerCase().startsWith('/account')) || isPortalHost) {
+  if (path && path.toLowerCase().startsWith('/account')) {
     return <ClerkAccountPortal path={path.toLowerCase()} />;
   }
 

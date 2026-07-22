@@ -1,5 +1,5 @@
 import { getDeviceLimitState, getLicenseState, getOcrState } from '../../services/accountPresentation';
-import { FIIP_PUBLIC_SITE_URL } from '../../config/links';
+import { FIIP_ACCOUNT_DETAILS_URL, FIIP_PUBLIC_SITE_URL } from '../../config/links';
 import IconBankCard from '~icons/mingcute/bank-card-fill';
 import IconDevices from '~icons/mingcute/device-fill';
 import IconGroup from '~icons/mingcute/group-3-fill';
@@ -38,6 +38,10 @@ export default function AccountLayout({ active, account, user, onNavigate, onSig
             </a>
           ))}
         </nav>
+        <a className="account-secondary" href={FIIP_ACCOUNT_DETAILS_URL}>
+          <IconUser />
+          Profil et sécurité Clerk
+        </a>
         <button className="account-secondary" onClick={onSignOut}>Déconnexion</button>
       </aside>
       <section className="account-main">
