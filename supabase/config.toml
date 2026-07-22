@@ -1,8 +1,8 @@
 [auth]
-site_url = "https://accounts.fiip.fr"
+site_url = "https://portail.fiip.fr"
 additional_redirect_urls = [
-  "https://accounts.fiip.fr/auth/callback",
-  "https://accounts.fiip.fr/account",
+  "https://portail.fiip.fr/auth/callback",
+  "https://portail.fiip.fr/account",
   "fiip://login-callback",
 ]
 

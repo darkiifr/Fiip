@@ -59,6 +59,10 @@ describe('AccountPortal navigation', () => {
 
     expect(await screen.findAllByText('OCR limite')).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Fiip' })).toHaveAttribute('href', 'https://fiip.fr/');
+    expect(screen.getByRole('link', { name: /Profil et sécurité Clerk/i })).toHaveAttribute(
+      'href',
+      'https://accounts.fiip.fr/user',
+    );
 
     fireEvent.click(screen.getByRole('link', { name: /Appareils/i }));
 
@@ -79,7 +83,7 @@ describe('AccountPortal navigation', () => {
     render(<App />);
 
     await screen.findAllByText('OCR limite');
-    fireEvent.click(screen.getByRole('link', { name: /Sécurité/i }));
+    fireEvent.click(screen.getByRole('link', { name: /^Sécurité$/i }));
 
     await waitFor(() => expect(fetchSecurityEvents).toHaveBeenCalledTimes(1));
     expect(window.location.pathname).toBe('/account/security');
