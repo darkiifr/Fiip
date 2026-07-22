@@ -8,12 +8,21 @@ const FiipClerkContext = createContext({ loaded: true, signedIn: false, user: nu
 export function ClerkAccountBridge({ children }) {
   const auth = useAuth();
   const { user } = useUser();
+  const session = useMemo(() => ({
+    getToken: auth.getToken,
+    signOut: auth.signOut,
+    user: user || null,
+  }), [auth.getToken, auth.signOut, user]);
+
+  // Descendants can invoke Supabase during their first effect, so the token
+  // provider must exist before those descendants are committed.
+  if (auth.isLoaded) installClerkSession(session);
 
   useEffect(() => {
     if (!auth.isLoaded) return undefined;
-    installClerkSession({ getToken: auth.getToken, signOut: auth.signOut, user: user || null });
-    return clearClerkSession;
-  }, [auth.getToken, auth.isLoaded, auth.signOut, user]);
+    installClerkSession(session);
+    return () => clearClerkSession(session);
+  }, [auth.isLoaded, session]);
 
   const value = useMemo(() => ({
     loaded: auth.isLoaded,
