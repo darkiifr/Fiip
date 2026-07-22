@@ -769,7 +769,7 @@ function ClerkAuthenticationPortal() {
 
   useEffect(() => {
     if (clerk.loaded && clerk.signedIn) {
-      window.location.replace('https://accounts.fiip.fr/account');
+      window.location.replace('https://accounts.fiip.fr/user');
     }
   }, [clerk.loaded, clerk.signedIn]);
 

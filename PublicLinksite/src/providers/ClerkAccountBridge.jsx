@@ -30,5 +30,5 @@ export function useFiipClerk() {
 }
 
 export function FiipClerkSignIn() {
-  return <SignIn routing="hash" fallbackRedirectUrl="https://accounts.fiip.fr/account" signUpFallbackRedirectUrl="https://accounts.fiip.fr/account" />;
+  return <SignIn routing="hash" fallbackRedirectUrl="https://accounts.fiip.fr/user" signUpFallbackRedirectUrl="https://accounts.fiip.fr/user" />;
 }
