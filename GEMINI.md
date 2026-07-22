@@ -13,7 +13,7 @@ Fiip is a multi-platform, fast, and simple note-taking application designed for 
 - **Licensing & Payments:** KeyAuth.
 - **AI Integration:** OpenRouter (OpenAI/GPT models).
 - **Runtime/Task Runner:** Deno (configured in `deno.json` for task execution).
-- **I18n:** i18next, managed via Crowdin.
+- **I18n:** i18next, managed directly in the repository.
 
 ## Directory Structure
 

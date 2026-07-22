@@ -27,11 +27,7 @@
     "security-fix:all": "npm run security-fix:all",
     "quality": "deno task lint && deno task test && deno task build && deno task security-check",
     "quality:all": "deno task lint && deno task test:all && deno task build && deno task security-check:all",
-    "build:update": "deno run -A scripts/bump-version.mjs && deno run -A npm:dotenv-cli -e .env -- deno task tauri build && deno run -A scripts/generate-latest.mjs",
-    "crowdin:push": "deno run -A npm:@crowdin/cli upload sources",
-    "crowdin:push:translations": "deno run -A npm:@crowdin/cli upload translations",
-    "crowdin:pull": "deno run -A npm:@crowdin/cli download",
-    "crowdin:sync": "deno run -A npm:@crowdin/cli upload sources && deno run -A npm:@crowdin/cli upload translations && deno run -A npm:@crowdin/cli download"
+    "build:update": "deno run -A scripts/bump-version.mjs && deno run -A npm:dotenv-cli -e .env -- deno task tauri build && deno run -A scripts/generate-latest.mjs"
   },
   "imports": {
     "@dnd-kit/core": "npm:@dnd-kit/core@^6.3.1",
@@ -107,7 +103,6 @@
     "yjs": "npm:yjs@^13.6.30",
     "y-protocols": "npm:y-protocols@^1.0.7",
     "y-prosemirror": "npm:y-prosemirror@^1.3.7",
-    "@crowdin/cli": "npm:@crowdin/cli@^4.14.2",
     "@eslint/js": "npm:@eslint/js@^9.39.3",
     "@svgr/core": "npm:@svgr/core@^8.1.0",
     "@svgr/plugin-jsx": "npm:@svgr/plugin-jsx@^8.1.0",

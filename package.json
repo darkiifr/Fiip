@@ -23,11 +23,7 @@
     "security-fix:all": "npm audit fix && npm --prefix PublicLinksite audit fix && npm --prefix Mobile audit fix",
     "quality": "npm run lint && npm run test && npm run build && npm run security-check",
     "quality:all": "npm run lint && npm run test:all && npm run build && npm run security-check:all",
-    "build:update": "node scripts/sync-version.mjs && npx dotenv -e .env -- npx tauri build && node scripts/generate-latest.mjs",
-    "crowdin:push": "crowdin upload sources",
-    "crowdin:push:translations": "crowdin upload translations",
-    "crowdin:pull": "crowdin download",
-    "crowdin:sync": "crowdin upload sources && crowdin upload translations && crowdin download"
+    "build:update": "node scripts/sync-version.mjs && npx dotenv -e .env -- npx tauri build && node scripts/generate-latest.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
@@ -136,7 +132,6 @@
     "yjs": "^13.6.30"
   },
   "devDependencies": {
-    "@crowdin/cli": "^4.12.0",
     "@eslint/js": "^9.39.3",
     "@svgr/core": "^8.1.0",
     "@svgr/plugin-jsx": "^8.1.0",
