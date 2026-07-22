@@ -31,6 +31,7 @@ import {
   getBiometricUserMessage,
 } from './services/biometricLock';
 import { getFriendlyErrorMessage } from './services/errorMessages';
+import { isExactFiipHostUrl, parseFiipUrl } from './services/fiipCallbacks';
 import { createNoteDraft, createTask, defaultHomeWidgets, filterNotesAdvanced, normalizeNotebook, parseClipperNoteId, removeTaskById } from './services/fiipV1';
 import { calculateTotalUsage, importFiinFromPath, normalizeFiinNotePayload } from "./services/fileManager";
 import { keyAuthService } from "./services/keyauth";
@@ -438,8 +439,9 @@ function App() {
                 if (!url || handledStartupUrls.has(url)) {continue;}
                 handledStartupUrls.add(url);
                 try {
-                    const parsedUrl = new URL(url);
-                    if (parsedUrl.protocol === 'fiip:' && parsedUrl.host === 'login-callback' && (!parsedUrl.pathname || parsedUrl.pathname === '/')) {
+                    const parsedUrl = parseFiipUrl(url);
+                    if (!parsedUrl) {continue;}
+                    if (isExactFiipHostUrl(parsedUrl, 'login-callback')) {
                         const { data, error, handled } = await authService.completeOAuthCallback(url);
                         if (error) {
                             await message(getFriendlyErrorMessage(error, 'Connexion Google impossible pour le moment.'), { title: 'Fiip', kind: 'error' }).catch(console.error);

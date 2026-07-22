@@ -1,4 +1,5 @@
 import { Linking } from 'react-native';
+import { parseLoginCallback } from './fiipCallbacks';
 import { supabase } from './supabase';
 
 export const GOOGLE_OAUTH_REDIRECT = 'fiip://login-callback';
@@ -19,26 +20,22 @@ export async function startGoogleOAuth(): Promise<void> {
 }
 
 export async function handleGoogleOAuthUrl(rawUrl: string): Promise<boolean> {
-  let url: URL;
-  try { url = new URL(rawUrl); } catch { return false; }
-  if (url.protocol !== 'fiip:' || url.hostname !== 'login-callback' || url.username || url.password || url.port || (url.pathname !== '' && url.pathname !== '/')) return false;
+  const callback = parseLoginCallback(rawUrl);
+  if (!callback.ok) return false;
   if (successfulUrls.has(rawUrl)) return false;
   const existing = inFlightUrls.get(rawUrl);
   if (existing) return existing;
   const processing = (async () => {
-    const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
-    const value = (name: string) => url.searchParams.get(name) || hash.get(name);
-    const providerError = value('error');
-    if (providerError) throw new Error(value('error_description') || providerError);
-    const code = value('code');
-    if (code) {
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (callback.providerError) throw new Error(callback.errorDescription || callback.providerError);
+    if (callback.code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(callback.code);
       if (error) throw error;
     } else {
-      const access_token = value('access_token');
-      const refresh_token = value('refresh_token');
-      if (!access_token || !refresh_token) throw new Error('Réponse de connexion Google invalide.');
-      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (!callback.accessToken || !callback.refreshToken) throw new Error('Réponse de connexion Google invalide.');
+      const { error } = await supabase.auth.setSession({
+        access_token: callback.accessToken,
+        refresh_token: callback.refreshToken,
+      });
       if (error) throw error;
     }
     successfulUrls.add(rawUrl);

@@ -15,6 +15,7 @@ import {
     FIIP_REFUNDS_URL,
     FIIP_TERMS_URL,
 } from '../config/links';
+import { ClerkAccountControls } from '../providers/ClerkSupabaseBridge';
 import { useUI } from '../providers/UIProvider';
 import { listAccountLicenses, selectAccountLicense } from '../services/accountLicenses';
 import { getLastAIUsageStats, subscribeToAIUsage } from '../services/ai';
@@ -724,20 +725,23 @@ export default function SettingsView({
                                         </div>
 
                                         <div className="rounded-2xl border border-warm-border-light bg-warm-card-light p-4 dark:border-warm-border-dark dark:bg-warm-card-dark">
-                                            <div className="mb-3 flex items-center justify-between gap-3">
+                                            <div className="mb-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                                                 <div>
                                                     <p className="text-sm font-semibold">{t('settings.connected_devices', 'Appareils connectes')}</p>
                                                     <p className="text-xs text-warm-text-muted-light dark:text-warm-text-muted-dark">
                                                         {t('settings.connected_devices_desc', 'Appareils ayant ouvert Fiip avec ce compte. La deconnexion est une revocation cote Fiip.')}
                                                     </p>
                                                 </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={refreshDevices}
-                                                    className="rounded-xl border border-warm-border-light px-3 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-warm-border-dark dark:hover:bg-white/10"
-                                                >
-                                                    {t('settings.refresh', 'Actualiser')}
-                                                </button>
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <ClerkAccountControls />
+                                                    <button
+                                                        type="button"
+                                                        onClick={refreshDevices}
+                                                        className="rounded-xl border border-warm-border-light px-3 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-warm-border-dark dark:hover:bg-white/10"
+                                                    >
+                                                        {t('settings.refresh', 'Actualiser')}
+                                                    </button>
+                                                </div>
                                             </div>
                                             {devicesStatus && (
                                                 <p className="mb-3 rounded-xl border border-red-500/25 bg-red-500/10 p-2 text-xs font-semibold text-red-600 dark:text-red-300">

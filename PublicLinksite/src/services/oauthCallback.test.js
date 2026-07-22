@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildDesktopOAuthCallbackUrl, getOAuthCallbackError } from './oauthCallback';
+import { buildDesktopOAuthCallbackUrl, getOAuthCallbackError, isSafeDesktopOAuthCallbackUrl } from './oauthCallback';
 
 describe('desktop OAuth callback relay', () => {
   it('preserves both query parameters and hash parameters', () => {
@@ -20,5 +20,12 @@ describe('desktop OAuth callback relay', () => {
       .toBe('Consent refusé');
     expect(getOAuthCallbackError({ search: '', hash: '#error=server_error' }))
       .toBe('server_error');
+  });
+
+  it('rejects callback authority variants before desktop handoff', () => {
+    expect(isSafeDesktopOAuthCallbackUrl('fiip://login-callback?code=abc')).toBe(true);
+    expect(isSafeDesktopOAuthCallbackUrl('fiip://user@login-callback?code=abc')).toBe(false);
+    expect(isSafeDesktopOAuthCallbackUrl('fiip://login-callback:42?code=abc')).toBe(false);
+    expect(isSafeDesktopOAuthCallbackUrl('fiip://login-callback/path?code=abc')).toBe(false);
   });
 });

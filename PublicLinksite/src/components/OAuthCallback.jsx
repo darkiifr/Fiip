@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { buildDesktopOAuthCallbackUrl, getOAuthCallbackError } from '../services/oauthCallback';
+import { buildDesktopOAuthCallbackUrl, getOAuthCallbackError, isSafeDesktopOAuthCallbackUrl } from '../services/oauthCallback';
 import IconLoading from '~icons/mingcute/loading-fill';
 
 export default function OAuthCallback({
@@ -10,6 +10,7 @@ export default function OAuthCallback({
 }) {
   const callbackUrl = buildDesktopOAuthCallbackUrl(location);
   const oauthError = getOAuthCallbackError(location);
+  const safeCallback = isSafeDesktopOAuthCallbackUrl(callbackUrl);
   const timerRef = useRef(null);
 
   const handleManualFallback = () => {
@@ -17,11 +18,11 @@ export default function OAuthCallback({
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    navigate(callbackUrl);
+    if (safeCallback) navigate(callbackUrl);
   };
 
   useEffect(() => {
-    if (oauthError) return undefined;
+    if (oauthError || !safeCallback) return undefined;
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
       navigate(callbackUrl);
@@ -30,18 +31,20 @@ export default function OAuthCallback({
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       timerRef.current = null;
     };
-  }, [callbackUrl, delay, navigate, oauthError]);
+  }, [callbackUrl, delay, navigate, oauthError, safeCallback]);
 
   return (
     <main className="public-shell public-center">
       <section className="public-panel auth-panel">
         {!oauthError ? <IconLoading className="spin-icon" /> : null}
         <h1>Connexion à Fiip</h1>
-        {oauthError
+        {!safeCallback
+          ? <p className="account-error" role="alert">Callback Fiip invalide.</p>
+          : oauthError
           ? <p className="account-error" role="alert">{oauthError}</p>
           : <p>Votre compte Google est validé. Fiip va s’ouvrir pour terminer la connexion dans l’application.</p>}
-        {!oauthError ? <p className="account-message">Si rien ne se passe, utilisez le bouton ci-dessous et acceptez l’ouverture de Fiip dans le navigateur.</p> : null}
-        <button className="download-link" type="button" onClick={handleManualFallback}>
+        {!oauthError && safeCallback ? <p className="account-message">Si rien ne se passe, utilisez le bouton ci-dessous et acceptez l’ouverture de Fiip dans le navigateur.</p> : null}
+        <button className="download-link" type="button" onClick={handleManualFallback} disabled={!safeCallback}>
           Ouvrir Fiip
         </button>
       </section>

@@ -16,8 +16,18 @@ export async function getExternalIdentityUser() {
   return externalIdentityProvider ? await externalIdentityProvider.getUser() : null;
 }
 
+export function getExternalIdentitySessionId() {
+  return externalIdentityProvider?.getSessionId ? externalIdentityProvider.getSessionId() : null;
+}
+
 export async function signOutExternalIdentity() {
   if (externalIdentityProvider?.signOut) {
     await externalIdentityProvider.signOut();
+  }
+}
+
+export async function revokeExternalIdentityDevice(sessionId) {
+  if (externalIdentityProvider?.revokeDevice) {
+    await externalIdentityProvider.revokeDevice(sessionId);
   }
 }

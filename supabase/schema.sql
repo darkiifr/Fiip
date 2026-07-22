@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS public.user_devices (
   platform TEXT DEFAULT 'unknown',
   user_agent TEXT DEFAULT '',
   ip_address TEXT,
+  clerk_session_id TEXT,
   last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   revoked_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),

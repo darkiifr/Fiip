@@ -13,9 +13,12 @@ import {
 import { normalizeError } from './errorMessages';
 import {
   getExternalIdentityUser,
+  getExternalIdentitySessionId,
   hasExternalIdentityProvider,
+  revokeExternalIdentityDevice,
   signOutExternalIdentity,
 } from './externalIdentity';
+import { parseLoginCallback } from './fiipCallbacks';
 import {
   canUseNoteContent,
   createTask,
@@ -386,46 +389,35 @@ export const authService = {
       return { data: null, error: getSupabaseConfigError() };
     }
 
-    let parsedUrl;
-    try {
-      parsedUrl = new URL(callbackUrl);
-    } catch {
-      return { data: null, error: { code: 'OAUTH_CALLBACK_INVALID', message: 'URL de callback Google invalide.' } };
-    }
-    if (parsedUrl.protocol !== 'fiip:' || parsedUrl.hostname !== 'login-callback' || parsedUrl.username || parsedUrl.password || parsedUrl.port || (parsedUrl.pathname && parsedUrl.pathname !== '/')) {
-      return { data: null, error: { code: 'OAUTH_CALLBACK_INVALID', message: 'URL de callback Google refusée.' } };
+    const callback = parseLoginCallback(callbackUrl);
+    if (!callback.ok) {
+      return { data: null, error: { code: callback.code, message: callback.message } };
     }
 
-    const callbackKey = parsedUrl.toString();
+    const callbackKey = callback.url.toString();
     if (successfulOAuthCallbacks.has(callbackKey)) {return { data: null, error: null };}
     if (oauthCallbacksInFlight.has(callbackKey)) {
       const result = await oauthCallbacksInFlight.get(callbackKey);
       return { ...result, handled: false };
     }
 
-    const params = new URLSearchParams(parsedUrl.search);
-    const hashParams = new URLSearchParams(parsedUrl.hash.replace(/^#/, ''));
-    const oauthError = params.get('error') || hashParams.get('error');
-    if (oauthError) {
+    if (callback.providerError) {
       return {
         data: null,
         error: {
-          code: oauthError,
-          message: params.get('error_description') || hashParams.get('error_description') || 'Connexion Google refusée.',
+          code: callback.providerError,
+          message: callback.errorDescription || 'Connexion Google refusée.',
         },
       };
     }
-    const code = params.get('code') || hashParams.get('code');
-    const accessToken = params.get('access_token') || hashParams.get('access_token');
-    const refreshToken = params.get('refresh_token') || hashParams.get('refresh_token');
 
     let callbackPromise;
-    if (code) {
-      callbackPromise = supabase.auth.exchangeCodeForSession(code);
-    } else if (accessToken && refreshToken) {
+    if (callback.code) {
+      callbackPromise = supabase.auth.exchangeCodeForSession(callback.code);
+    } else if (callback.accessToken && callback.refreshToken) {
       callbackPromise = supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
+        access_token: callback.accessToken,
+        refresh_token: callback.refreshToken,
       });
     } else {
       return { data: null, error: { message: 'Callback Google incomplet.' } };
@@ -1157,6 +1149,7 @@ export const dataService = {
           platform: navigator.userAgentData?.platform || navigator.platform || 'unknown',
           user_agent: navigator.userAgent || '',
           ip_address: await getPublicIpAddress(),
+          clerk_session_id: getExternalIdentitySessionId(),
           last_seen_at: new Date().toISOString(),
           revoked_at: null,
       };
@@ -1188,12 +1181,24 @@ export const dataService = {
       const user = await authService.getUser();
       if (!user) {return { error: 'Not authenticated' };}
 
+      const { data: rows, error: readError } = await supabase
+          .from('user_devices')
+          .select('id,clerk_session_id')
+          .eq('id', deviceId)
+          .eq('user_id', user.id)
+          .limit(1);
+      if (readError) {return { error: readError };}
+
       const { error } = await supabase
           .from('user_devices')
           .update({ revoked_at: new Date().toISOString() })
           .eq('id', deviceId)
           .eq('user_id', user.id);
 
+      const clerkSessionId = rows?.[0]?.clerk_session_id;
+      if (!error && clerkSessionId) {
+          await revokeExternalIdentityDevice(clerkSessionId).catch(() => {});
+      }
       return { error };
   },
 

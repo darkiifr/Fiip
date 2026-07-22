@@ -3,7 +3,9 @@ import {
   ClerkLoading,
   ClerkProvider,
   SignIn,
+  UserButton,
   useAuth,
+  useClerk,
   useUser,
 } from '@clerk/react';
 import { useEffect, useState } from 'react';
@@ -18,7 +20,7 @@ import { setSupabaseAccessTokenProvider, supabase } from '../services/supabase';
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function SupabaseTokenBridge({ children }) {
-  const { getToken, isLoaded, isSignedIn, signOut } = useAuth();
+  const { getToken, isLoaded, isSignedIn, signOut, sessionId } = useAuth();
   const { user } = useUser();
   const [mappedUser, setMappedUser] = useState(null);
   const [bootstrapError, setBootstrapError] = useState('');
@@ -61,7 +63,16 @@ function SupabaseTokenBridge({ children }) {
       };
       setExternalIdentityProvider({
         getUser: async () => nextUser,
+        getSessionId: () => sessionId || null,
         signOut: async () => signOut(),
+        revokeDevice: async (targetSessionId) => {
+          if (!targetSessionId || targetSessionId === sessionId) {
+            return;
+          }
+          const sessions = await user.getSessions();
+          const target = sessions.find((session) => session.id === targetSessionId);
+          await target?.revoke();
+        },
       });
       setMappedUser(nextUser);
       localStorage.setItem('fiip-onboarding-completed', 'true');
@@ -76,7 +87,7 @@ function SupabaseTokenBridge({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, isSignedIn, signOut, user]);
+  }, [isLoaded, isSignedIn, sessionId, signOut, user]);
 
   if (!isLoaded) {
     return <div className="grid min-h-screen place-items-center bg-[#0a0a0a] text-white">Chargement du compte...</div>;
@@ -121,6 +132,26 @@ function SupabaseTokenBridge({ children }) {
     return <div className="grid min-h-screen place-items-center bg-[#0a0a0a] text-white">Préparation du compte...</div>;
   }
   return <ZeroKnowledgeUnlock userId={mappedUser.id}>{children}</ZeroKnowledgeUnlock>;
+}
+
+export function ClerkAccountControls() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const clerk = useClerk();
+  if (!isLoaded || !isSignedIn) {
+    return null;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <UserButton afterSignOutUrl="/" />
+      <button
+        type="button"
+        onClick={() => clerk.openUserProfile()}
+        className="rounded-xl border border-warm-border-light px-3 py-2 text-xs font-bold hover:bg-warm-sidebar-item-active dark:border-white/10 dark:hover:bg-white/10"
+      >
+        Gérer le compte
+      </button>
+    </div>
+  );
 }
 
 export function ClerkSupabaseBridge({ children }) {
